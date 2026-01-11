@@ -4,25 +4,22 @@
  */
 
 // Adapter types and factory
-export * from './adapters/types';
-export * from './adapters/factory';
-export * from './adapters/registry';
+export * from './adapters';
 
 // Scenario parsing
-export * from './scenario/schema';
-export * from './scenario/parser';
+export * from './scenario';
 
 // Evaluators
 export * from './evaluators';
 
 // Storage
-export * from './storage/types';
-export * from './storage/factory';
+export * from './storage';
 
 // Artifacts
-export * from './artifacts/types';
-export * from './artifacts/manifest';
+export * from './artifacts';
+
+// Provenance
+export * from './provenance';
 
 // Utilities
-export * from './utils/errors';
-export * from './utils/logger';
+export * from './utils';

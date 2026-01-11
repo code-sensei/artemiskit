@@ -1,0 +1,35 @@
+name: Hello World Test
+description: Basic test to verify Artemis works with Azure OpenAI
+provider: azure-openai
+model: 5-mini
+
+cases:
+  - id: greeting
+    name: Simple greeting test
+    prompt: "Say hello in exactly 3 words"
+    expected:
+      type: contains
+      values:
+        - hello
+
+  - id: math
+    name: Basic math test
+    prompt: "What is 2 + 2? Reply with just the number."
+    expected:
+      type: exact
+      value: "4"
+
+  - id: capital
+    name: Geography test
+    prompt: "What is the capital of France? Reply with just the city name."
+    expected:
+      type: exact
+      value: "Paris"
+
+  - id: color-check
+    name: Fuzzy match test
+    prompt: "Name a color of the rainbow"
+    expected:
+      type: regex
+      pattern: "(red|orange|yellow|green|blue|indigo|violet)"
+      flags: "i"

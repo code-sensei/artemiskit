@@ -82,8 +82,22 @@ class AdapterRegistry {
 export const adapterRegistry = new AdapterRegistry();
 
 /**
+ * Dynamically import a module with error handling
+ */
+async function tryImport<T>(moduleName: string): Promise<T> {
+  try {
+    return await import(/* @vite-ignore */ moduleName);
+  } catch (error) {
+    throw new Error(
+      `Failed to load adapter module '${moduleName}'. ` +
+        `Make sure it's installed: bun add ${moduleName}`
+    );
+  }
+}
+
+/**
  * Register built-in adapters
- * Note: Dynamic imports are resolved at runtime, not compile time
+ * Adapters are loaded lazily when first requested
  */
 export async function registerBuiltInAdapters(): Promise<void> {
   // ============================================
@@ -91,18 +105,23 @@ export async function registerBuiltInAdapters(): Promise<void> {
   // ============================================
 
   adapterRegistry.register('openai', async (config) => {
-    // Dynamic import resolved at runtime
-    const mod = await import('@artemis/adapter-openai' as string);
+    const mod = await tryImport<{ OpenAIAdapter: new (c: AdapterConfig) => ModelClient }>(
+      '@artemis/adapter-openai'
+    );
     return new mod.OpenAIAdapter(config);
   });
 
   adapterRegistry.register('azure-openai', async (config) => {
-    const mod = await import('@artemis/adapter-openai' as string);
+    const mod = await tryImport<{ OpenAIAdapter: new (c: AdapterConfig) => ModelClient }>(
+      '@artemis/adapter-openai'
+    );
     return new mod.OpenAIAdapter(config);
   });
 
   adapterRegistry.register('vercel-ai', async (config) => {
-    const mod = await import('@artemis/adapter-vercel-ai' as string);
+    const mod = await tryImport<{ VercelAIAdapter: new (c: AdapterConfig) => ModelClient }>(
+      '@artemis/adapter-vercel-ai'
+    );
     return new mod.VercelAIAdapter(config);
   });
 

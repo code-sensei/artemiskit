@@ -5,4 +5,4 @@
  */
 
 export { VercelAIAdapter } from './client';
-export type { VercelAIAdapterConfig } from './types';
+export * from './types';

@@ -5,4 +5,4 @@
  */
 
 export { OpenAIAdapter } from './client';
-export type { OpenAIAdapterConfig, AzureOpenAIAdapterConfig } from './types';
+export * from './types';

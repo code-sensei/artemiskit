@@ -1,0 +1,49 @@
+# Example workflow for running Artemis in CI
+# Copy this to your project and customize
+
+name: Artemis Agent Testing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  agent-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Artemis
+        run: bun add -D @artemis/cli
+
+      - name: Run Agent Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          bunx artemis run ./scenarios/basic.yaml \
+            --provider openai \
+            --model gpt-4 \
+            --output ./artemis-output
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-results
+          path: ./artemis-output/
+
+      - name: Check for Regressions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          bunx artemis compare --baseline latest --threshold 0.05

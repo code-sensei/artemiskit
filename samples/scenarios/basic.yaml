@@ -1,0 +1,64 @@
+name: Basic Instruction Following
+description: Test basic instruction following capabilities
+version: "1.0"
+provider: openai
+model: gpt-4
+temperature: 0
+seed: 42
+
+cases:
+  - id: greeting
+    name: Simple Greeting
+    prompt: "Say hello in exactly 3 words."
+    expected:
+      type: regex
+      pattern: "^\\w+\\s+\\w+\\s+\\w+$"
+    tags:
+      - greeting
+      - basic
+
+  - id: math
+    name: Basic Math
+    prompt: "What is 2 + 2? Reply with just the number."
+    expected:
+      type: exact
+      value: "4"
+    tags:
+      - math
+      - basic
+
+  - id: json-output
+    name: JSON Output
+    prompt: |
+      Return a JSON object with the following structure:
+      { "name": "test", "value": 42 }
+      Only return the JSON, no other text.
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required:
+          - name
+          - value
+        properties:
+          name:
+            type: string
+          value:
+            type: integer
+    tags:
+      - json
+      - structured
+
+  - id: contains-check
+    name: Contains Keywords
+    prompt: "List 3 primary colors."
+    expected:
+      type: contains
+      values:
+        - red
+        - blue
+        - yellow
+      mode: all
+    tags:
+      - colors
+      - basic

@@ -1,0 +1,16 @@
+[install]
+# Use exact versions for reproducibility
+exact = true
+
+[install.lockfile]
+# Generate lockfile
+save = true
+
+[test]
+# Test configuration
+coverage = true
+coverageDir = "coverage"
+
+[run]
+# Bun run configuration
+silent = false

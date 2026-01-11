@@ -12,6 +12,9 @@ export * from './scenario';
 // Evaluators
 export * from './evaluators';
 
+// Runner
+export * from './runner';
+
 // Storage
 export * from './storage';
 

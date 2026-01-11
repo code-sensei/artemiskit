@@ -37,6 +37,9 @@ logs/
 # Artemis runs (local storage fallback)
 artemis-runs/
 
+# Artemis output (reports)
+artemis-output/
+
 # AI trace logs
 ai-trace/
 

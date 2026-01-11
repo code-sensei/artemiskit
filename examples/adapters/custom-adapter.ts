@@ -10,14 +10,19 @@
  *   3. Register the adapter before running tests
  */
 
-import type { ModelClient, AdapterConfig, GenerateRequest, GenerateResponse } from '@artemis/core';
-import { adapterRegistry } from '@artemis/core';
+import type {
+  ModelClient,
+  AdapterConfig,
+  GenerateRequest,
+  GenerateResponse,
+} from "@artemis/core";
+import { adapterRegistry } from "@artemis/core";
 
 /**
  * Custom adapter configuration
  */
 interface CustomAdapterConfig extends AdapterConfig {
-  provider: 'custom';
+  provider: "custom";
   apiKey?: string;
   baseURL: string;
   defaultModel?: string;
@@ -28,7 +33,7 @@ interface CustomAdapterConfig extends AdapterConfig {
  * Custom adapter for a hypothetical LLM provider
  */
 class CustomAdapter implements ModelClient {
-  readonly provider = 'custom';
+  readonly provider = "custom";
 
   private baseURL: string;
   private apiKey?: string;
@@ -37,7 +42,7 @@ class CustomAdapter implements ModelClient {
   constructor(config: CustomAdapterConfig) {
     this.baseURL = config.baseURL;
     this.apiKey = config.apiKey;
-    this.defaultModel = config.defaultModel || 'default-model';
+    this.defaultModel = config.defaultModel || "default-model";
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResponse> {
@@ -46,21 +51,21 @@ class CustomAdapter implements ModelClient {
 
     // Build the prompt from string or messages
     let prompt: string;
-    if (typeof request.prompt === 'string') {
+    if (typeof request.prompt === "string") {
       prompt = request.prompt;
     } else {
       // Convert messages to a format your provider expects
       prompt = request.prompt
-        .map((m) => `${m.role}: ${m.content}`)
-        .join('\n');
+        .map((m: any) => `${m.role}: ${m.content}`)
+        .join("\n");
     }
 
     // Make API request to your provider
     const response = await fetch(`${this.baseURL}/v1/generate`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
+        "Content-Type": "application/json",
+        ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
       },
       body: JSON.stringify({
         model,
@@ -76,7 +81,7 @@ class CustomAdapter implements ModelClient {
       throw new Error(`Custom provider error: ${response.status} - ${error}`);
     }
 
-    const result = await response.json() as {
+    const result = (await response.json()) as {
       text: string;
       usage?: {
         prompt_tokens: number;
@@ -105,7 +110,7 @@ class CustomAdapter implements ModelClient {
  * Register the custom adapter
  */
 export function registerCustomAdapter(): void {
-  adapterRegistry.register('custom', async (config) => {
+  adapterRegistry.register("custom", async (config: any) => {
     return new CustomAdapter(config as CustomAdapterConfig);
   });
 }
@@ -126,5 +131,5 @@ export function registerCustomAdapter(): void {
 // If running this file directly, register the adapter
 if (import.meta.main) {
   registerCustomAdapter();
-  console.log('Custom adapter registered successfully');
+  console.log("Custom adapter registered successfully");
 }

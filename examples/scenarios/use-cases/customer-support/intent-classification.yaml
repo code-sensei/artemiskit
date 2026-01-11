@@ -4,7 +4,7 @@ description: |
   Validates that the agent correctly identifies the customer's primary intent.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

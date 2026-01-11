@@ -22,12 +22,12 @@ interface RunMetrics {
   created_at: string;
 }
 
-type MetricsBackend = 'prometheus' | 'datadog' | 'custom';
+type MetricsBackend = "prometheus" | "datadog" | "custom";
 
 async function pushToPrometheus(metrics: RunMetrics): Promise<void> {
-  const pushgatewayUrl = process.env.PUSHGATEWAY_URL || 'http://localhost:9091';
-  const job = 'artemis';
-  const instance = metrics.project.replace(/[^a-zA-Z0-9_]/g, '_');
+  const pushgatewayUrl = process.env.PUSHGATEWAY_URL || "http://localhost:9091";
+  const job = "artemis";
+  const instance = metrics.project.replace(/[^a-zA-Z0-9_]/g, "_");
 
   // Format metrics in Prometheus exposition format
   const promMetrics = `
@@ -59,8 +59,8 @@ artemis_total_tokens{project="${metrics.project}",run_id="${metrics.run_id}"} ${
   const url = `${pushgatewayUrl}/metrics/job/${job}/instance/${instance}`;
 
   const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
     body: promMetrics,
   });
 
@@ -73,62 +73,59 @@ artemis_total_tokens{project="${metrics.project}",run_id="${metrics.run_id}"} ${
 
 async function pushToDatadog(metrics: RunMetrics): Promise<void> {
   const apiKey = process.env.DATADOG_API_KEY;
-  const site = process.env.DATADOG_SITE || 'datadoghq.com';
+  const site = process.env.DATADOG_SITE || "datadoghq.com";
 
   if (!apiKey) {
-    throw new Error('DATADOG_API_KEY environment variable not set');
+    throw new Error("DATADOG_API_KEY environment variable not set");
   }
 
   const timestamp = Math.floor(new Date(metrics.created_at).getTime() / 1000);
-  const tags = [
-    `project:${metrics.project}`,
-    `run_id:${metrics.run_id}`,
-  ];
+  const tags = [`project:${metrics.project}`, `run_id:${metrics.run_id}`];
 
   const series = [
     {
-      metric: 'artemis.success_rate',
+      metric: "artemis.success_rate",
       points: [[timestamp, metrics.metrics.success_rate]],
-      type: 'gauge',
+      type: "gauge",
       tags,
     },
     {
-      metric: 'artemis.total_cases',
+      metric: "artemis.total_cases",
       points: [[timestamp, metrics.metrics.total_cases]],
-      type: 'gauge',
+      type: "gauge",
       tags,
     },
     {
-      metric: 'artemis.passed_cases',
+      metric: "artemis.passed_cases",
       points: [[timestamp, metrics.metrics.passed_cases]],
-      type: 'gauge',
+      type: "gauge",
       tags,
     },
     {
-      metric: 'artemis.failed_cases',
+      metric: "artemis.failed_cases",
       points: [[timestamp, metrics.metrics.failed_cases]],
-      type: 'gauge',
+      type: "gauge",
       tags,
     },
     {
-      metric: 'artemis.median_latency_ms',
+      metric: "artemis.median_latency_ms",
       points: [[timestamp, metrics.metrics.median_latency_ms]],
-      type: 'gauge',
+      type: "gauge",
       tags,
     },
     {
-      metric: 'artemis.total_tokens',
+      metric: "artemis.total_tokens",
       points: [[timestamp, metrics.metrics.total_tokens]],
-      type: 'count',
+      type: "count",
       tags,
     },
   ];
 
   const response = await fetch(`https://api.${site}/api/v1/series`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'DD-API-KEY': apiKey,
+      "Content-Type": "application/json",
+      "DD-API-KEY": apiKey,
     },
     body: JSON.stringify({ series }),
   });
@@ -137,7 +134,7 @@ async function pushToDatadog(metrics: RunMetrics): Promise<void> {
     throw new Error(`Datadog push failed: ${response.status}`);
   }
 
-  console.log('Metrics pushed to Datadog');
+  console.log("Metrics pushed to Datadog");
 }
 
 async function pushToCustomEndpoint(metrics: RunMetrics): Promise<void> {
@@ -145,22 +142,22 @@ async function pushToCustomEndpoint(metrics: RunMetrics): Promise<void> {
   const apiKey = process.env.METRICS_API_KEY;
 
   if (!endpointUrl) {
-    throw new Error('METRICS_ENDPOINT_URL environment variable not set');
+    throw new Error("METRICS_ENDPOINT_URL environment variable not set");
   }
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 
   if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`;
+    headers["Authorization"] = `Bearer ${apiKey}`;
   }
 
   const response = await fetch(endpointUrl, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: JSON.stringify({
-      source: 'artemis',
+      source: "artemis",
       timestamp: metrics.created_at,
       project: metrics.project,
       run_id: metrics.run_id,
@@ -177,10 +174,11 @@ async function pushToCustomEndpoint(metrics: RunMetrics): Promise<void> {
 
 async function main(): Promise<void> {
   const inputFile = process.argv[2];
-  const backend = (process.env.METRICS_BACKEND || 'prometheus') as MetricsBackend;
+  const backend = (process.env.METRICS_BACKEND ||
+    "prometheus") as MetricsBackend;
 
   if (!inputFile) {
-    console.error('Usage: bun run metrics-collector.ts <result.json>');
+    console.error("Usage: bun run metrics-collector.ts <result.json>");
     process.exit(1);
   }
 
@@ -190,13 +188,13 @@ async function main(): Promise<void> {
   console.log(`Pushing metrics for run ${metrics.run_id} to ${backend}...`);
 
   switch (backend) {
-    case 'prometheus':
+    case "prometheus":
       await pushToPrometheus(metrics);
       break;
-    case 'datadog':
+    case "datadog":
       await pushToDatadog(metrics);
       break;
-    case 'custom':
+    case "custom":
       await pushToCustomEndpoint(metrics);
       break;
     default:
@@ -205,6 +203,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('Error:', error.message);
+  console.error("Error:", error.message);
   process.exit(1);
 });

@@ -4,7 +4,7 @@ description: |
   Verifies that safety guardrails remain active under adversarial prompts.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 cases:
   # DAN (Do Anything Now) jailbreak

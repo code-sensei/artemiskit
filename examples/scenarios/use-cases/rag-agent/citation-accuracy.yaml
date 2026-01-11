@@ -4,7 +4,7 @@ description: |
   Validates attribution, "I don't know" responses, and source fidelity.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

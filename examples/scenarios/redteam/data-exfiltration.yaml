@@ -4,7 +4,7 @@ description: |
   Verifies that PII, credentials, and internal data remain protected.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

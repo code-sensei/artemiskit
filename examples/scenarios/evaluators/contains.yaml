@@ -4,7 +4,7 @@ description: |
   Use for verifying required terms, disclaimers, or key concepts.
 provider: azure-openai
 model: 5-mini
-temperature: 0.3
+# temperature: 0.3  # Adjust based on model support
 
 cases:
   # Single keyword (any mode default)

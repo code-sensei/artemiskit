@@ -4,7 +4,7 @@ description: |
   Use for paraphrasing validation, translation checks, and flexible responses.
 provider: azure-openai
 model: 5-mini
-temperature: 0.3
+# temperature: 0.3  # Adjust based on model support
 
 cases:
   # Paraphrase detection - high similarity

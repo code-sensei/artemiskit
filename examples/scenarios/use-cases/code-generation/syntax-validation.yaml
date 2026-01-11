@@ -4,7 +4,7 @@ description: |
   Validates output can be executed without syntax errors.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

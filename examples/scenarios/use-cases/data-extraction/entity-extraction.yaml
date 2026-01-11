@@ -4,7 +4,7 @@ description: |
   Validates extraction of people, organizations, dates, locations, etc.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

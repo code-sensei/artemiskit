@@ -4,7 +4,7 @@ description: |
   Use for API responses, tool calls, and data extraction validation.
 provider: azure-openai
 model: 5-mini
-temperature: 0
+# temperature: 0  # Removed - some models do not support it
 
 setup:
   systemPrompt: |

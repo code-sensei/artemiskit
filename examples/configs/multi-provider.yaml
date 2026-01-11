@@ -1,0 +1,49 @@
+# Multi-Provider Artemis Configuration
+# Setup for testing across multiple LLM providers
+
+project: multi-provider-tests
+
+# Default provider (can be overridden per scenario)
+provider: openai
+model: gpt-4o
+
+# Scenario files location
+scenariosDir: ./scenarios
+
+# Provider-specific configurations
+providers:
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    model: gpt-4o
+    # Optional: custom base URL for proxies
+    # baseURL: https://api.openai.com/v1
+
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: ${AZURE_OPENAI_RESOURCE}
+    deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"
+    model: gpt-4o
+
+  vercel-ai:
+    underlyingProvider: openai
+    apiKey: ${OPENAI_API_KEY}
+    model: gpt-4o-mini
+
+  # Future providers (coming soon)
+  # anthropic:
+  #   apiKey: ${ANTHROPIC_API_KEY}
+  #   model: claude-3-opus-20240229
+
+# Storage configuration
+storage:
+  type: local
+  path: ./artemis-runs
+
+# Output configuration
+output:
+  dir: ./artemis-output
+  format: both  # html and json
+
+# Logging
+logLevel: info

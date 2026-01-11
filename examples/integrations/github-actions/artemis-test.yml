@@ -1,0 +1,160 @@
+# GitHub Actions workflow for Artemis LLM testing
+# Place this file in .github/workflows/artemis-test.yml
+
+name: Artemis LLM Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  # Manual trigger with optional scenario filter
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Specific scenario to run (leave empty for all)'
+        required: false
+        default: ''
+      tags:
+        description: 'Filter by tags (comma-separated)'
+        required: false
+        default: ''
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+  AZURE_OPENAI_RESOURCE: ${{ secrets.AZURE_OPENAI_RESOURCE }}
+  AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+  ARTEMIS_PROJECT: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Run Artemis Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Artemis scenarios
+        id: artemis
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario }}"
+          TAGS="${{ github.event.inputs.tags }}"
+
+          if [ -n "$SCENARIO" ]; then
+            bun run artemis run "$SCENARIO" --save
+          elif [ -n "$TAGS" ]; then
+            bun run artemis run scenarios/ --tags $TAGS --save
+          else
+            # Run all scenarios in the scenarios directory
+            for scenario in scenarios/*.yaml; do
+              echo "Running $scenario..."
+              bun run artemis run "$scenario" --save || exit 1
+            done
+          fi
+
+      - name: Generate reports
+        if: always()
+        run: |
+          bun run artemis history --limit 1 --format json > last-run.json
+          RUN_ID=$(cat last-run.json | jq -r '.[0].run_id // empty')
+          if [ -n "$RUN_ID" ]; then
+            bun run artemis report "$RUN_ID" --format both
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artemis-results
+          path: |
+            artemis-output/
+            artemis-runs/
+          retention-days: 30
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read the latest run results
+            let summary = '## Artemis LLM Test Results\n\n';
+
+            try {
+              const historyFile = fs.readFileSync('last-run.json', 'utf8');
+              const history = JSON.parse(historyFile);
+
+              if (history.length > 0) {
+                const run = history[0];
+                const passed = run.metrics?.passed_cases || 0;
+                const failed = run.metrics?.failed_cases || 0;
+                const total = passed + failed;
+                const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+
+                summary += `| Metric | Value |\n`;
+                summary += `|--------|-------|\n`;
+                summary += `| Success Rate | ${rate}% |\n`;
+                summary += `| Passed | ${passed} |\n`;
+                summary += `| Failed | ${failed} |\n`;
+                summary += `| Run ID | \`${run.run_id}\` |\n`;
+
+                if (failed > 0) {
+                  summary += `\n⚠️ **${failed} test(s) failed**\n`;
+                } else {
+                  summary += `\n✅ **All tests passed**\n`;
+                }
+              }
+            } catch (e) {
+              summary += `❌ Could not parse test results: ${e.message}\n`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  # Optional: Run red-team tests on main branch only
+  redteam:
+    name: Red-Team Security Tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run red-team tests
+        run: |
+          for scenario in scenarios/redteam/*.yaml; do
+            if [ -f "$scenario" ]; then
+              echo "Red-team testing $scenario..."
+              bun run artemis redteam "$scenario" --count 3
+            fi
+          done
+
+      - name: Upload security results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-results
+          path: artemis-output/
+          retention-days: 90

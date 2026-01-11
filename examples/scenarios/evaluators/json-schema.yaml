@@ -1,0 +1,241 @@
+name: JSON Schema Evaluator Examples
+description: |
+  Demonstrates the json_schema evaluator for structured output validation.
+  Use for API responses, tool calls, and data extraction validation.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are an API that returns structured JSON responses.
+    Always respond with valid JSON only, no markdown or explanations.
+
+cases:
+  # Simple object schema
+  - id: simple-object
+    name: Simple user object
+    prompt: |
+      Return a JSON object for a user named "Alice" who is 28 years old.
+      Format: {"name": string, "age": number}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          age:
+            type: number
+        required:
+          - name
+          - age
+
+  # Array of objects
+  - id: array-objects
+    name: Array of items
+    prompt: |
+      Return a JSON array with 3 fruits, each having "name" and "color" properties.
+      Format: [{"name": string, "color": string}, ...]
+    expected:
+      type: json_schema
+      schema:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            color:
+              type: string
+          required:
+            - name
+            - color
+        minItems: 3
+
+  # Nested object
+  - id: nested-object
+    name: Nested address object
+    prompt: |
+      Return a JSON object for a person with nested address.
+      Format: {"name": string, "address": {"city": string, "country": string}}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          address:
+            type: object
+            properties:
+              city:
+                type: string
+              country:
+                type: string
+            required:
+              - city
+              - country
+        required:
+          - name
+          - address
+
+  # API response format
+  - id: api-response
+    name: API response envelope
+    prompt: |
+      Return a success API response with data containing a message "Hello".
+      Format: {"success": boolean, "data": {"message": string}}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+          data:
+            type: object
+            properties:
+              message:
+                type: string
+            required:
+              - message
+        required:
+          - success
+          - data
+
+  # Tool/function call format
+  - id: function-call
+    name: Function call arguments
+    prompt: |
+      Return a function call to search for "weather in Tokyo".
+      Format: {"function": string, "arguments": {"query": string, "location": string}}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          function:
+            type: string
+          arguments:
+            type: object
+            properties:
+              query:
+                type: string
+              location:
+                type: string
+            required:
+              - query
+        required:
+          - function
+          - arguments
+
+  # Enum validation
+  - id: enum-status
+    name: Status enum validation
+    prompt: |
+      Return a task object with status "completed".
+      Format: {"id": number, "status": "pending"|"in_progress"|"completed"}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          id:
+            type: number
+          status:
+            type: string
+            enum:
+              - pending
+              - in_progress
+              - completed
+        required:
+          - id
+          - status
+
+  # Optional fields
+  - id: optional-fields
+    name: Required and optional fields
+    prompt: |
+      Return a product with name "Widget", price 9.99, and optionally a description.
+      Format: {"name": string, "price": number, "description"?: string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          price:
+            type: number
+          description:
+            type: string
+        required:
+          - name
+          - price
+
+  # Complex extraction
+  - id: entity-extraction
+    name: Entity extraction
+    prompt: |
+      Extract entities from: "John Smith from New York ordered 5 widgets on 2024-01-15"
+      Format: {"person": string, "location": string, "quantity": number, "date": string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          person:
+            type: string
+          location:
+            type: string
+          quantity:
+            type: number
+          date:
+            type: string
+        required:
+          - person
+          - location
+          - quantity
+          - date
+
+  # Boolean fields
+  - id: boolean-fields
+    name: Boolean feature flags
+    prompt: |
+      Return feature flags for a user with premium=true and notifications=false.
+      Format: {"premium": boolean, "notifications": boolean, "darkMode": boolean}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          premium:
+            type: boolean
+          notifications:
+            type: boolean
+          darkMode:
+            type: boolean
+        required:
+          - premium
+          - notifications
+
+  # Nullable fields
+  - id: nullable-fields
+    name: Nullable error field
+    prompt: |
+      Return a response with data "success" and no error.
+      Format: {"data": string, "error": string|null}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          data:
+            type: string
+          error:
+            type:
+              - string
+              - "null"
+        required:
+          - data

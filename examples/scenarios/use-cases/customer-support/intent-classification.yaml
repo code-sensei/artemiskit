@@ -1,0 +1,163 @@
+name: Customer Support - Intent Classification
+description: |
+  Tests the accuracy of intent classification for customer support messages.
+  Validates that the agent correctly identifies the customer's primary intent.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are an intent classifier for a customer support system.
+    Analyze the customer message and respond with ONLY the intent category.
+
+    Valid intents:
+    - BILLING: Payment, invoices, charges, refunds, pricing
+    - TECHNICAL: Bugs, errors, not working, how to use features
+    - ACCOUNT: Login, password, profile, settings, cancel
+    - SHIPPING: Delivery, tracking, address, returns
+    - GENERAL: Other inquiries, feedback, compliments
+
+    Respond with only the intent category, nothing else.
+
+cases:
+  # Billing intents
+  - id: billing-refund
+    name: Refund request intent
+    prompt: "I was charged twice for my order last month and need my money back."
+    expected:
+      type: exact
+      value: "BILLING"
+    tags:
+      - billing
+
+  - id: billing-pricing
+    name: Pricing inquiry intent
+    prompt: "How much does the premium plan cost per year?"
+    expected:
+      type: exact
+      value: "BILLING"
+    tags:
+      - billing
+
+  # Technical intents
+  - id: technical-bug
+    name: Bug report intent
+    prompt: "The app crashes every time I try to upload a photo."
+    expected:
+      type: exact
+      value: "TECHNICAL"
+    tags:
+      - technical
+
+  - id: technical-howto
+    name: How-to question intent
+    prompt: "How do I export my data to a CSV file?"
+    expected:
+      type: exact
+      value: "TECHNICAL"
+    tags:
+      - technical
+
+  - id: technical-error
+    name: Error message intent
+    prompt: "I keep getting error code 500 when I try to save."
+    expected:
+      type: exact
+      value: "TECHNICAL"
+    tags:
+      - technical
+
+  # Account intents
+  - id: account-password
+    name: Password reset intent
+    prompt: "I forgot my password and can't log in."
+    expected:
+      type: exact
+      value: "ACCOUNT"
+    tags:
+      - account
+
+  - id: account-cancel
+    name: Cancellation intent
+    prompt: "I want to cancel my subscription effective immediately."
+    expected:
+      type: exact
+      value: "ACCOUNT"
+    tags:
+      - account
+
+  - id: account-settings
+    name: Settings change intent
+    prompt: "How do I change my notification preferences?"
+    expected:
+      type: exact
+      value: "ACCOUNT"
+    tags:
+      - account
+
+  # Shipping intents
+  - id: shipping-tracking
+    name: Tracking inquiry intent
+    prompt: "Where is my package? It was supposed to arrive yesterday."
+    expected:
+      type: exact
+      value: "SHIPPING"
+    tags:
+      - shipping
+
+  - id: shipping-return
+    name: Return request intent
+    prompt: "I want to return the item I received because it's damaged."
+    expected:
+      type: exact
+      value: "SHIPPING"
+    tags:
+      - shipping
+
+  - id: shipping-address
+    name: Address change intent
+    prompt: "Can I change the delivery address for my pending order?"
+    expected:
+      type: exact
+      value: "SHIPPING"
+    tags:
+      - shipping
+
+  # General intents
+  - id: general-feedback
+    name: Feedback intent
+    prompt: "I just wanted to say your customer service team is amazing!"
+    expected:
+      type: exact
+      value: "GENERAL"
+    tags:
+      - general
+
+  - id: general-info
+    name: General information intent
+    prompt: "What are your business hours?"
+    expected:
+      type: exact
+      value: "GENERAL"
+    tags:
+      - general
+
+  # Edge cases - ambiguous intents
+  - id: edge-billing-account
+    name: Billing with account context
+    prompt: "I want to upgrade my account to premium."
+    expected:
+      type: regex
+      pattern: "(BILLING|ACCOUNT)"
+    tags:
+      - edge-case
+
+  - id: edge-technical-shipping
+    name: Technical shipping issue
+    prompt: "The tracking page shows an error and won't load my delivery status."
+    expected:
+      type: regex
+      pattern: "(TECHNICAL|SHIPPING)"
+    tags:
+      - edge-case

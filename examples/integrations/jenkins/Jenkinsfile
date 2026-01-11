@@ -1,0 +1,133 @@
+// Jenkins Pipeline for Artemis LLM testing
+// Place this file as Jenkinsfile in your repository root
+
+pipeline {
+    agent {
+        docker {
+            image 'oven/bun:latest'
+            args '-u root'
+        }
+    }
+
+    environment {
+        OPENAI_API_KEY = credentials('openai-api-key')
+        AZURE_OPENAI_API_KEY = credentials('azure-openai-api-key')
+        AZURE_OPENAI_RESOURCE = credentials('azure-openai-resource')
+        AZURE_OPENAI_DEPLOYMENT = credentials('azure-openai-deployment')
+        ARTEMIS_PROJECT = "${env.JOB_NAME}"
+    }
+
+    parameters {
+        string(name: 'SCENARIO', defaultValue: '', description: 'Specific scenario to run (leave empty for all)')
+        string(name: 'TAGS', defaultValue: '', description: 'Filter by tags (comma-separated)')
+        booleanParam(name: 'RUN_REDTEAM', defaultValue: false, description: 'Run red-team security tests')
+        booleanParam(name: 'RUN_STRESS', defaultValue: false, description: 'Run stress tests')
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                sh 'bun install'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                script {
+                    if (params.SCENARIO) {
+                        sh "bun run artemis run '${params.SCENARIO}' --save"
+                    } else if (params.TAGS) {
+                        sh "bun run artemis run scenarios/ --tags ${params.TAGS} --save"
+                    } else {
+                        sh '''
+                            for scenario in scenarios/*.yaml; do
+                                if [ -f "$scenario" ]; then
+                                    echo "Running $scenario..."
+                                    bun run artemis run "$scenario" --save
+                                fi
+                            done
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Red-Team Tests') {
+            when {
+                expression { params.RUN_REDTEAM == true }
+            }
+            steps {
+                sh '''
+                    for scenario in scenarios/redteam/*.yaml; do
+                        if [ -f "$scenario" ]; then
+                            echo "Red-team testing $scenario..."
+                            bun run artemis redteam "$scenario" --count 5 || true
+                        fi
+                    done
+                '''
+            }
+        }
+
+        stage('Stress Tests') {
+            when {
+                expression { params.RUN_STRESS == true }
+            }
+            steps {
+                sh '''
+                    for scenario in scenarios/*.yaml; do
+                        if [ -f "$scenario" ]; then
+                            echo "Stress testing $scenario..."
+                            bun run artemis stress "$scenario" -c 5 -d 30 || true
+                        fi
+                    done
+                '''
+            }
+        }
+
+        stage('Generate Reports') {
+            steps {
+                sh '''
+                    bun run artemis history --limit 1 --format json > last-run.json
+                    RUN_ID=$(cat last-run.json | jq -r '.[0].run_id // empty')
+                    if [ -n "$RUN_ID" ]; then
+                        bun run artemis report "$RUN_ID" --format both
+                    fi
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            // Archive test results
+            archiveArtifacts artifacts: 'artemis-output/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'artemis-runs/**/*', allowEmptyArchive: true
+
+            // Publish HTML report
+            publishHTML(target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'artemis-output',
+                reportFiles: '*.html',
+                reportName: 'Artemis Test Report'
+            ])
+
+            // Clean up
+            cleanWs()
+        }
+
+        success {
+            echo 'Artemis tests passed!'
+        }
+
+        failure {
+            echo 'Artemis tests failed!'
+
+            // Optional: Send notification
+            // slackSend channel: '#llm-testing',
+            //     color: 'danger',
+            //     message: "Artemis tests failed for ${env.JOB_NAME} - ${env.BUILD_URL}"
+        }
+    }
+}

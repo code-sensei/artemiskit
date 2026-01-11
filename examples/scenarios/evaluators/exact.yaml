@@ -1,0 +1,58 @@
+name: Exact Match Evaluator Examples
+description: |
+  Demonstrates the exact match evaluator for precise string matching.
+  Use when responses must match exactly (API outputs, commands, codes).
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+cases:
+  # Basic exact match
+  - id: simple-math
+    name: Simple arithmetic
+    prompt: "What is 5 + 3? Reply with just the number."
+    expected:
+      type: exact
+      value: "8"
+
+  # Case-sensitive matching (default)
+  - id: case-sensitive
+    name: Case-sensitive abbreviation
+    prompt: "What is the standard abbreviation for Application Programming Interface? Reply with just the abbreviation in uppercase."
+    expected:
+      type: exact
+      value: "API"
+      caseSensitive: true
+
+  # Case-insensitive matching
+  - id: case-insensitive
+    name: Case-insensitive boolean
+    prompt: "Is the sky blue during a clear day? Reply with yes or no."
+    expected:
+      type: exact
+      value: "yes"
+      caseSensitive: false
+
+  # Status code response
+  - id: http-status
+    name: HTTP status code
+    prompt: "What HTTP status code indicates 'Not Found'? Reply with just the number."
+    expected:
+      type: exact
+      value: "404"
+
+  # Single word extraction
+  - id: capital-city
+    name: Capital city extraction
+    prompt: "What is the capital of Japan? Reply with just the city name."
+    expected:
+      type: exact
+      value: "Tokyo"
+
+  # Boolean response
+  - id: boolean-check
+    name: Boolean true/false
+    prompt: "Is 100 greater than 50? Reply with 'true' or 'false' only."
+    expected:
+      type: exact
+      value: "true"

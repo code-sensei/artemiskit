@@ -1,0 +1,163 @@
+name: Code Generation - Syntax Validation
+description: |
+  Tests that generated code is syntactically correct and parseable.
+  Validates output can be executed without syntax errors.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are a code generation assistant.
+    Generate clean, syntactically correct code.
+    Return ONLY the code, no explanations or markdown.
+
+cases:
+  # Python syntax
+  - id: python-function
+    name: Python function definition
+    prompt: "Write a Python function called 'add' that takes two numbers and returns their sum."
+    expected:
+      type: regex
+      pattern: "def add\\s*\\([^)]+\\)\\s*:"
+    tags:
+      - python
+      - function
+
+  - id: python-class
+    name: Python class definition
+    prompt: "Write a Python class called 'User' with an __init__ method that takes name and email."
+    expected:
+      type: regex
+      pattern: "class User[^:]*:\\s*\\n\\s+def __init__\\s*\\(self"
+    tags:
+      - python
+      - class
+
+  - id: python-list-comprehension
+    name: Python list comprehension
+    prompt: "Write a Python list comprehension that squares all numbers from 1 to 10."
+    expected:
+      type: regex
+      pattern: "\\[.+for.+in.+\\]"
+    tags:
+      - python
+
+  # JavaScript syntax
+  - id: js-arrow-function
+    name: JavaScript arrow function
+    prompt: "Write a JavaScript arrow function called 'multiply' that takes two numbers and returns their product."
+    expected:
+      type: regex
+      pattern: "(const|let|var)\\s+multiply\\s*=\\s*\\([^)]*\\)\\s*=>"
+    tags:
+      - javascript
+      - function
+
+  - id: js-async-function
+    name: JavaScript async function
+    prompt: "Write a JavaScript async function called 'fetchData' that fetches from a URL parameter."
+    expected:
+      type: regex
+      pattern: "async\\s+(function\\s+fetchData|fetchData\\s*=\\s*async)"
+    tags:
+      - javascript
+      - async
+
+  - id: js-class
+    name: JavaScript class
+    prompt: "Write a JavaScript class called 'Car' with a constructor that takes make and model."
+    expected:
+      type: regex
+      pattern: "class Car\\s*\\{[\\s\\S]*constructor\\s*\\("
+    tags:
+      - javascript
+      - class
+
+  # TypeScript syntax
+  - id: ts-interface
+    name: TypeScript interface
+    prompt: "Write a TypeScript interface called 'Product' with id (number), name (string), and price (number)."
+    expected:
+      type: regex
+      pattern: "interface Product\\s*\\{[\\s\\S]*id\\s*:\\s*number"
+    tags:
+      - typescript
+      - interface
+
+  - id: ts-typed-function
+    name: TypeScript typed function
+    prompt: "Write a TypeScript function 'greet' that takes a name (string) and returns a string greeting."
+    expected:
+      type: regex
+      pattern: "function greet\\s*\\([^)]*:\\s*string\\)[^{]*:\\s*string"
+    tags:
+      - typescript
+      - function
+
+  # SQL syntax
+  - id: sql-select
+    name: SQL SELECT query
+    prompt: "Write a SQL query to select all users where age is greater than 18."
+    expected:
+      type: regex
+      pattern: "SELECT\\s+.+\\s+FROM\\s+.+\\s+WHERE\\s+.*age.*>.*18"
+      flags: "i"
+    tags:
+      - sql
+      - select
+
+  - id: sql-join
+    name: SQL JOIN query
+    prompt: "Write a SQL query to join 'orders' and 'customers' tables on customer_id."
+    expected:
+      type: regex
+      pattern: "JOIN\\s+.+\\s+ON\\s+.*customer_id"
+      flags: "i"
+    tags:
+      - sql
+      - join
+
+  # JSON structure
+  - id: json-config
+    name: JSON configuration
+    prompt: "Generate a JSON configuration object with 'host', 'port', and 'debug' fields."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          host:
+            type: string
+          port:
+            type: number
+          debug:
+            type: boolean
+        required:
+          - host
+          - port
+    tags:
+      - json
+
+  # HTML syntax
+  - id: html-form
+    name: HTML form structure
+    prompt: "Write an HTML form with email input and submit button."
+    expected:
+      type: regex
+      pattern: "<form[^>]*>[\\s\\S]*<input[^>]*type=['\"]email['\"][^>]*>[\\s\\S]*<button|<input[^>]*type=['\"]submit['\"]"
+      flags: "i"
+    tags:
+      - html
+      - form
+
+  # CSS syntax
+  - id: css-class
+    name: CSS class definition
+    prompt: "Write a CSS class called 'button' with blue background and white text."
+    expected:
+      type: regex
+      pattern: "\\.button\\s*\\{[^}]*background[^}]*blue[^}]*\\}"
+      flags: "i"
+    tags:
+      - css

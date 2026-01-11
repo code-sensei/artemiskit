@@ -1,0 +1,101 @@
+name: Fuzzy Match Evaluator Examples
+description: |
+  Demonstrates the fuzzy evaluator for semantic similarity matching.
+  Use for paraphrasing validation, translation checks, and flexible responses.
+provider: azure-openai
+model: 5-mini
+temperature: 0.3
+
+cases:
+  # Paraphrase detection - high similarity
+  - id: paraphrase-high
+    name: High similarity paraphrase
+    prompt: "Rephrase this sentence: 'The quick brown fox jumps over the lazy dog.'"
+    expected:
+      type: fuzzy
+      value: "A fast brown fox leaps over a lazy dog."
+      threshold: 0.6
+
+  # Greeting variations
+  - id: greeting-variation
+    name: Greeting flexibility
+    prompt: "Greet a customer who just entered a store."
+    expected:
+      type: fuzzy
+      value: "Hello, welcome to our store. How can I help you today?"
+      threshold: 0.5
+
+  # Summary accuracy
+  - id: summary-check
+    name: Summary fidelity
+    prompt: |
+      Summarize in one sentence: "Machine learning is a subset of artificial
+      intelligence that enables systems to learn from data and improve from
+      experience without being explicitly programmed."
+    expected:
+      type: fuzzy
+      value: "Machine learning is an AI technique that allows systems to learn from data automatically."
+      threshold: 0.6
+
+  # Translation similarity
+  - id: translation-check
+    name: Translation accuracy
+    prompt: "Translate 'Good morning, how are you?' to Spanish."
+    expected:
+      type: fuzzy
+      value: "Buenos días, ¿cómo estás?"
+      threshold: 0.7
+
+  # Explanation similarity
+  - id: concept-explanation
+    name: Concept explanation
+    prompt: "What is photosynthesis in simple terms?"
+    expected:
+      type: fuzzy
+      value: "Photosynthesis is how plants use sunlight to make food from water and carbon dioxide."
+      threshold: 0.5
+
+  # Definition matching
+  - id: definition-match
+    name: Definition accuracy
+    prompt: "Define 'algorithm' in one sentence."
+    expected:
+      type: fuzzy
+      value: "An algorithm is a step-by-step procedure for solving a problem or performing a computation."
+      threshold: 0.6
+
+  # Loose matching with lower threshold
+  - id: loose-match
+    name: Loose topic matching
+    prompt: "Tell me something about cats."
+    expected:
+      type: fuzzy
+      value: "Cats are popular pets known for their independence."
+      threshold: 0.3
+
+  # Strict matching with high threshold
+  - id: strict-match
+    name: Strict format matching
+    prompt: "What is 2 + 2? Reply in the format 'The answer is X.'"
+    expected:
+      type: fuzzy
+      value: "The answer is 4."
+      threshold: 0.9
+
+  # Product description similarity
+  - id: product-description
+    name: Product description tone
+    prompt: "Write a one-sentence product description for a wireless mouse."
+    expected:
+      type: fuzzy
+      value: "A comfortable wireless mouse with precise tracking and long battery life."
+      threshold: 0.4
+
+  # Error message similarity
+  - id: error-message
+    name: Error message format
+    prompt: "Write an error message for when a file is not found."
+    expected:
+      type: fuzzy
+      value: "Error: The specified file could not be found. Please check the path and try again."
+      threshold: 0.5

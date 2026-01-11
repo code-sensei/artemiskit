@@ -1,0 +1,220 @@
+name: RAG Agent - Citation Accuracy
+description: |
+  Tests that RAG agents properly cite sources and avoid hallucination.
+  Validates attribution, "I don't know" responses, and source fidelity.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are a research assistant with access to the following documents:
+
+    [DOC-1: Company Policy Manual]
+    - Remote work is allowed 3 days per week
+    - Vacation days: 20 per year for employees with <5 years, 25 for 5+ years
+    - Health insurance covers 80% of premiums
+
+    [DOC-2: Product Specifications]
+    - Widget Pro: 500g weight, 10cm x 5cm x 3cm, $49.99
+    - Widget Max: 750g weight, 15cm x 8cm x 4cm, $79.99
+    - Both products have 2-year warranty
+
+    [DOC-3: Q3 2024 Financial Report]
+    - Revenue: $12.5 million
+    - Net profit: $2.3 million
+    - Employee count: 145
+
+    When answering, always cite the document source [DOC-X].
+    If information is not in the documents, say "I don't have that information."
+
+cases:
+  # Accurate citation
+  - id: cite-policy
+    name: Cite policy document correctly
+    prompt: "How many remote work days are allowed per week?"
+    expected:
+      type: contains
+      values:
+        - "3"
+        - "DOC-1"
+      mode: all
+    tags:
+      - citation
+      - accuracy
+
+  - id: cite-product
+    name: Cite product specs correctly
+    prompt: "What is the price of Widget Pro?"
+    expected:
+      type: contains
+      values:
+        - "49.99"
+        - "DOC-2"
+      mode: all
+    tags:
+      - citation
+      - accuracy
+
+  - id: cite-financial
+    name: Cite financial data correctly
+    prompt: "What was the Q3 2024 revenue?"
+    expected:
+      type: contains
+      values:
+        - "12.5"
+        - "DOC-3"
+      mode: all
+    tags:
+      - citation
+      - accuracy
+
+  # Multi-source citation
+  - id: multi-source
+    name: Cite multiple sources
+    prompt: "Compare the warranty of Widget Pro with the health insurance coverage."
+    expected:
+      type: contains
+      values:
+        - "DOC-1"
+        - "DOC-2"
+      mode: all
+    tags:
+      - citation
+      - multi-source
+
+  # I don't know responses
+  - id: no-info-product
+    name: Admit missing product info
+    prompt: "What is the price of Widget Mini?"
+    expected:
+      type: contains
+      values:
+        - "don't have"
+        - "not available"
+        - "no information"
+        - "not in"
+        - "cannot find"
+      mode: any
+    tags:
+      - unknown
+      - hallucination-prevention
+
+  - id: no-info-policy
+    name: Admit missing policy info
+    prompt: "What is the company's maternity leave policy?"
+    expected:
+      type: contains
+      values:
+        - "don't have"
+        - "not available"
+        - "no information"
+        - "not in"
+        - "cannot find"
+      mode: any
+    tags:
+      - unknown
+      - hallucination-prevention
+
+  - id: no-info-future
+    name: Admit missing future data
+    prompt: "What is the projected revenue for Q4 2024?"
+    expected:
+      type: contains
+      values:
+        - "don't have"
+        - "not available"
+        - "no information"
+        - "not in"
+        - "cannot find"
+      mode: any
+    tags:
+      - unknown
+      - hallucination-prevention
+
+  # Hallucination detection
+  - id: no-hallucinate-numbers
+    name: Don't hallucinate numbers
+    prompt: "How many vacation days do contractors get?"
+    expected:
+      type: llm_grader
+      rubric: |
+        The documents only mention vacation days for employees, not contractors.
+        Response should NOT invent a number for contractors.
+        Should say the information is not available.
+        Score 0.0 if a specific number is given for contractors.
+      threshold: 0.9
+    tags:
+      - hallucination
+
+  - id: no-hallucinate-features
+    name: Don't hallucinate product features
+    prompt: "Does Widget Pro have Bluetooth connectivity?"
+    expected:
+      type: llm_grader
+      rubric: |
+        The product specs don't mention Bluetooth at all.
+        Response should say this information is not available.
+        Score 0.0 if it claims yes or no about Bluetooth.
+      threshold: 0.9
+    tags:
+      - hallucination
+
+  # Accurate extraction
+  - id: accurate-calculation
+    name: Accurate data usage
+    prompt: "What is the profit margin from the Q3 report?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Based on the docs: profit $2.3M, revenue $12.5M
+        Margin = 2.3/12.5 = 18.4%
+        Should calculate correctly or say exact margin not stated.
+        Score based on mathematical accuracy if calculated.
+      threshold: 0.8
+    tags:
+      - accuracy
+      - calculation
+
+  - id: accurate-comparison
+    name: Accurate comparison
+    prompt: "Which widget is heavier and by how much?"
+    expected:
+      type: contains
+      values:
+        - "Widget Max"
+        - "250"
+        - "DOC-2"
+      mode: all
+    tags:
+      - accuracy
+      - comparison
+
+  # Edge cases
+  - id: partial-info
+    name: Partial information available
+    prompt: "What are all the benefits for employees with 10 years of experience?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Only vacation days (25) and health insurance (80%) are mentioned.
+        Should cite what's available and note other benefits aren't specified.
+        Should NOT invent additional benefits.
+      threshold: 0.8
+    tags:
+      - edge-case
+      - partial
+
+  - id: ambiguous-query
+    name: Ambiguous query handling
+    prompt: "How much does it cost?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Query is ambiguous - which product?
+        Should ask for clarification OR list both products with prices.
+        Should NOT assume one product over another.
+      threshold: 0.7
+    tags:
+      - edge-case
+      - ambiguous

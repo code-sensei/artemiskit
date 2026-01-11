@@ -1,0 +1,17 @@
+# Basic Artemis Configuration
+# Minimal setup for getting started
+
+# Project identifier for organizing runs
+project: my-project
+
+# Default provider and model
+provider: openai
+model: gpt-4o-mini
+
+# Scenario files location
+scenariosDir: ./scenarios
+
+# Output configuration
+output:
+  dir: ./artemis-output
+  format: html

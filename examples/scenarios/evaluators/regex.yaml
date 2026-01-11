@@ -1,0 +1,92 @@
+name: Regex Evaluator Examples
+description: |
+  Demonstrates the regex evaluator for pattern matching.
+  Use for format validation, data extraction, and flexible matching.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+cases:
+  # Email format validation
+  - id: email-format
+    name: Email extraction
+    prompt: "Generate a sample business email address for John Smith at Acme Corp."
+    expected:
+      type: regex
+      pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+
+  # Phone number format
+  - id: phone-format
+    name: US phone number format
+    prompt: "Generate a sample US phone number in the format (XXX) XXX-XXXX."
+    expected:
+      type: regex
+      pattern: "\\(\\d{3}\\) \\d{3}-\\d{4}"
+
+  # Date format ISO 8601
+  - id: date-iso
+    name: ISO date format
+    prompt: "What is today's date? Reply in ISO 8601 format (YYYY-MM-DD)."
+    expected:
+      type: regex
+      pattern: "\\d{4}-\\d{2}-\\d{2}"
+
+  # UUID format
+  - id: uuid-format
+    name: UUID generation
+    prompt: "Generate a sample UUID v4."
+    expected:
+      type: regex
+      pattern: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+      flags: "i"
+
+  # Version string (semver)
+  - id: semver-format
+    name: Semantic version
+    prompt: "What would be the next patch version after 2.3.4? Reply with just the version number."
+    expected:
+      type: regex
+      pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+  # URL format
+  - id: url-format
+    name: URL generation
+    prompt: "Generate a sample HTTPS URL for a documentation page."
+    expected:
+      type: regex
+      pattern: "https://[a-zA-Z0-9.-]+(/[a-zA-Z0-9._/-]*)?"
+
+  # JSON object detection
+  - id: json-object
+    name: JSON object response
+    prompt: |
+      Return a simple JSON object with keys "name" and "age".
+      Example: {"name": "John", "age": 30}
+    expected:
+      type: regex
+      pattern: "\\{\\s*\"name\"\\s*:\\s*\"[^\"]+\"\\s*,\\s*\"age\"\\s*:\\s*\\d+\\s*\\}"
+
+  # Code block detection
+  - id: code-block
+    name: Markdown code block
+    prompt: "Write a simple Python hello world in a markdown code block."
+    expected:
+      type: regex
+      pattern: "```python[\\s\\S]*print[\\s\\S]*```"
+      flags: "i"
+
+  # Color hex code
+  - id: hex-color
+    name: Hex color code
+    prompt: "What is the hex color code for pure red? Reply with just the code including the #."
+    expected:
+      type: regex
+      pattern: "^#[0-9A-Fa-f]{6}$"
+
+  # IP address format
+  - id: ip-address
+    name: IPv4 address
+    prompt: "What is a common localhost IP address? Reply with just the IP."
+    expected:
+      type: regex
+      pattern: "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"

@@ -1,0 +1,59 @@
+# CI/CD Optimized Artemis Configuration
+# Optimized settings for continuous integration pipelines
+
+project: ${CI_PROJECT_NAME:-ci-tests}
+
+# Use faster/cheaper model for CI
+provider: openai
+model: gpt-4o-mini
+
+# Scenario files location
+scenariosDir: ./scenarios
+
+# Provider configuration
+providers:
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    model: gpt-4o-mini
+
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: ${AZURE_OPENAI_RESOURCE}
+    deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"
+
+# Storage - use local for CI (no external dependencies)
+storage:
+  type: local
+  path: ./artemis-runs
+
+# Output configuration
+output:
+  dir: ./artemis-output
+  format: json  # JSON for CI parsing
+
+# CI-specific settings
+ci:
+  # Fail fast on first error
+  failFast: false
+
+  # Retry failed tests
+  retries: 2
+
+  # Timeout per test (ms)
+  timeout: 30000
+
+  # Concurrent test execution
+  concurrency: 5
+
+  # Exit code behavior
+  exitOnFailure: true
+
+  # JUnit XML output for CI systems
+  junitOutput: ./test-results/artemis.xml
+
+  # Threshold for success (percentage)
+  successThreshold: 95
+
+# Logging - verbose for debugging CI failures
+logLevel: ${CI_DEBUG:-warn}

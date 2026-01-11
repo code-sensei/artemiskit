@@ -1,0 +1,135 @@
+# GitLab CI pipeline for Artemis LLM testing
+# Place this file in .gitlab-ci.yml
+
+stages:
+  - test
+  - security
+  - report
+
+variables:
+  ARTEMIS_PROJECT: $CI_PROJECT_PATH
+  BUN_INSTALL: $CI_PROJECT_DIR/.bun
+
+# Cache Bun dependencies
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .bun/
+
+# Base job template
+.artemis-base:
+  image: oven/bun:latest
+  before_script:
+    - bun install
+
+# Run standard test scenarios
+artemis-test:
+  extends: .artemis-base
+  stage: test
+  script:
+    - |
+      for scenario in scenarios/*.yaml; do
+        if [ -f "$scenario" ]; then
+          echo "Running $scenario..."
+          bun run artemis run "$scenario" --save || exit 1
+        fi
+      done
+    - bun run artemis history --limit 5 --format json > test-history.json
+  artifacts:
+    when: always
+    paths:
+      - artemis-runs/
+      - artemis-output/
+      - test-history.json
+    reports:
+      junit: test-results/artemis.xml
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Run red-team security tests
+artemis-security:
+  extends: .artemis-base
+  stage: security
+  script:
+    - |
+      for scenario in scenarios/redteam/*.yaml; do
+        if [ -f "$scenario" ]; then
+          echo "Red-team testing $scenario..."
+          bun run artemis redteam "$scenario" --count 5 || true
+        fi
+      done
+  artifacts:
+    when: always
+    paths:
+      - artemis-output/
+    expire_in: 90 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Generate and publish reports
+artemis-report:
+  extends: .artemis-base
+  stage: report
+  needs:
+    - artemis-test
+  script:
+    - |
+      # Get the most recent run ID
+      RUN_ID=$(cat test-history.json | jq -r '.[0].run_id // empty')
+      if [ -n "$RUN_ID" ]; then
+        bun run artemis report "$RUN_ID" --format both
+      fi
+  artifacts:
+    when: always
+    paths:
+      - artemis-output/
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Stress test (scheduled only)
+artemis-stress:
+  extends: .artemis-base
+  stage: test
+  script:
+    - |
+      for scenario in scenarios/*.yaml; do
+        if [ -f "$scenario" ]; then
+          echo "Stress testing $scenario..."
+          bun run artemis stress "$scenario" -c 5 -d 30 || true
+        fi
+      done
+  artifacts:
+    when: always
+    paths:
+      - artemis-output/
+    expire_in: 7 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      variables:
+        STRESS_TEST: "true"
+
+# Compare with baseline (on merge requests)
+artemis-compare:
+  extends: .artemis-base
+  stage: report
+  needs:
+    - artemis-test
+  script:
+    - |
+      # Get current and previous run IDs
+      CURRENT=$(cat test-history.json | jq -r '.[0].run_id // empty')
+      BASELINE=$(cat test-history.json | jq -r '.[1].run_id // empty')
+
+      if [ -n "$CURRENT" ] && [ -n "$BASELINE" ]; then
+        bun run artemis compare "$BASELINE" "$CURRENT"
+      else
+        echo "Not enough runs for comparison"
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

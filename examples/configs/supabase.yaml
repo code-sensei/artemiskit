@@ -1,0 +1,39 @@
+# Supabase Storage Configuration
+# Use Supabase for persistent run storage and team collaboration
+
+project: ${ARTEMIS_PROJECT:-production}
+
+provider: azure-openai
+model: gpt-4o
+
+scenariosDir: ./scenarios
+
+# Provider configuration
+providers:
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: ${AZURE_OPENAI_RESOURCE}
+    deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"
+
+# Supabase storage configuration
+storage:
+  type: supabase
+  supabaseUrl: ${SUPABASE_URL}
+  supabaseKey: ${SUPABASE_SERVICE_KEY}
+
+  # Optional: custom table names
+  # tables:
+  #   runs: artemis_runs
+  #   cases: artemis_cases
+
+  # Optional: storage bucket for artifacts
+  # bucket: artemis-artifacts
+
+# Output configuration
+output:
+  dir: ./artemis-output
+  format: both
+
+# Logging
+logLevel: info

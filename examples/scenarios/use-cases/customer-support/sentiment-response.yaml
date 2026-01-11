@@ -1,0 +1,155 @@
+name: Customer Support - Sentiment-Appropriate Responses
+description: |
+  Tests that the agent responds appropriately based on customer sentiment.
+  Angry customers need empathy, happy customers need engagement.
+provider: azure-openai
+model: 5-mini
+temperature: 0.3
+
+setup:
+  systemPrompt: |
+    You are a customer service representative for TechStore.
+    Respond appropriately based on the customer's emotional state:
+    - Angry/Frustrated: Apologize first, show empathy, then offer solutions
+    - Neutral: Be helpful and efficient
+    - Happy/Positive: Match their energy, thank them, encourage engagement
+
+    Keep responses concise (2-3 sentences).
+
+cases:
+  # Angry customer scenarios
+  - id: angry-delayed-order
+    name: Angry about delayed order
+    prompt: "THIS IS RIDICULOUS! I ordered this a week ago and it still hasn't arrived! What kind of company are you running?!"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should:
+        - Start with a sincere apology
+        - Acknowledge the frustration
+        - NOT be defensive or make excuses
+        - Offer to help resolve the issue
+        Score based on empathy and de-escalation approach.
+      threshold: 0.8
+    tags:
+      - sentiment
+      - angry
+
+  - id: angry-broken-product
+    name: Angry about broken product
+    prompt: "The product broke after ONE day! This is garbage! I want a refund NOW!"
+    expected:
+      type: contains
+      values:
+        - "sorry"
+        - "apologize"
+        - "understand"
+      mode: any
+    tags:
+      - sentiment
+      - angry
+
+  - id: angry-repeat-issue
+    name: Frustrated repeat caller
+    prompt: "I've called THREE times about this same issue and nobody has fixed it. I'm done with your company!"
+    expected:
+      type: llm_grader
+      rubric: |
+        Should acknowledge the repeated issues and frustration.
+        Should NOT ask them to explain the issue again.
+        Should take ownership and escalate if appropriate.
+        Score based on acknowledgment and ownership.
+      threshold: 0.8
+    tags:
+      - sentiment
+      - frustrated
+
+  # Neutral customer scenarios
+  - id: neutral-inquiry
+    name: Neutral product inquiry
+    prompt: "What's the return policy for electronics?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Should provide clear, helpful information.
+        Tone should be professional but not overly apologetic.
+        Should be efficient without being cold.
+      threshold: 0.7
+    tags:
+      - sentiment
+      - neutral
+
+  - id: neutral-status-check
+    name: Neutral order status check
+    prompt: "Can you check the status of order #12345?"
+    expected:
+      type: contains
+      values:
+        - "order"
+        - "check"
+        - "help"
+      mode: any
+    tags:
+      - sentiment
+      - neutral
+
+  # Happy customer scenarios
+  - id: happy-compliment
+    name: Happy customer compliment
+    prompt: "Just wanted to say I LOVE your product! Best purchase I've made all year! You guys are amazing!"
+    expected:
+      type: llm_grader
+      rubric: |
+        Should thank the customer enthusiastically.
+        Should match the positive energy.
+        May invite them to leave a review or share feedback.
+        Should NOT be overly formal or stiff.
+      threshold: 0.8
+    tags:
+      - sentiment
+      - happy
+
+  - id: happy-resolved
+    name: Happy after resolution
+    prompt: "Thanks so much for your help! You've been wonderful and solved my problem quickly!"
+    expected:
+      type: contains
+      values:
+        - "thank"
+        - "welcome"
+        - "glad"
+        - "happy"
+        - "pleasure"
+      mode: any
+    tags:
+      - sentiment
+      - happy
+
+  # Mixed sentiment scenarios
+  - id: mixed-frustrated-hopeful
+    name: Frustrated but hopeful
+    prompt: "I'm really frustrated with this issue, but I'm hoping you can help me fix it today."
+    expected:
+      type: llm_grader
+      rubric: |
+        Should acknowledge the frustration.
+        Should express confidence in helping.
+        Should be reassuring without making promises that can't be kept.
+      threshold: 0.7
+    tags:
+      - sentiment
+      - mixed
+
+  - id: mixed-sarcastic
+    name: Sarcastic customer
+    prompt: "Oh great, another support chat. I'm sure this will solve everything like the last five times."
+    expected:
+      type: llm_grader
+      rubric: |
+        Should recognize the sarcasm as frustration.
+        Should NOT respond sarcastically.
+        Should acknowledge previous attempts and focus on resolution.
+      threshold: 0.8
+    tags:
+      - sentiment
+      - sarcastic

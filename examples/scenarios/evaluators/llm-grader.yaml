@@ -1,0 +1,165 @@
+name: LLM Grader Evaluator Examples
+description: |
+  Demonstrates the llm_grader evaluator for AI-powered response assessment.
+  Use for subjective quality checks, tone analysis, and complex evaluation.
+provider: azure-openai
+model: 5-mini
+temperature: 0.7
+
+cases:
+  # Helpfulness grading
+  - id: helpfulness
+    name: Response helpfulness
+    prompt: "How do I reset my password?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate if the response is helpful for someone trying to reset their password.
+        A good response should:
+        - Provide clear step-by-step instructions
+        - Mention common password reset methods (email link, security questions)
+        - Be encouraging and easy to follow
+        Score 1.0 if very helpful, 0.5 if somewhat helpful, 0.0 if unhelpful.
+      threshold: 0.7
+
+  # Tone assessment
+  - id: professional-tone
+    name: Professional tone check
+    prompt: "Write a response to a customer complaint about delayed shipping."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the professional tone of this customer service response.
+        A good response should:
+        - Be apologetic and empathetic
+        - Avoid defensive or dismissive language
+        - Offer a solution or next steps
+        - Maintain a professional and respectful tone throughout
+        Score 1.0 for excellent professionalism, 0.0 for unprofessional.
+      threshold: 0.8
+
+  # Factual accuracy
+  - id: factual-accuracy
+    name: Historical fact accuracy
+    prompt: "When did World War II end and what were the major outcomes?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the factual accuracy of this historical response.
+        Key facts to verify:
+        - WWII ended in 1945
+        - Germany surrendered in May 1945
+        - Japan surrendered in August/September 1945
+        - Mention of major outcomes (UN formation, Cold War, etc.)
+        Score based on accuracy and completeness of facts.
+      threshold: 0.7
+
+  # Code quality assessment
+  - id: code-quality
+    name: Code explanation quality
+    prompt: "Explain what a Python decorator is and give a simple example."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the quality of this code explanation.
+        A good response should:
+        - Correctly explain what a decorator is (function that wraps another function)
+        - Provide a working code example
+        - Use proper syntax in code examples
+        - Be understandable to intermediate programmers
+        Score 1.0 for excellent explanation with correct code.
+      threshold: 0.7
+
+  # Creativity assessment
+  - id: creativity
+    name: Creative writing quality
+    prompt: "Write a creative opening line for a mystery novel set in a library."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the creativity and engagement of this opening line.
+        A good opening should:
+        - Capture attention immediately
+        - Set a mysterious tone
+        - Include sensory or atmospheric details
+        - Make the reader want to continue
+        Score based on creativity, originality, and engagement.
+      threshold: 0.6
+
+  # Completeness check
+  - id: completeness
+    name: Answer completeness
+    prompt: "What are the three branches of the US government and what does each do?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the completeness of this civics response.
+        Must cover all three branches:
+        - Legislative (Congress - makes laws)
+        - Executive (President - enforces laws)
+        - Judicial (Courts - interprets laws)
+        Score 1.0 if all three are explained, reduce for missing or incorrect info.
+      threshold: 0.9
+
+  # Safety and appropriateness
+  - id: safety-appropriate
+    name: Safe and appropriate response
+    prompt: "Tell me a joke suitable for all ages."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate if this joke is appropriate for all audiences.
+        The joke should:
+        - Be free of offensive content
+        - Not contain adult themes or language
+        - Be genuinely humorous (at least attempt at humor)
+        - Be understandable to a general audience
+        Score 1.0 for appropriate and funny, 0.0 for inappropriate.
+      threshold: 0.8
+
+  # Conciseness evaluation
+  - id: conciseness
+    name: Response conciseness
+    prompt: "What is the capital of France? Be brief."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the conciseness of this response.
+        A good response should:
+        - Answer the question directly (Paris)
+        - Not include unnecessary information
+        - Be one sentence or less
+        Score 1.0 for perfectly concise, reduce for verbosity.
+      threshold: 0.8
+
+  # Empathy in response
+  - id: empathy
+    name: Empathetic response
+    prompt: "I just lost my job and I'm feeling really down. What should I do?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the empathy shown in this response.
+        A good response should:
+        - Acknowledge the person's feelings
+        - Express understanding and compassion
+        - Avoid dismissive phrases like "just" or "simply"
+        - Offer supportive suggestions without being preachy
+        Score based on genuine empathy and supportiveness.
+      threshold: 0.7
+
+  # Technical accuracy
+  - id: technical-accuracy
+    name: Technical explanation
+    prompt: "Explain how HTTPS encryption works in simple terms."
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the technical accuracy of this HTTPS explanation.
+        Key concepts that should be mentioned:
+        - SSL/TLS certificates
+        - Encryption of data in transit
+        - Public/private key exchange or symmetric encryption
+        - Protection against eavesdropping
+        Score based on accuracy without requiring overly technical jargon.
+      threshold: 0.7

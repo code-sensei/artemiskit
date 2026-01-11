@@ -1,0 +1,315 @@
+name: Data Extraction - Entity Extraction
+description: |
+  Tests the accuracy of extracting structured entities from unstructured text.
+  Validates extraction of people, organizations, dates, locations, etc.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are a data extraction assistant.
+    Extract entities from text and return them as JSON.
+    Always return valid JSON, no explanations.
+
+cases:
+  # Person extraction
+  - id: person-basic
+    name: Basic person extraction
+    prompt: |
+      Extract person information from:
+      "John Smith is a 35-year-old software engineer from Seattle."
+
+      Return: {"name": string, "age": number, "occupation": string, "location": string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          age:
+            type: number
+          occupation:
+            type: string
+          location:
+            type: string
+        required:
+          - name
+          - age
+          - occupation
+          - location
+    tags:
+      - person
+
+  - id: person-multiple
+    name: Multiple persons extraction
+    prompt: |
+      Extract all people from:
+      "The meeting was attended by Sarah Johnson (CEO), Mike Chen (CTO), and Lisa Park (CFO)."
+
+      Return: {"people": [{"name": string, "title": string}]}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          people:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                title:
+                  type: string
+              required:
+                - name
+                - title
+            minItems: 3
+        required:
+          - people
+    tags:
+      - person
+      - multiple
+
+  # Date extraction
+  - id: date-single
+    name: Single date extraction
+    prompt: |
+      Extract the date from:
+      "The conference is scheduled for March 15, 2024."
+
+      Return: {"date": "YYYY-MM-DD"}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          date:
+            type: string
+            pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        required:
+          - date
+    tags:
+      - date
+
+  - id: date-range
+    name: Date range extraction
+    prompt: |
+      Extract dates from:
+      "The sale runs from December 1st through December 31st, 2024."
+
+      Return: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          start_date:
+            type: string
+          end_date:
+            type: string
+        required:
+          - start_date
+          - end_date
+    tags:
+      - date
+      - range
+
+  # Organization extraction
+  - id: org-extraction
+    name: Organization extraction
+    prompt: |
+      Extract organizations from:
+      "The partnership between Microsoft, Google, and Amazon was announced at the tech summit."
+
+      Return: {"organizations": [string]}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          organizations:
+            type: array
+            items:
+              type: string
+            minItems: 3
+        required:
+          - organizations
+    tags:
+      - organization
+
+  # Contact information
+  - id: contact-info
+    name: Contact information extraction
+    prompt: |
+      Extract contact info from:
+      "Reach out to support@example.com or call (555) 123-4567 for assistance."
+
+      Return: {"email": string, "phone": string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          email:
+            type: string
+          phone:
+            type: string
+        required:
+          - email
+          - phone
+    tags:
+      - contact
+
+  # Address extraction
+  - id: address-full
+    name: Full address extraction
+    prompt: |
+      Extract the address from:
+      "Our office is located at 123 Main Street, Suite 400, San Francisco, CA 94102."
+
+      Return: {"street": string, "suite": string, "city": string, "state": string, "zip": string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          street:
+            type: string
+          city:
+            type: string
+          state:
+            type: string
+          zip:
+            type: string
+        required:
+          - street
+          - city
+          - state
+          - zip
+    tags:
+      - address
+
+  # Product information
+  - id: product-details
+    name: Product details extraction
+    prompt: |
+      Extract product info from:
+      "The iPhone 15 Pro Max (256GB, Black) is priced at $1,199.99 with 2-year warranty."
+
+      Return: {"name": string, "storage": string, "color": string, "price": number, "warranty_years": number}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          storage:
+            type: string
+          color:
+            type: string
+          price:
+            type: number
+          warranty_years:
+            type: number
+        required:
+          - name
+          - price
+    tags:
+      - product
+
+  # Financial data
+  - id: financial-extraction
+    name: Financial data extraction
+    prompt: |
+      Extract financial data from:
+      "Q3 2024 revenue was $4.5 billion, up 12% from Q3 2023. Net profit margin was 23%."
+
+      Return: {"quarter": string, "year": number, "revenue_billions": number, "yoy_growth_percent": number, "profit_margin_percent": number}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          quarter:
+            type: string
+          year:
+            type: number
+          revenue_billions:
+            type: number
+          yoy_growth_percent:
+            type: number
+          profit_margin_percent:
+            type: number
+        required:
+          - revenue_billions
+    tags:
+      - financial
+
+  # Event extraction
+  - id: event-details
+    name: Event details extraction
+    prompt: |
+      Extract event info from:
+      "Join us for the Annual Developer Conference on June 10-12, 2024 at the Moscone Center, San Francisco. Tickets start at $299."
+
+      Return: {"event_name": string, "start_date": string, "end_date": string, "venue": string, "city": string, "ticket_price": number}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          event_name:
+            type: string
+          start_date:
+            type: string
+          end_date:
+            type: string
+          venue:
+            type: string
+          city:
+            type: string
+          ticket_price:
+            type: number
+        required:
+          - event_name
+          - venue
+    tags:
+      - event
+
+  # Mixed entity extraction
+  - id: mixed-entities
+    name: Mixed entity extraction
+    prompt: |
+      Extract all entities from:
+      "Dr. Emily Watson from Stanford University published her research on AI ethics on January 15, 2024. Contact: ewatson@stanford.edu"
+
+      Return: {"person": {"name": string, "title": string}, "organization": string, "topic": string, "date": string, "email": string}
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          person:
+            type: object
+            properties:
+              name:
+                type: string
+              title:
+                type: string
+          organization:
+            type: string
+          topic:
+            type: string
+          date:
+            type: string
+          email:
+            type: string
+        required:
+          - person
+          - organization
+    tags:
+      - mixed

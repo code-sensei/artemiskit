@@ -1,0 +1,216 @@
+name: Customer Support - Escalation Detection
+description: |
+  Tests the agent's ability to detect when a conversation should be escalated
+  to a human agent based on complexity, sensitivity, or customer request.
+provider: azure-openai
+model: 5-mini
+temperature: 0
+
+setup:
+  systemPrompt: |
+    You are a customer support AI for MegaCorp.
+    Analyze messages and determine if they should be escalated to a human.
+
+    ESCALATE when:
+    - Customer explicitly requests human agent
+    - Legal threats or mentions of lawyers
+    - Complaints about discrimination or harassment
+    - Medical emergencies or safety concerns
+    - Complex issues requiring judgment calls
+    - VIP/enterprise customers (mention of large accounts)
+    - Unresolved issues after multiple attempts
+
+    Respond with JSON: {"escalate": true/false, "reason": "brief reason"}
+
+cases:
+  # Explicit escalation requests
+  - id: explicit-human-request
+    name: Direct human request
+    prompt: "I want to speak to a human, not a bot."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          escalate:
+            type: boolean
+            const: true
+          reason:
+            type: string
+        required:
+          - escalate
+          - reason
+    tags:
+      - escalation
+      - explicit
+
+  - id: explicit-manager
+    name: Manager request
+    prompt: "This is unacceptable. I need to speak with your manager immediately."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          escalate:
+            type: boolean
+            const: true
+        required:
+          - escalate
+
+  # Legal escalations
+  - id: legal-threat
+    name: Legal threat
+    prompt: "If this isn't resolved today, I'm contacting my lawyer and filing a lawsuit."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - legal
+
+  - id: legal-regulatory
+    name: Regulatory complaint
+    prompt: "I'm going to report this to the FTC for false advertising."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - legal
+
+  # Sensitive issues
+  - id: sensitive-discrimination
+    name: Discrimination complaint
+    prompt: "I believe I was treated differently because of my race. This is discrimination."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - sensitive
+
+  - id: sensitive-harassment
+    name: Harassment report
+    prompt: "One of your employees made inappropriate comments to me during my last call."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - sensitive
+
+  - id: sensitive-safety
+    name: Safety concern
+    prompt: "The product overheated and almost caused a fire in my home!"
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - safety
+
+  # VIP/Enterprise escalations
+  - id: vip-enterprise
+    name: Enterprise account
+    prompt: "We're an enterprise customer paying $50,000/month and this outage is costing us millions."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - enterprise
+
+  # Complex issues
+  - id: complex-technical
+    name: Complex technical issue
+    prompt: "We've been troubleshooting this integration issue for 3 weeks with 5 different support agents and nothing works."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": true"
+        - "\"escalate\":true"
+      mode: any
+    tags:
+      - escalation
+      - complex
+
+  # Non-escalation scenarios
+  - id: no-escalate-simple
+    name: Simple question - no escalation
+    prompt: "What are your business hours?"
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": false"
+        - "\"escalate\":false"
+      mode: any
+    tags:
+      - no-escalation
+
+  - id: no-escalate-password
+    name: Password reset - no escalation
+    prompt: "I forgot my password and need to reset it."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": false"
+        - "\"escalate\":false"
+      mode: any
+    tags:
+      - no-escalation
+
+  - id: no-escalate-tracking
+    name: Order tracking - no escalation
+    prompt: "Can you tell me where my package is?"
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": false"
+        - "\"escalate\":false"
+      mode: any
+    tags:
+      - no-escalation
+
+  # Edge cases
+  - id: edge-mild-frustration
+    name: Mild frustration - edge case
+    prompt: "This is a bit frustrating, but hopefully you can help."
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": false"
+        - "\"escalate\":false"
+      mode: any
+    tags:
+      - edge-case
+
+  - id: edge-joking-legal
+    name: Joking about legal - edge case
+    prompt: "Haha, I should sue you guys for making such an addictive product!"
+    expected:
+      type: contains
+      values:
+        - "\"escalate\": false"
+        - "\"escalate\":false"
+      mode: any
+    tags:
+      - edge-case

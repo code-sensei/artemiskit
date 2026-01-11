@@ -8,6 +8,9 @@ import { runCommand } from './commands/run';
 import { initCommand } from './commands/init';
 import { compareCommand } from './commands/compare';
 import { historyCommand } from './commands/history';
+import { reportCommand } from './commands/report';
+import { redteamCommand } from './commands/redteam';
+import { stressCommand } from './commands/stress';
 
 export function createCLI(): Command {
   const program = new Command();
@@ -21,6 +24,9 @@ export function createCLI(): Command {
   program.addCommand(runCommand());
   program.addCommand(compareCommand());
   program.addCommand(historyCommand());
+  program.addCommand(reportCommand());
+  program.addCommand(redteamCommand());
+  program.addCommand(stressCommand());
 
   return program;
 }

@@ -12,8 +12,14 @@ let initialized = false;
  * Create a model adapter from configuration
  */
 export async function createAdapter(config: AdapterConfig): Promise<ModelClient> {
-  if (!initialized) {
-    await registerBuiltInAdapters();
+  // Only try to register built-in adapters if none are registered yet
+  // This allows CLI or other consumers to register adapters before calling createAdapter
+  if (!initialized && adapterRegistry.list().length === 0) {
+    try {
+      await registerBuiltInAdapters();
+    } catch {
+      // Ignore errors - adapters may be registered externally
+    }
     initialized = true;
   }
 

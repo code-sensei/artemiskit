@@ -9,15 +9,11 @@ import Table from 'cli-table3';
 import {
   parseScenarioFile,
   createAdapter,
-  getEvaluator,
-  createRunManifest,
   createStorageFromEnv,
-  type Scenario,
-  type TestCase,
-  type CaseResult,
-  type ModelClient,
+  runScenario,
   type AdapterConfig,
 } from '@artemis/core';
+import { loadConfig } from '../config/loader';
 
 interface RunOptions {
   provider?: string;
@@ -26,6 +22,10 @@ interface RunOptions {
   verbose?: boolean;
   tags?: string[];
   save?: boolean;
+  concurrency?: number;
+  timeout?: number;
+  retries?: number;
+  config?: string;
 }
 
 export function runCommand(): Command {
@@ -40,88 +40,79 @@ export function runCommand(): Command {
     .option('-v, --verbose', 'Verbose output')
     .option('-t, --tags <tags...>', 'Filter test cases by tags')
     .option('--save', 'Save results to storage', true)
+    .option('-c, --concurrency <number>', 'Number of concurrent test cases', '1')
+    .option('--timeout <ms>', 'Timeout per test case in milliseconds')
+    .option('--retries <number>', 'Number of retries per test case')
+    .option('--config <path>', 'Path to config file')
     .action(async (scenarioPath: string, options: RunOptions) => {
-      const spinner = ora('Loading scenario...').start();
+      const spinner = ora('Loading configuration...').start();
 
       try {
+        // Load config file if present
+        const config = await loadConfig(options.config);
+        if (config) {
+          spinner.succeed(`Loaded config from ${config._path}`);
+        } else {
+          spinner.info('No config file found, using defaults');
+        }
+
         // Parse scenario
+        spinner.start('Loading scenario...');
         const scenario = await parseScenarioFile(scenarioPath);
         spinner.succeed(`Loaded scenario: ${scenario.name}`);
 
-        // Filter cases by tags if specified
-        let cases = scenario.cases;
-        if (options.tags && options.tags.length > 0) {
-          cases = cases.filter((c) =>
-            options.tags!.some((tag) => c.tags.includes(tag))
-          );
-          console.log(chalk.dim(`Filtered to ${cases.length} cases by tags: ${options.tags.join(', ')}`));
-        }
-
-        if (cases.length === 0) {
-          console.log(chalk.yellow('No test cases to run.'));
-          return;
-        }
+        // Determine provider and model (CLI > scenario > config > default)
+        const provider = options.provider || scenario.provider || config?.provider || 'openai';
+        const model = options.model || scenario.model || config?.model;
 
         // Create adapter
-        const provider = options.provider || scenario.provider || 'openai';
-        const model = options.model || scenario.model;
-
         spinner.start(`Connecting to ${provider}...`);
-        const client = await createAdapter(buildAdapterConfig(provider, model));
+        const client = await createAdapter(buildAdapterConfig(provider, model, config));
         spinner.succeed(`Connected to ${provider}`);
 
-        // Run tests
         console.log();
-        console.log(chalk.bold(`Running ${cases.length} test cases...`));
+        console.log(chalk.bold(`Running scenario: ${scenario.name}`));
         console.log();
 
-        const startTime = new Date();
-        const results: CaseResult[] = [];
+        // Run scenario using core runner
+        const result = await runScenario({
+          scenario,
+          client,
+          project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
+          tags: options.tags,
+          concurrency: parseInt(String(options.concurrency)) || 1,
+          timeout: options.timeout ? parseInt(String(options.timeout)) : undefined,
+          retries: options.retries ? parseInt(String(options.retries)) : undefined,
+          onCaseComplete: (caseResult, index, total) => {
+            const statusIcon = caseResult.ok ? chalk.green('✓') : chalk.red('✗');
+            const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
+            console.log(`${statusIcon} ${caseResult.id} ${chalk.dim(scoreStr)}`);
 
-        for (const testCase of cases) {
-          const result = await runTestCase(client, testCase, scenario, options.verbose);
-          results.push(result);
-
-          const statusIcon = result.ok ? chalk.green('✓') : chalk.red('✗');
-          const scoreStr = `(${(result.score * 100).toFixed(0)}%)`;
-          console.log(`${statusIcon} ${testCase.id} ${chalk.dim(scoreStr)}`);
-
-          if (!result.ok && options.verbose) {
-            console.log(chalk.dim(`   Reason: ${result.reason}`));
-          }
-        }
-
-        const endTime = new Date();
-
-        // Create manifest
-        const manifest = createRunManifest({
-          project: process.env.ARTEMIS_PROJECT || 'default',
-          config: {
-            scenario: scenario.name,
-            provider,
-            model: model || 'unknown',
-            temperature: scenario.temperature,
-            seed: scenario.seed,
+            if (!caseResult.ok && options.verbose) {
+              console.log(chalk.dim(`   Reason: ${caseResult.reason}`));
+            }
           },
-          cases: results,
-          startTime,
-          endTime,
+          onProgress: (message) => {
+            if (options.verbose) {
+              console.log(chalk.dim(message));
+            }
+          },
         });
 
         // Display summary
         console.log();
-        displaySummary(manifest.metrics, manifest.run_id);
+        displaySummary(result.manifest.metrics, result.manifest.run_id);
 
         // Save results
         if (options.save) {
           spinner.start('Saving results...');
           const storage = createStorageFromEnv();
-          const path = await storage.save(manifest);
+          const path = await storage.save(result.manifest);
           spinner.succeed(`Results saved: ${path}`);
         }
 
         // Exit with error if any tests failed
-        if (manifest.metrics.failed_cases > 0) {
+        if (!result.success) {
           process.exit(1);
         }
       } catch (error) {
@@ -137,99 +128,39 @@ export function runCommand(): Command {
   return cmd;
 }
 
-async function runTestCase(
-  client: ModelClient,
-  testCase: TestCase,
-  scenario: Scenario,
-  verbose?: boolean
-): Promise<CaseResult> {
-  const startTime = Date.now();
+function buildAdapterConfig(
+  provider: string,
+  model?: string,
+  config?: Record<string, unknown> | null
+): AdapterConfig {
+  // Get provider-specific config if available
+  const providerConfig = config?.providers?.[provider] as Record<string, unknown> | undefined;
 
-  try {
-    // Build prompt with system prompt if present
-    let prompt = testCase.prompt;
-    if (scenario.setup?.systemPrompt && typeof prompt === 'string') {
-      prompt = [
-        { role: 'system' as const, content: scenario.setup.systemPrompt },
-        { role: 'user' as const, content: prompt },
-      ];
-    }
-
-    // Generate response
-    const result = await client.generate({
-      prompt,
-      model: testCase.model || scenario.model,
-      temperature: scenario.temperature,
-      maxTokens: scenario.maxTokens,
-      seed: scenario.seed,
-    });
-
-    // Evaluate response
-    const evaluator = getEvaluator(testCase.expected.type);
-    const evalResult = await evaluator.evaluate(result.text, testCase.expected, {
-      client,
-      testCase,
-    });
-
-    return {
-      id: testCase.id,
-      name: testCase.name,
-      ok: evalResult.passed,
-      score: evalResult.score,
-      matcherType: testCase.expected.type,
-      reason: evalResult.reason,
-      latencyMs: result.latencyMs,
-      tokens: result.tokens,
-      prompt: testCase.prompt,
-      response: result.text,
-      expected: testCase.expected,
-      tags: testCase.tags,
-    };
-  } catch (error) {
-    const latencyMs = Date.now() - startTime;
-    return {
-      id: testCase.id,
-      name: testCase.name,
-      ok: false,
-      score: 0,
-      matcherType: testCase.expected.type,
-      reason: `Error: ${(error as Error).message}`,
-      latencyMs,
-      tokens: { prompt: 0, completion: 0, total: 0 },
-      prompt: testCase.prompt,
-      response: '',
-      expected: testCase.expected,
-      tags: testCase.tags,
-      error: (error as Error).message,
-    };
-  }
-}
-
-function buildAdapterConfig(provider: string, model?: string): AdapterConfig {
   switch (provider) {
     case 'openai':
       return {
         provider: 'openai',
-        apiKey: process.env.OPENAI_API_KEY,
-        defaultModel: model,
+        apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
+        baseURL: providerConfig?.baseURL as string | undefined,
+        defaultModel: model || (providerConfig?.model as string | undefined),
       };
 
     case 'azure-openai':
       return {
         provider: 'azure-openai',
-        apiKey: process.env.AZURE_OPENAI_API_KEY,
-        resourceName: process.env.AZURE_OPENAI_RESOURCE || '',
-        deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || '',
-        apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
-        defaultModel: model,
+        apiKey: (providerConfig?.apiKey as string) || process.env.AZURE_OPENAI_API_KEY,
+        resourceName: (providerConfig?.resourceName as string) || process.env.AZURE_OPENAI_RESOURCE || '',
+        deploymentName: (providerConfig?.deploymentName as string) || process.env.AZURE_OPENAI_DEPLOYMENT || '',
+        apiVersion: (providerConfig?.apiVersion as string) || process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
+        defaultModel: model || (providerConfig?.model as string | undefined),
       };
 
     case 'vercel-ai':
       return {
         provider: 'vercel-ai',
-        underlyingProvider: 'openai',
-        apiKey: process.env.OPENAI_API_KEY,
-        defaultModel: model,
+        underlyingProvider: (providerConfig?.underlyingProvider as 'openai' | 'anthropic') || 'openai',
+        apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
+        defaultModel: model || (providerConfig?.model as string | undefined),
       };
 
     default:

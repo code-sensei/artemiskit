@@ -1,0 +1,16 @@
+/**
+ * Red-team mutations module
+ */
+
+export { TypoMutation } from './typo';
+export { RoleSpoofMutation } from './role-spoof';
+export { InstructionFlipMutation } from './instruction-flip';
+export { CotInjectionMutation } from './cot-injection';
+
+export interface Mutation {
+  readonly name: string;
+  readonly description: string;
+  readonly severity: 'low' | 'medium' | 'high' | 'critical';
+
+  mutate(prompt: string): string;
+}

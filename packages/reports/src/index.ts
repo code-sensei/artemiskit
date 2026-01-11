@@ -4,4 +4,4 @@
  */
 
 export { generateHTMLReport } from './html/generator';
-export { generateJSONReport } from './json/generator';
+export { generateJSONReport, type JSONReportOptions } from './json/generator';

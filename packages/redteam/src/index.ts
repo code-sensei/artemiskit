@@ -4,6 +4,6 @@
  */
 
 export * from './mutations';
-export { RedTeamGenerator } from './generator';
-export { UnsafeResponseDetector } from './detector';
-export { SeverityMapper } from './severity';
+export { RedTeamGenerator, type GeneratedPrompt } from './generator';
+export { UnsafeResponseDetector, type DetectionResult } from './detector';
+export { SeverityMapper, type Severity, type SeverityInfo } from './severity';

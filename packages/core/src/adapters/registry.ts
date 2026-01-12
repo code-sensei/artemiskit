@@ -125,11 +125,16 @@ export async function registerBuiltInAdapters(): Promise<void> {
     return new mod.VercelAIAdapter(config);
   });
 
+  adapterRegistry.register('anthropic', async (config) => {
+    const mod = await tryImport<{ AnthropicAdapter: new (c: AdapterConfig) => ModelClient }>(
+      '@artemis/adapter-anthropic'
+    );
+    return new mod.AnthropicAdapter(config);
+  });
+
   // ============================================
   // POST-MVP ADAPTERS - Not yet available
   // ============================================
-
-  adapterRegistry.markUnavailable('anthropic', 'Anthropic adapter coming in v0.2.0');
   adapterRegistry.markUnavailable('google', 'Google adapter coming in v0.3.0');
   adapterRegistry.markUnavailable('mistral', 'Mistral adapter coming in v0.3.0');
   adapterRegistry.markUnavailable('ollama', 'Ollama adapter coming in v0.3.0');

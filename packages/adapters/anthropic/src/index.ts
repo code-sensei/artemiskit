@@ -1,34 +1,7 @@
 /**
  * @artemis/adapter-anthropic
  * Anthropic SDK adapter for Artemis
- *
- * STATUS: Post-MVP - Not yet implemented
- * This adapter will be available in v0.2.0
  */
-
-import { ArtemisError } from '@artemis/core';
-
-/**
- * Anthropic Adapter - Coming in v0.2.0
- *
- * This adapter is planned for a future release.
- * For now, you can use the Vercel AI SDK adapter with Anthropic
- * once we enable that provider.
- */
-export class AnthropicAdapter {
-  constructor() {
-    throw new ArtemisError(
-      'Anthropic adapter is not yet available. Coming in v0.2.0. ' +
-        'For now, use the OpenAI adapter or Vercel AI SDK adapter.',
-      'PROVIDER_UNAVAILABLE'
-    );
-  }
-}
-
-/*
-// ============================================
-// UNCOMMENT WHEN IMPLEMENTING ANTHROPIC ADAPTER
-// ============================================
 
 import Anthropic from '@anthropic-ai/sdk';
 import type {
@@ -36,18 +9,22 @@ import type {
   GenerateOptions,
   GenerateResult,
   ModelCapabilities,
-  AnthropicAdapterConfig,
   AdapterConfig,
+  BaseAdapterConfig,
 } from '@artemis/core';
 import { nanoid } from 'nanoid';
 
+interface AnthropicConfig extends BaseAdapterConfig {
+  provider: 'anthropic';
+}
+
 export class AnthropicAdapter implements ModelClient {
   private client: Anthropic;
-  private config: AnthropicAdapterConfig;
+  private config: AnthropicConfig;
   readonly provider = 'anthropic';
 
   constructor(config: AdapterConfig) {
-    this.config = config as AnthropicAdapterConfig;
+    this.config = config as AnthropicConfig;
 
     this.client = new Anthropic({
       apiKey: this.config.apiKey,
@@ -59,7 +36,7 @@ export class AnthropicAdapter implements ModelClient {
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
     const startTime = Date.now();
-    const model = options.model || this.config.defaultModel || 'claude-3-opus-20240229';
+    const model = options.model || this.config.defaultModel || 'claude-3-5-sonnet-20241022';
 
     const { systemPrompt, messages } = this.normalizePrompt(options.prompt);
 
@@ -95,10 +72,10 @@ export class AnthropicAdapter implements ModelClient {
     options: GenerateOptions,
     onChunk: (chunk: string) => void
   ): AsyncIterable<string> {
-    const model = options.model || this.config.defaultModel || 'claude-3-opus-20240229';
+    const model = options.model || this.config.defaultModel || 'claude-3-5-sonnet-20241022';
     const { systemPrompt, messages } = this.normalizePrompt(options.prompt);
 
-    const stream = await this.client.messages.stream({
+    const stream = this.client.messages.stream({
       model,
       max_tokens: options.maxTokens ?? 4096,
       temperature: options.temperature,
@@ -126,7 +103,9 @@ export class AnthropicAdapter implements ModelClient {
     };
   }
 
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    // No cleanup needed
+  }
 
   private normalizePrompt(prompt: GenerateOptions['prompt']): {
     systemPrompt?: string;
@@ -162,4 +141,3 @@ export class AnthropicAdapter implements ModelClient {
     }
   }
 }
-*/

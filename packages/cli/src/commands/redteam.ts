@@ -10,7 +10,7 @@ import {
   parseScenarioFile,
   createAdapter,
   type AdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 import {
   RedTeamGenerator,
   UnsafeResponseDetector,
@@ -20,7 +20,7 @@ import {
   RoleSpoofMutation,
   InstructionFlipMutation,
   CotInjectionMutation,
-} from '@artemis/redteam';
+} from '@artemiskit/redteam';
 
 interface RedteamOptions {
   provider?: string;

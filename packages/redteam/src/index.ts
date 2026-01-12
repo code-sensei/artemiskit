@@ -1,5 +1,5 @@
 /**
- * @artemis/redteam
+ * @artemiskit/redteam
  * Red-team testing module for Artemis Agent Reliability Toolkit
  */
 

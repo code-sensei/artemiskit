@@ -1,5 +1,5 @@
 /**
- * @artemis/adapter-vercel-ai
+ * @artemiskit/adapter-vercel-ai
  * Vercel AI SDK adapter for Artemis
  * Supports: OpenAI, Azure (via Vercel AI SDK providers)
  */

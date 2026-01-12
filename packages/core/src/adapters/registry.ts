@@ -106,28 +106,28 @@ export async function registerBuiltInAdapters(): Promise<void> {
 
   adapterRegistry.register('openai', async (config) => {
     const mod = await tryImport<{ OpenAIAdapter: new (c: AdapterConfig) => ModelClient }>(
-      '@artemis/adapter-openai'
+      '@artemiskit/adapter-openai'
     );
     return new mod.OpenAIAdapter(config);
   });
 
   adapterRegistry.register('azure-openai', async (config) => {
     const mod = await tryImport<{ OpenAIAdapter: new (c: AdapterConfig) => ModelClient }>(
-      '@artemis/adapter-openai'
+      '@artemiskit/adapter-openai'
     );
     return new mod.OpenAIAdapter(config);
   });
 
   adapterRegistry.register('vercel-ai', async (config) => {
     const mod = await tryImport<{ VercelAIAdapter: new (c: AdapterConfig) => ModelClient }>(
-      '@artemis/adapter-vercel-ai'
+      '@artemiskit/adapter-vercel-ai'
     );
     return new mod.VercelAIAdapter(config);
   });
 
   adapterRegistry.register('anthropic', async (config) => {
     const mod = await tryImport<{ AnthropicAdapter: new (c: AdapterConfig) => ModelClient }>(
-      '@artemis/adapter-anthropic'
+      '@artemiskit/adapter-anthropic'
     );
     return new mod.AnthropicAdapter(config);
   });

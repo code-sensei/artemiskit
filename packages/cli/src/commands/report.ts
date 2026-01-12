@@ -7,8 +7,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createStorageFromEnv } from '@artemis/core';
-import { generateHTMLReport, generateJSONReport } from '@artemis/reports';
+import { createStorageFromEnv } from '@artemiskit/core';
+import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
 
 interface ReportOptions {
   format?: 'html' | 'json' | 'both';

@@ -3,9 +3,9 @@
  * This imports adapters directly to avoid dynamic import issues in bundled code
  */
 
-import { adapterRegistry, type AdapterConfig, type ModelClient } from '@artemis/core';
-import { OpenAIAdapter } from '@artemis/adapter-openai';
-import { VercelAIAdapter } from '@artemis/adapter-vercel-ai';
+import { adapterRegistry, type AdapterConfig, type ModelClient } from '@artemiskit/core';
+import { OpenAIAdapter } from '@artemiskit/adapter-openai';
+import { VercelAIAdapter } from '@artemiskit/adapter-vercel-ai';
 
 export async function registerAdapters(): Promise<void> {
   // OpenAI adapter

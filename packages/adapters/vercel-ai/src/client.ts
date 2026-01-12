@@ -13,7 +13,7 @@ import type {
   GenerateResult,
   ModelCapabilities,
   AdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 import type { VercelAIAdapterConfig } from './types';
 
 type AIProvider = ReturnType<typeof createOpenAI> | ReturnType<typeof createAzure>;

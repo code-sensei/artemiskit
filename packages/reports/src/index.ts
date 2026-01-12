@@ -1,5 +1,5 @@
 /**
- * @artemis/reports
+ * @artemiskit/reports
  * Report generation for Artemis Agent Reliability Toolkit
  */
 

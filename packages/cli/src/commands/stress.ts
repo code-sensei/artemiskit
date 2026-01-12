@@ -10,7 +10,7 @@ import {
   parseScenarioFile,
   createAdapter,
   type AdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 
 interface StressOptions {
   provider?: string;

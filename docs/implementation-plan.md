@@ -42,11 +42,11 @@ Artemis is an Agent Reliability Toolkit for testing, validating, stress-testing,
 
 | Provider | Status | Adapter Package | Notes |
 |----------|--------|-----------------|-------|
-| OpenAI | **Implemented** | `@artemis/adapter-openai` | Direct OpenAI SDK |
-| Azure OpenAI | **Implemented** | `@artemis/adapter-openai` | Via Azure config |
-| Vercel AI SDK | **Implemented** | `@artemis/adapter-vercel-ai` | OpenAI/Azure providers |
-| OpenAI-compatible | **Implemented** | `@artemis/adapter-openai` | Via custom baseUrl |
-| Anthropic | Placeholder | `@artemis/adapter-anthropic` | Structure ready, not implemented |
+| OpenAI | **Implemented** | `@artemiskit/adapter-openai` | Direct OpenAI SDK |
+| Azure OpenAI | **Implemented** | `@artemiskit/adapter-openai` | Via Azure config |
+| Vercel AI SDK | **Implemented** | `@artemiskit/adapter-vercel-ai` | OpenAI/Azure providers |
+| OpenAI-compatible | **Implemented** | `@artemiskit/adapter-openai` | Via custom baseUrl |
+| Anthropic | Placeholder | `@artemiskit/adapter-anthropic` | Structure ready, not implemented |
 | Google, Mistral, etc. | Not Started | - | Future work |
 
 ---
@@ -129,7 +129,7 @@ ced578e feat: Phase 2 - Provider Adapters
 ```
 artemis/
 ├── packages/
-│   ├── core/                     # @artemis/core
+│   ├── core/                     # @artemiskit/core
 │   │   └── src/
 │   │       ├── adapters/         # ModelClient interface, registry, factory
 │   │       ├── artifacts/        # Run manifest types and generation
@@ -140,21 +140,21 @@ artemis/
 │   │       └── utils/            # Errors, logger
 │   │
 │   ├── adapters/
-│   │   ├── openai/               # @artemis/adapter-openai ✅
-│   │   ├── vercel-ai/            # @artemis/adapter-vercel-ai ✅
-│   │   └── anthropic/            # @artemis/adapter-anthropic (placeholder)
+│   │   ├── openai/               # @artemiskit/adapter-openai ✅
+│   │   ├── vercel-ai/            # @artemiskit/adapter-vercel-ai ✅
+│   │   └── anthropic/            # @artemiskit/adapter-anthropic (placeholder)
 │   │
-│   ├── cli/                      # @artemis/cli ✅
+│   ├── cli/                      # @artemiskit/cli ✅
 │   │   └── src/
 │   │       ├── commands/         # init, run, compare, history
 │   │       └── cli.ts            # Main entry
 │   │
-│   ├── reports/                  # @artemis/reports ✅
+│   ├── reports/                  # @artemiskit/reports ✅
 │   │   └── src/
 │   │       ├── html/             # HTML generator with Handlebars
 │   │       └── json/             # JSON generator
 │   │
-│   └── redteam/                  # @artemis/redteam ✅
+│   └── redteam/                  # @artemiskit/redteam ✅
 │       └── src/
 │           ├── mutations/        # typo, role-spoof, instruction-flip, cot-injection
 │           ├── generator.ts      # RedTeamGenerator
@@ -177,7 +177,7 @@ artemis/
 
 ## 5. Implemented Features
 
-### 5.1 Core Library (`@artemis/core`)
+### 5.1 Core Library (`@artemiskit/core`)
 
 **Adapter System:**
 ```typescript
@@ -214,18 +214,18 @@ const result = await client.generate({
 
 ### 5.2 Provider Adapters
 
-**OpenAI Adapter (`@artemis/adapter-openai`):**
+**OpenAI Adapter (`@artemiskit/adapter-openai`):**
 - Direct OpenAI API support
 - Azure OpenAI support via config
 - OpenAI-compatible endpoints via baseUrl
 - Streaming and embeddings
 
-**Vercel AI Adapter (`@artemis/adapter-vercel-ai`):**
+**Vercel AI Adapter (`@artemiskit/adapter-vercel-ai`):**
 - OpenAI provider
 - Azure provider
 - Extensible for future providers
 
-### 5.3 CLI (`@artemis/cli`)
+### 5.3 CLI (`@artemiskit/cli`)
 
 ```bash
 # Initialize project
@@ -241,16 +241,16 @@ artemis compare <baseline-id> <current-id> --threshold 0.05
 artemis history --limit 20 --scenario basic
 ```
 
-### 5.4 Reports (`@artemis/reports`)
+### 5.4 Reports (`@artemiskit/reports`)
 
 ```typescript
-import { generateHTMLReport, generateJSONReport } from '@artemis/reports';
+import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
 
 const html = generateHTMLReport(manifest);
 const json = generateJSONReport(manifest, { pretty: true });
 ```
 
-### 5.5 Red-Team (`@artemis/redteam`)
+### 5.5 Red-Team (`@artemiskit/redteam`)
 
 **Mutations:**
 - `TypoMutation` - Random typos (severity: low)
@@ -291,11 +291,11 @@ const result = detector.detect(response);
 
 ```typescript
 // Uncomment and implement when needed:
-// @artemis/adapter-anthropic - Direct Anthropic SDK
-// @artemis/adapter-google - Google AI / Vertex AI
-// @artemis/adapter-mistral - Mistral AI
-// @artemis/adapter-ollama - Local Ollama
-// @artemis/adapter-bedrock - AWS Bedrock
+// @artemiskit/adapter-anthropic - Direct Anthropic SDK
+// @artemiskit/adapter-google - Google AI / Vertex AI
+// @artemiskit/adapter-mistral - Mistral AI
+// @artemiskit/adapter-ollama - Local Ollama
+// @artemiskit/adapter-bedrock - AWS Bedrock
 ```
 
 ### 6.3 Recommended Next Steps

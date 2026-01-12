@@ -1,5 +1,5 @@
 /**
- * @artemis/cli
+ * @artemiskit/cli
  * Command-line interface for Artemis Agent Reliability Toolkit
  */
 

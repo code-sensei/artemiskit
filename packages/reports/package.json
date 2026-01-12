@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/reports",
+  "name": "@artemiskit/reports",
   "version": "0.0.1",
   "description": "Report generation for Artemis LLM testing framework",
   "type": "module",
@@ -26,7 +26,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemis/core": "workspace:*",
+    "@artemiskit/core": "workspace:*",
     "handlebars": "^4.7.8"
   },
   "devDependencies": {

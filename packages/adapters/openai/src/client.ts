@@ -11,7 +11,7 @@ import type {
   GenerateResult,
   ModelCapabilities,
   AdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 import type { OpenAIAdapterConfig, AzureOpenAIAdapterConfig } from './types';
 
 export class OpenAIAdapter implements ModelClient {

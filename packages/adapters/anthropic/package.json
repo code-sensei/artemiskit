@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/adapter-anthropic",
+  "name": "@artemiskit/adapter-anthropic",
   "version": "0.0.1",
   "description": "Anthropic Claude adapter for Artemis LLM testing framework",
   "type": "module",
@@ -26,7 +26,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemis/core": "workspace:*",
+    "@artemiskit/core": "workspace:*",
     "@anthropic-ai/sdk": "^0.30.0",
     "nanoid": "^5.0.0"
   },

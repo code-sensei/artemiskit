@@ -2,7 +2,7 @@
  * JSON Report Generator
  */
 
-import type { RunManifest } from '@artemis/core';
+import type { RunManifest } from '@artemiskit/core';
 
 export interface JSONReportOptions {
   pretty?: boolean;

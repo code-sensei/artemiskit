@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/cli",
+  "name": "@artemiskit/cli",
   "version": "0.0.1",
   "description": "Command-line interface for Artemis LLM testing framework",
   "type": "module",
@@ -30,11 +30,11 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemis/core": "workspace:*",
-    "@artemis/adapter-openai": "workspace:*",
-    "@artemis/adapter-vercel-ai": "workspace:*",
-    "@artemis/reports": "workspace:*",
-    "@artemis/redteam": "workspace:*",
+    "@artemiskit/core": "workspace:*",
+    "@artemiskit/adapter-openai": "workspace:*",
+    "@artemiskit/adapter-vercel-ai": "workspace:*",
+    "@artemiskit/reports": "workspace:*",
+    "@artemiskit/redteam": "workspace:*",
     "commander": "^12.0.0",
     "chalk": "^5.3.0",
     "ora": "^8.0.0",

@@ -13,11 +13,11 @@
       },
     },
     "packages/adapters/anthropic": {
-      "name": "@artemis/adapter-anthropic",
+      "name": "@artemiskit/adapter-anthropic",
       "version": "0.0.1",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.30.0",
-        "@artemis/core": "workspace:*",
+        "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
       },
       "devDependencies": {
@@ -26,10 +26,10 @@
       },
     },
     "packages/adapters/openai": {
-      "name": "@artemis/adapter-openai",
+      "name": "@artemiskit/adapter-openai",
       "version": "0.0.1",
       "dependencies": {
-        "@artemis/core": "workspace:*",
+        "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
         "openai": "^4.28.0",
       },
@@ -39,12 +39,12 @@
       },
     },
     "packages/adapters/vercel-ai": {
-      "name": "@artemis/adapter-vercel-ai",
+      "name": "@artemiskit/adapter-vercel-ai",
       "version": "0.0.1",
       "dependencies": {
         "@ai-sdk/azure": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
-        "@artemis/core": "workspace:*",
+        "@artemiskit/core": "workspace:*",
         "ai": "^6.0.0",
         "nanoid": "^5.0.0",
       },
@@ -54,17 +54,17 @@
       },
     },
     "packages/cli": {
-      "name": "@artemis/cli",
+      "name": "@artemiskit/cli",
       "version": "0.0.1",
       "bin": {
         "artemis": "./bin/artemis.ts",
       },
       "dependencies": {
-        "@artemis/adapter-openai": "workspace:*",
-        "@artemis/adapter-vercel-ai": "workspace:*",
-        "@artemis/core": "workspace:*",
-        "@artemis/redteam": "workspace:*",
-        "@artemis/reports": "workspace:*",
+        "@artemiskit/adapter-openai": "workspace:*",
+        "@artemiskit/adapter-vercel-ai": "workspace:*",
+        "@artemiskit/core": "workspace:*",
+        "@artemiskit/redteam": "workspace:*",
+        "@artemiskit/reports": "workspace:*",
         "chalk": "^5.3.0",
         "cli-table3": "^0.6.3",
         "commander": "^12.0.0",
@@ -79,7 +79,7 @@
       },
     },
     "packages/core": {
-      "name": "@artemis/core",
+      "name": "@artemiskit/core",
       "version": "0.0.1",
       "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
@@ -97,10 +97,10 @@
       },
     },
     "packages/redteam": {
-      "name": "@artemis/redteam",
+      "name": "@artemiskit/redteam",
       "version": "0.0.1",
       "dependencies": {
-        "@artemis/core": "workspace:*",
+        "@artemiskit/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.1.0",
@@ -108,10 +108,10 @@
       },
     },
     "packages/reports": {
-      "name": "@artemis/reports",
+      "name": "@artemiskit/reports",
       "version": "0.0.1",
       "dependencies": {
-        "@artemis/core": "workspace:*",
+        "@artemiskit/core": "workspace:*",
         "handlebars": "^4.7.8",
       },
       "devDependencies": {
@@ -133,19 +133,19 @@
 
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.30.1", "", { "dependencies": { "@types/node": "^18.11.18", "@types/node-fetch": "^2.6.4", "abort-controller": "^3.0.0", "agentkeepalive": "^4.2.1", "form-data-encoder": "1.7.2", "formdata-node": "^4.3.2", "node-fetch": "^2.6.7" } }, "sha512-nuKvp7wOIz6BFei8WrTdhmSsx5mwnArYyJgh4+vYu3V4J0Ltb8Xm3odPm51n1aSI0XxNCrDl7O88cxCtUdAkaw=="],
 
-    "@artemis/adapter-anthropic": ["@artemis/adapter-anthropic@workspace:packages/adapters/anthropic"],
+    "@artemiskit/adapter-anthropic": ["@artemiskit/adapter-anthropic@workspace:packages/adapters/anthropic"],
 
-    "@artemis/adapter-openai": ["@artemis/adapter-openai@workspace:packages/adapters/openai"],
+    "@artemiskit/adapter-openai": ["@artemiskit/adapter-openai@workspace:packages/adapters/openai"],
 
-    "@artemis/adapter-vercel-ai": ["@artemis/adapter-vercel-ai@workspace:packages/adapters/vercel-ai"],
+    "@artemiskit/adapter-vercel-ai": ["@artemiskit/adapter-vercel-ai@workspace:packages/adapters/vercel-ai"],
 
-    "@artemis/cli": ["@artemis/cli@workspace:packages/cli"],
+    "@artemiskit/cli": ["@artemiskit/cli@workspace:packages/cli"],
 
-    "@artemis/core": ["@artemis/core@workspace:packages/core"],
+    "@artemiskit/core": ["@artemiskit/core@workspace:packages/core"],
 
-    "@artemis/redteam": ["@artemis/redteam@workspace:packages/redteam"],
+    "@artemiskit/redteam": ["@artemiskit/redteam@workspace:packages/redteam"],
 
-    "@artemis/reports": ["@artemis/reports@workspace:packages/reports"],
+    "@artemiskit/reports": ["@artemiskit/reports@workspace:packages/reports"],
 
     "@babel/runtime": ["@babel/runtime@7.28.4", "", {}, "sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ=="],
 

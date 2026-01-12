@@ -12,7 +12,7 @@ import {
   createStorageFromEnv,
   runScenario,
   type AdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 import { loadConfig } from '../config/loader';
 
 interface RunOptions {

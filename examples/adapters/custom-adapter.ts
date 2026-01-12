@@ -15,8 +15,8 @@ import type {
   AdapterConfig,
   GenerateRequest,
   GenerateResponse,
-} from "@artemis/core";
-import { adapterRegistry } from "@artemis/core";
+} from "@artemiskit/core";
+import { adapterRegistry } from "@artemiskit/core";
 
 /**
  * Custom adapter configuration

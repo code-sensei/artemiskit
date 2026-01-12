@@ -16,10 +16,10 @@
 
 ```bash
 # Install CLI globally
-npm install -g @artemis/cli
+npm install -g @artemiskit/cli
 
 # Or use with npx
-npx @artemis/cli run scenario.yaml
+npx @artemiskit/cli run scenario.yaml
 ```
 
 ## Quick Start
@@ -134,13 +134,13 @@ providers:
 
 | Package | Description |
 |---------|-------------|
-| `@artemis/core` | Core runner, evaluators, and storage |
-| `@artemis/cli` | Command-line interface |
-| `@artemis/reports` | Report generation (HTML, JSON) |
-| `@artemis/redteam` | Red-team mutation strategies |
-| `@artemis/adapter-openai` | OpenAI/Azure OpenAI adapter |
-| `@artemis/adapter-vercel-ai` | Vercel AI SDK adapter |
-| `@artemis/adapter-anthropic` | Anthropic Claude adapter |
+| `@artemiskit/core` | Core runner, evaluators, and storage |
+| `@artemiskit/cli` | Command-line interface |
+| `@artemiskit/reports` | Report generation (HTML, JSON) |
+| `@artemiskit/redteam` | Red-team mutation strategies |
+| `@artemiskit/adapter-openai` | OpenAI/Azure OpenAI adapter |
+| `@artemiskit/adapter-vercel-ai` | Vercel AI SDK adapter |
+| `@artemiskit/adapter-anthropic` | Anthropic Claude adapter |
 
 ## Programmatic Usage
 
@@ -150,7 +150,7 @@ import {
   runScenario,
   createAdapter,
   createStorageFromEnv,
-} from '@artemis/core';
+} from '@artemiskit/core';
 
 // Load scenario
 const scenario = await parseScenarioFile('scenario.yaml');

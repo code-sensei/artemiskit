@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/adapter-openai",
+  "name": "@artemiskit/adapter-openai",
   "version": "0.0.1",
   "description": "OpenAI and Azure OpenAI adapter for Artemis LLM testing framework",
   "type": "module",
@@ -26,7 +26,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemis/core": "workspace:*",
+    "@artemiskit/core": "workspace:*",
     "openai": "^4.28.0",
     "nanoid": "^5.0.0"
   },

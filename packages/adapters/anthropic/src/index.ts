@@ -1,5 +1,5 @@
 /**
- * @artemis/adapter-anthropic
+ * @artemiskit/adapter-anthropic
  * Anthropic SDK adapter for Artemis
  */
 
@@ -11,7 +11,7 @@ import type {
   ModelCapabilities,
   AdapterConfig,
   BaseAdapterConfig,
-} from '@artemis/core';
+} from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 
 interface AnthropicConfig extends BaseAdapterConfig {

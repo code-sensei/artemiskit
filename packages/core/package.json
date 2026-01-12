@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/core",
+  "name": "@artemiskit/core",
   "version": "0.0.1",
   "description": "Core runner, evaluators, and storage for Artemis LLM testing framework",
   "type": "module",

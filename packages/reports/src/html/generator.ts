@@ -3,7 +3,7 @@
  */
 
 import Handlebars from 'handlebars';
-import type { RunManifest } from '@artemis/core';
+import type { RunManifest } from '@artemiskit/core';
 
 const HTML_TEMPLATE = `
 <!DOCTYPE html>

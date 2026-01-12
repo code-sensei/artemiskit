@@ -5,7 +5,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { createStorageFromEnv } from '@artemis/core';
+import { createStorageFromEnv } from '@artemiskit/core';
 
 interface CompareOptions {
   threshold?: number;

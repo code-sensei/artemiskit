@@ -1,5 +1,5 @@
 /**
- * @artemis/adapter-openai
+ * @artemiskit/adapter-openai
  * OpenAI SDK adapter for Artemis
  * Supports: OpenAI, Azure OpenAI, OpenAI-compatible APIs
  */

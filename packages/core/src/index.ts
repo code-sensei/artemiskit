@@ -1,5 +1,5 @@
 /**
- * @artemis/core
+ * @artemiskit/core
  * Core library for Artemis Agent Reliability Toolkit
  */
 

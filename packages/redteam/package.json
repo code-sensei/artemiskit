@@ -1,5 +1,5 @@
 {
-  "name": "@artemis/redteam",
+  "name": "@artemiskit/redteam",
   "version": "0.0.1",
   "description": "Red-team adversarial testing for Artemis LLM testing framework",
   "type": "module",
@@ -26,7 +26,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemis/core": "workspace:*"
+    "@artemiskit/core": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",

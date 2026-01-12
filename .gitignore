@@ -43,6 +43,9 @@ artemis-output/
 # AI trace logs
 ai-trace/
 
+# Dev Docs
+dev-docs/
+
 # Supabase local
 .supabase/
 

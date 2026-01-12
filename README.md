@@ -56,12 +56,14 @@
 - [ ] Ollama adapter (local models)
 - [ ] Watch mode for CLI
 - [ ] Diff reports between runs
+- [ ] Documentation website
 
 ### v0.3.0
 - [ ] Web dashboard for results visualization
 - [ ] Scheduled test runs
 - [ ] Webhook notifications
 - [ ] Custom evaluator plugins
+- [ ] Framework starter templates (Next.js, Express, etc.)
 
 ### Future
 - [ ] VS Code extension
@@ -69,6 +71,7 @@
 - [ ] Prompt regression detection
 - [ ] Cost tracking and optimization suggestions
 - [ ] Multi-turn conversation testing
+- [ ] Example repos for popular frameworks
 
 ## Installation
 

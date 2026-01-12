@@ -4,7 +4,7 @@ description: |
   These scenarios verify that the model maintains its intended behavior
   when users attempt to override system instructions.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0  # Removed - some models do not support it
 
 setup:

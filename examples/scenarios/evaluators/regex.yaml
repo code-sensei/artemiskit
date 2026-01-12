@@ -3,7 +3,7 @@ description: |
   Demonstrates the regex evaluator for pattern matching.
   Use for format validation, data extraction, and flexible matching.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0  # Removed - some models do not support it
 
 cases:

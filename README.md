@@ -65,6 +65,23 @@
 - [ ] Custom evaluator plugins
 - [ ] Framework starter templates (Next.js, Express, etc.)
 
+### v0.4.0 - Agent Framework Adapters
+- [ ] **LangChain adapter** (`@artemiskit/adapter-langchain`)
+  - Callback handler for capturing agent steps, tool calls, and LLM responses
+  - Chain execution tracing and evaluation
+  - Tool/function call validation
+  - Agent reasoning step assessment
+- [ ] **CrewAI adapter** (`@artemiskit/adapter-crewai`)
+  - Event listener for crew execution
+  - Individual agent output evaluation within crews
+  - Agent role adherence testing
+  - Task delegation and collaboration metrics
+- [ ] **LlamaIndex adapter** (`@artemiskit/adapter-llamaindex`)
+  - Query engine response evaluation
+  - RAG pipeline quality testing
+  - Citation/attribution accuracy evaluation
+  - Hallucination detection for RAG applications
+
 ### Future
 - [ ] VS Code extension
 - [ ] GitHub Action for CI integration

@@ -1,6 +1,6 @@
-# Artemis Examples
+# ArtemisKit Examples
 
-This directory contains example configurations, scenarios, and integrations for Artemis.
+This directory contains example configurations, scenarios, and integrations for ArtemisKit.
 
 ## Directory Structure
 
@@ -27,7 +27,7 @@ examples/
 
 1. Copy the relevant example to your project
 2. Modify the scenario/config for your use case
-3. Run with Artemis CLI
+3. Run with ArtemisKit CLI
 
 ```bash
 # Run an evaluator example
@@ -71,6 +71,7 @@ Example `artemis.config.yaml` files:
 - `basic.yaml` - Minimal configuration
 - `multi-provider.yaml` - Multiple provider setup
 - `ci-optimized.yaml` - CI/CD optimized settings
+- `supabase.yaml` - Supabase storage configuration
 
 ## Integrations
 

@@ -3,7 +3,7 @@ description: |
   Demonstrates the contains evaluator for keyword presence checking.
   Use for verifying required terms, disclaimers, or key concepts.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0.3  # Adjust based on model support
 
 cases:

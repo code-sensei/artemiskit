@@ -3,7 +3,7 @@ description: |
   Demonstrates the fuzzy evaluator for semantic similarity matching.
   Use for paraphrasing validation, translation checks, and flexible responses.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0.3  # Adjust based on model support
 
 cases:

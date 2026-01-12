@@ -3,7 +3,7 @@ description: |
   Tests the agent's ability to detect when a conversation should be escalated
   to a human agent based on complexity, sensitivity, or customer request.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0  # Removed - some models do not support it
 
 setup:

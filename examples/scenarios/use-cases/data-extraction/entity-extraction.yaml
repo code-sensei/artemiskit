@@ -3,7 +3,7 @@ description: |
   Tests the accuracy of extracting structured entities from unstructured text.
   Validates extraction of people, organizations, dates, locations, etc.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0  # Removed - some models do not support it
 
 setup:

@@ -3,7 +3,7 @@ description: |
   Tests that RAG agents properly cite sources and avoid hallucination.
   Validates attribution, "I don't know" responses, and source fidelity.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0  # Removed - some models do not support it
 
 setup:

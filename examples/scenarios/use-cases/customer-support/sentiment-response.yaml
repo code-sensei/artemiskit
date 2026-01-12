@@ -3,7 +3,7 @@ description: |
   Tests that the agent responds appropriately based on customer sentiment.
   Angry customers need empathy, happy customers need engagement.
 provider: azure-openai
-model: 5-mini
+model: gpt-4o-mini
 # temperature: 0.3  # Adjust based on model support
 
 setup:

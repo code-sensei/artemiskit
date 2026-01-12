@@ -1,25 +1,83 @@
-# Artemis
+# ArtemisKit
 
-**Agent Reliability Toolkit for LLMs** - A comprehensive testing framework for evaluating, stress-testing, and red-teaming Large Language Model applications.
+**Agent Reliability Toolkit for LLMs** - Test, evaluate, stress-test, and red-team your AI applications with scenario-based testing, multiple evaluators, and multi-provider support.
 
-## Features
+> **Work in Progress** - This project is under active development. APIs may change.
 
-- **Scenario-based Testing**: Define test scenarios in YAML with multiple test cases
-- **Multiple Evaluators**: Exact match, regex, fuzzy matching, JSON schema validation, and LLM-based grading
-- **Multi-Provider Support**: OpenAI, Azure OpenAI, Anthropic, and Vercel AI SDK adapters
-- **Red Team Testing**: Built-in adversarial testing with mutation strategies
-- **Stress Testing**: Concurrent load testing with configurable parameters
-- **Flexible Storage**: Local filesystem or Supabase for results persistence
-- **Rich Reports**: HTML and JSON report generation with detailed metrics
+## Status
+
+![Status](https://img.shields.io/badge/status-alpha-orange)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+
+## What's Done
+
+### Core
+- [x] Scenario-based test runner with YAML configuration
+- [x] Multiple evaluators (exact, regex, contains, fuzzy, json_schema, llm_grader)
+- [x] Test result artifacts and manifest generation
+- [x] Local filesystem storage
+- [x] Configurable concurrency, timeout, and retries
+
+### Adapters
+- [x] OpenAI adapter (GPT-4, GPT-3.5, etc.)
+- [x] Azure OpenAI adapter
+- [x] Anthropic Claude adapter
+- [x] Vercel AI SDK adapter (v6)
+
+### CLI
+- [x] `artemis init` - Project initialization
+- [x] `artemis run` - Execute test scenarios
+- [x] `artemis report` - Generate HTML/JSON reports
+- [x] `artemis redteam` - Adversarial testing
+- [x] `artemis stress` - Load testing
+
+### Red Team
+- [x] Typo mutation
+- [x] Role spoof mutation
+- [x] Instruction flip mutation
+- [x] Chain-of-thought injection
+
+### Infrastructure
+- [x] Monorepo with Bun workspaces
+- [x] TypeScript with declaration files
+- [x] Changesets for versioning
+
+## Roadmap
+
+### v0.1.0 (Current)
+- [ ] Publish to npm
+- [ ] Supabase storage integration testing
+- [ ] Increase test coverage (target: 80%)
+- [ ] CI/CD pipeline (GitHub Actions)
+
+### v0.2.0
+- [ ] Google Gemini adapter
+- [ ] Mistral adapter
+- [ ] Ollama adapter (local models)
+- [ ] Watch mode for CLI
+- [ ] Diff reports between runs
+
+### v0.3.0
+- [ ] Web dashboard for results visualization
+- [ ] Scheduled test runs
+- [ ] Webhook notifications
+- [ ] Custom evaluator plugins
+
+### Future
+- [ ] VS Code extension
+- [ ] GitHub Action for CI integration
+- [ ] Prompt regression detection
+- [ ] Cost tracking and optimization suggestions
+- [ ] Multi-turn conversation testing
 
 ## Installation
 
 ```bash
-# Install CLI globally
-npm install -g @artemiskit/cli
-
-# Or use with npx
-npx @artemiskit/cli run scenario.yaml
+# Not yet published - install from source
+git clone https://github.com/code-sensei/artemiskit.git
+cd artemiskit
+bun install
+bun run build
 ```
 
 ## Quick Start
@@ -149,7 +207,6 @@ import {
   parseScenarioFile,
   runScenario,
   createAdapter,
-  createStorageFromEnv,
 } from '@artemiskit/core';
 
 // Load scenario
@@ -190,6 +247,10 @@ bun test
 # Type check
 bun run typecheck
 ```
+
+## Contributing
+
+Contributions welcome! This project is in early development - please open an issue to discuss before submitting PRs.
 
 ## License
 

@@ -2,10 +2,10 @@
  * Storage factory for creating storage adapters
  */
 
-import type { StorageAdapter, StorageConfig } from './types';
-import { SupabaseStorageAdapter } from './supabase';
-import { LocalStorageAdapter } from './local';
 import { ArtemisError } from '../utils/errors';
+import { LocalStorageAdapter } from './local';
+import { SupabaseStorageAdapter } from './supabase';
+import type { StorageAdapter, StorageConfig } from './types';
 
 /**
  * Create a storage adapter from configuration

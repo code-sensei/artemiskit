@@ -2,25 +2,21 @@
  * Redteam command - Run red-team adversarial tests
  */
 
-import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
-import Table from 'cli-table3';
+import { type AdapterConfig, createAdapter, parseScenarioFile } from '@artemiskit/core';
 import {
-  parseScenarioFile,
-  createAdapter,
-  type AdapterConfig,
-} from '@artemiskit/core';
-import {
-  RedTeamGenerator,
-  UnsafeResponseDetector,
-  SeverityMapper,
-  type Mutation,
-  TypoMutation,
-  RoleSpoofMutation,
-  InstructionFlipMutation,
   CotInjectionMutation,
+  InstructionFlipMutation,
+  type Mutation,
+  RedTeamGenerator,
+  RoleSpoofMutation,
+  SeverityMapper,
+  TypoMutation,
+  UnsafeResponseDetector,
 } from '@artemiskit/redteam';
+import chalk from 'chalk';
+import Table from 'cli-table3';
+import { Command } from 'commander';
+import ora from 'ora';
 
 interface RedteamOptions {
   provider?: string;
@@ -39,7 +35,10 @@ export function redteamCommand(): Command {
     .argument('<scenario>', 'Path to scenario YAML file')
     .option('-p, --provider <provider>', 'Provider to use')
     .option('-m, --model <model>', 'Model to use')
-    .option('--mutations <mutations...>', 'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection)')
+    .option(
+      '--mutations <mutations...>',
+      'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection)'
+    )
     .option('-c, --count <number>', 'Number of mutated prompts per case', '5')
     .option('--save', 'Save results to storage')
     .option('-v, --verbose', 'Verbose output')
@@ -66,10 +65,10 @@ export function redteamCommand(): Command {
 
         console.log();
         console.log(chalk.bold('Red-Team Testing'));
-        console.log(chalk.dim(`Mutations: ${mutations.map(m => m.name).join(', ')}`));
+        console.log(chalk.dim(`Mutations: ${mutations.map((m) => m.name).join(', ')}`));
         console.log();
 
-        const count = parseInt(String(options.count)) || 5;
+        const count = Number.parseInt(String(options.count)) || 5;
         const results: Array<{
           caseId: string;
           mutation: string;
@@ -84,9 +83,10 @@ export function redteamCommand(): Command {
         for (const testCase of scenario.cases) {
           console.log(chalk.bold(`Testing case: ${testCase.id}`));
 
-          const originalPrompt = typeof testCase.prompt === 'string'
-            ? testCase.prompt
-            : testCase.prompt.map(m => m.content).join('\n');
+          const originalPrompt =
+            typeof testCase.prompt === 'string'
+              ? testCase.prompt
+              : testCase.prompt.map((m) => m.content).join('\n');
 
           const mutatedPrompts = generator.generate(originalPrompt, count);
 
@@ -120,7 +120,9 @@ export function redteamCommand(): Command {
                 reasons: detection.reasons,
               });
             } catch (error) {
-              console.log(`  ${chalk.yellow('ERROR')} [${mutated.mutations.join(', ')}]: ${(error as Error).message}`);
+              console.log(
+                `  ${chalk.yellow('ERROR')} [${mutated.mutations.join(', ')}]: ${(error as Error).message}`
+              );
             }
           }
           console.log();
@@ -128,7 +130,6 @@ export function redteamCommand(): Command {
 
         // Summary
         displaySummary(results);
-
       } catch (error) {
         spinner.fail('Error');
         console.error(chalk.red('Error:'), (error as Error).message);
@@ -141,7 +142,7 @@ export function redteamCommand(): Command {
 
 function selectMutations(names?: string[]): Mutation[] {
   const allMutations: Record<string, Mutation> = {
-    'typo': new TypoMutation(),
+    typo: new TypoMutation(),
     'role-spoof': new RoleSpoofMutation(),
     'instruction-flip': new InstructionFlipMutation(),
     'cot-injection': new CotInjectionMutation(),
@@ -151,9 +152,7 @@ function selectMutations(names?: string[]): Mutation[] {
     return Object.values(allMutations);
   }
 
-  return names
-    .filter(name => name in allMutations)
-    .map(name => allMutations[name]);
+  return names.filter((name) => name in allMutations).map((name) => allMutations[name]);
 }
 
 function buildAdapterConfig(provider: string, model?: string): AdapterConfig {
@@ -186,15 +185,18 @@ function buildAdapterConfig(provider: string, model?: string): AdapterConfig {
 
 function displaySummary(results: Array<{ unsafe: boolean; severity: string }>): void {
   const total = results.length;
-  const unsafe = results.filter(r => r.unsafe).length;
+  const unsafe = results.filter((r) => r.unsafe).length;
   const safe = total - unsafe;
 
   const bySeverity = results
-    .filter(r => r.unsafe)
-    .reduce((acc, r) => {
-      acc[r.severity] = (acc[r.severity] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    .filter((r) => r.unsafe)
+    .reduce(
+      (acc, r) => {
+        acc[r.severity] = (acc[r.severity] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
   const table = new Table({
     head: [chalk.bold('Metric'), chalk.bold('Value')],

@@ -3,8 +3,8 @@
  */
 
 import { z } from 'zod';
-import type { Evaluator, EvaluatorResult } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorResult } from './types';
 
 export class JsonSchemaEvaluator implements Evaluator {
   readonly type = 'json_schema';
@@ -39,18 +39,17 @@ export class JsonSchemaEvaluator implements Evaluator {
           reason: 'Response matches JSON schema',
           details: { parsed },
         };
-      } else {
-        const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
-        return {
-          passed: false,
-          score: 0,
-          reason: `Schema validation failed: ${issues.join(', ')}`,
-          details: {
-            parsed,
-            errors: issues,
-          },
-        };
       }
+      const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+      return {
+        passed: false,
+        score: 0,
+        reason: `Schema validation failed: ${issues.join(', ')}`,
+        details: {
+          parsed,
+          errors: issues,
+        },
+      };
     } catch (error) {
       return {
         passed: false,
@@ -85,9 +84,7 @@ export class JsonSchemaEvaluator implements Evaluator {
           const shape: Record<string, z.ZodTypeAny> = {};
           const required = (schema.required as string[]) || [];
 
-          for (const [key, value] of Object.entries(
-            schema.properties as Record<string, unknown>
-          )) {
+          for (const [key, value] of Object.entries(schema.properties as Record<string, unknown>)) {
             const fieldSchema = this.jsonSchemaToZod(value as Record<string, unknown>);
             shape[key] = required.includes(key) ? fieldSchema : fieldSchema.optional();
           }

@@ -3,17 +3,17 @@
  * Provides unified interface to multiple providers via Vercel's AI SDK
  */
 
-import { generateText, streamText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 import { createAzure } from '@ai-sdk/azure';
-import { nanoid } from 'nanoid';
+import { createOpenAI } from '@ai-sdk/openai';
 import type {
-  ModelClient,
+  AdapterConfig,
   GenerateOptions,
   GenerateResult,
   ModelCapabilities,
-  AdapterConfig,
+  ModelClient,
 } from '@artemiskit/core';
+import { generateText, streamText } from 'ai';
+import { nanoid } from 'nanoid';
 import type { VercelAIAdapterConfig } from './types';
 
 type AIProvider = ReturnType<typeof createOpenAI> | ReturnType<typeof createAzure>;
@@ -82,9 +82,7 @@ export class VercelAIAdapter implements ModelClient {
 
       default:
         throw new Error(
-          `Unsupported Vercel AI provider: ${underlyingProvider}. ` +
-            `MVP supports: openai, azure. ` +
-            `Coming soon: anthropic, google, mistral and more.`
+          `Unsupported Vercel AI provider: ${underlyingProvider}. MVP supports: openai, azure. Coming soon: anthropic, google, mistral and more.`
         );
     }
   }
@@ -128,10 +126,7 @@ export class VercelAIAdapter implements ModelClient {
     };
   }
 
-  async *stream(
-    options: GenerateOptions,
-    onChunk: (chunk: string) => void
-  ): AsyncIterable<string> {
+  async *stream(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
     const model = options.model || this.config.defaultModel;
 
     if (!model) {

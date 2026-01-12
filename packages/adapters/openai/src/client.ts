@@ -3,16 +3,16 @@
  * Supports: OpenAI, Azure OpenAI, OpenAI-compatible APIs
  */
 
-import OpenAI from 'openai';
-import { nanoid } from 'nanoid';
 import type {
-  ModelClient,
+  AdapterConfig,
   GenerateOptions,
   GenerateResult,
   ModelCapabilities,
-  AdapterConfig,
+  ModelClient,
 } from '@artemiskit/core';
-import type { OpenAIAdapterConfig, AzureOpenAIAdapterConfig } from './types';
+import { nanoid } from 'nanoid';
+import OpenAI from 'openai';
+import type { AzureOpenAIAdapterConfig, OpenAIAdapterConfig } from './types';
 
 export class OpenAIAdapter implements ModelClient {
   private client: OpenAI;
@@ -92,10 +92,7 @@ export class OpenAIAdapter implements ModelClient {
     };
   }
 
-  async *stream(
-    options: GenerateOptions,
-    onChunk: (chunk: string) => void
-  ): AsyncIterable<string> {
+  async *stream(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
     const model = options.model || this.config.defaultModel || 'gpt-4';
     const messages = this.normalizePrompt(options.prompt);
 
@@ -118,9 +115,7 @@ export class OpenAIAdapter implements ModelClient {
 
   async embed(text: string): Promise<number[]> {
     const model =
-      this.config.provider === 'azure-openai'
-        ? 'text-embedding-ada-002'
-        : 'text-embedding-3-small';
+      this.config.provider === 'azure-openai' ? 'text-embedding-ada-002' : 'text-embedding-3-small';
 
     const response = await this.client.embeddings.create({
       model,

@@ -2,8 +2,8 @@
  * Contains evaluator - checks if response contains specific values
  */
 
-import type { Evaluator, EvaluatorResult } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorResult } from './types';
 
 export class ContainsEvaluator implements Evaluator {
   readonly type = 'contains';
@@ -20,8 +20,7 @@ export class ContainsEvaluator implements Evaluator {
     }));
 
     const foundCount = results.filter((r) => r.found).length;
-    const passed =
-      expected.mode === 'all' ? foundCount === expected.values.length : foundCount > 0;
+    const passed = expected.mode === 'all' ? foundCount === expected.values.length : foundCount > 0;
 
     const score = expected.values.length > 0 ? foundCount / expected.values.length : 1;
 

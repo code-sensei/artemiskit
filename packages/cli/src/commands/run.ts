@@ -2,17 +2,17 @@
  * Run command - Execute test scenarios
  */
 
-import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
-import Table from 'cli-table3';
 import {
-  parseScenarioFile,
+  type AdapterConfig,
   createAdapter,
   createStorageFromEnv,
+  parseScenarioFile,
   runScenario,
-  type AdapterConfig,
 } from '@artemiskit/core';
+import chalk from 'chalk';
+import Table from 'cli-table3';
+import { Command } from 'commander';
+import ora from 'ora';
 import { loadConfig } from '../config/loader';
 
 interface RunOptions {
@@ -80,9 +80,9 @@ export function runCommand(): Command {
           client,
           project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
           tags: options.tags,
-          concurrency: parseInt(String(options.concurrency)) || 1,
-          timeout: options.timeout ? parseInt(String(options.timeout)) : undefined,
-          retries: options.retries ? parseInt(String(options.retries)) : undefined,
+          concurrency: Number.parseInt(String(options.concurrency)) || 1,
+          timeout: options.timeout ? Number.parseInt(String(options.timeout)) : undefined,
+          retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
           onCaseComplete: (caseResult) => {
             const statusIcon = caseResult.ok ? chalk.green('✓') : chalk.red('✗');
             const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
@@ -134,7 +134,10 @@ function buildAdapterConfig(
   config?: Record<string, unknown> | null
 ): AdapterConfig {
   // Get provider-specific config if available
-  const configWithProviders = config as { providers?: Record<string, Record<string, unknown>> } | null | undefined;
+  const configWithProviders = config as
+    | { providers?: Record<string, Record<string, unknown>> }
+    | null
+    | undefined;
   const providerConfig = configWithProviders?.providers?.[provider];
 
   switch (provider) {
@@ -150,16 +153,22 @@ function buildAdapterConfig(
       return {
         provider: 'azure-openai',
         apiKey: (providerConfig?.apiKey as string) || process.env.AZURE_OPENAI_API_KEY,
-        resourceName: (providerConfig?.resourceName as string) || process.env.AZURE_OPENAI_RESOURCE || '',
-        deploymentName: (providerConfig?.deploymentName as string) || process.env.AZURE_OPENAI_DEPLOYMENT || '',
-        apiVersion: (providerConfig?.apiVersion as string) || process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
+        resourceName:
+          (providerConfig?.resourceName as string) || process.env.AZURE_OPENAI_RESOURCE || '',
+        deploymentName:
+          (providerConfig?.deploymentName as string) || process.env.AZURE_OPENAI_DEPLOYMENT || '',
+        apiVersion:
+          (providerConfig?.apiVersion as string) ||
+          process.env.AZURE_OPENAI_API_VERSION ||
+          '2024-02-15-preview',
         defaultModel: model || (providerConfig?.model as string | undefined),
       };
 
     case 'vercel-ai':
       return {
         provider: 'vercel-ai',
-        underlyingProvider: (providerConfig?.underlyingProvider as 'openai' | 'anthropic') || 'openai',
+        underlyingProvider:
+          (providerConfig?.underlyingProvider as 'openai' | 'anthropic') || 'openai',
         apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
         defaultModel: model || (providerConfig?.model as string | undefined),
       };
@@ -189,7 +198,12 @@ function displaySummary(
     style: { head: [], border: [] },
   });
 
-  const successColor = metrics.success_rate >= 0.9 ? chalk.green : metrics.success_rate >= 0.7 ? chalk.yellow : chalk.red;
+  const successColor =
+    metrics.success_rate >= 0.9
+      ? chalk.green
+      : metrics.success_rate >= 0.7
+        ? chalk.yellow
+        : chalk.red;
 
   table.push(
     ['Run ID', runId],

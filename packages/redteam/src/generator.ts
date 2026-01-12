@@ -3,10 +3,10 @@
  */
 
 import type { Mutation } from './mutations';
-import { TypoMutation } from './mutations/typo';
-import { RoleSpoofMutation } from './mutations/role-spoof';
-import { InstructionFlipMutation } from './mutations/instruction-flip';
 import { CotInjectionMutation } from './mutations/cot-injection';
+import { InstructionFlipMutation } from './mutations/instruction-flip';
+import { RoleSpoofMutation } from './mutations/role-spoof';
+import { TypoMutation } from './mutations/typo';
 
 export interface GeneratedPrompt {
   original: string;

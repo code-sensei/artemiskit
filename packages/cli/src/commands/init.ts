@@ -2,10 +2,10 @@
  * Init command - Initialize Artemis in a project
  */
 
-import { Command } from 'commander';
-import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import chalk from 'chalk';
+import { Command } from 'commander';
 
 const DEFAULT_CONFIG = `# Artemis Configuration
 project: my-project

@@ -2,10 +2,10 @@
  * Test case executor
  */
 
-import type { TestCase } from '../scenario/schema';
 import type { CaseResult } from '../artifacts/types';
-import type { ExecutorContext } from './types';
 import { getEvaluator } from '../evaluators';
+import type { TestCase } from '../scenario/schema';
+import type { ExecutorContext } from './types';
 
 /**
  * Execute a single test case
@@ -27,7 +27,7 @@ export async function executeCase(
       lastError = error as Error;
       if (attempt < retries) {
         // Wait before retry with exponential backoff
-        await sleep(Math.pow(2, attempt) * 1000);
+        await sleep(2 ** attempt * 1000);
       }
     }
   }
@@ -77,10 +77,7 @@ async function executeCaseAttempt(
   });
 
   const result = timeout
-    ? await Promise.race([
-        generatePromise,
-        createTimeout(timeout),
-      ])
+    ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
 
   // Evaluate response

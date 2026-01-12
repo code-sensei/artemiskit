@@ -2,10 +2,10 @@
  * Scenario parser for YAML files
  */
 
-import { readFile } from 'fs/promises';
+import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
-import { ScenarioSchema, type Scenario } from './schema';
 import { ArtemisError } from '../utils/errors';
+import { type Scenario, ScenarioSchema } from './schema';
 
 /**
  * Parse a scenario from a YAML file

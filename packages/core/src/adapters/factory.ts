@@ -2,9 +2,9 @@
  * Adapter factory for creating model clients
  */
 
-import { adapterRegistry, registerBuiltInAdapters } from './registry';
-import type { ModelClient, AdapterConfig, ProviderType } from './types';
 import { ArtemisError } from '../utils/errors';
+import { adapterRegistry, registerBuiltInAdapters } from './registry';
+import type { AdapterConfig, ModelClient, ProviderType } from './types';
 
 let initialized = false;
 
@@ -64,7 +64,10 @@ export function registerAdapter(
 /**
  * List available adapters
  */
-export function listAdapters(): { available: string[]; unavailable: { provider: string; reason: string }[] } {
+export function listAdapters(): {
+  available: string[];
+  unavailable: { provider: string; reason: string }[];
+} {
   return {
     available: adapterRegistry.list(),
     unavailable: adapterRegistry.listUnavailable(),

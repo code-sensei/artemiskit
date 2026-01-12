@@ -2,8 +2,8 @@
  * Exact match evaluator
  */
 
-import type { Evaluator, EvaluatorResult } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorResult } from './types';
 
 export class ExactEvaluator implements Evaluator {
   readonly type = 'exact';
@@ -13,8 +13,7 @@ export class ExactEvaluator implements Evaluator {
       throw new Error('Invalid expected type for ExactEvaluator');
     }
 
-    const normalize = (s: string) =>
-      expected.caseSensitive ? s.trim() : s.trim().toLowerCase();
+    const normalize = (s: string) => (expected.caseSensitive ? s.trim() : s.trim().toLowerCase());
 
     const passed = normalize(response) === normalize(expected.value);
 

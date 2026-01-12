@@ -2,13 +2,13 @@
  * Evaluators module - exports all evaluator types and utilities
  */
 
-import type { Evaluator } from './types';
-import { ExactEvaluator } from './exact';
-import { RegexEvaluator } from './regex';
-import { FuzzyEvaluator } from './fuzzy';
 import { ContainsEvaluator } from './contains';
+import { ExactEvaluator } from './exact';
+import { FuzzyEvaluator } from './fuzzy';
 import { JsonSchemaEvaluator } from './json-schema';
 import { LLMGraderEvaluator } from './llm-grader';
+import { RegexEvaluator } from './regex';
+import type { Evaluator } from './types';
 
 const evaluators = new Map<string, Evaluator>();
 evaluators.set('exact', new ExactEvaluator());

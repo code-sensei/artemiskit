@@ -8,7 +8,8 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noForEach": "off"
+        "noForEach": "off",
+        "noStaticOnlyClass": "off"
       },
       "style": {
         "noNonNullAssertion": "warn"
@@ -32,12 +33,6 @@
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      "coverage",
-      ".supabase",
-      "ai-trace"
-    ]
+    "ignore": ["node_modules", "dist", "coverage", ".supabase", "ai-trace"]
   }
 }

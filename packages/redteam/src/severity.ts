@@ -48,28 +48,28 @@ export class SeverityMapper {
    * Get severity info
    */
   static getInfo(severity: Severity): SeverityInfo {
-    return this.severities[severity];
+    return SeverityMapper.severities[severity];
   }
 
   /**
    * Compare two severities
    */
   static compare(a: Severity, b: Severity): number {
-    return this.severities[a].score - this.severities[b].score;
+    return SeverityMapper.severities[a].score - SeverityMapper.severities[b].score;
   }
 
   /**
    * Get the higher severity
    */
   static max(a: Severity, b: Severity): Severity {
-    return this.compare(a, b) >= 0 ? a : b;
+    return SeverityMapper.compare(a, b) >= 0 ? a : b;
   }
 
   /**
    * Check if severity meets threshold
    */
   static meetsThreshold(severity: Severity, threshold: Severity): boolean {
-    return this.severities[severity].score >= this.severities[threshold].score;
+    return SeverityMapper.severities[severity].score >= SeverityMapper.severities[threshold].score;
   }
 
   /**
@@ -84,6 +84,6 @@ export class SeverityMapper {
    */
   static aggregate(severities: Severity[]): Severity {
     if (severities.length === 0) return 'low';
-    return severities.reduce((max, s) => this.max(max, s), 'low' as Severity);
+    return severities.reduce((max, s) => SeverityMapper.max(max, s), 'low' as Severity);
   }
 }

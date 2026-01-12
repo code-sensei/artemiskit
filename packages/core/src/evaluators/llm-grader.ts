@@ -2,8 +2,8 @@
  * LLM-based grader evaluator
  */
 
-import type { Evaluator, EvaluatorResult, EvaluatorContext } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorContext, EvaluatorResult } from './types';
 
 const GRADER_PROMPT = `You are an evaluator grading an AI response based on a rubric.
 
@@ -85,7 +85,7 @@ export class LLMGraderEvaluator implements Evaluator {
       const parsed = JSON.parse(jsonMatch[0]);
       const score = Number(parsed.score);
 
-      if (isNaN(score) || score < 0 || score > 1) {
+      if (Number.isNaN(score) || score < 0 || score > 1) {
         throw new Error(`Invalid score: ${parsed.score}`);
       }
 

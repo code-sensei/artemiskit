@@ -2,11 +2,11 @@
  * Configuration file loader
  */
 
-import { readFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import { join, resolve } from 'path';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { ArtemisConfigSchema, type ArtemisConfig } from './schema';
+import { type ArtemisConfig, ArtemisConfigSchema } from './schema';
 
 const CONFIG_FILENAMES = ['artemis.config.yaml', 'artemis.config.yml', 'artemis.yaml'];
 
@@ -107,8 +107,6 @@ export function mergeConfig(
   return {
     ...defaults,
     ...fileConfig,
-    ...Object.fromEntries(
-      Object.entries(cliOptions).filter(([_, v]) => v !== undefined)
-    ),
+    ...Object.fromEntries(Object.entries(cliOptions).filter(([_, v]) => v !== undefined)),
   } as ArtemisConfig;
 }

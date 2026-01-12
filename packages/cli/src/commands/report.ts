@@ -2,13 +2,13 @@
  * Report command - Generate reports from stored runs
  */
 
-import { Command } from 'commander';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import chalk from 'chalk';
-import ora from 'ora';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { createStorageFromEnv } from '@artemiskit/core';
 import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
+import chalk from 'chalk';
+import { Command } from 'commander';
+import ora from 'ora';
 
 interface ReportOptions {
   format?: 'html' | 'json' | 'both';

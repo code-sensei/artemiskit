@@ -4,12 +4,12 @@
 
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { runCommand } from './commands/run';
-import { initCommand } from './commands/init';
 import { compareCommand } from './commands/compare';
 import { historyCommand } from './commands/history';
-import { reportCommand } from './commands/report';
+import { initCommand } from './commands/init';
 import { redteamCommand } from './commands/redteam';
+import { reportCommand } from './commands/report';
+import { runCommand } from './commands/run';
 import { stressCommand } from './commands/stress';
 
 export function createCLI(): Command {

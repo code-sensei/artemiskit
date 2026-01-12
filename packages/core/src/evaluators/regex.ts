@@ -2,8 +2,8 @@
  * Regex pattern evaluator
  */
 
-import type { Evaluator, EvaluatorResult } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorResult } from './types';
 
 export class RegexEvaluator implements Evaluator {
   readonly type = 'regex';

@@ -2,15 +2,15 @@
  * Local filesystem storage adapter
  */
 
-import { mkdir, writeFile, readFile, readdir, unlink } from 'fs/promises';
-import { join, resolve } from 'path';
-import type { StorageAdapter, RunListItem, ComparisonResult, ListOptions } from './types';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import type { RunManifest } from '../artifacts/types';
+import type { ComparisonResult, ListOptions, RunListItem, StorageAdapter } from './types';
 
 export class LocalStorageAdapter implements StorageAdapter {
   private basePath: string;
 
-  constructor(basePath: string = './artemis-runs') {
+  constructor(basePath = './artemis-runs') {
     this.basePath = resolve(basePath);
   }
 
@@ -32,9 +32,7 @@ export class LocalStorageAdapter implements StorageAdapter {
       try {
         const content = await readFile(filePath, 'utf-8');
         return JSON.parse(content);
-      } catch {
-        continue;
-      }
+      } catch {}
     }
 
     throw new Error(`Run not found: ${runId}`);
@@ -68,9 +66,7 @@ export class LocalStorageAdapter implements StorageAdapter {
             successRate: manifest.metrics.success_rate,
             createdAt: manifest.start_time,
           });
-        } catch {
-          continue;
-        }
+        } catch {}
       }
     }
 
@@ -94,9 +90,7 @@ export class LocalStorageAdapter implements StorageAdapter {
       try {
         await unlink(filePath);
         return;
-      } catch {
-        continue;
-      }
+      } catch {}
     }
   }
 

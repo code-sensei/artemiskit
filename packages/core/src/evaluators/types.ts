@@ -2,8 +2,8 @@
  * Evaluator types and interfaces
  */
 
-import type { Expected, TestCase } from '../scenario/schema';
 import type { ModelClient } from '../adapters/types';
+import type { Expected, TestCase } from '../scenario/schema';
 
 /**
  * Context provided to evaluators

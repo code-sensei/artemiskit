@@ -5,12 +5,12 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import type {
-  ModelClient,
+  AdapterConfig,
+  BaseAdapterConfig,
   GenerateOptions,
   GenerateResult,
   ModelCapabilities,
-  AdapterConfig,
-  BaseAdapterConfig,
+  ModelClient,
 } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 
@@ -51,7 +51,7 @@ export class AnthropicAdapter implements ModelClient {
     });
 
     const latencyMs = Date.now() - startTime;
-    const textContent = response.content.find(c => c.type === 'text');
+    const textContent = response.content.find((c) => c.type === 'text');
 
     return {
       id: response.id || nanoid(),
@@ -68,10 +68,7 @@ export class AnthropicAdapter implements ModelClient {
     };
   }
 
-  async *stream(
-    options: GenerateOptions,
-    onChunk: (chunk: string) => void
-  ): AsyncIterable<string> {
+  async *stream(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
     const model = options.model || this.config.defaultModel || 'claude-3-5-sonnet-20241022';
     const { systemPrompt, messages } = this.normalizePrompt(options.prompt);
 
@@ -134,10 +131,14 @@ export class AnthropicAdapter implements ModelClient {
 
   private mapStopReason(reason: string | null): GenerateResult['finishReason'] {
     switch (reason) {
-      case 'end_turn': return 'stop';
-      case 'max_tokens': return 'length';
-      case 'tool_use': return 'tool_calls';
-      default: return 'stop';
+      case 'end_turn':
+        return 'stop';
+      case 'max_tokens':
+        return 'length';
+      case 'tool_use':
+        return 'tool_calls';
+      default:
+        return 'stop';
     }
   }
 }

@@ -41,9 +41,10 @@ export class TypoMutation implements Mutation {
         return word.slice(0, pos) + word.slice(pos + 1);
       case 'duplicate':
         return word.slice(0, pos) + word[pos] + word.slice(pos);
-      case 'replace':
+      case 'replace': {
         const nearby = this.getNearbyKey(word[pos]);
         return word.slice(0, pos) + nearby + word.slice(pos + 1);
+      }
       default:
         return word;
     }

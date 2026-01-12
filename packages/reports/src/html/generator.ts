@@ -2,8 +2,8 @@
  * HTML Report Generator
  */
 
-import Handlebars from 'handlebars';
 import type { RunManifest } from '@artemiskit/core';
+import Handlebars from 'handlebars';
 
 const HTML_TEMPLATE = `
 <!DOCTYPE html>

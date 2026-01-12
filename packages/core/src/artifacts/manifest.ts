@@ -3,9 +3,9 @@
  */
 
 import { nanoid } from 'nanoid';
-import type { RunManifest, CaseResult, RunMetrics, RunConfig } from './types';
-import { getGitInfo } from '../provenance/git';
 import { getEnvironmentInfo } from '../provenance/environment';
+import { getGitInfo } from '../provenance/git';
+import type { CaseResult, RunConfig, RunManifest, RunMetrics } from './types';
 
 /**
  * Create a new run manifest
@@ -52,8 +52,7 @@ function calculateMetrics(cases: CaseResult[]): RunMetrics {
   const passedCases = cases.filter((c) => c.ok);
   const latencies = cases.map((c) => c.latencyMs).sort((a, b) => a - b);
 
-  const medianLatency =
-    latencies.length > 0 ? latencies[Math.floor(latencies.length / 2)] : 0;
+  const medianLatency = latencies.length > 0 ? latencies[Math.floor(latencies.length / 2)] : 0;
 
   const p95Index = Math.floor(latencies.length * 0.95);
   const p95Latency = latencies.length > 0 ? latencies[p95Index] : 0;
@@ -77,7 +76,9 @@ function calculateMetrics(cases: CaseResult[]): RunMetrics {
 /**
  * Detect CI environment
  */
-function detectCIEnvironment(): { provider: string; build_id: string; build_url?: string } | undefined {
+function detectCIEnvironment():
+  | { provider: string; build_id: string; build_url?: string }
+  | undefined {
   if (process.env.GITHUB_ACTIONS) {
     return {
       provider: 'github-actions',

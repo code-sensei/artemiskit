@@ -2,10 +2,10 @@
  * History command - View run history
  */
 
-import { Command } from 'commander';
+import { createStorageFromEnv } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { createStorageFromEnv } from '@artemiskit/core';
+import { Command } from 'commander';
 
 interface HistoryOptions {
   project?: string;
@@ -24,7 +24,7 @@ export function historyCommand(): Command {
     .action(async (options: HistoryOptions) => {
       try {
         const storage = createStorageFromEnv();
-        const limit = parseInt(String(options.limit)) || 20;
+        const limit = Number.parseInt(String(options.limit)) || 20;
 
         const runs = await storage.list({
           project: options.project,

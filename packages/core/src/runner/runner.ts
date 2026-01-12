@@ -2,10 +2,10 @@
  * Scenario runner - main entry point for running test scenarios
  */
 
-import type { RunOptions, RunResult } from './types';
+import { createRunManifest } from '../artifacts/manifest';
 import type { CaseResult } from '../artifacts/types';
 import { executeCase } from './executor';
-import { createRunManifest } from '../artifacts/manifest';
+import type { RunOptions, RunResult } from './types';
 
 /**
  * Run a test scenario
@@ -104,9 +104,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
 /**
  * Run multiple scenarios
  */
-export async function runScenarios(
-  optionsList: RunOptions[]
-): Promise<RunResult[]> {
+export async function runScenarios(optionsList: RunOptions[]): Promise<RunResult[]> {
   const results: RunResult[] = [];
 
   for (const options of optionsList) {

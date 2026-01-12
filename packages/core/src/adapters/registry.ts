@@ -2,7 +2,7 @@
  * Adapter registry for dynamic adapter management
  */
 
-import type { ModelClient, AdapterConfig, ProviderType } from './types';
+import type { AdapterConfig, ModelClient, ProviderType } from './types';
 
 type AdapterFactory = (config: AdapterConfig) => Promise<ModelClient>;
 

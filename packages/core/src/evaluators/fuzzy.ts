@@ -3,8 +3,8 @@
  */
 
 import { distance } from 'fastest-levenshtein';
-import type { Evaluator, EvaluatorResult } from './types';
 import type { Expected } from '../scenario/schema';
+import type { Evaluator, EvaluatorResult } from './types';
 
 export class FuzzyEvaluator implements Evaluator {
   readonly type = 'fuzzy';

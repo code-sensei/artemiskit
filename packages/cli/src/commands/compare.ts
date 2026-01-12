@@ -2,10 +2,10 @@
  * Compare command - Compare two test runs
  */
 
-import { Command } from 'commander';
+import { createStorageFromEnv } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { createStorageFromEnv } from '@artemiskit/core';
+import { Command } from 'commander';
 
 interface CompareOptions {
   threshold?: number;
@@ -36,7 +36,12 @@ export function compareCommand(): Command {
 
         // Summary table
         const summaryTable = new Table({
-          head: [chalk.bold('Metric'), chalk.bold('Baseline'), chalk.bold('Current'), chalk.bold('Delta')],
+          head: [
+            chalk.bold('Metric'),
+            chalk.bold('Baseline'),
+            chalk.bold('Current'),
+            chalk.bold('Delta'),
+          ],
           style: { head: [], border: [] },
         });
 
@@ -52,13 +57,13 @@ export function compareCommand(): Command {
             'Success Rate',
             `${(baseline.metrics.success_rate * 100).toFixed(1)}%`,
             `${(current.metrics.success_rate * 100).toFixed(1)}%`,
-            formatDelta(delta.successRate * 100) + '%',
+            `${formatDelta(delta.successRate * 100)}%`,
           ],
           [
             'Median Latency',
             `${baseline.metrics.median_latency_ms}ms`,
             `${current.metrics.median_latency_ms}ms`,
-            formatDelta(delta.latency, true) + 'ms',
+            `${formatDelta(delta.latency, true)}ms`,
           ],
           [
             'Total Tokens',
@@ -72,7 +77,7 @@ export function compareCommand(): Command {
         console.log();
 
         // Check for regression
-        const threshold = parseFloat(String(options.threshold)) || 0.05;
+        const threshold = Number.parseFloat(String(options.threshold)) || 0.05;
         const hasRegression = delta.successRate < -threshold;
 
         if (hasRegression) {

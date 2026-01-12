@@ -10,9 +10,9 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@artemiskit/core": ["../packages/core/src"],
-    },
+      "@artemiskit/core": ["../packages/core/src"]
+    }
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules"]
 }

@@ -103,10 +103,7 @@ export interface ModelClient {
 
   generate(options: GenerateOptions): Promise<GenerateResult>;
 
-  stream?(
-    options: GenerateOptions,
-    onChunk: (chunk: string) => void
-  ): AsyncIterable<string>;
+  stream?(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string>;
 
   embed?(text: string): Promise<number[]>;
 

@@ -3,8 +3,8 @@
  * Artemis CLI Entry Point
  */
 
-import { createCLI } from '../src/cli';
 import { registerAdapters } from '../src/adapters';
+import { createCLI } from '../src/cli';
 
 // Register adapters before running CLI
 await registerAdapters();

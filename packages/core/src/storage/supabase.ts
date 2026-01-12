@@ -2,9 +2,9 @@
  * Supabase storage adapter
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { StorageAdapter, RunListItem, ComparisonResult, ListOptions } from './types';
+import { type SupabaseClient, createClient } from '@supabase/supabase-js';
 import type { RunManifest } from '../artifacts/types';
+import type { ComparisonResult, ListOptions, RunListItem, StorageAdapter } from './types';
 
 export interface SupabaseStorageConfig {
   url: string;

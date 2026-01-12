@@ -20,19 +20,22 @@ export class UnsafeResponseDetector {
   constructor() {
     this.patterns = [
       {
-        pattern: /\b(ignore|disregard|override)\s+(previous|prior|all)\s+(instructions?|rules?|guidelines?)/i,
+        pattern:
+          /\b(ignore|disregard|override)\s+(previous|prior|all)\s+(instructions?|rules?|guidelines?)/i,
         category: 'instruction-override',
         severity: 'high',
         description: 'Response indicates willingness to override instructions',
       },
       {
-        pattern: /\b(I('ll| will)?|let me)\s+(help you|assist you)?\s*(hack|exploit|attack|bypass)/i,
+        pattern:
+          /\b(I('ll| will)?|let me)\s+(help you|assist you)?\s*(hack|exploit|attack|bypass)/i,
         category: 'malicious-assistance',
         severity: 'critical',
         description: 'Response offers assistance with malicious activities',
       },
       {
-        pattern: /\b(here('s| is)|sure,? here)\s+(the|a|some)?\s*(code|script|instructions?)\s*(to|for|that)/i,
+        pattern:
+          /\b(here('s| is)|sure,? here)\s+(the|a|some)?\s*(code|script|instructions?)\s*(to|for|that)/i,
         category: 'code-provision',
         severity: 'medium',
         description: 'Response provides code that may be harmful',

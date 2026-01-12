@@ -2,15 +2,11 @@
  * Stress command - Run load/stress tests against an LLM
  */
 
-import { Command } from 'commander';
+import { type AdapterConfig, createAdapter, parseScenarioFile } from '@artemiskit/core';
 import chalk from 'chalk';
-import ora from 'ora';
 import Table from 'cli-table3';
-import {
-  parseScenarioFile,
-  createAdapter,
-  type AdapterConfig,
-} from '@artemiskit/core';
+import { Command } from 'commander';
+import ora from 'ora';
 
 interface StressOptions {
   provider?: string;
@@ -73,10 +69,12 @@ export function stressCommand(): Command {
         spinner.succeed(`Connected to ${provider}`);
 
         // Configuration
-        const concurrency = parseInt(String(options.concurrency)) || 10;
-        const durationSec = parseInt(String(options.duration)) || 30;
-        const rampUpSec = parseInt(String(options.rampUp)) || 5;
-        const maxRequests = options.requests ? parseInt(String(options.requests)) : undefined;
+        const concurrency = Number.parseInt(String(options.concurrency)) || 10;
+        const durationSec = Number.parseInt(String(options.duration)) || 30;
+        const rampUpSec = Number.parseInt(String(options.rampUp)) || 5;
+        const maxRequests = options.requests
+          ? Number.parseInt(String(options.requests))
+          : undefined;
 
         console.log();
         console.log(chalk.bold('Stress Test Configuration'));
@@ -89,8 +87,8 @@ export function stressCommand(): Command {
         console.log();
 
         // Get test prompts from scenario cases
-        const prompts = scenario.cases.map(c =>
-          typeof c.prompt === 'string' ? c.prompt : c.prompt.map(m => m.content).join('\n')
+        const prompts = scenario.cases.map((c) =>
+          typeof c.prompt === 'string' ? c.prompt : c.prompt.map((m) => m.content).join('\n')
         );
 
         if (prompts.length === 0) {
@@ -125,7 +123,6 @@ export function stressCommand(): Command {
         if (options.verbose) {
           displayHistogram(results);
         }
-
       } catch (error) {
         spinner.fail('Error');
         console.error(chalk.red('Error:'), (error as Error).message);
@@ -137,7 +134,11 @@ export function stressCommand(): Command {
 }
 
 interface StressTestOptions {
-  client: { generate: (req: { prompt: string; model?: string; temperature?: number }) => Promise<{ text: string }> };
+  client: {
+    generate: (req: { prompt: string; model?: string; temperature?: number }) => Promise<{
+      text: string;
+    }>;
+  };
   model?: string;
   prompts: string[];
   concurrency: number;
@@ -224,7 +225,7 @@ async function runStressTest(options: StressTestOptions): Promise<RequestResult[
     }
 
     // Small delay to prevent tight loop
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
   // Wait for all pending requests
@@ -234,8 +235,8 @@ async function runStressTest(options: StressTestOptions): Promise<RequestResult[
 }
 
 function calculateStats(results: RequestResult[]): StressStats {
-  const successful = results.filter(r => r.success);
-  const latencies = successful.map(r => r.latency).sort((a, b) => a - b);
+  const successful = results.filter((r) => r.success);
+  const latencies = successful.map((r) => r.latency).sort((a, b) => a - b);
 
   const totalRequests = results.length;
   const successfulRequests = successful.length;
@@ -243,16 +244,16 @@ function calculateStats(results: RequestResult[]): StressStats {
 
   const minLatency = latencies[0] || 0;
   const maxLatency = latencies[latencies.length - 1] || 0;
-  const avgLatency = latencies.length > 0
-    ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length
-    : 0;
+  const avgLatency =
+    latencies.length > 0 ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0;
 
   const p50Latency = percentile(latencies, 50);
   const p90Latency = percentile(latencies, 90);
   const p99Latency = percentile(latencies, 99);
 
-  const timestamps = results.map(r => r.timestamp);
-  const durationMs = Math.max(...timestamps) - Math.min(...timestamps) + (latencies[latencies.length - 1] || 0);
+  const timestamps = results.map((r) => r.timestamp);
+  const durationMs =
+    Math.max(...timestamps) - Math.min(...timestamps) + (latencies[latencies.length - 1] || 0);
   const requestsPerSecond = durationMs > 0 ? (totalRequests / durationMs) * 1000 : 0;
 
   return {
@@ -295,16 +296,15 @@ function displayStats(stats: StressStats): void {
     ['Avg Latency', `${stats.avgLatency.toFixed(0)}ms`],
     ['p50 Latency', `${stats.p50Latency}ms`],
     ['p90 Latency', `${stats.p90Latency}ms`],
-    ['p99 Latency', `${stats.p99Latency}ms`],
+    ['p99 Latency', `${stats.p99Latency}ms`]
   );
 
   console.log(chalk.bold('Results'));
   console.log(table.toString());
 
   // Success rate
-  const successRate = stats.totalRequests > 0
-    ? (stats.successfulRequests / stats.totalRequests) * 100
-    : 0;
+  const successRate =
+    stats.totalRequests > 0 ? (stats.successfulRequests / stats.totalRequests) * 100 : 0;
 
   console.log();
   if (successRate >= 99) {
@@ -317,10 +317,10 @@ function displayStats(stats: StressStats): void {
 }
 
 function displayHistogram(results: RequestResult[]): void {
-  const successful = results.filter(r => r.success);
+  const successful = results.filter((r) => r.success);
   if (successful.length === 0) return;
 
-  const latencies = successful.map(r => r.latency);
+  const latencies = successful.map((r) => r.latency);
   const maxLatency = Math.max(...latencies);
   const bucketSize = Math.ceil(maxLatency / 10);
   const buckets = new Array(10).fill(0);
@@ -344,10 +344,7 @@ function displayHistogram(results: RequestResult[]): void {
     const bar = '█'.repeat(barLength);
 
     console.log(
-      chalk.dim(`${rangeStart.toString().padStart(5)}-${rangeEnd.toString().padStart(5)}ms`) +
-      ' │ ' +
-      chalk.cyan(bar) +
-      ` ${count}`
+      `${chalk.dim(`${rangeStart.toString().padStart(5)}-${rangeEnd.toString().padStart(5)}ms`)} │ ${chalk.cyan(bar)} ${count}`
     );
   }
 }

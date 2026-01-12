@@ -157,7 +157,7 @@ cases:
     prompt: "Explain quantum computing to a 5 year old"
     expected:
       type: llm_grader
-      criteria: |
+      rubric: |
         The response should:
         - Use simple, child-friendly language
         - Avoid technical jargon

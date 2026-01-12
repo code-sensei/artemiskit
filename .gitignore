@@ -51,3 +51,6 @@ dev-docs/
 
 # Test artifacts
 *.test-output.json
+-e 
+# Test scenarios (local testing)
+tests/

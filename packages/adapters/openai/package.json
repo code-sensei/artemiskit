@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "description": "OpenAI and Azure OpenAI adapter for Artemis LLM testing framework",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "code-sensei",
   "repository": {
     "type": "git",
-    "url": "https://github.com/code-sensei/artemis.git",
+    "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/adapters/openai"
   },
   "keywords": ["llm", "openai", "azure", "adapter"],

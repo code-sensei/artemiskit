@@ -22,7 +22,7 @@ jobs:
           bun-version: latest
 
       - name: Install Artemis
-        run: bun add -D @artemis/cli
+        run: bun add -D @artemiskit/cli
 
       - name: Run Agent Tests
         env:

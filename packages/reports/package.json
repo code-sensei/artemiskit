@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "description": "Report generation for Artemis LLM testing framework",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "code-sensei",
   "repository": {
     "type": "git",
-    "url": "https://github.com/code-sensei/artemis.git",
+    "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/reports"
   },
   "keywords": ["llm", "testing", "reports", "html"],

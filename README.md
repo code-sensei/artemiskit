@@ -193,4 +193,4 @@ bun run typecheck
 
 ## License
 
-MIT
+Apache-2.0

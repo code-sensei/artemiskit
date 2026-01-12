@@ -75,7 +75,7 @@ export function initCommand(): Command {
   cmd
     .description('Initialize Artemis in the current directory')
     .option('-f, --force', 'Overwrite existing configuration')
-    .action(async (options) => {
+    .action(async () => {
       try {
         const cwd = process.cwd();
 

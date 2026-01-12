@@ -2,7 +2,7 @@
  * Runner types and interfaces
  */
 
-import type { Scenario, TestCase } from '../scenario/schema';
+import type { Scenario } from '../scenario/schema';
 import type { CaseResult, RunManifest } from '../artifacts/types';
 import type { ModelClient } from '../adapters/types';
 

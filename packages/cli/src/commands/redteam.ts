@@ -9,8 +9,6 @@ import Table from 'cli-table3';
 import {
   parseScenarioFile,
   createAdapter,
-  runScenario,
-  createStorageFromEnv,
   type AdapterConfig,
 } from '@artemis/core';
 import {

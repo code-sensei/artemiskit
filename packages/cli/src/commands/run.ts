@@ -51,7 +51,7 @@ export function runCommand(): Command {
         // Load config file if present
         const config = await loadConfig(options.config);
         if (config) {
-          spinner.succeed(`Loaded config from ${config._path}`);
+          spinner.succeed(`Loaded config from ${(config as { _path?: string })._path}`);
         } else {
           spinner.info('No config file found, using defaults');
         }
@@ -83,7 +83,7 @@ export function runCommand(): Command {
           concurrency: parseInt(String(options.concurrency)) || 1,
           timeout: options.timeout ? parseInt(String(options.timeout)) : undefined,
           retries: options.retries ? parseInt(String(options.retries)) : undefined,
-          onCaseComplete: (caseResult, index, total) => {
+          onCaseComplete: (caseResult) => {
             const statusIcon = caseResult.ok ? chalk.green('✓') : chalk.red('✗');
             const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
             console.log(`${statusIcon} ${caseResult.id} ${chalk.dim(scoreStr)}`);
@@ -134,14 +134,15 @@ function buildAdapterConfig(
   config?: Record<string, unknown> | null
 ): AdapterConfig {
   // Get provider-specific config if available
-  const providerConfig = config?.providers?.[provider] as Record<string, unknown> | undefined;
+  const configWithProviders = config as { providers?: Record<string, Record<string, unknown>> } | null | undefined;
+  const providerConfig = configWithProviders?.providers?.[provider];
 
   switch (provider) {
     case 'openai':
       return {
         provider: 'openai',
         apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
-        baseURL: providerConfig?.baseURL as string | undefined,
+        baseUrl: providerConfig?.baseUrl as string | undefined,
         defaultModel: model || (providerConfig?.model as string | undefined),
       };
 

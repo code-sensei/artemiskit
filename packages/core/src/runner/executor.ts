@@ -14,8 +14,8 @@ export async function executeCase(
   testCase: TestCase,
   context: ExecutorContext
 ): Promise<CaseResult> {
-  const { client, scenario, timeout, retries = 0 } = context;
-  const startTime = Date.now();
+  const { timeout, retries = 0 } = context;
+  const caseStartTime = Date.now();
 
   let lastError: Error | null = null;
 
@@ -33,7 +33,7 @@ export async function executeCase(
   }
 
   // All retries failed
-  const latencyMs = Date.now() - startTime;
+  const latencyMs = Date.now() - caseStartTime;
   return {
     id: testCase.id,
     name: testCase.name,
@@ -57,7 +57,6 @@ async function executeCaseAttempt(
   timeout?: number
 ): Promise<CaseResult> {
   const { client, scenario } = context;
-  const startTime = Date.now();
 
   // Build prompt with system prompt if present
   let prompt = testCase.prompt;

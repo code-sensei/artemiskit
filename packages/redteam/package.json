@@ -4,10 +4,10 @@
   "description": "Red-team adversarial testing for Artemis LLM testing framework",
   "type": "module",
   "license": "MIT",
-  "author": "Cognifai Labs",
+  "author": "code-sensei",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cognifai-labs/artemis.git",
+    "url": "https://github.com/code-sensei/artemis.git",
     "directory": "packages/redteam"
   },
   "keywords": ["llm", "testing", "redteam", "security", "adversarial"],

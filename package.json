@@ -6,10 +6,10 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cognifai-labs/artemis.git"
+    "url": "https://github.com/code-sensei/artemis.git"
   },
   "license": "MIT",
-  "author": "Cognifai Labs",
+  "author": "code-sensei",
   "workspaces": [
     "packages/*",
     "packages/adapters/*"

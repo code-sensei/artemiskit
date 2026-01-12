@@ -84,7 +84,7 @@ export class VercelAIAdapter implements ModelClient {
         throw new Error(
           `Unsupported Vercel AI provider: ${underlyingProvider}. ` +
             `MVP supports: openai, azure. ` +
-            `Coming soon: anthropic, google, mistral.`
+            `Coming soon: anthropic, google, mistral and more.`
         );
     }
   }

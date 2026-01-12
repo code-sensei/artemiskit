@@ -4,10 +4,10 @@
   "description": "Vercel AI SDK adapter for Artemis LLM testing framework",
   "type": "module",
   "license": "MIT",
-  "author": "Cognifai Labs",
+  "author": "code-sensei",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cognifai-labs/artemis.git",
+    "url": "https://github.com/code-sensei/artemis.git",
     "directory": "packages/adapters/vercel-ai"
   },
   "keywords": ["llm", "vercel", "ai-sdk", "adapter"],

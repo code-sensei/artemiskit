@@ -3,7 +3,7 @@ description: |
   Demonstrates the exact match evaluator for precise string matching.
   Use when responses must match exactly (API outputs, commands, codes).
 provider: azure-openai
-model: 5-mini
+model: gpt-5-mini
 # Note: temperature removed - some models (like o1-mini) don't support it
 
 cases:

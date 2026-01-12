@@ -1,7 +1,16 @@
 {
   "name": "@artemis/adapter-vercel-ai",
   "version": "0.0.1",
+  "description": "Vercel AI SDK adapter for Artemis LLM testing framework",
   "type": "module",
+  "license": "MIT",
+  "author": "Cognifai Labs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cognifai-labs/artemis.git",
+    "directory": "packages/adapters/vercel-ai"
+  },
+  "keywords": ["llm", "vercel", "ai-sdk", "adapter"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,16 +20,16 @@
     }
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "bun test"
   },
   "dependencies": {
     "@artemis/core": "workspace:*",
-    "ai": "^3.0.0",
-    "@ai-sdk/openai": "^0.0.10",
-    "@ai-sdk/azure": "^0.0.10",
+    "ai": "^6.0.0",
+    "@ai-sdk/openai": "^3.0.0",
+    "@ai-sdk/azure": "^3.0.0",
     "nanoid": "^5.0.0"
   },
   "devDependencies": {

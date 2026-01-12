@@ -102,7 +102,7 @@ export class VercelAIAdapter implements ModelClient {
     const result = await generateText({
       model: this.aiProvider(model),
       messages,
-      maxTokens: options.maxTokens,
+      maxOutputTokens: options.maxTokens,
       temperature: options.temperature,
       topP: options.topP,
       seed: options.seed,
@@ -110,15 +110,17 @@ export class VercelAIAdapter implements ModelClient {
     });
 
     const latencyMs = Date.now() - startTime;
+    const inputTokens = result.usage?.inputTokens ?? 0;
+    const outputTokens = result.usage?.outputTokens ?? 0;
 
     return {
       id: nanoid(),
       model,
       text: result.text,
       tokens: {
-        prompt: result.usage?.promptTokens ?? 0,
-        completion: result.usage?.completionTokens ?? 0,
-        total: result.usage?.totalTokens ?? 0,
+        prompt: inputTokens,
+        completion: outputTokens,
+        total: inputTokens + outputTokens,
       },
       latencyMs,
       finishReason: this.mapFinishReason(result.finishReason),
@@ -138,10 +140,10 @@ export class VercelAIAdapter implements ModelClient {
 
     const messages = this.normalizePrompt(options.prompt);
 
-    const result = streamText({
+    const result = await streamText({
       model: this.aiProvider(model),
       messages,
-      maxTokens: options.maxTokens,
+      maxOutputTokens: options.maxTokens,
       temperature: options.temperature,
       topP: options.topP,
       seed: options.seed,

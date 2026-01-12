@@ -1,7 +1,16 @@
 {
   "name": "@artemis/cli",
   "version": "0.0.1",
+  "description": "Command-line interface for Artemis LLM testing framework",
   "type": "module",
+  "license": "MIT",
+  "author": "Cognifai Labs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cognifai-labs/artemis.git",
+    "directory": "packages/cli"
+  },
+  "keywords": ["llm", "testing", "cli", "ai", "agents"],
   "bin": {
     "artemis": "./bin/artemis.ts"
   },
@@ -14,7 +23,7 @@
     }
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
     "dev": "bun run ./bin/artemis.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",

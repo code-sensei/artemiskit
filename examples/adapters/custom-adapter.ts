@@ -12,19 +12,20 @@
 
 import type {
   ModelClient,
-  AdapterConfig,
-  GenerateRequest,
-  GenerateResponse,
+  BaseAdapterConfig,
+  GenerateOptions,
+  GenerateResult,
+  ChatMessage,
 } from "@artemiskit/core";
 import { adapterRegistry } from "@artemiskit/core";
 
 /**
  * Custom adapter configuration
  */
-interface CustomAdapterConfig extends AdapterConfig {
+interface CustomAdapterConfig extends BaseAdapterConfig {
   provider: "custom";
   apiKey?: string;
-  baseURL: string;
+  baseUrl: string;
   defaultModel?: string;
   customOption?: string;
 }
@@ -35,33 +36,33 @@ interface CustomAdapterConfig extends AdapterConfig {
 class CustomAdapter implements ModelClient {
   readonly provider = "custom";
 
-  private baseURL: string;
+  private baseUrl: string;
   private apiKey?: string;
   private defaultModel: string;
 
   constructor(config: CustomAdapterConfig) {
-    this.baseURL = config.baseURL;
+    this.baseUrl = config.baseUrl;
     this.apiKey = config.apiKey;
     this.defaultModel = config.defaultModel || "default-model";
   }
 
-  async generate(request: GenerateRequest): Promise<GenerateResponse> {
+  async generate(options: GenerateOptions): Promise<GenerateResult> {
     const startTime = Date.now();
-    const model = request.model || this.defaultModel;
+    const model = options.model || this.defaultModel;
 
     // Build the prompt from string or messages
     let prompt: string;
-    if (typeof request.prompt === "string") {
-      prompt = request.prompt;
+    if (typeof options.prompt === "string") {
+      prompt = options.prompt;
     } else {
       // Convert messages to a format your provider expects
-      prompt = request.prompt
-        .map((m: any) => `${m.role}: ${m.content}`)
+      prompt = options.prompt
+        .map((m: ChatMessage) => `${m.role}: ${m.content}`)
         .join("\n");
     }
 
     // Make API request to your provider
-    const response = await fetch(`${this.baseURL}/v1/generate`, {
+    const response = await fetch(`${this.baseUrl}/v1/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -70,8 +71,8 @@ class CustomAdapter implements ModelClient {
       body: JSON.stringify({
         model,
         prompt,
-        temperature: request.temperature,
-        max_tokens: request.maxTokens,
+        temperature: options.temperature,
+        max_tokens: options.maxTokens,
         // Add any provider-specific parameters
       }),
     });
@@ -82,6 +83,7 @@ class CustomAdapter implements ModelClient {
     }
 
     const result = (await response.json()) as {
+      id?: string;
       text: string;
       usage?: {
         prompt_tokens: number;
@@ -93,15 +95,24 @@ class CustomAdapter implements ModelClient {
     const latencyMs = Date.now() - startTime;
 
     return {
+      id: result.id || crypto.randomUUID(),
+      model,
       text: result.text,
-      latencyMs,
       tokens: {
         prompt: result.usage?.prompt_tokens || 0,
         completion: result.usage?.completion_tokens || 0,
         total: result.usage?.total_tokens || 0,
       },
-      model,
-      provider: this.provider,
+      latencyMs,
+    };
+  }
+
+  async capabilities() {
+    return {
+      streaming: false,
+      functionCalling: false,
+      toolUse: false,
+      maxContext: 4096,
     };
   }
 }

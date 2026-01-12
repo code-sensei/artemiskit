@@ -1,0 +1,16 @@
+{
+  "name": "artemiskit-examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example configurations, scenarios, and integrations for ArtemisKit",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@artemiskit/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.4",
+    "typescript": "^5.7.2"
+  }
+}

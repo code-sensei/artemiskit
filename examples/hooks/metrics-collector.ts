@@ -8,6 +8,9 @@
  *   METRICS_BACKEND=prometheus PUSHGATEWAY_URL=http://localhost:9091 bun run hooks/metrics-collector.ts result.json
  */
 
+// Make this file a proper ES module
+export {};
+
 interface RunMetrics {
   run_id: string;
   project: string;

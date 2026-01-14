@@ -19,7 +19,11 @@ import { Command } from 'commander';
 import { nanoid } from 'nanoid';
 import ora from 'ora';
 import { loadConfig } from '../config/loader';
-import { buildAdapterConfig, resolveModel, resolveProvider } from '../utils/adapter';
+import {
+  buildAdapterConfig,
+  resolveModelWithSource,
+  resolveProviderWithSource,
+} from '../utils/adapter';
 import { createStorage } from '../utils/storage';
 
 interface StressOptions {
@@ -69,16 +73,26 @@ export function stressCommand(): Command {
         const scenario = await parseScenarioFile(scenarioPath);
         spinner.succeed(`Loaded scenario: ${scenario.name}`);
 
-        // Resolve provider and model with precedence:
+        // Resolve provider and model with precedence and source tracking:
         // CLI > Scenario > Config > Default
-        const provider = resolveProvider(options.provider, scenario.provider, config?.provider);
-        const model = resolveModel(options.model, scenario.model, config?.model);
+        const { provider, source: providerSource } = resolveProviderWithSource(
+          options.provider,
+          scenario.provider,
+          config?.provider
+        );
+        const { model, source: modelSource } = resolveModelWithSource(
+          options.model,
+          scenario.model,
+          config?.model
+        );
 
-        // Build adapter config with full precedence chain
+        // Build adapter config with full precedence chain and source tracking
         spinner.start(`Connecting to ${provider}...`);
-        const adapterConfig = buildAdapterConfig({
+        const { adapterConfig, resolvedConfig } = buildAdapterConfig({
           provider,
           model,
+          providerSource,
+          modelSource,
           scenarioConfig: scenario.providerConfig,
           fileConfig: config,
         });
@@ -149,12 +163,13 @@ export function stressCommand(): Command {
           config: {
             scenario: basename(scenarioPath, '.yaml'),
             provider,
-            model,
+            model: resolvedConfig.model,
             concurrency,
             duration_seconds: durationSec,
             ramp_up_seconds: rampUpSec,
             max_requests: maxRequests,
           },
+          resolved_config: resolvedConfig,
           metrics,
           git: await getGitInfo(),
           provenance: {

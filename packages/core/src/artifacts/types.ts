@@ -64,12 +64,72 @@ export interface ProvenanceInfo {
 }
 
 /**
- * Run configuration
+ * Configuration source - where a value came from
+ */
+export type ConfigSource = 'cli' | 'scenario' | 'config' | 'env' | 'default';
+
+/**
+ * Resolved configuration with source tracking
+ * Captures exactly what was sent to the provider for reproducibility
+ */
+export interface ResolvedConfig {
+  /** Provider used */
+  provider: string;
+  /** Model identifier passed to the API */
+  model?: string;
+
+  // OpenAI-specific
+  /** OpenAI organization ID */
+  organization?: string;
+  /** Base URL for API (custom endpoints) */
+  base_url?: string;
+
+  // Azure OpenAI-specific
+  /** Azure resource name */
+  resource_name?: string;
+  /** Azure deployment name */
+  deployment_name?: string;
+  /** Azure API version */
+  api_version?: string;
+
+  // Vercel AI-specific
+  /** Underlying provider for Vercel AI SDK */
+  underlying_provider?: string;
+
+  // Common settings
+  /** Request timeout in ms */
+  timeout?: number;
+  /** Max retries */
+  max_retries?: number;
+  /** Temperature setting */
+  temperature?: number;
+  /** Max tokens */
+  max_tokens?: number;
+
+  /** Source tracking - where each value came from */
+  source: {
+    provider?: ConfigSource;
+    model?: ConfigSource;
+    organization?: ConfigSource;
+    base_url?: ConfigSource;
+    resource_name?: ConfigSource;
+    deployment_name?: ConfigSource;
+    api_version?: ConfigSource;
+    underlying_provider?: ConfigSource;
+    timeout?: ConfigSource;
+    max_retries?: ConfigSource;
+    temperature?: ConfigSource;
+    max_tokens?: ConfigSource;
+  };
+}
+
+/**
+ * Run configuration (user-facing display)
  */
 export interface RunConfig {
   scenario: string;
   provider: string;
-  model: string;
+  model?: string;
   temperature?: number;
   maxTokens?: number;
   seed?: number;
@@ -86,6 +146,8 @@ export interface RunManifest {
   end_time: string;
   duration_ms: number;
   config: RunConfig;
+  /** Resolved configuration with full provider details and source tracking */
+  resolved_config?: ResolvedConfig;
   metrics: RunMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -183,6 +245,8 @@ export interface RedTeamManifest {
   end_time: string;
   duration_ms: number;
   config: RedTeamConfig;
+  /** Resolved configuration with full provider details and source tracking */
+  resolved_config?: ResolvedConfig;
   metrics: RedTeamMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -267,6 +331,8 @@ export interface StressManifest {
   end_time: string;
   duration_ms: number;
   config: StressConfig;
+  /** Resolved configuration with full provider details and source tracking */
+  resolved_config?: ResolvedConfig;
   metrics: StressMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;

@@ -128,6 +128,16 @@ const HTML_TEMPLATE = `
     th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e0e0e0; }
     th { background: #f9fafb; font-weight: 600; }
     tr:last-child td { border-bottom: none; }
+    .source-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #e0e7ff;
+      color: #3730a3;
+      margin-left: 0.5rem;
+    }
     footer { margin-top: 3rem; text-align: center; color: #666; font-size: 0.875rem; }
   </style>
 </head>
@@ -253,6 +263,31 @@ const HTML_TEMPLATE = `
         </tr>
       </table>
     </div>
+
+    {{#if manifest.resolved_config}}
+    <h2>Resolved Configuration</h2>
+    <div class="card">
+      <p><strong>Provider:</strong> {{manifest.resolved_config.provider}} <span class="source-badge">{{manifest.resolved_config.source.provider}}</span></p>
+      {{#if manifest.resolved_config.model}}
+      <p><strong>Model:</strong> {{manifest.resolved_config.model}} <span class="source-badge">{{manifest.resolved_config.source.model}}</span></p>
+      {{/if}}
+      {{#if manifest.resolved_config.deployment_name}}
+      <p><strong>Deployment:</strong> {{manifest.resolved_config.deployment_name}} <span class="source-badge">{{manifest.resolved_config.source.deployment_name}}</span></p>
+      {{/if}}
+      {{#if manifest.resolved_config.resource_name}}
+      <p><strong>Resource:</strong> {{manifest.resolved_config.resource_name}} <span class="source-badge">{{manifest.resolved_config.source.resource_name}}</span></p>
+      {{/if}}
+      {{#if manifest.resolved_config.api_version}}
+      <p><strong>API Version:</strong> {{manifest.resolved_config.api_version}} <span class="source-badge">{{manifest.resolved_config.source.api_version}}</span></p>
+      {{/if}}
+      {{#if manifest.resolved_config.base_url}}
+      <p><strong>Base URL:</strong> {{manifest.resolved_config.base_url}} <span class="source-badge">{{manifest.resolved_config.source.base_url}}</span></p>
+      {{/if}}
+      {{#if manifest.resolved_config.temperature}}
+      <p><strong>Temperature:</strong> {{manifest.resolved_config.temperature}} <span class="source-badge">{{manifest.resolved_config.source.temperature}}</span></p>
+      {{/if}}
+    </div>
+    {{/if}}
 
     <h2>Provenance</h2>
     <div class="card">

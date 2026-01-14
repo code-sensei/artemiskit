@@ -3,7 +3,7 @@
  */
 
 import type { ModelClient } from '../adapters/types';
-import type { CaseResult, RunManifest } from '../artifacts/types';
+import type { CaseResult, ResolvedConfig, RunManifest } from '../artifacts/types';
 import type { Scenario } from '../scenario/schema';
 
 /**
@@ -16,6 +16,8 @@ export interface RunOptions {
   client: ModelClient;
   /** Project name for the manifest */
   project?: string;
+  /** Resolved configuration with source tracking */
+  resolvedConfig?: ResolvedConfig;
   /** Filter cases by tags */
   tags?: string[];
   /** Number of concurrent requests */

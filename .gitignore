@@ -54,3 +54,4 @@ dev-docs/
 -e 
 # Test scenarios (local testing)
 tests/
+dev-docs/

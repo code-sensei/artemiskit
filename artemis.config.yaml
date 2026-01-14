@@ -1,0 +1,27 @@
+# Artemis Configuration
+project: my-project
+
+# Default provider settings
+provider: azure-openai
+model: gpt-5-mini
+
+# Provider configurations
+providers:
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: ${AZURE_OPENAI_RESOURCE}
+    deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"
+
+# Storage configuration
+storage:
+  type: local
+  basePath: ./artemis-runs
+
+# Scenarios directory
+scenariosDir: ./examples/scenarios
+
+# Output settings
+output:
+  format: json
+  dir: ./artemis-output

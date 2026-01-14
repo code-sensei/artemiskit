@@ -8,6 +8,33 @@ import { ArtemisError } from '../utils/errors';
 import { type Scenario, ScenarioSchema } from './schema';
 
 /**
+ * Expand environment variables in config values
+ * Supports ${VAR} and ${VAR:-default} syntax
+ */
+function expandEnvVars(obj: unknown): unknown {
+  if (typeof obj === 'string') {
+    return obj.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+      const [varName, defaultValue] = expr.split(':-');
+      return process.env[varName] || defaultValue || '';
+    });
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(expandEnvVars);
+  }
+
+  if (obj && typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = expandEnvVars(value);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
+/**
  * Parse a scenario from a YAML file
  */
 export async function parseScenarioFile(filePath: string): Promise<Scenario> {
@@ -30,7 +57,11 @@ export async function parseScenarioFile(filePath: string): Promise<Scenario> {
 export function parseScenarioString(content: string, source?: string): Scenario {
   try {
     const raw = parseYaml(content);
-    const result = ScenarioSchema.safeParse(raw);
+
+    // Expand environment variables before validation
+    const expanded = expandEnvVars(raw);
+
+    const result = ScenarioSchema.safeParse(expanded);
 
     if (!result.success) {
       const issues = result.error.issues

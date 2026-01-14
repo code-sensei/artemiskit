@@ -21,6 +21,33 @@ export const ProviderSchema = z.enum([
 ]);
 
 /**
+ * Provider config schema - optional overrides for provider settings
+ * Supports ${ENV_VAR} and ${ENV_VAR:-default} syntax for values
+ * All fields are optional - only specified fields override defaults
+ */
+export const ProviderConfigSchema = z
+  .object({
+    // Common fields
+    apiKey: z.string().optional(),
+    baseUrl: z.string().optional(),
+    defaultModel: z.string().optional(),
+    timeout: z.number().optional(),
+    maxRetries: z.number().optional(),
+
+    // OpenAI specific
+    organization: z.string().optional(),
+
+    // Azure OpenAI specific
+    resourceName: z.string().optional(),
+    deploymentName: z.string().optional(),
+    apiVersion: z.string().optional(),
+
+    // Vercel AI specific
+    underlyingProvider: z.enum(['openai', 'azure', 'anthropic', 'google', 'mistral']).optional(),
+  })
+  .optional();
+
+/**
  * Expected result types - how to evaluate responses
  */
 export const ExpectedSchema = z.discriminatedUnion('type', [
@@ -102,6 +129,7 @@ export const ScenarioSchema = z.object({
   version: z.string().optional().default('1.0'),
   provider: ProviderSchema.optional(),
   model: z.string().optional(),
+  providerConfig: ProviderConfigSchema,
   seed: z.number().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().optional(),
@@ -124,4 +152,5 @@ export type Expected = z.infer<typeof ExpectedSchema>;
 export type TestCase = z.infer<typeof TestCaseSchema>;
 export type Scenario = z.infer<typeof ScenarioSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
+export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 export type ChatMessageType = z.infer<typeof ChatMessageSchema>;

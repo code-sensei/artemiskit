@@ -4,15 +4,17 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createStorageFromEnv } from '@artemiskit/core';
 import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
+import { loadConfig } from '../config/loader';
+import { createStorage } from '../utils/storage';
 
 interface ReportOptions {
   format?: 'html' | 'json' | 'both';
   output?: string;
+  config?: string;
 }
 
 export function reportCommand(): Command {
@@ -23,11 +25,13 @@ export function reportCommand(): Command {
     .argument('<run-id>', 'Run ID to generate report for')
     .option('-f, --format <format>', 'Output format (html, json, both)', 'html')
     .option('-o, --output <dir>', 'Output directory', './artemis-output')
+    .option('--config <path>', 'Path to config file')
     .action(async (runId: string, options: ReportOptions) => {
       const spinner = ora('Loading run...').start();
 
       try {
-        const storage = createStorageFromEnv();
+        const config = await loadConfig(options.config);
+        const storage = createStorage({ fileConfig: config });
         const manifest = await storage.load(runId);
         spinner.succeed(`Loaded run: ${runId}`);
 

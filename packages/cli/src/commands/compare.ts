@@ -2,13 +2,15 @@
  * Compare command - Compare two test runs
  */
 
-import { createStorageFromEnv } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
+import { loadConfig } from '../config/loader';
+import { createStorage } from '../utils/storage';
 
 interface CompareOptions {
   threshold?: number;
+  config?: string;
 }
 
 export function compareCommand(): Command {
@@ -19,9 +21,11 @@ export function compareCommand(): Command {
     .argument('<baseline>', 'Baseline run ID')
     .argument('<current>', 'Current run ID')
     .option('--threshold <number>', 'Regression threshold (0-1)', '0.05')
+    .option('--config <path>', 'Path to config file')
     .action(async (baselineId: string, currentId: string, options: CompareOptions) => {
       try {
-        const storage = createStorageFromEnv();
+        const config = await loadConfig(options.config);
+        const storage = createStorage({ fileConfig: config });
 
         if (!storage.compare) {
           console.error(chalk.red('Storage adapter does not support comparison'));

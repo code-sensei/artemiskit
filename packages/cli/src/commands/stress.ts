@@ -2,11 +2,13 @@
  * Stress command - Run load/stress tests against an LLM
  */
 
-import { type AdapterConfig, createAdapter, parseScenarioFile } from '@artemiskit/core';
+import { createAdapter, parseScenarioFile } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
 import ora from 'ora';
+import { loadConfig } from '../config/loader';
+import { buildAdapterConfig, resolveModel, resolveProvider } from '../utils/adapter';
 
 interface StressOptions {
   provider?: string;
@@ -16,6 +18,7 @@ interface StressOptions {
   duration?: number;
   rampUp?: number;
   verbose?: boolean;
+  config?: string;
 }
 
 interface RequestResult {
@@ -52,20 +55,38 @@ export function stressCommand(): Command {
     .option('-d, --duration <seconds>', 'Duration to run the test in seconds', '30')
     .option('--ramp-up <seconds>', 'Ramp-up time in seconds', '5')
     .option('-v, --verbose', 'Verbose output')
+    .option('--config <path>', 'Path to config file')
     .action(async (scenarioPath: string, options: StressOptions) => {
-      const spinner = ora('Loading scenario...').start();
+      const spinner = ora('Loading configuration...').start();
 
       try {
+        // Load config file if present
+        const config = await loadConfig(options.config);
+        if (config) {
+          spinner.succeed('Loaded config file');
+        } else {
+          spinner.info('No config file found, using defaults');
+        }
+
         // Parse scenario
+        spinner.start('Loading scenario...');
         const scenario = await parseScenarioFile(scenarioPath);
         spinner.succeed(`Loaded scenario: ${scenario.name}`);
 
-        // Create adapter
-        const provider = options.provider || scenario.provider || 'openai';
-        const model = options.model || scenario.model;
+        // Resolve provider and model with precedence:
+        // CLI > Scenario > Config > Default
+        const provider = resolveProvider(options.provider, scenario.provider, config?.provider);
+        const model = resolveModel(options.model, scenario.model, config?.model);
 
+        // Build adapter config with full precedence chain
         spinner.start(`Connecting to ${provider}...`);
-        const client = await createAdapter(buildAdapterConfig(provider, model));
+        const adapterConfig = buildAdapterConfig({
+          provider,
+          model,
+          scenarioConfig: scenario.providerConfig,
+          fileConfig: config,
+        });
+        const client = await createAdapter(adapterConfig);
         spinner.succeed(`Connected to ${provider}`);
 
         // Configuration
@@ -346,33 +367,5 @@ function displayHistogram(results: RequestResult[]): void {
     console.log(
       `${chalk.dim(`${rangeStart.toString().padStart(5)}-${rangeEnd.toString().padStart(5)}ms`)} │ ${chalk.cyan(bar)} ${count}`
     );
-  }
-}
-
-function buildAdapterConfig(provider: string, model?: string): AdapterConfig {
-  switch (provider) {
-    case 'openai':
-      return {
-        provider: 'openai',
-        apiKey: process.env.OPENAI_API_KEY,
-        defaultModel: model,
-      };
-
-    case 'azure-openai':
-      return {
-        provider: 'azure-openai',
-        apiKey: process.env.AZURE_OPENAI_API_KEY,
-        resourceName: process.env.AZURE_OPENAI_RESOURCE || '',
-        deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || '',
-        apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
-        defaultModel: model,
-      };
-
-    default:
-      return {
-        provider: provider as 'openai',
-        apiKey: process.env.OPENAI_API_KEY,
-        defaultModel: model,
-      };
   }
 }

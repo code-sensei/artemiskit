@@ -186,18 +186,122 @@ cases:
       threshold: 0.8
 ```
 
-## Provider Configuration
+## Configuration
 
-### OpenAI
+Artemis uses a layered configuration system with clear precedence rules.
+
+### Configuration Precedence
+
+Settings are resolved in the following order (highest priority first):
+
+```
+1. CLI options (--provider, --model, etc.)
+2. Scenario file (providerConfig section)
+3. artemis.config.yaml (providers section)
+4. Environment variables
+5. Default values
+```
+
+**Example:** If you specify `--provider openai` on the CLI, it overrides whatever is in the scenario or config file.
+
+### Configuration Files
+
+#### artemis.config.yaml (Project Config)
+
+This is the main project configuration file, typically at your project root:
+
+```yaml
+# artemis.config.yaml
+project: my-project
+
+# Default provider and model (used when not specified elsewhere)
+provider: openai
+model: gpt-4
+
+# Provider-specific configurations
+providers:
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    defaultModel: gpt-4
+    organization: ${OPENAI_ORGANIZATION}
+
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: ${AZURE_OPENAI_RESOURCE}
+    deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"
+
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    defaultModel: claude-3-sonnet-20240229
+
+# Storage configuration
+storage:
+  type: local
+  basePath: ./artemis-runs
+
+# Output settings
+output:
+  format: json
+  dir: ./artemis-output
+```
+
+#### Scenario Files
+
+Scenarios can include provider configuration that overrides the project config:
+
+```yaml
+# scenarios/azure-test.yaml
+name: Azure OpenAI Test
+provider: azure-openai
+model: GPT-4o Mini  # Display name (for reports/logs)
+
+# Override provider settings for this scenario
+providerConfig:
+  deploymentName: ${MY_CUSTOM_DEPLOYMENT:-gpt-4o-mini-prod}
+  resourceName: my-azure-resource
+  apiVersion: "2024-06-01"
+
+cases:
+  - id: test-1
+    prompt: "Hello, world!"
+    expected:
+      type: contains
+      values: ["Hello"]
+```
+
+### Environment Variable Expansion
+
+Both `artemis.config.yaml` and scenario files support environment variable expansion:
+
+| Syntax | Description |
+|--------|-------------|
+| `${VAR}` | Use value of VAR (empty if not set) |
+| `${VAR:-default}` | Use VAR if set, otherwise use "default" |
+
+**Example:**
+```yaml
+providerConfig:
+  deploymentName: ${AZURE_DEPLOYMENT:-my-default-deployment}
+  apiKey: ${AZURE_OPENAI_API_KEY}
+```
+
+### Provider Configuration
+
+#### OpenAI
 
 ```yaml
 providers:
   openai:
     apiKey: ${OPENAI_API_KEY}
+    baseUrl: https://api.openai.com/v1  # Optional: custom endpoint
+    organization: ${OPENAI_ORGANIZATION}  # Optional
     defaultModel: gpt-4
+    timeout: 60000  # Optional: request timeout in ms
+    maxRetries: 2   # Optional: retry count
 ```
 
-### Azure OpenAI
+#### Azure OpenAI
 
 ```yaml
 providers:
@@ -206,6 +310,65 @@ providers:
     resourceName: ${AZURE_OPENAI_RESOURCE}
     deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
     apiVersion: "2024-02-15-preview"
+```
+
+**Note:** For Azure OpenAI, the `model` field in scenarios is for display/identification only. The actual model used is determined by your Azure deployment. Use `providerConfig.deploymentName` to specify which deployment to use.
+
+#### Anthropic
+
+```yaml
+providers:
+  anthropic:
+    apiKey: ${ANTHROPIC_API_KEY}
+    baseUrl: https://api.anthropic.com  # Optional
+    defaultModel: claude-3-sonnet-20240229
+```
+
+#### Vercel AI SDK
+
+```yaml
+providers:
+  vercel-ai:
+    underlyingProvider: openai  # or 'anthropic'
+    apiKey: ${OPENAI_API_KEY}
+    defaultModel: gpt-4
+```
+
+### Configuration Examples
+
+#### Using Different Deployments per Scenario
+
+```yaml
+# scenarios/prod-test.yaml
+name: Production Model Test
+provider: azure-openai
+model: GPT-4 Production
+providerConfig:
+  deploymentName: gpt4-prod
+  resourceName: prod-resource
+
+---
+
+# scenarios/staging-test.yaml
+name: Staging Model Test
+provider: azure-openai
+model: GPT-4 Staging
+providerConfig:
+  deploymentName: gpt4-staging
+  resourceName: staging-resource
+```
+
+#### CLI Override
+
+```bash
+# Override provider from scenario
+artemis run scenario.yaml --provider openai
+
+# Override model
+artemis run scenario.yaml --model gpt-4-turbo
+
+# Use custom config file
+artemis run scenario.yaml --config ./custom-config.yaml
 ```
 
 ## Packages

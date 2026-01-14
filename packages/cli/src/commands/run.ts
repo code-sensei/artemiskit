@@ -2,18 +2,14 @@
  * Run command - Execute test scenarios
  */
 
-import {
-  type AdapterConfig,
-  createAdapter,
-  createStorageFromEnv,
-  parseScenarioFile,
-  runScenario,
-} from '@artemiskit/core';
+import { createAdapter, parseScenarioFile, runScenario } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../config/loader';
+import { buildAdapterConfig, resolveModel, resolveProvider } from '../utils/adapter';
+import { createStorage } from '../utils/storage';
 
 interface RunOptions {
   provider?: string;
@@ -61,13 +57,20 @@ export function runCommand(): Command {
         const scenario = await parseScenarioFile(scenarioPath);
         spinner.succeed(`Loaded scenario: ${scenario.name}`);
 
-        // Determine provider and model (CLI > scenario > config > default)
-        const provider = options.provider || scenario.provider || config?.provider || 'openai';
-        const model = options.model || scenario.model || config?.model;
+        // Resolve provider and model with precedence:
+        // CLI > Scenario > Config > Default
+        const provider = resolveProvider(options.provider, scenario.provider, config?.provider);
+        const model = resolveModel(options.model, scenario.model, config?.model);
 
-        // Create adapter
+        // Build adapter config with full precedence chain
         spinner.start(`Connecting to ${provider}...`);
-        const client = await createAdapter(buildAdapterConfig(provider, model, config));
+        const adapterConfig = buildAdapterConfig({
+          provider,
+          model,
+          scenarioConfig: scenario.providerConfig,
+          fileConfig: config,
+        });
+        const client = await createAdapter(adapterConfig);
         spinner.succeed(`Connected to ${provider}`);
 
         console.log();
@@ -106,7 +109,7 @@ export function runCommand(): Command {
         // Save results
         if (options.save) {
           spinner.start('Saving results...');
-          const storage = createStorageFromEnv();
+          const storage = createStorage({ fileConfig: config });
           const path = await storage.save(result.manifest);
           spinner.succeed(`Results saved: ${path}`);
         }
@@ -126,60 +129,6 @@ export function runCommand(): Command {
     });
 
   return cmd;
-}
-
-function buildAdapterConfig(
-  provider: string,
-  model?: string,
-  config?: Record<string, unknown> | null
-): AdapterConfig {
-  // Get provider-specific config if available
-  const configWithProviders = config as
-    | { providers?: Record<string, Record<string, unknown>> }
-    | null
-    | undefined;
-  const providerConfig = configWithProviders?.providers?.[provider];
-
-  switch (provider) {
-    case 'openai':
-      return {
-        provider: 'openai',
-        apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
-        baseUrl: providerConfig?.baseUrl as string | undefined,
-        defaultModel: model || (providerConfig?.model as string | undefined),
-      };
-
-    case 'azure-openai':
-      return {
-        provider: 'azure-openai',
-        apiKey: (providerConfig?.apiKey as string) || process.env.AZURE_OPENAI_API_KEY,
-        resourceName:
-          (providerConfig?.resourceName as string) || process.env.AZURE_OPENAI_RESOURCE || '',
-        deploymentName:
-          (providerConfig?.deploymentName as string) || process.env.AZURE_OPENAI_DEPLOYMENT || '',
-        apiVersion:
-          (providerConfig?.apiVersion as string) ||
-          process.env.AZURE_OPENAI_API_VERSION ||
-          '2024-02-15-preview',
-        defaultModel: model || (providerConfig?.model as string | undefined),
-      };
-
-    case 'vercel-ai':
-      return {
-        provider: 'vercel-ai',
-        underlyingProvider:
-          (providerConfig?.underlyingProvider as 'openai' | 'anthropic') || 'openai',
-        apiKey: (providerConfig?.apiKey as string) || process.env.OPENAI_API_KEY,
-        defaultModel: model || (providerConfig?.model as string | undefined),
-      };
-
-    default:
-      return {
-        provider: provider as 'openai',
-        apiKey: process.env.OPENAI_API_KEY,
-        defaultModel: model,
-      };
-  }
 }
 
 function displaySummary(

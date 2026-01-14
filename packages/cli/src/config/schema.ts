@@ -8,6 +8,8 @@ const ProviderConfigSchema = z.object({
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   defaultModel: z.string().optional(),
+  timeout: z.number().optional(),
+  maxRetries: z.number().optional(),
   // OpenAI specific
   organization: z.string().optional(),
   // Azure specific

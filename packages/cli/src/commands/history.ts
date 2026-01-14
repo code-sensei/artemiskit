@@ -2,15 +2,17 @@
  * History command - View run history
  */
 
-import { createStorageFromEnv } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
+import { loadConfig } from '../config/loader';
+import { createStorage } from '../utils/storage';
 
 interface HistoryOptions {
   project?: string;
   scenario?: string;
   limit?: number;
+  config?: string;
 }
 
 export function historyCommand(): Command {
@@ -21,9 +23,11 @@ export function historyCommand(): Command {
     .option('-p, --project <project>', 'Filter by project')
     .option('-s, --scenario <scenario>', 'Filter by scenario')
     .option('-l, --limit <number>', 'Limit number of results', '20')
+    .option('--config <path>', 'Path to config file')
     .action(async (options: HistoryOptions) => {
       try {
-        const storage = createStorageFromEnv();
+        const config = await loadConfig(options.config);
+        const storage = createStorage({ fileConfig: config });
         const limit = Number.parseInt(String(options.limit)) || 20;
 
         const runs = await storage.list({

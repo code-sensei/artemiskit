@@ -96,3 +96,215 @@ export interface RunManifest {
     arch: string;
   };
 }
+
+// ============================================================================
+// Red Team Manifest Types
+// ============================================================================
+
+/**
+ * Red team test result status
+ */
+export type RedTeamStatus = 'safe' | 'unsafe' | 'blocked' | 'error';
+
+/**
+ * Red team severity levels
+ */
+export type RedTeamSeverity = 'none' | 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Individual red team test result
+ */
+export interface RedTeamCaseResult {
+  /** Original test case ID */
+  caseId: string;
+  /** Applied mutations */
+  mutation: string;
+  /** Mutated prompt sent to the model */
+  prompt: string;
+  /** Model response */
+  response: string;
+  /** Result status */
+  status: RedTeamStatus;
+  /** Severity if unsafe */
+  severity: RedTeamSeverity;
+  /** Reasons for the status */
+  reasons: string[];
+  /** Latency in milliseconds */
+  latencyMs?: number;
+}
+
+/**
+ * Red team metrics
+ */
+export interface RedTeamMetrics {
+  /** Total number of tests run */
+  total_tests: number;
+  /** Tests where model responded safely */
+  safe_responses: number;
+  /** Tests blocked by provider content filter */
+  blocked_responses: number;
+  /** Tests with potentially unsafe responses */
+  unsafe_responses: number;
+  /** Tests that errored */
+  error_responses: number;
+  /** Total defended (safe + blocked) */
+  defended: number;
+  /** Defense rate (defended / testable results) */
+  defense_rate: number;
+  /** Breakdown by severity */
+  by_severity: {
+    low: number;
+    medium: number;
+    high: number;
+    critical: number;
+  };
+}
+
+/**
+ * Red team configuration
+ */
+export interface RedTeamConfig {
+  scenario: string;
+  provider: string;
+  model?: string;
+  mutations: string[];
+  count_per_case: number;
+}
+
+/**
+ * Complete red team manifest
+ */
+export interface RedTeamManifest {
+  version: string;
+  type: 'redteam';
+  run_id: string;
+  project: string;
+  start_time: string;
+  end_time: string;
+  duration_ms: number;
+  config: RedTeamConfig;
+  metrics: RedTeamMetrics;
+  git: GitInfo;
+  provenance: ProvenanceInfo;
+  results: RedTeamCaseResult[];
+  environment: {
+    node_version: string;
+    platform: string;
+    arch: string;
+  };
+}
+
+// ============================================================================
+// Stress Test Manifest Types
+// ============================================================================
+
+/**
+ * Individual stress test request result
+ */
+export interface StressRequestResult {
+  /** Whether the request succeeded */
+  success: boolean;
+  /** Latency in milliseconds */
+  latencyMs: number;
+  /** Error message if failed */
+  error?: string;
+  /** Timestamp of the request */
+  timestamp: number;
+}
+
+/**
+ * Stress test metrics
+ */
+export interface StressMetrics {
+  /** Total requests made */
+  total_requests: number;
+  /** Successful requests */
+  successful_requests: number;
+  /** Failed requests */
+  failed_requests: number;
+  /** Success rate (0-1) */
+  success_rate: number;
+  /** Requests per second */
+  requests_per_second: number;
+  /** Minimum latency in ms */
+  min_latency_ms: number;
+  /** Maximum latency in ms */
+  max_latency_ms: number;
+  /** Average latency in ms */
+  avg_latency_ms: number;
+  /** 50th percentile latency */
+  p50_latency_ms: number;
+  /** 90th percentile latency */
+  p90_latency_ms: number;
+  /** 95th percentile latency */
+  p95_latency_ms: number;
+  /** 99th percentile latency */
+  p99_latency_ms: number;
+}
+
+/**
+ * Stress test configuration
+ */
+export interface StressConfig {
+  scenario: string;
+  provider: string;
+  model?: string;
+  concurrency: number;
+  duration_seconds: number;
+  ramp_up_seconds: number;
+  max_requests?: number;
+}
+
+/**
+ * Complete stress test manifest
+ */
+export interface StressManifest {
+  version: string;
+  type: 'stress';
+  run_id: string;
+  project: string;
+  start_time: string;
+  end_time: string;
+  duration_ms: number;
+  config: StressConfig;
+  metrics: StressMetrics;
+  git: GitInfo;
+  provenance: ProvenanceInfo;
+  /** Sample of request results (not all, to keep size manageable) */
+  sample_results: StressRequestResult[];
+  environment: {
+    node_version: string;
+    platform: string;
+    arch: string;
+  };
+}
+
+// ============================================================================
+// Union type for all manifest types
+// ============================================================================
+
+/**
+ * Any manifest type
+ */
+export type AnyManifest = RunManifest | RedTeamManifest | StressManifest;
+
+/**
+ * Type guard for RunManifest
+ */
+export function isRunManifest(manifest: AnyManifest): manifest is RunManifest {
+  return !('type' in manifest) || manifest.type === undefined;
+}
+
+/**
+ * Type guard for RedTeamManifest
+ */
+export function isRedTeamManifest(manifest: AnyManifest): manifest is RedTeamManifest {
+  return 'type' in manifest && manifest.type === 'redteam';
+}
+
+/**
+ * Type guard for StressManifest
+ */
+export function isStressManifest(manifest: AnyManifest): manifest is StressManifest {
+  return 'type' in manifest && manifest.type === 'stress';
+}

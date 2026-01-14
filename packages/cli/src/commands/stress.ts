@@ -2,13 +2,25 @@
  * Stress command - Run load/stress tests against an LLM
  */
 
-import { createAdapter, parseScenarioFile } from '@artemiskit/core';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import {
+  type StressManifest,
+  type StressMetrics,
+  type StressRequestResult,
+  createAdapter,
+  getGitInfo,
+  parseScenarioFile,
+} from '@artemiskit/core';
+import { generateJSONReport, generateStressHTMLReport } from '@artemiskit/reports';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
+import { nanoid } from 'nanoid';
 import ora from 'ora';
 import { loadConfig } from '../config/loader';
 import { buildAdapterConfig, resolveModel, resolveProvider } from '../utils/adapter';
+import { createStorage } from '../utils/storage';
 
 interface StressOptions {
   provider?: string;
@@ -17,29 +29,10 @@ interface StressOptions {
   requests?: number;
   duration?: number;
   rampUp?: number;
+  save?: boolean;
+  output?: string;
   verbose?: boolean;
   config?: string;
-}
-
-interface RequestResult {
-  success: boolean;
-  latency: number;
-  error?: string;
-  timestamp: number;
-}
-
-interface StressStats {
-  totalRequests: number;
-  successfulRequests: number;
-  failedRequests: number;
-  minLatency: number;
-  maxLatency: number;
-  avgLatency: number;
-  p50Latency: number;
-  p90Latency: number;
-  p99Latency: number;
-  requestsPerSecond: number;
-  durationMs: number;
 }
 
 export function stressCommand(): Command {
@@ -54,10 +47,13 @@ export function stressCommand(): Command {
     .option('-n, --requests <number>', 'Total number of requests to make')
     .option('-d, --duration <seconds>', 'Duration to run the test in seconds', '30')
     .option('--ramp-up <seconds>', 'Ramp-up time in seconds', '5')
+    .option('--save', 'Save results to storage')
+    .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
     .action(async (scenarioPath: string, options: StressOptions) => {
       const spinner = ora('Loading configuration...').start();
+      const startTime = new Date();
 
       try {
         // Load config file if present
@@ -134,15 +130,79 @@ export function stressCommand(): Command {
         });
 
         spinner.succeed('Stress test completed');
+        const endTime = new Date();
         console.log();
 
-        // Calculate and display stats
-        const stats = calculateStats(results);
-        displayStats(stats);
+        // Calculate stats
+        const metrics = calculateMetrics(results, endTime.getTime() - startTime.getTime());
+
+        // Build manifest
+        const runId = `st_${nanoid(12)}`;
+        const manifest: StressManifest = {
+          version: '1.0',
+          type: 'stress',
+          run_id: runId,
+          project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration_ms: endTime.getTime() - startTime.getTime(),
+          config: {
+            scenario: basename(scenarioPath, '.yaml'),
+            provider,
+            model,
+            concurrency,
+            duration_seconds: durationSec,
+            ramp_up_seconds: rampUpSec,
+            max_requests: maxRequests,
+          },
+          metrics,
+          git: await getGitInfo(),
+          provenance: {
+            run_by: process.env.USER || process.env.USERNAME || 'unknown',
+          },
+          // Sample results (keep only a sample to avoid huge files)
+          sample_results: sampleResults(results, 100),
+          environment: {
+            node_version: process.version,
+            platform: process.platform,
+            arch: process.arch,
+          },
+        };
+
+        // Display stats
+        displayStats(metrics, runId);
 
         // Display latency histogram if verbose
         if (options.verbose) {
           displayHistogram(results);
+        }
+
+        // Save results if requested
+        if (options.save) {
+          spinner.start('Saving results...');
+          const storage = createStorage({ fileConfig: config });
+          const path = await storage.save(manifest);
+          spinner.succeed(`Results saved: ${path}`);
+        }
+
+        // Generate reports if output directory specified
+        if (options.output) {
+          spinner.start('Generating reports...');
+          await mkdir(options.output, { recursive: true });
+
+          // HTML report
+          const html = generateStressHTMLReport(manifest);
+          const htmlPath = join(options.output, `${runId}.html`);
+          await writeFile(htmlPath, html);
+
+          // JSON report
+          const json = generateJSONReport(manifest);
+          const jsonPath = join(options.output, `${runId}.json`);
+          await writeFile(jsonPath, json);
+
+          spinner.succeed(`Reports generated: ${options.output}`);
+          console.log(chalk.dim(`  HTML: ${htmlPath}`));
+          console.log(chalk.dim(`  JSON: ${jsonPath}`));
         }
       } catch (error) {
         spinner.fail('Error');
@@ -171,7 +231,7 @@ interface StressTestOptions {
   verbose?: boolean;
 }
 
-async function runStressTest(options: StressTestOptions): Promise<RequestResult[]> {
+async function runStressTest(options: StressTestOptions): Promise<StressRequestResult[]> {
   const {
     client,
     model,
@@ -184,7 +244,7 @@ async function runStressTest(options: StressTestOptions): Promise<RequestResult[
     onProgress,
   } = options;
 
-  const results: RequestResult[] = [];
+  const results: StressRequestResult[] = [];
   const startTime = Date.now();
   const endTime = startTime + durationMs;
   let completed = 0;
@@ -207,13 +267,13 @@ async function runStressTest(options: StressTestOptions): Promise<RequestResult[
 
       results.push({
         success: true,
-        latency: Date.now() - requestStart,
+        latencyMs: Date.now() - requestStart,
         timestamp: requestStart,
       });
     } catch (error) {
       results.push({
         success: false,
-        latency: Date.now() - requestStart,
+        latencyMs: Date.now() - requestStart,
         error: (error as Error).message,
         timestamp: requestStart,
       });
@@ -255,9 +315,9 @@ async function runStressTest(options: StressTestOptions): Promise<RequestResult[
   return results;
 }
 
-function calculateStats(results: RequestResult[]): StressStats {
+function calculateMetrics(results: StressRequestResult[], durationMs: number): StressMetrics {
   const successful = results.filter((r) => r.success);
-  const latencies = successful.map((r) => r.latency).sort((a, b) => a - b);
+  const latencies = successful.map((r) => r.latencyMs).sort((a, b) => a - b);
 
   const totalRequests = results.length;
   const successfulRequests = successful.length;
@@ -268,27 +328,22 @@ function calculateStats(results: RequestResult[]): StressStats {
   const avgLatency =
     latencies.length > 0 ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0;
 
-  const p50Latency = percentile(latencies, 50);
-  const p90Latency = percentile(latencies, 90);
-  const p99Latency = percentile(latencies, 99);
-
-  const timestamps = results.map((r) => r.timestamp);
-  const durationMs =
-    Math.max(...timestamps) - Math.min(...timestamps) + (latencies[latencies.length - 1] || 0);
   const requestsPerSecond = durationMs > 0 ? (totalRequests / durationMs) * 1000 : 0;
+  const successRate = totalRequests > 0 ? successfulRequests / totalRequests : 0;
 
   return {
-    totalRequests,
-    successfulRequests,
-    failedRequests,
-    minLatency,
-    maxLatency,
-    avgLatency,
-    p50Latency,
-    p90Latency,
-    p99Latency,
-    requestsPerSecond,
-    durationMs,
+    total_requests: totalRequests,
+    successful_requests: successfulRequests,
+    failed_requests: failedRequests,
+    success_rate: successRate,
+    requests_per_second: requestsPerSecond,
+    min_latency_ms: minLatency,
+    max_latency_ms: maxLatency,
+    avg_latency_ms: Math.round(avgLatency),
+    p50_latency_ms: percentile(latencies, 50),
+    p90_latency_ms: percentile(latencies, 90),
+    p95_latency_ms: percentile(latencies, 95),
+    p99_latency_ms: percentile(latencies, 99),
   };
 }
 
@@ -298,34 +353,46 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
 }
 
-function displayStats(stats: StressStats): void {
+function sampleResults(results: StressRequestResult[], maxSamples: number): StressRequestResult[] {
+  if (results.length <= maxSamples) return results;
+
+  // Sample evenly across the results
+  const step = Math.floor(results.length / maxSamples);
+  const sampled: StressRequestResult[] = [];
+  for (let i = 0; i < results.length && sampled.length < maxSamples; i += step) {
+    sampled.push(results[i]);
+  }
+  return sampled;
+}
+
+function displayStats(metrics: StressMetrics, runId: string): void {
   const table = new Table({
     head: [chalk.bold('Metric'), chalk.bold('Value')],
     style: { head: [], border: [] },
   });
 
   table.push(
-    ['Total Requests', stats.totalRequests.toString()],
-    ['Successful', chalk.green(stats.successfulRequests.toString())],
-    ['Failed', stats.failedRequests > 0 ? chalk.red(stats.failedRequests.toString()) : '0'],
+    ['Run ID', runId],
+    ['Total Requests', metrics.total_requests.toString()],
+    ['Successful', chalk.green(metrics.successful_requests.toString())],
+    ['Failed', metrics.failed_requests > 0 ? chalk.red(metrics.failed_requests.toString()) : '0'],
     ['', ''],
-    ['Requests/sec', stats.requestsPerSecond.toFixed(2)],
-    ['Duration', `${(stats.durationMs / 1000).toFixed(2)}s`],
+    ['Requests/sec', metrics.requests_per_second.toFixed(2)],
     ['', ''],
-    ['Min Latency', `${stats.minLatency}ms`],
-    ['Max Latency', `${stats.maxLatency}ms`],
-    ['Avg Latency', `${stats.avgLatency.toFixed(0)}ms`],
-    ['p50 Latency', `${stats.p50Latency}ms`],
-    ['p90 Latency', `${stats.p90Latency}ms`],
-    ['p99 Latency', `${stats.p99Latency}ms`]
+    ['Min Latency', `${metrics.min_latency_ms}ms`],
+    ['Max Latency', `${metrics.max_latency_ms}ms`],
+    ['Avg Latency', `${metrics.avg_latency_ms}ms`],
+    ['p50 Latency', `${metrics.p50_latency_ms}ms`],
+    ['p90 Latency', `${metrics.p90_latency_ms}ms`],
+    ['p95 Latency', `${metrics.p95_latency_ms}ms`],
+    ['p99 Latency', `${metrics.p99_latency_ms}ms`]
   );
 
   console.log(chalk.bold('Results'));
   console.log(table.toString());
 
   // Success rate
-  const successRate =
-    stats.totalRequests > 0 ? (stats.successfulRequests / stats.totalRequests) * 100 : 0;
+  const successRate = metrics.success_rate * 100;
 
   console.log();
   if (successRate >= 99) {
@@ -337,11 +404,11 @@ function displayStats(stats: StressStats): void {
   }
 }
 
-function displayHistogram(results: RequestResult[]): void {
+function displayHistogram(results: StressRequestResult[]): void {
   const successful = results.filter((r) => r.success);
   if (successful.length === 0) return;
 
-  const latencies = successful.map((r) => r.latency);
+  const latencies = successful.map((r) => r.latencyMs);
   const maxLatency = Math.max(...latencies);
   const bucketSize = Math.ceil(maxLatency / 10);
   const buckets = new Array(10).fill(0);

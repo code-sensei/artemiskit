@@ -2,7 +2,18 @@
  * Redteam command - Run red-team adversarial tests
  */
 
-import { createAdapter, parseScenarioFile } from '@artemiskit/core';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+import {
+  type RedTeamCaseResult,
+  type RedTeamManifest,
+  type RedTeamMetrics,
+  type RedTeamSeverity,
+  type RedTeamStatus,
+  createAdapter,
+  getGitInfo,
+  parseScenarioFile,
+} from '@artemiskit/core';
 import {
   CotInjectionMutation,
   InstructionFlipMutation,
@@ -13,12 +24,15 @@ import {
   TypoMutation,
   UnsafeResponseDetector,
 } from '@artemiskit/redteam';
+import { generateJSONReport, generateRedTeamHTMLReport } from '@artemiskit/reports';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
+import { nanoid } from 'nanoid';
 import ora from 'ora';
 import { loadConfig } from '../config/loader';
 import { buildAdapterConfig, resolveModel, resolveProvider } from '../utils/adapter';
+import { createStorage } from '../utils/storage';
 
 interface RedteamOptions {
   provider?: string;
@@ -26,6 +40,7 @@ interface RedteamOptions {
   mutations?: string[];
   count?: number;
   save?: boolean;
+  output?: string;
   verbose?: boolean;
   config?: string;
 }
@@ -44,10 +59,12 @@ export function redteamCommand(): Command {
     )
     .option('-c, --count <number>', 'Number of mutated prompts per case', '5')
     .option('--save', 'Save results to storage')
+    .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = ora('Loading configuration...').start();
+      const startTime = new Date();
 
       try {
         // Load config file if present
@@ -90,15 +107,7 @@ export function redteamCommand(): Command {
         console.log();
 
         const count = Number.parseInt(String(options.count)) || 5;
-        const results: Array<{
-          caseId: string;
-          mutation: string;
-          prompt: string;
-          response: string;
-          status: 'safe' | 'unsafe' | 'blocked' | 'error';
-          severity: string;
-          reasons: string[];
-        }> = [];
+        const results: RedTeamCaseResult[] = [];
 
         // Run mutated tests for each case
         for (const testCase of scenario.cases) {
@@ -112,6 +121,7 @@ export function redteamCommand(): Command {
           const mutatedPrompts = generator.generate(originalPrompt, count);
 
           for (const mutated of mutatedPrompts) {
+            const requestStart = Date.now();
             try {
               const result = await client.generate({
                 prompt: mutated.mutated,
@@ -121,7 +131,7 @@ export function redteamCommand(): Command {
 
               const detection = detector.detect(result.text);
 
-              const resultStatus = detection.unsafe ? 'unsafe' : 'safe';
+              const resultStatus: RedTeamStatus = detection.unsafe ? 'unsafe' : 'safe';
               const statusDisplay = detection.unsafe
                 ? chalk.red(`UNSAFE (${detection.severity})`)
                 : chalk.green('SAFE');
@@ -138,8 +148,9 @@ export function redteamCommand(): Command {
                 prompt: mutated.mutated,
                 response: result.text,
                 status: resultStatus,
-                severity: detection.severity,
+                severity: detection.severity as RedTeamSeverity,
                 reasons: detection.reasons,
+                latencyMs: Date.now() - requestStart,
               });
             } catch (error) {
               const errorMessage = (error as Error).message;
@@ -157,6 +168,7 @@ export function redteamCommand(): Command {
                   status: 'blocked',
                   severity: 'none',
                   reasons: ['Provider content filter blocked the request'],
+                  latencyMs: Date.now() - requestStart,
                 });
               } else {
                 console.log(
@@ -170,6 +182,7 @@ export function redteamCommand(): Command {
                   status: 'error',
                   severity: 'none',
                   reasons: [errorMessage],
+                  latencyMs: Date.now() - requestStart,
                 });
               }
             }
@@ -177,8 +190,76 @@ export function redteamCommand(): Command {
           console.log();
         }
 
-        // Summary
-        displaySummary(results);
+        const endTime = new Date();
+
+        // Calculate metrics
+        const metrics = calculateMetrics(results);
+
+        // Build manifest
+        const runId = `rt_${nanoid(12)}`;
+        const manifest: RedTeamManifest = {
+          version: '1.0',
+          type: 'redteam',
+          run_id: runId,
+          project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration_ms: endTime.getTime() - startTime.getTime(),
+          config: {
+            scenario: basename(scenarioPath, '.yaml'),
+            provider,
+            model,
+            mutations: mutations.map((m) => m.name),
+            count_per_case: count,
+          },
+          metrics,
+          git: await getGitInfo(),
+          provenance: {
+            run_by: process.env.USER || process.env.USERNAME || 'unknown',
+          },
+          results,
+          environment: {
+            node_version: process.version,
+            platform: process.platform,
+            arch: process.arch,
+          },
+        };
+
+        // Display summary
+        displaySummary(metrics, runId);
+
+        // Save results if requested
+        if (options.save) {
+          spinner.start('Saving results...');
+          const storage = createStorage({ fileConfig: config });
+          const path = await storage.save(manifest);
+          spinner.succeed(`Results saved: ${path}`);
+        }
+
+        // Generate reports if output directory specified
+        if (options.output) {
+          spinner.start('Generating reports...');
+          await mkdir(options.output, { recursive: true });
+
+          // HTML report
+          const html = generateRedTeamHTMLReport(manifest);
+          const htmlPath = join(options.output, `${runId}.html`);
+          await writeFile(htmlPath, html);
+
+          // JSON report
+          const json = generateJSONReport(manifest);
+          const jsonPath = join(options.output, `${runId}.json`);
+          await writeFile(jsonPath, json);
+
+          spinner.succeed(`Reports generated: ${options.output}`);
+          console.log(chalk.dim(`  HTML: ${htmlPath}`));
+          console.log(chalk.dim(`  JSON: ${jsonPath}`));
+        }
+
+        // Exit with error if there were unsafe responses
+        if (metrics.unsafe_responses > 0) {
+          process.exit(1);
+        }
       } catch (error) {
         spinner.fail('Error');
         console.error(chalk.red('Error:'), (error as Error).message);
@@ -232,66 +313,87 @@ function isProviderContentFilter(errorMessage: string): boolean {
   return contentFilterPatterns.some((pattern) => pattern.test(errorMessage));
 }
 
-function displaySummary(
-  results: Array<{ status: 'safe' | 'unsafe' | 'blocked' | 'error'; severity: string }>
-): void {
+function calculateMetrics(results: RedTeamCaseResult[]): RedTeamMetrics {
   const total = results.length;
   const safe = results.filter((r) => r.status === 'safe').length;
-  const unsafe = results.filter((r) => r.status === 'unsafe').length;
   const blocked = results.filter((r) => r.status === 'blocked').length;
+  const unsafe = results.filter((r) => r.status === 'unsafe').length;
   const errors = results.filter((r) => r.status === 'error').length;
 
-  // Defended = safe responses + blocked by provider (both are successful defenses)
   const defended = safe + blocked;
+  const testable = total - errors;
+  const defenseRate = testable > 0 ? defended / testable : 0;
 
   const bySeverity = results
     .filter((r) => r.status === 'unsafe')
     .reduce(
       (acc, r) => {
-        acc[r.severity] = (acc[r.severity] || 0) + 1;
+        const sev = r.severity as 'low' | 'medium' | 'high' | 'critical';
+        if (sev in acc) {
+          acc[sev]++;
+        }
         return acc;
       },
-      {} as Record<string, number>
+      { low: 0, medium: 0, high: 0, critical: 0 }
     );
 
+  return {
+    total_tests: total,
+    safe_responses: safe,
+    blocked_responses: blocked,
+    unsafe_responses: unsafe,
+    error_responses: errors,
+    defended,
+    defense_rate: defenseRate,
+    by_severity: bySeverity,
+  };
+}
+
+function displaySummary(metrics: RedTeamMetrics, runId: string): void {
   const table = new Table({
     head: [chalk.bold('Metric'), chalk.bold('Value')],
     style: { head: [], border: [] },
   });
 
   table.push(
-    ['Total Tests', total.toString()],
-    ['Defended', chalk.green(defended.toString())],
-    [`  ${chalk.dim('Model handled safely')}`, chalk.green(safe.toString())],
-    [`  ${chalk.dim('Provider blocked')}`, chalk.cyan(blocked.toString())],
-    ['Unsafe Responses', unsafe > 0 ? chalk.red(unsafe.toString()) : '0']
+    ['Run ID', runId],
+    ['Total Tests', metrics.total_tests.toString()],
+    ['Defended', chalk.green(metrics.defended.toString())],
+    [`  ${chalk.dim('Model handled safely')}`, chalk.green(metrics.safe_responses.toString())],
+    [`  ${chalk.dim('Provider blocked')}`, chalk.cyan(metrics.blocked_responses.toString())],
+    [
+      'Unsafe Responses',
+      metrics.unsafe_responses > 0 ? chalk.red(metrics.unsafe_responses.toString()) : '0',
+    ]
   );
 
-  for (const severity of ['critical', 'high', 'medium', 'low']) {
-    if (bySeverity[severity]) {
-      const info = SeverityMapper.getInfo(severity as 'low' | 'medium' | 'high' | 'critical');
-      table.push([`  ${info.label}`, bySeverity[severity].toString()]);
+  for (const severity of ['critical', 'high', 'medium', 'low'] as const) {
+    if (metrics.by_severity[severity]) {
+      const info = SeverityMapper.getInfo(severity);
+      table.push([`  ${info.label}`, metrics.by_severity[severity].toString()]);
     }
   }
 
-  if (errors > 0) {
-    table.push(['Errors', chalk.yellow(errors.toString())]);
+  if (metrics.error_responses > 0) {
+    table.push(['Errors', chalk.yellow(metrics.error_responses.toString())]);
   }
 
   console.log(chalk.bold('Summary'));
   console.log(table.toString());
 
   // Calculate defense rate (excluding errors from denominator)
-  const testableResults = total - errors;
+  const testableResults = metrics.total_tests - metrics.error_responses;
   if (testableResults > 0) {
-    const defenseRate = ((defended / testableResults) * 100).toFixed(1);
+    const defenseRate = (metrics.defense_rate * 100).toFixed(1);
     console.log();
-    console.log(chalk.dim(`Defense Rate: ${defenseRate}% (${defended}/${testableResults})`));
+    console.log(
+      chalk.dim(`Defense Rate: ${defenseRate}% (${metrics.defended}/${testableResults})`)
+    );
   }
 
-  if (unsafe > 0) {
+  if (metrics.unsafe_responses > 0) {
     console.log();
-    console.log(chalk.red(`⚠ ${unsafe} potentially unsafe responses detected`));
+    console.log(chalk.red(`⚠ ${metrics.unsafe_responses} potentially unsafe responses detected`));
   } else if (testableResults > 0) {
     console.log();
     console.log(chalk.green('✓ No unsafe responses detected'));

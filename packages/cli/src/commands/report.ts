@@ -4,7 +4,13 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
+import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '@artemiskit/core';
+import {
+  generateHTMLReport,
+  generateJSONReport,
+  generateRedTeamHTMLReport,
+  generateStressHTMLReport,
+} from '@artemiskit/reports';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -15,6 +21,47 @@ interface ReportOptions {
   format?: 'html' | 'json' | 'both';
   output?: string;
   config?: string;
+}
+
+/**
+ * Get manifest type
+ */
+function getManifestType(manifest: AnyManifest): 'run' | 'redteam' | 'stress' {
+  if ('type' in manifest) {
+    if (manifest.type === 'redteam') return 'redteam';
+    if (manifest.type === 'stress') return 'stress';
+  }
+  return 'run';
+}
+
+/**
+ * Generate HTML report based on manifest type
+ */
+function generateHTML(manifest: AnyManifest): string {
+  const type = getManifestType(manifest);
+  switch (type) {
+    case 'redteam':
+      return generateRedTeamHTMLReport(manifest as RedTeamManifest);
+    case 'stress':
+      return generateStressHTMLReport(manifest as StressManifest);
+    default:
+      return generateHTMLReport(manifest as RunManifest);
+  }
+}
+
+/**
+ * Generate JSON report based on manifest type
+ */
+function generateJSON(manifest: AnyManifest): string {
+  const type = getManifestType(manifest);
+  switch (type) {
+    case 'redteam':
+      return generateJSONReport(manifest as RedTeamManifest, { pretty: true });
+    case 'stress':
+      return generateJSONReport(manifest as StressManifest, { pretty: true });
+    default:
+      return generateJSONReport(manifest as RunManifest, { pretty: true });
+  }
 }
 
 export function reportCommand(): Command {
@@ -33,7 +80,8 @@ export function reportCommand(): Command {
         const config = await loadConfig(options.config);
         const storage = createStorage({ fileConfig: config });
         const manifest = await storage.load(runId);
-        spinner.succeed(`Loaded run: ${runId}`);
+        const manifestType = getManifestType(manifest);
+        spinner.succeed(`Loaded ${manifestType} run: ${runId}`);
 
         // Create output directory
         const outputDir = options.output || './artemis-output';
@@ -44,7 +92,7 @@ export function reportCommand(): Command {
 
         if (format === 'html' || format === 'both') {
           spinner.start('Generating HTML report...');
-          const html = generateHTMLReport(manifest);
+          const html = generateHTML(manifest);
           const htmlPath = join(outputDir, `${runId}.html`);
           await writeFile(htmlPath, html);
           generatedFiles.push(htmlPath);
@@ -53,7 +101,7 @@ export function reportCommand(): Command {
 
         if (format === 'json' || format === 'both') {
           spinner.start('Generating JSON report...');
-          const json = generateJSONReport(manifest, { pretty: true });
+          const json = generateJSON(manifest);
           const jsonPath = join(outputDir, `${runId}.json`);
           await writeFile(jsonPath, json);
           generatedFiles.push(jsonPath);

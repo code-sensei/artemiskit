@@ -2,7 +2,7 @@
  * Storage types and interfaces
  */
 
-import type { RunManifest } from '../artifacts/types';
+import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '../artifacts/types';
 
 /**
  * Run listing item
@@ -12,6 +12,8 @@ export interface RunListItem {
   scenario: string;
   successRate: number;
   createdAt: string;
+  /** Type of manifest (run, redteam, stress) */
+  type?: 'run' | 'redteam' | 'stress';
 }
 
 /**
@@ -35,6 +37,8 @@ export interface ListOptions {
   scenario?: string;
   limit?: number;
   offset?: number;
+  /** Filter by manifest type */
+  type?: 'run' | 'redteam' | 'stress';
 }
 
 /**
@@ -42,14 +46,29 @@ export interface ListOptions {
  */
 export interface StorageAdapter {
   /**
-   * Save a run manifest
+   * Save a run manifest (any type)
    */
-  save(manifest: RunManifest): Promise<string>;
+  save(manifest: AnyManifest): Promise<string>;
 
   /**
    * Load a run manifest by ID
    */
-  load(runId: string): Promise<RunManifest>;
+  load(runId: string): Promise<AnyManifest>;
+
+  /**
+   * Load a standard run manifest by ID
+   */
+  loadRun?(runId: string): Promise<RunManifest>;
+
+  /**
+   * Load a red team manifest by ID
+   */
+  loadRedTeam?(runId: string): Promise<RedTeamManifest>;
+
+  /**
+   * Load a stress manifest by ID
+   */
+  loadStress?(runId: string): Promise<StressManifest>;
 
   /**
    * List runs with optional filters

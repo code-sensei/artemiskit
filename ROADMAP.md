@@ -301,4 +301,4 @@ Have ideas or suggestions? We'd love to hear from you:
 
 ---
 
-*Last Updated: January 2025*
+*Last Updated: January 2026*

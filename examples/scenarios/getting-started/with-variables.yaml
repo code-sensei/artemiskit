@@ -8,42 +8,41 @@
 name: with-variables
 description: Using variables in prompts and assertions
 
+# Scenario-level variables - available to all cases
+variables:
+  company_name: "Acme Corp"
+  support_email: "support@acme.com"
+
 cases:
-  # ---- Basic Variable Substitution ----
+  # ---- Using Scenario-Level Variables ----
+  - name: company-info
+    prompt: "What is the contact email for {{company_name}}?"
+    assert:
+      - type: contains
+        value: "{{support_email}}"
+
+  # ---- Case-Level Variables ----
   - name: product-inquiry
-    vars:
+    variables:
       product_name: "Widget Pro"
       sku: "WP-12345"
-    prompt: "Tell me about the {{product_name}} with SKU {{sku}}"
+    prompt: "Tell me about the {{product_name}} with SKU {{sku}} from {{company_name}}"
     assert:
       - type: contains
         value: "{{product_name}}"
-      - type: contains
-        value: "{{sku}}"
 
-  # ---- Variables in Multi-Turn ----
-  - name: order-status-check
-    vars:
-      customer_name: "John"
-      order_id: "ORD-99887"
-    turns:
-      - role: user
-        content: "Hi, my name is {{customer_name}}"
-      - role: assistant
-        assert:
-          - type: contains
-            value: "{{customer_name}}"
-      - role: user
-        content: "Can you check order {{order_id}}?"
-      - role: assistant
-        assert:
-          - type: contains
-            value: "{{order_id}}"
+  # ---- Case Variables Override Scenario Variables ----
+  - name: different-company
+    variables:
+      company_name: "TechCorp" # Overrides scenario-level "Acme Corp"
+    prompt: "Tell me about {{company_name}}"
+    assert:
+      - type: contains
+        value: "TechCorp"
 
   # ---- Multiple Test Cases with Different Values ----
-  # You can create similar tests with different variable values
   - name: greeting-english
-    vars:
+    variables:
       language: "English"
       greeting: "Hello"
     prompt: "Say '{{greeting}}' in {{language}}"
@@ -52,7 +51,7 @@ cases:
         value: "{{greeting}}"
 
   - name: greeting-spanish
-    vars:
+    variables:
       language: "Spanish"
       greeting: "Hola"
     prompt: "Say '{{greeting}}' in {{language}}"

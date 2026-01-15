@@ -17,7 +17,9 @@ export function createCLI(): Command {
 
   program
     .name('artemiskit')
-    .description('ArtemisKit - Open-source Agent Reliability Toolkit - Test, validate, audit and evaluate LLMs and LLM-driven agents')
+    .description(
+      'ArtemisKit - Open-source Agent Reliability Toolkit - Test, validate, audit and evaluate LLMs and LLM-driven agents'
+    )
     .version(version);
 
   program.addCommand(initCommand());

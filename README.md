@@ -190,6 +190,12 @@ system: |
   You are a helpful customer support assistant.
   Always be polite and professional.
 
+# Optional: Scenario-level variables (available to all cases)
+# Case-level variables override these. Use {{var_name}} syntax.
+variables:
+  company_name: "Acme Corp"
+  default_greeting: "Hello"
+
 # Required: Test cases to run
 cases:
   # ---- Simple prompt/response case ----
@@ -255,7 +261,7 @@ cases:
   # ---- Case with variables ----
   - name: dynamic-content
     # Variables are substituted into prompt using {{variable}}
-    vars:
+    variables:
       product_name: "Widget Pro"
       order_id: "ORD-789"
     prompt: "What's the status of my {{product_name}} order {{order_id}}?"
@@ -263,6 +269,40 @@ cases:
       - type: contains
         value: "{{order_id}}"
 ```
+
+### Variables
+
+Variables let you create dynamic, reusable scenarios. Use `{{variable_name}}` syntax in prompts and system messages.
+
+```yaml
+name: customer-support
+description: Test with dynamic content
+
+# Scenario-level variables - available to all cases
+variables:
+  company_name: "Acme Corp"
+  support_email: "support@acme.com"
+
+cases:
+  # Uses scenario-level variables
+  - name: contact-info
+    prompt: "What is the email for {{company_name}}?"
+    assert:
+      - type: contains
+        value: "{{support_email}}"
+
+  # Case-level variables override scenario-level
+  - name: different-company
+    variables:
+      company_name: "TechCorp"  # Overrides "Acme Corp"
+      product: "Widget"
+    prompt: "Tell me about {{product}} from {{company_name}}"
+    assert:
+      - type: contains
+        value: "TechCorp"
+```
+
+Variable precedence: **case-level > scenario-level**
 
 ### Assertion Types
 

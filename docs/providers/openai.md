@@ -40,11 +40,12 @@ Any model available through the OpenAI API:
 # artemis.config.yaml
 provider: openai
 model: gpt-4o
-providerOptions:
-  temperature: 0.7      # Sampling temperature (0-2)
-  maxTokens: 4096       # Maximum tokens in response
-  timeout: 60000        # Request timeout in milliseconds
-  maxRetries: 2         # Number of retries on failure
+
+providers:
+  openai:
+    apiKey: ${OPENAI_API_KEY}
+    timeout: 60000        # Request timeout in milliseconds
+    maxRetries: 2         # Number of retries on failure
 ```
 
 ## Example
@@ -58,11 +59,13 @@ provider: openai
 model: gpt-4o
 
 cases:
-  - name: Basic greeting
+  - id: basic-greeting
     prompt: "Say hello"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any
 ```
 
 ## Troubleshooting

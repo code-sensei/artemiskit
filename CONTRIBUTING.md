@@ -77,8 +77,11 @@ artemiskit/
 │   ├── reports/          # @artemiskit/reports - Report generation
 │   ├── redteam/          # @artemiskit/redteam - Red team mutations
 │   └── adapters/
+│       ├── anthropic/    # @artemiskit/adapter-anthropic
 │       ├── openai/       # @artemiskit/adapter-openai
 │       └── vercel-ai/    # @artemiskit/adapter-vercel-ai
+├── docs/                 # Documentation
+├── examples/             # Example scenarios and configs
 ├── ROADMAP.md            # Development roadmap
 ├── CONTRIBUTING.md       # This file
 └── README.md             # Project overview
@@ -91,6 +94,7 @@ The packages have the following dependency order:
 ```
 @artemiskit/core (no internal deps)
     ↓
+@artemiskit/adapter-anthropic
 @artemiskit/adapter-openai
 @artemiskit/adapter-vercel-ai
 @artemiskit/redteam

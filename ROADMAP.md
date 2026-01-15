@@ -41,9 +41,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | YAML scenario files | ✅ | Define tests in YAML format |
 | Multi-turn conversations | ✅ | Support for conversation flows |
 | `contains` expectation | ✅ | Check if response contains text |
-| `equals` expectation | ✅ | Exact match checking |
+| `exact` expectation | ✅ | Exact match checking |
 | `regex` expectation | ✅ | Regular expression matching |
-| `not_contains` expectation | ✅ | Negative containment check |
+| `fuzzy` expectation | ✅ | Fuzzy string similarity matching |
+| `llm_grader` expectation | ✅ | LLM-based response grading |
+| `json_schema` expectation | ✅ | Validate JSON structure |
 | Variable injection | ✅ | Template variables in prompts |
 | Per-scenario config | ✅ | Override provider/model per scenario |
 
@@ -111,7 +113,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| README | 📋 | Project documentation |
+| README | ✅ | Project documentation |
+| CONTRIBUTING guide | ✅ | Contribution guidelines |
+| Provider docs | ✅ | Provider-specific setup guides |
 | CLI help text | ✅ | `--help` for all commands |
 | npm package publish | 📋 | Publish to npm registry |
 | Changesets configured | ✅ | Version management ready |
@@ -139,11 +143,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Glob pattern matching | 📋 | `akit run scenarios/**/*.yaml` |
 | Parallel execution | 📋 | Run scenarios concurrently |
 | `similarity` expectation | 📋 | Semantic similarity matching |
-| `llm_judge` expectation | 📋 | LLM-as-judge evaluation |
-| `json_schema` expectation | 📋 | Validate JSON output |
-| Scenario tags | 📋 | Label and filter scenarios |
+| Scenario tags | ✅ | Label and filter scenarios |
 | Combined matchers | 📋 | `and`/`or` logic between assertions |
-| `min_score` for llm_grader | 📋 | Minimum score threshold for LLM grader |
+| `not_contains` expectation | 📋 | Negative containment check |
 | Inline custom matchers | 📋 | Define matcher functions in YAML |
 
 ### CI/CD Integration
@@ -270,7 +272,7 @@ We welcome contributions! Here's how you can help:
 - Report enhancements
 
 ### How to Contribute
-1. Check the [Issues](https://github.com/code-sensei/artemiskit/issues) for open tasks
+1. Check the [Issues](https://github.com/artemiskit/artemiskit/issues) for open tasks
 2. Fork the repository
 3. Create a feature branch
 4. Submit a pull request
@@ -299,4 +301,4 @@ Have ideas or suggestions? We'd love to hear from you:
 
 ---
 
-*Last Updated: January 2024*
+*Last Updated: January 2025*

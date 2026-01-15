@@ -32,10 +32,12 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview  # Optional, has default
 provider: azure-openai
 model: gpt-4o  # Display only - actual model is your Azure deployment
 
-azure:
-  resourceName: my-resource        # Or use AZURE_OPENAI_RESOURCE_NAME
-  deploymentName: my-deployment    # Or use AZURE_OPENAI_DEPLOYMENT_NAME
-  apiVersion: 2024-02-15-preview   # Optional
+providers:
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: my-resource        # Or use AZURE_OPENAI_RESOURCE_NAME
+    deploymentName: my-deployment    # Or use AZURE_OPENAI_DEPLOYMENT_NAME
+    apiVersion: 2024-02-15-preview   # Optional
 ```
 
 ### CLI Override
@@ -46,21 +48,23 @@ artemiskit run scenario.yaml --provider azure-openai --model gpt-4o
 
 ## Provider-Specific Options
 
+Configure Azure OpenAI options in the `providers.azure-openai` section:
+
 ```yaml
 # artemis.config.yaml
 provider: azure-openai
 model: gpt-4o  # Display only
 
-azure:
-  resourceName: my-resource
-  deploymentName: my-deployment
-  apiVersion: 2024-02-15-preview
-
-providerOptions:
-  temperature: 0.7      # Sampling temperature (0-2)
-  maxTokens: 4096       # Maximum tokens in response
-  timeout: 60000        # Request timeout in milliseconds
-  maxRetries: 2         # Number of retries on failure
+providers:
+  azure-openai:
+    apiKey: ${AZURE_OPENAI_API_KEY}
+    resourceName: my-resource
+    deploymentName: my-deployment
+    apiVersion: 2024-02-15-preview
+    temperature: 0.7      # Sampling temperature (0-2)
+    maxTokens: 4096       # Maximum tokens in response
+    timeout: 60000        # Request timeout in milliseconds
+    maxRetries: 2         # Number of retries on failure
 ```
 
 ## Example
@@ -74,11 +78,13 @@ provider: azure-openai
 model: gpt-4o  # For display - actual model is determined by your deployment
 
 cases:
-  - name: Basic greeting
+  - id: basic-greeting
     prompt: "Say hello"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any
 ```
 
 ## Setting Up Azure OpenAI

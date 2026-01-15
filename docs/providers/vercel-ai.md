@@ -63,14 +63,17 @@ See the [Vercel AI SDK documentation](https://sdk.vercel.ai/providers) for the f
 
 ## Provider-Specific Options
 
+Configure Vercel AI options in the `providers.vercel-ai` section:
+
 ```yaml
 # artemis.config.yaml
 provider: vercel-ai
 model: openai:gpt-4o
 
-providerOptions:
-  temperature: 0.7      # Sampling temperature
-  maxTokens: 4096       # Maximum tokens in response
+providers:
+  vercel-ai:
+    temperature: 0.7      # Sampling temperature
+    maxTokens: 4096       # Maximum tokens in response
 ```
 
 ## Example
@@ -84,11 +87,13 @@ provider: vercel-ai
 model: anthropic:claude-3-5-sonnet-20241022
 
 cases:
-  - name: Basic greeting
+  - id: basic-greeting
     prompt: "Say hello"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any
 ```
 
 ## Use Cases

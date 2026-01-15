@@ -1,0 +1,61 @@
+# with-variables.yaml
+# ====================
+# Use variables to make your scenarios dynamic and reusable.
+# Variables are substituted using {{variable_name}} syntax.
+#
+# Run with: artemiskit run examples/scenarios/getting-started/with-variables.yaml
+
+name: with-variables
+description: Using variables in prompts and assertions
+
+cases:
+  # ---- Basic Variable Substitution ----
+  - name: product-inquiry
+    vars:
+      product_name: "Widget Pro"
+      sku: "WP-12345"
+    prompt: "Tell me about the {{product_name}} with SKU {{sku}}"
+    assert:
+      - type: contains
+        value: "{{product_name}}"
+      - type: contains
+        value: "{{sku}}"
+
+  # ---- Variables in Multi-Turn ----
+  - name: order-status-check
+    vars:
+      customer_name: "John"
+      order_id: "ORD-99887"
+    turns:
+      - role: user
+        content: "Hi, my name is {{customer_name}}"
+      - role: assistant
+        assert:
+          - type: contains
+            value: "{{customer_name}}"
+      - role: user
+        content: "Can you check order {{order_id}}?"
+      - role: assistant
+        assert:
+          - type: contains
+            value: "{{order_id}}"
+
+  # ---- Multiple Test Cases with Different Values ----
+  # You can create similar tests with different variable values
+  - name: greeting-english
+    vars:
+      language: "English"
+      greeting: "Hello"
+    prompt: "Say '{{greeting}}' in {{language}}"
+    assert:
+      - type: contains
+        value: "{{greeting}}"
+
+  - name: greeting-spanish
+    vars:
+      language: "Spanish"
+      greeting: "Hola"
+    prompt: "Say '{{greeting}}' in {{language}}"
+    assert:
+      - type: contains
+        value: "{{greeting}}"

@@ -1,0 +1,63 @@
+# basic-assertions.yaml
+# ======================
+# Learn the different assertion types available in ArtemisKit.
+#
+# Run with: artemiskit run examples/scenarios/getting-started/basic-assertions.yaml
+
+name: basic-assertions
+description: Examples of all assertion types
+
+cases:
+  # ---- Contains Assertion ----
+  # Checks if the response contains a specific string (case-insensitive)
+  - name: contains-single
+    prompt: "What is 2 + 2?"
+    assert:
+      - type: contains
+        value: "4"
+
+  # Contains can also check for multiple strings (all must be present)
+  - name: contains-multiple
+    prompt: "Name three primary colors"
+    assert:
+      - type: contains
+        value:
+          - "red"
+          - "blue"
+
+  # ---- Not-Contains Assertion ----
+  # Ensures the response does NOT contain certain strings
+  - name: not-contains
+    prompt: "Give me a positive affirmation"
+    assert:
+      - type: not-contains
+        value:
+          - "cannot"
+          - "impossible"
+          - "never"
+
+  # ---- Regex Assertion ----
+  # Matches response against a regular expression pattern
+  - name: regex-pattern
+    prompt: "What is today's date format in ISO 8601?"
+    assert:
+      - type: regex
+        pattern: "\\d{4}-\\d{2}-\\d{2}"  # Matches YYYY-MM-DD
+
+  # ---- Exact Assertion ----
+  # Response must exactly match the expected value (rarely used)
+  - name: exact-match
+    prompt: "Reply with exactly the word 'OK' and nothing else"
+    assert:
+      - type: exact
+        value: "OK"
+
+  # ---- Multiple Assertions ----
+  # Combine multiple assertions - ALL must pass
+  - name: combined-assertions
+    prompt: "Write a short greeting that includes 'Hello' and a smiley face"
+    assert:
+      - type: contains
+        value: "Hello"
+      - type: regex
+        pattern: "[:;]-?[)D]|😊|🙂"  # Matches text or emoji smileys

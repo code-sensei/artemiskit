@@ -1,0 +1,16 @@
+# hello-world.yaml
+# =================
+# The simplest possible ArtemisKit scenario.
+# Perfect for verifying your setup works.
+#
+# Run with: artemiskit run examples/scenarios/getting-started/hello-world.yaml
+
+name: hello-world
+description: A simple test to verify ArtemisKit is working
+
+cases:
+  - name: basic-greeting
+    prompt: "Say hello in a friendly way"
+    assert:
+      - type: contains
+        value: "hello"

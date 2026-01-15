@@ -1,5 +1,5 @@
 /**
- * Artemis CLI - Main entry point
+ * ArtemisKit CLI - Main entry point
  */
 
 import { Command } from 'commander';
@@ -16,8 +16,8 @@ export function createCLI(): Command {
   const program = new Command();
 
   program
-    .name('artemis')
-    .description('Agent Reliability Toolkit - Test, validate, and audit LLM-driven agents')
+    .name('artemiskit')
+    .description('ArtemisKit - Open-source Agent Reliability Toolkit - Test, validate, audit and evaluate LLMs and LLM-driven agents')
     .version(version);
 
   program.addCommand(initCommand());

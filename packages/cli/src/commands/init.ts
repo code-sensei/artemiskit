@@ -1,5 +1,5 @@
 /**
- * Init command - Initialize Artemis in a project
+ * Init command - Initialize ArtemisKit in a project
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
 
-const DEFAULT_CONFIG = `# Artemis Configuration
+const DEFAULT_CONFIG = `# ArtemisKit Configuration
 project: my-project
 
 # Default provider settings
@@ -73,7 +73,7 @@ export function initCommand(): Command {
   const cmd = new Command('init');
 
   cmd
-    .description('Initialize Artemis in the current directory')
+    .description('Initialize ArtemisKit in the current directory')
     .option('-f, --force', 'Overwrite existing configuration')
     .action(async () => {
       try {
@@ -95,12 +95,12 @@ export function initCommand(): Command {
         console.log(chalk.green('✓'), 'Created scenarios/example.yaml');
 
         console.log();
-        console.log(chalk.bold('Artemis initialized successfully!'));
+        console.log(chalk.bold('ArtemisKit initialized successfully!'));
         console.log();
         console.log('Next steps:');
         console.log('  1. Configure your API keys in .env or environment variables');
         console.log('  2. Edit scenarios/example.yaml to add your test cases');
-        console.log('  3. Run tests with: artemis run scenarios/example.yaml');
+        console.log('  3. Run tests with: artemiskit run scenarios/example.yaml');
       } catch (error) {
         console.error(chalk.red('Error:'), (error as Error).message);
         process.exit(1);

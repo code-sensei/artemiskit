@@ -1,7 +1,7 @@
 {
   "name": "@artemiskit/cli",
   "version": "0.0.1",
-  "description": "Command-line interface for Artemis LLM testing framework",
+  "description": "Command-line interface for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
   "author": "code-sensei",
@@ -12,7 +12,8 @@
   },
   "keywords": ["llm", "testing", "cli", "ai", "agents"],
   "bin": {
-    "artemis": "./bin/artemis.ts"
+    "artemiskit": "./bin/artemis.ts",
+    "akit": "./bin/artemis.ts"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

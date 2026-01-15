@@ -142,6 +142,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | `llm_judge` expectation | 📋 | LLM-as-judge evaluation |
 | `json_schema` expectation | 📋 | Validate JSON output |
 | Scenario tags | 📋 | Label and filter scenarios |
+| Combined matchers | 📋 | `and`/`or` logic between assertions |
+| `min_score` for llm_grader | 📋 | Minimum score threshold for LLM grader |
+| Inline custom matchers | 📋 | Define matcher functions in YAML |
 
 ### CI/CD Integration
 

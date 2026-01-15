@@ -6,7 +6,7 @@
 # Run with: artemiskit run examples/scenarios/getting-started/with-variables.yaml
 
 name: with-variables
-description: Using variables in prompts and assertions
+description: Using variables in prompts
 
 # Scenario-level variables - available to all cases
 variables:
@@ -15,46 +15,36 @@ variables:
 
 cases:
   # ---- Using Scenario-Level Variables ----
-  - name: company-info
+  - id: company-info
+    name: Scenario variables
     prompt: "What is the contact email for {{company_name}}?"
-    assert:
-      - type: contains
-        value: "{{support_email}}"
+    expected:
+      type: contains
+      values:
+        - "support@acme.com"
+      mode: any
 
   # ---- Case-Level Variables ----
-  - name: product-inquiry
+  - id: product-inquiry
+    name: Case-level variables
     variables:
       product_name: "Widget Pro"
       sku: "WP-12345"
     prompt: "Tell me about the {{product_name}} with SKU {{sku}} from {{company_name}}"
-    assert:
-      - type: contains
-        value: "{{product_name}}"
+    expected:
+      type: contains
+      values:
+        - "Widget Pro"
+      mode: any
 
   # ---- Case Variables Override Scenario Variables ----
-  - name: different-company
+  - id: different-company
+    name: Variable override
     variables:
       company_name: "TechCorp" # Overrides scenario-level "Acme Corp"
     prompt: "Tell me about {{company_name}}"
-    assert:
-      - type: contains
-        value: "TechCorp"
-
-  # ---- Multiple Test Cases with Different Values ----
-  - name: greeting-english
-    variables:
-      language: "English"
-      greeting: "Hello"
-    prompt: "Say '{{greeting}}' in {{language}}"
-    assert:
-      - type: contains
-        value: "{{greeting}}"
-
-  - name: greeting-spanish
-    variables:
-      language: "Spanish"
-      greeting: "Hola"
-    prompt: "Say '{{greeting}}' in {{language}}"
-    assert:
-      - type: contains
-        value: "{{greeting}}"
+    expected:
+      type: contains
+      values:
+        - "TechCorp"
+      mode: any

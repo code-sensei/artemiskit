@@ -42,11 +42,13 @@ name: hello-test
 description: My first ArtemisKit test
 
 cases:
-  - name: greeting
+  - id: greeting-test
     prompt: "Say hello"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any
 ```
 
 ### 3. Run it
@@ -65,7 +67,7 @@ That's it! ArtemisKit will use OpenAI by default. See below for full configurati
 
 ### Config File (Full Reference)
 
-Create `artemis.config.yaml` in your project root. Here's every available option with descriptions:
+Create `artemis.config.yaml` in your project root. Here's every available option:
 
 ```yaml
 # artemis.config.yaml - Full Reference
@@ -84,6 +86,9 @@ provider: openai
 # See docs/providers/azure-openai.md for details.
 model: gpt-4o
 
+# Directory containing scenario files
+scenariosDir: ./scenarios
+
 # Provider-specific configuration
 providers:
   openai:
@@ -99,16 +104,11 @@ providers:
     deploymentName: ${AZURE_OPENAI_DEPLOYMENT_NAME}
     # API version (optional, has sensible default)
     apiVersion: "2024-02-15-preview"
-    
-  anthropic:
-    apiKey: ${ANTHROPIC_API_KEY}
 
-# Model parameters (applied to all runs unless overridden)
-modelParams:
-  # Sampling temperature (0-2, lower = more deterministic)
-  temperature: 0.7
-  # Maximum tokens in response
-  maxTokens: 4096
+  vercel-ai:
+    # Underlying provider for Vercel AI SDK
+    underlyingProvider: openai
+    apiKey: ${OPENAI_API_KEY}
 
 # Storage configuration for run history
 storage:
@@ -119,8 +119,17 @@ storage:
 
 # Output configuration for reports
 output:
+  # Output format: "json", "html", or "both"
+  format: html
   # Directory for generated reports
   dir: ./artemis-output
+
+# CI-specific settings (optional)
+ci:
+  # Fail if regression exceeds threshold
+  failOnRegression: true
+  # Regression threshold (0-1)
+  regressionThreshold: 0.05
 ```
 
 ### Minimal Config File
@@ -150,11 +159,13 @@ provider: openai
 model: gpt-4o
 
 cases:
-  - name: greeting
+  - id: greeting
     prompt: "Say hello"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any
 ```
 
 ### Full Scenario Reference
@@ -168,8 +179,11 @@ Here's every available option for scenarios:
 # Required: Unique name for this scenario
 name: customer-support-eval
 
-# Required: Human-readable description
+# Optional: Human-readable description
 description: Evaluate customer support bot responses
+
+# Optional: Scenario version
+version: "1.0"
 
 # Optional: Tags for filtering (use --tags flag)
 tags:
@@ -185,10 +199,16 @@ provider: openai
 # is determined by your Azure deployment. See docs/providers/azure-openai.md
 model: gpt-4o
 
+# Optional: Model parameters
+temperature: 0.7
+maxTokens: 1024
+seed: 42
+
 # Optional: System prompt prepended to all cases
-system: |
-  You are a helpful customer support assistant.
-  Always be polite and professional.
+setup:
+  systemPrompt: |
+    You are a helpful customer support assistant.
+    Always be polite and professional.
 
 # Optional: Scenario-level variables (available to all cases)
 # Case-level variables override these. Use {{var_name}} syntax.
@@ -199,80 +219,125 @@ variables:
 # Required: Test cases to run
 cases:
   # ---- Simple prompt/response case ----
-  - name: simple-greeting
+  - id: simple-greeting
+    name: Simple greeting test
+    description: Test basic greeting response
     # The prompt to send to the model
     prompt: "Hello, I need help"
-    # Assertions to validate the response
-    assert:
-      - type: contains
-        value: "help"
-
-  # ---- Case with all options ----
-  - name: refund-request
-    # Optional: Tags for this specific case
+    # Expected result validation
+    expected:
+      type: contains
+      values:
+        - "help"
+        - "assist"
+      mode: any
+    # Optional: Tags for this case
     tags:
-      - refunds
-      - priority
-    # The prompt
-    prompt: "I want a refund for order #12345"
-    # Optional: Override system prompt for this case only
-    system: "You are a refund specialist."
-    # Multiple assertions (all must pass)
-    assert:
-      # Response must contain this string (case-insensitive)
-      - type: contains
-        value: "refund"
-      # Response must contain ALL of these strings
-      - type: contains
-        value:
-          - "order"
-          - "12345"
-      # Response must NOT contain any of these
-      - type: not-contains
-        value:
-          - "cannot"
-          - "unable"
-          - "sorry"
-      # Response must match this regex pattern
-      - type: regex
-        pattern: "order.*#?12345"
-      # Response must exactly equal this (rarely used)
-      # - type: exact
-      #   value: "Exact expected response"
+      - basic
+
+  # ---- Case with regex matching ----
+  - id: order-number-check
+    name: Order number extraction
+    prompt: "My order number is #12345"
+    expected:
+      type: regex
+      pattern: "12345"
+      flags: "i"
+
+  # ---- Case with exact match ----
+  - id: yes-no-response
+    name: Binary response test
+    prompt: "Reply with only 'Yes' or 'No': Is the sky blue?"
+    expected:
+      type: exact
+      value: "Yes"
+      caseSensitive: false
+
+  # ---- Case with fuzzy matching ----
+  - id: fuzzy-match-test
+    name: Fuzzy similarity test
+    prompt: "What color is grass?"
+    expected:
+      type: fuzzy
+      value: "green"
+      threshold: 0.8
+
+  # ---- Case with LLM grading ----
+  - id: quality-check
+    name: Response quality evaluation
+    prompt: "Explain quantum computing in simple terms"
+    expected:
+      type: llm_grader
+      rubric: |
+        Score 1.0 if the explanation is clear and accurate.
+        Score 0.5 if partially correct but confusing.
+        Score 0.0 if incorrect or overly technical.
+      threshold: 0.7
+
+  # ---- Case with JSON schema validation ----
+  - id: json-output-test
+    name: Structured output test
+    prompt: "Return a JSON object with name and age fields"
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+          age:
+            type: number
+        required:
+          - name
+          - age
 
   # ---- Multi-turn conversation ----
-  - name: multi-turn-support
-    # Use 'turns' instead of 'prompt' for conversations
-    turns:
+  - id: multi-turn-support
+    name: Multi-turn conversation
+    # Use array of messages for multi-turn
+    prompt:
       - role: user
         content: "I have a problem with my order"
       - role: assistant
-        # Assert on the model's response to this turn
-        assert:
-          - type: contains
-            value: "order"
+        content: "I'd be happy to help. What's your order number?"
       - role: user
         content: "Order number is #99999"
-      - role: assistant
-        assert:
-          - type: regex
-            pattern: "99999"
+    expected:
+      type: contains
+      values:
+        - "99999"
+      mode: any
 
   # ---- Case with variables ----
-  - name: dynamic-content
-    # Variables are substituted into prompt using {{variable}}
+  - id: dynamic-content
+    name: Variable substitution test
+    # Case-level variables override scenario-level
     variables:
       product_name: "Widget Pro"
       order_id: "ORD-789"
     prompt: "What's the status of my {{product_name}} order {{order_id}}?"
-    assert:
-      - type: contains
-        value: "{{order_id}}"
+    expected:
+      type: contains
+      values:
+        - "ORD-789"
+      mode: any
+
+  # ---- Case with timeout and retries ----
+  - id: slow-response-test
+    name: Timeout handling test
+    prompt: "Generate a detailed report"
+    expected:
+      type: contains
+      values:
+        - "report"
+      mode: any
+    timeout: 30000
+    retries: 2
 ```
 
 ### Variables
 
-Variables let you create dynamic, reusable scenarios. Use `{{variable_name}}` syntax in prompts and system messages.
+Variables let you create dynamic, reusable scenarios. Use `{{variable_name}}` syntax in prompts.
 
 ```yaml
 name: customer-support
@@ -285,33 +350,39 @@ variables:
 
 cases:
   # Uses scenario-level variables
-  - name: contact-info
+  - id: contact-info
     prompt: "What is the email for {{company_name}}?"
-    assert:
-      - type: contains
-        value: "{{support_email}}"
+    expected:
+      type: contains
+      values:
+        - "support@acme.com"
+      mode: any
 
   # Case-level variables override scenario-level
-  - name: different-company
+  - id: different-company
     variables:
       company_name: "TechCorp"  # Overrides "Acme Corp"
       product: "Widget"
     prompt: "Tell me about {{product}} from {{company_name}}"
-    assert:
-      - type: contains
-        value: "TechCorp"
+    expected:
+      type: contains
+      values:
+        - "TechCorp"
+      mode: any
 ```
 
 Variable precedence: **case-level > scenario-level**
 
-### Assertion Types
+### Expectation Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `contains` | Response contains string(s) | `value: "hello"` or `value: ["hi", "hello"]` |
-| `not-contains` | Response does NOT contain string(s) | `value: ["error", "fail"]` |
-| `exact` | Response exactly equals value | `value: "Yes"` |
-| `regex` | Response matches regex pattern | `pattern: "order.*\\d+"` |
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `contains` | Response contains string(s) | `values: [...]`, `mode: all\|any` |
+| `exact` | Response exactly equals value | `value: "..."`, `caseSensitive: bool` |
+| `regex` | Response matches regex pattern | `pattern: "..."`, `flags: "i"` |
+| `fuzzy` | Fuzzy string similarity | `value: "..."`, `threshold: 0.8` |
+| `llm_grader` | LLM-based evaluation | `rubric: "..."`, `threshold: 0.7` |
+| `json_schema` | Validate JSON structure | `schema: {...}` |
 
 ---
 
@@ -321,6 +392,7 @@ Variable precedence: **case-level > scenario-level**
 |---------|-------------|
 | `artemiskit run <scenario>` | Run scenario-based evaluations |
 | `artemiskit redteam <scenario>` | Run security red team tests |
+| `artemiskit stress <scenario>` | Run load/stress tests |
 | `artemiskit report <run-id>` | Regenerate report from saved run |
 | `artemiskit history` | View run history |
 | `artemiskit compare <id1> <id2>` | Compare two runs |
@@ -336,12 +408,12 @@ artemiskit run <scenario> [options]
 Options:
   -p, --provider <provider>   Provider: openai, azure-openai, vercel-ai
   -m, --model <model>         Model to use
-  -o, --output <dir>          Output directory for reports
+  -o, --output <dir>          Output directory for results
   -v, --verbose               Verbose output
-  -t, --tags <tags...>        Filter cases by tags
-  -c, --concurrency <n>       Parallel test cases (default: 1)
-  --timeout <ms>              Timeout per case in milliseconds
-  --retries <n>               Retries per case on failure
+  -t, --tags <tags...>        Filter test cases by tags
+  -c, --concurrency <n>       Number of concurrent test cases (default: 1)
+  --timeout <ms>              Timeout per test case in milliseconds
+  --retries <n>               Number of retries per test case
   --config <path>             Path to config file
   --save                      Save results to storage (default: true)
 ```
@@ -414,6 +486,7 @@ ArtemisKit is a monorepo with the following packages:
 | `@artemiskit/redteam` | Red team mutation strategies |
 | `@artemiskit/adapter-openai` | OpenAI/Azure provider adapter |
 | `@artemiskit/adapter-vercel-ai` | Vercel AI SDK adapter |
+| `@artemiskit/adapter-anthropic` | Anthropic provider adapter |
 
 ---
 

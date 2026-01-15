@@ -9,8 +9,10 @@ name: hello-world
 description: A simple test to verify ArtemisKit is working
 
 cases:
-  - name: basic-greeting
+  - id: basic-greeting
     prompt: "Say hello in a friendly way"
-    assert:
-      - type: contains
-        value: "hello"
+    expected:
+      type: contains
+      values:
+        - "hello"
+      mode: any

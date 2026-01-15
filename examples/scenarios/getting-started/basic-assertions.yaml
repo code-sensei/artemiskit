@@ -1,63 +1,74 @@
 # basic-assertions.yaml
 # ======================
-# Learn the different assertion types available in ArtemisKit.
+# Learn the different expectation types available in ArtemisKit.
 #
 # Run with: artemiskit run examples/scenarios/getting-started/basic-assertions.yaml
 
 name: basic-assertions
-description: Examples of all assertion types
+description: Examples of all expectation types
 
 cases:
-  # ---- Contains Assertion ----
-  # Checks if the response contains a specific string (case-insensitive)
-  - name: contains-single
+  # ---- Contains Expectation ----
+  # Checks if the response contains specific strings
+  - id: contains-any
+    name: Contains (any mode)
     prompt: "What is 2 + 2?"
-    assert:
-      - type: contains
-        value: "4"
+    expected:
+      type: contains
+      values:
+        - "4"
+        - "four"
+      mode: any # Pass if ANY value is found
 
-  # Contains can also check for multiple strings (all must be present)
-  - name: contains-multiple
+  - id: contains-all
+    name: Contains (all mode)
     prompt: "Name three primary colors"
-    assert:
-      - type: contains
-        value:
-          - "red"
-          - "blue"
+    expected:
+      type: contains
+      values:
+        - "red"
+        - "blue"
+      mode: all # Pass if ALL values are found
 
-  # ---- Not-Contains Assertion ----
-  # Ensures the response does NOT contain certain strings
-  - name: not-contains
-    prompt: "Give me a positive affirmation"
-    assert:
-      - type: not-contains
-        value:
-          - "cannot"
-          - "impossible"
-          - "never"
-
-  # ---- Regex Assertion ----
+  # ---- Regex Expectation ----
   # Matches response against a regular expression pattern
-  - name: regex-pattern
+  - id: regex-pattern
+    name: Regex pattern matching
     prompt: "What is today's date format in ISO 8601?"
-    assert:
-      - type: regex
-        pattern: "\\d{4}-\\d{2}-\\d{2}"  # Matches YYYY-MM-DD
+    expected:
+      type: regex
+      pattern: "\\d{4}-\\d{2}-\\d{2}" # Matches YYYY-MM-DD
+      flags: "i" # Case insensitive
 
-  # ---- Exact Assertion ----
-  # Response must exactly match the expected value (rarely used)
-  - name: exact-match
+  # ---- Exact Expectation ----
+  # Response must exactly match the expected value
+  - id: exact-match
+    name: Exact match
     prompt: "Reply with exactly the word 'OK' and nothing else"
-    assert:
-      - type: exact
-        value: "OK"
+    expected:
+      type: exact
+      value: "OK"
+      caseSensitive: false
 
-  # ---- Multiple Assertions ----
-  # Combine multiple assertions - ALL must pass
-  - name: combined-assertions
-    prompt: "Write a short greeting that includes 'Hello' and a smiley face"
-    assert:
-      - type: contains
-        value: "Hello"
-      - type: regex
-        pattern: "[:;]-?[)D]|😊|🙂"  # Matches text or emoji smileys
+  # ---- Fuzzy Expectation ----
+  # Uses string similarity matching
+  - id: fuzzy-match
+    name: Fuzzy similarity
+    prompt: "What color is grass?"
+    expected:
+      type: fuzzy
+      value: "green"
+      threshold: 0.7 # 70% similarity required
+
+  # ---- LLM Grader Expectation ----
+  # Uses another LLM to evaluate the response
+  - id: llm-graded
+    name: LLM-based grading
+    prompt: "Write a haiku about programming"
+    expected:
+      type: llm_grader
+      rubric: |
+        Score 1.0 if the response is a valid haiku (5-7-5 syllables) about programming.
+        Score 0.5 if it's about programming but not proper haiku format.
+        Score 0.0 if it's neither a haiku nor about programming.
+      threshold: 0.7

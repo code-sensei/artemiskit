@@ -1,7 +1,7 @@
 # multi-turn-conversation.yaml
 # =============================
 # Test multi-turn conversations where context matters.
-# Use 'turns' instead of 'prompt' to simulate back-and-forth dialogue.
+# Use an array of messages in the prompt field.
 #
 # Run with: artemiskit run examples/scenarios/getting-started/multi-turn-conversation.yaml
 
@@ -9,48 +9,37 @@ name: multi-turn-conversation
 description: Testing conversations with multiple turns
 
 # System prompt applied to all cases
-system: |
-  You are a helpful assistant that remembers context from the conversation.
+setup:
+  systemPrompt: |
+    You are a helpful assistant that remembers context from the conversation.
 
 cases:
   # ---- Basic Multi-Turn ----
-  - name: remember-name
-    turns:
+  - id: remember-name
+    name: Context retention test
+    prompt:
       - role: user
         content: "My name is Alice"
       - role: assistant
-        # Assert on the model's first response
-        assert:
-          - type: contains
-            value: "Alice"
+        content: "Nice to meet you, Alice!"
       - role: user
         content: "What is my name?"
-      - role: assistant
-        # Model should remember the name from earlier
-        assert:
-          - type: contains
-            value: "Alice"
+    expected:
+      type: contains
+      values:
+        - "Alice"
+      mode: any
 
   # ---- Customer Support Flow ----
-  - name: support-ticket-flow
-    turns:
+  - id: support-ticket-flow
+    name: Support conversation
+    prompt:
       - role: user
         content: "I need help with my order"
       - role: assistant
-        assert:
-          - type: contains
-            value: "order"
-          - type: not-contains
-            value: "cannot help"
+        content: "I'd be happy to help with your order. What's the order number?"
       - role: user
         content: "The order number is #12345"
-      - role: assistant
-        assert:
-          - type: regex
-            pattern: "12345"
-      - role: user
-        content: "I want a refund"
-      - role: assistant
-        assert:
-          - type: contains
-            value: "refund"
+    expected:
+      type: regex
+      pattern: "12345"

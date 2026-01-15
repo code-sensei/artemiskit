@@ -19,21 +19,21 @@ artemiskit run examples/scenarios/getting-started/hello-world.yaml
 ```
 
 ### 2. Basic Assertions
-Learn all the assertion types: `contains`, `not-contains`, `regex`, `exact`.
+Learn all the expectation types: `contains`, `exact`, `regex`, `fuzzy`, `llm_grader`.
 
 ```bash
 artemiskit run examples/scenarios/getting-started/basic-assertions.yaml
 ```
 
 ### 3. Multi-Turn Conversations
-Test conversations with multiple back-and-forth exchanges.
+Test conversations with multiple back-and-forth exchanges using message arrays.
 
 ```bash
 artemiskit run examples/scenarios/getting-started/multi-turn-conversation.yaml
 ```
 
 ### 4. Variables
-Make your scenarios dynamic with variable substitution.
+Make your scenarios dynamic with variable substitution using `{{variable}}` syntax.
 
 ```bash
 artemiskit run examples/scenarios/getting-started/with-variables.yaml
@@ -43,7 +43,7 @@ artemiskit run examples/scenarios/getting-started/with-variables.yaml
 
 After completing these, explore:
 
-- `examples/scenarios/evaluators/` - More assertion patterns
+- `examples/scenarios/evaluators/` - More expectation patterns
 - `examples/scenarios/redteam/` - Security testing scenarios
 - `examples/scenarios/use-cases/` - Real-world examples
 

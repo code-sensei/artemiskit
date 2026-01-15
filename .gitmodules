@@ -1,0 +1,3 @@
+[submodule "docs-content"]
+	path = docs-content
+	url = https://github.com/code-sensei/artemiskit-docs.git

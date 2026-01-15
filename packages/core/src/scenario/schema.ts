@@ -104,6 +104,11 @@ export const ChatMessageSchema = z.object({
 });
 
 /**
+ * Variables schema - key-value pairs for template substitution
+ */
+export const VariablesSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
+
+/**
  * Test case schema
  */
 export const TestCaseSchema = z.object({
@@ -118,6 +123,7 @@ export const TestCaseSchema = z.object({
   retries: z.number().optional().default(0),
   provider: ProviderSchema.optional(),
   model: z.string().optional(),
+  variables: VariablesSchema.optional(),
 });
 
 /**
@@ -134,6 +140,7 @@ export const ScenarioSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().optional(),
   tags: z.array(z.string()).optional().default([]),
+  variables: VariablesSchema.optional(),
   setup: z
     .object({
       systemPrompt: z.string().optional(),
@@ -154,3 +161,4 @@ export type Scenario = z.infer<typeof ScenarioSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 export type ChatMessageType = z.infer<typeof ChatMessageSchema>;
+export type Variables = z.infer<typeof VariablesSchema>;

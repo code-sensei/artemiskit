@@ -5,6 +5,7 @@
 import type { CaseResult } from '../artifacts/types';
 import { getEvaluator } from '../evaluators';
 import type { TestCase } from '../scenario/schema';
+import { mergeVariables, substituteVariables } from '../scenario/variables';
 import type { ExecutorContext } from './types';
 
 /**
@@ -58,11 +59,17 @@ async function executeCaseAttempt(
 ): Promise<CaseResult> {
   const { client, scenario } = context;
 
+  // Merge scenario-level and case-level variables (case overrides scenario)
+  const variables = mergeVariables(scenario.variables, testCase.variables);
+
+  // Apply variable substitution to prompt
+  let prompt = substituteVariables(testCase.prompt, variables);
+
   // Build prompt with system prompt if present
-  let prompt = testCase.prompt;
   if (scenario.setup?.systemPrompt && typeof prompt === 'string') {
+    const systemPrompt = substituteVariables(scenario.setup.systemPrompt, variables);
     prompt = [
-      { role: 'system' as const, content: scenario.setup.systemPrompt },
+      { role: 'system' as const, content: systemPrompt },
       { role: 'user' as const, content: prompt },
     ];
   }

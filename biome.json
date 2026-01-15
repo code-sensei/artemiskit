@@ -33,6 +33,14 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "coverage", ".supabase", "ai-trace"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      "coverage",
+      ".supabase",
+      "ai-trace",
+      "artemis-runs",
+      "artemis-output"
+    ]
   }
 }

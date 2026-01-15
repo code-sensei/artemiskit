@@ -185,13 +185,9 @@ function buildOpenAIConfig(options: ProviderBuildOptions): AdapterConfigResult {
   );
 
   // Temperature and maxTokens only come from CLI options
-  const resolvedTemperature = resolveValueWithSource<number>(
-    { value: temperature, source: 'cli' }
-  );
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
 
-  const resolvedMaxTokens = resolveValueWithSource<number>(
-    { value: maxTokens, source: 'cli' }
-  );
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
 
   return {
     adapterConfig: {
@@ -278,13 +274,9 @@ function buildAzureOpenAIConfig(options: ProviderBuildOptions): AdapterConfigRes
   );
 
   // Temperature and maxTokens only come from CLI options
-  const resolvedTemperature = resolveValueWithSource<number>(
-    { value: temperature, source: 'cli' }
-  );
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
 
-  const resolvedMaxTokens = resolveValueWithSource<number>(
-    { value: maxTokens, source: 'cli' }
-  );
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
 
   return {
     adapterConfig: {
@@ -361,13 +353,9 @@ function buildVercelAIConfig(options: ProviderBuildOptions): AdapterConfigResult
   );
 
   // Temperature and maxTokens only come from CLI options
-  const resolvedTemperature = resolveValueWithSource<number>(
-    { value: temperature, source: 'cli' }
-  );
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
 
-  const resolvedMaxTokens = resolveValueWithSource<number>(
-    { value: maxTokens, source: 'cli' }
-  );
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
 
   return {
     adapterConfig: {
@@ -437,13 +425,9 @@ function buildAnthropicConfig(options: ProviderBuildOptions): AdapterConfigResul
   );
 
   // Temperature and maxTokens only come from CLI options
-  const resolvedTemperature = resolveValueWithSource<number>(
-    { value: temperature, source: 'cli' }
-  );
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
 
-  const resolvedMaxTokens = resolveValueWithSource<number>(
-    { value: maxTokens, source: 'cli' }
-  );
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
 
   return {
     adapterConfig: {

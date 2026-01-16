@@ -1,5 +1,29 @@
 # @artemiskit/cli
 
+## 0.1.2
+
+### Patch Changes
+
+- 6350e5d: Initial release of ArtemisKit - LLM Evaluation Toolkit
+
+  Features:
+
+  - Scenario-based evaluation with YAML test definitions
+  - Multiple expectation types: contains, exact, regex, fuzzy, llm_grader, json_schema
+  - Red team security testing (injection, jailbreak, extraction, hallucination, PII)
+  - Stress testing with configurable concurrency and latency metrics
+  - PII/sensitive data redaction with built-in and custom patterns
+  - Interactive HTML reports with run comparison
+  - Multi-provider support: OpenAI, Azure OpenAI, Anthropic
+  - Local and Supabase storage backends
+
+- Updated dependencies [6350e5d]
+  - @artemiskit/adapter-openai@0.1.2
+  - @artemiskit/adapter-vercel-ai@0.1.2
+  - @artemiskit/core@0.1.2
+  - @artemiskit/redteam@0.1.2
+  - @artemiskit/reports@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-anthropic",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Anthropic Claude adapter for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
@@ -13,7 +13,13 @@
   "bugs": {
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
-  "keywords": ["llm", "anthropic", "claude", "adapter", "artemiskit"],
+  "keywords": [
+    "llm",
+    "anthropic",
+    "claude",
+    "adapter",
+    "artemiskit"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -1,7 +1,7 @@
 {
   "name": "@artemiskit/reports",
   "version": "0.1.0",
-  "description": "Report generation for Artemis LLM testing framework",
+  "description": "HTML report generation for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
   "author": "code-sensei",
@@ -10,7 +10,17 @@
     "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/reports"
   },
-  "keywords": ["llm", "testing", "reports", "html"],
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "keywords": [
+    "llm",
+    "testing",
+    "reports",
+    "html",
+    "evaluation",
+    "artemiskit"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

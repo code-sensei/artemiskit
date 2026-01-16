@@ -1,7 +1,7 @@
 {
   "name": "@artemiskit/core",
   "version": "0.1.0",
-  "description": "Core runner, evaluators, and storage for Artemis LLM testing framework",
+  "description": "Core runner, evaluators, and storage for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
   "author": "code-sensei",
@@ -10,7 +10,21 @@
     "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/core"
   },
-  "keywords": ["llm", "testing", "ai", "agents", "evaluation"],
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "keywords": [
+    "llm",
+    "testing",
+    "ai",
+    "agents",
+    "evaluation",
+    "openai",
+    "anthropic",
+    "azure",
+    "red-team",
+    "security"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

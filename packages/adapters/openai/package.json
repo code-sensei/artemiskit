@@ -1,7 +1,7 @@
 {
   "name": "@artemiskit/adapter-openai",
   "version": "0.1.0",
-  "description": "OpenAI and Azure OpenAI adapter for Artemis LLM testing framework",
+  "description": "OpenAI and Azure OpenAI adapter for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
   "author": "code-sensei",
@@ -10,7 +10,17 @@
     "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/adapters/openai"
   },
-  "keywords": ["llm", "openai", "azure", "adapter"],
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "keywords": [
+    "llm",
+    "openai",
+    "azure",
+    "gpt-4",
+    "adapter",
+    "artemiskit"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

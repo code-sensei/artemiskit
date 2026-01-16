@@ -1,7 +1,7 @@
 {
   "name": "@artemiskit/redteam",
   "version": "0.1.0",
-  "description": "Red-team adversarial testing for Artemis LLM testing framework",
+  "description": "Red-team adversarial security testing for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
   "author": "code-sensei",
@@ -10,7 +10,19 @@
     "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/redteam"
   },
-  "keywords": ["llm", "testing", "redteam", "security", "adversarial"],
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "keywords": [
+    "llm",
+    "testing",
+    "redteam",
+    "security",
+    "adversarial",
+    "jailbreak",
+    "injection",
+    "artemiskit"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

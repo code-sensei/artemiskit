@@ -10,7 +10,20 @@
     "url": "https://github.com/code-sensei/artemiskit.git",
     "directory": "packages/cli"
   },
-  "keywords": ["llm", "testing", "cli", "ai", "agents"],
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "keywords": [
+    "llm",
+    "testing",
+    "cli",
+    "ai",
+    "agents",
+    "evaluation",
+    "openai",
+    "anthropic",
+    "red-team"
+  ],
   "bin": {
     "artemiskit": "./bin/artemis.ts",
     "akit": "./bin/artemis.ts"

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import {
   BUILTIN_REGEX_PATTERNS,
-  DEFAULT_REDACTION_PATTERNS,
   type BuiltinPatternName,
+  DEFAULT_REDACTION_PATTERNS,
   type RedactionConfig,
   type RedactionOptions,
   type RedactionResult,
@@ -13,22 +13,24 @@ import {
  * Supports built-in pattern names and custom regex strings
  */
 export function resolvePatterns(patterns: string[]): { regex: RegExp; name: string }[] {
-  return patterns.map((pattern) => {
-    // Check if it's a built-in pattern name
-    if (pattern in BUILTIN_REGEX_PATTERNS) {
-      const regex = BUILTIN_REGEX_PATTERNS[pattern as BuiltinPatternName];
-      return { regex: new RegExp(regex.source, regex.flags), name: pattern };
-    }
+  return patterns
+    .map((pattern) => {
+      // Check if it's a built-in pattern name
+      if (pattern in BUILTIN_REGEX_PATTERNS) {
+        const regex = BUILTIN_REGEX_PATTERNS[pattern as BuiltinPatternName];
+        return { regex: new RegExp(regex.source, regex.flags), name: pattern };
+      }
 
-    // Treat as custom regex
-    try {
-      return { regex: new RegExp(pattern, 'g'), name: `custom:${pattern.slice(0, 20)}` };
-    } catch {
-      // Invalid regex, skip it
-      console.warn(`Invalid redaction pattern: ${pattern}`);
-      return null;
-    }
-  }).filter((p): p is { regex: RegExp; name: string } => p !== null);
+      // Treat as custom regex
+      try {
+        return { regex: new RegExp(pattern, 'g'), name: `custom:${pattern.slice(0, 20)}` };
+      } catch {
+        // Invalid regex, skip it
+        console.warn(`Invalid redaction pattern: ${pattern}`);
+        return null;
+      }
+    })
+    .filter((p): p is { regex: RegExp; name: string } => p !== null);
 }
 
 /**
@@ -54,7 +56,7 @@ export function createRedactionOptions(config: RedactionConfig): RedactionOption
 export function redactText(
   text: string,
   patterns: (string | RegExp)[],
-  replacement: string = '[REDACTED]'
+  replacement = '[REDACTED]'
 ): RedactionResult {
   if (!text || patterns.length === 0) {
     return {
@@ -102,7 +104,7 @@ export function hashText(text: string): string {
 export function redactWithHash(
   text: string,
   patterns: (string | RegExp)[],
-  replacement: string = '[REDACTED]'
+  replacement = '[REDACTED]'
 ): RedactionResult & { originalHash: string } {
   const originalHash = hashText(text);
   const result = redactText(text, patterns, replacement);

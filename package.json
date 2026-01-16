@@ -10,10 +10,7 @@
   },
   "license": "Apache-2.0",
   "author": "code-sensei",
-  "workspaces": [
-    "packages/*",
-    "packages/adapters/*"
-  ],
+  "workspaces": ["packages/*", "packages/adapters/*"],
   "scripts": {
     "build": "bun run --filter '*' build",
     "test": "bun test",

@@ -6,8 +6,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
   type ManifestRedactionInfo,
-  Redactor,
   type RedactionConfig,
+  Redactor,
   type StressManifest,
   type StressMetrics,
   type StressRequestResult,
@@ -61,7 +61,10 @@ export function stressCommand(): Command {
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
     .option('--redact', 'Enable PII/sensitive data redaction in results')
-    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
+    .option(
+      '--redact-patterns <patterns...>',
+      'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
+    )
     .action(async (scenarioPath: string, options: StressOptions) => {
       const spinner = ora('Loading configuration...').start();
       const startTime = new Date();
@@ -138,7 +141,11 @@ export function stressCommand(): Command {
           console.log(chalk.dim(`Max requests: ${maxRequests}`));
         }
         if (options.redact) {
-          console.log(chalk.dim(`Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ' (default patterns)'}`));
+          console.log(
+            chalk.dim(
+              `Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ' (default patterns)'}`
+            )
+          );
         }
         console.log();
 

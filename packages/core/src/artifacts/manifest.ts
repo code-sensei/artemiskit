@@ -28,8 +28,17 @@ export function createRunManifest(options: {
   runReason?: string;
   redaction?: ManifestRedactionInfo;
 }): RunManifest {
-  const { project, config, resolvedConfig, cases, startTime, endTime, runBy, runReason, redaction } =
-    options;
+  const {
+    project,
+    config,
+    resolvedConfig,
+    cases,
+    startTime,
+    endTime,
+    runBy,
+    runReason,
+    redaction,
+  } = options;
 
   const metrics = calculateMetrics(cases);
   const git = getGitInfo();

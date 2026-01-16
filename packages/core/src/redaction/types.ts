@@ -34,11 +34,13 @@ export const BUILTIN_REGEX_PATTERNS: Record<BuiltinPatternName, RegExp> = {
   [BUILTIN_PATTERNS.PHONE]: /\b(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}\b/g,
   [BUILTIN_PATTERNS.CREDIT_CARD]: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
   [BUILTIN_PATTERNS.SSN]: /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
-  [BUILTIN_PATTERNS.API_KEY]: /\b(?:sk|pk|api|key)[-_]?(?:[a-zA-Z0-9]+[-_]?){2,}[a-zA-Z0-9]{10,}\b/gi,
+  [BUILTIN_PATTERNS.API_KEY]:
+    /\b(?:sk|pk|api|key)[-_]?(?:[a-zA-Z0-9]+[-_]?){2,}[a-zA-Z0-9]{10,}\b/gi,
   [BUILTIN_PATTERNS.IPV4]: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
   [BUILTIN_PATTERNS.JWT]: /\beyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*\b/g,
   [BUILTIN_PATTERNS.AWS_KEY]: /\b(?:AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}\b/g,
-  [BUILTIN_PATTERNS.SECRETS]: /\b(?:password|secret|token|apikey|api_key|auth)[\s]*[=:]\s*['"]?[^\s'"]+['"]?/gi,
+  [BUILTIN_PATTERNS.SECRETS]:
+    /\b(?:password|secret|token|apikey|api_key|auth)[\s]*[=:]\s*['"]?[^\s'"]+['"]?/gi,
 };
 
 /**

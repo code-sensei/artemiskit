@@ -4,7 +4,7 @@
 
 import type { CaseRedactionInfo, CaseResult } from '../artifacts/types';
 import { getEvaluator } from '../evaluators';
-import { Redactor, type RedactionConfig } from '../redaction';
+import { type RedactionConfig, Redactor } from '../redaction';
 import type { TestCase } from '../scenario/schema';
 import { mergeVariables, substituteVariables } from '../scenario/variables';
 import type { ExecutorContext } from './types';
@@ -22,10 +22,26 @@ function mergeRedactionConfig(
     return {
       enabled: cliConfig.enabled,
       patterns: cliConfig.patterns ?? caseConfig?.patterns ?? scenarioConfig?.patterns,
-      redactPrompts: cliConfig.redactPrompts ?? caseConfig?.redactPrompts ?? scenarioConfig?.redactPrompts ?? true,
-      redactResponses: cliConfig.redactResponses ?? caseConfig?.redactResponses ?? scenarioConfig?.redactResponses ?? true,
-      redactMetadata: cliConfig.redactMetadata ?? caseConfig?.redactMetadata ?? scenarioConfig?.redactMetadata ?? false,
-      replacement: cliConfig.replacement ?? caseConfig?.replacement ?? scenarioConfig?.replacement ?? '[REDACTED]',
+      redactPrompts:
+        cliConfig.redactPrompts ??
+        caseConfig?.redactPrompts ??
+        scenarioConfig?.redactPrompts ??
+        true,
+      redactResponses:
+        cliConfig.redactResponses ??
+        caseConfig?.redactResponses ??
+        scenarioConfig?.redactResponses ??
+        true,
+      redactMetadata:
+        cliConfig.redactMetadata ??
+        caseConfig?.redactMetadata ??
+        scenarioConfig?.redactMetadata ??
+        false,
+      replacement:
+        cliConfig.replacement ??
+        caseConfig?.replacement ??
+        scenarioConfig?.replacement ??
+        '[REDACTED]',
     };
   }
 

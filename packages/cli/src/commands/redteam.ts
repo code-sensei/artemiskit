@@ -5,14 +5,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
+  type CaseRedactionInfo,
   type ManifestRedactionInfo,
   type RedTeamCaseResult,
   type RedTeamManifest,
   type RedTeamMetrics,
   type RedTeamSeverity,
   type RedTeamStatus,
-  Redactor,
   type RedactionConfig,
+  Redactor,
   createAdapter,
   getGitInfo,
   parseScenarioFile,
@@ -72,7 +73,10 @@ export function redteamCommand(): Command {
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
     .option('--redact', 'Enable PII/sensitive data redaction in results')
-    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
+    .option(
+      '--redact-patterns <patterns...>',
+      'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
+    )
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = ora('Loading configuration...').start();
       const startTime = new Date();
@@ -139,7 +143,11 @@ export function redteamCommand(): Command {
             replacement: '[REDACTED]',
           };
           redactor = new Redactor(redactionConfig);
-          console.log(chalk.dim(`Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`));
+          console.log(
+            chalk.dim(
+              `Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`
+            )
+          );
         }
         console.log();
 
@@ -185,7 +193,7 @@ export function redteamCommand(): Command {
               // Apply redaction if enabled
               let finalPrompt = mutated.mutated;
               let finalResponse = result.text;
-              let caseRedaction;
+              let caseRedaction: CaseRedactionInfo | undefined;
 
               if (redactor) {
                 const promptResult = redactor.redactPrompt(finalPrompt);
@@ -222,7 +230,7 @@ export function redteamCommand(): Command {
 
               // Apply redaction to prompt even for errors/blocked
               let errorPrompt = mutated.mutated;
-              let errorCaseRedaction;
+              let errorCaseRedaction: CaseRedactionInfo | undefined;
 
               if (redactor) {
                 const promptResult = redactor.redactPrompt(errorPrompt);

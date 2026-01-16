@@ -2,7 +2,12 @@
  * Run command - Execute test scenarios
  */
 
-import { type RedactionConfig, createAdapter, parseScenarioFile, runScenario } from '@artemiskit/core';
+import {
+  type RedactionConfig,
+  createAdapter,
+  parseScenarioFile,
+  runScenario,
+} from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
@@ -47,7 +52,10 @@ export function runCommand(): Command {
     .option('--retries <number>', 'Number of retries per test case')
     .option('--config <path>', 'Path to config file')
     .option('--redact', 'Enable PII/sensitive data redaction in results')
-    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
+    .option(
+      '--redact-patterns <patterns...>',
+      'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
+    )
     .action(async (scenarioPath: string, options: RunOptions) => {
       const spinner = ora('Loading configuration...').start();
 
@@ -106,7 +114,11 @@ export function runCommand(): Command {
             redactMetadata: false,
             replacement: '[REDACTED]',
           };
-          console.log(chalk.dim(`Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`));
+          console.log(
+            chalk.dim(
+              `Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`
+            )
+          );
           console.log();
         }
 
@@ -210,7 +222,10 @@ function displaySummary(
   if (redaction?.enabled) {
     table.push(
       ['Redaction', chalk.yellow('Enabled')],
-      ['Redactions Made', `${redaction.summary.totalRedactions} (${redaction.summary.promptsRedacted} prompts, ${redaction.summary.responsesRedacted} responses)`]
+      [
+        'Redactions Made',
+        `${redaction.summary.totalRedactions} (${redaction.summary.promptsRedacted} prompts, ${redaction.summary.responsesRedacted} responses)`,
+      ]
     );
   }
 

@@ -119,7 +119,7 @@ class CustomAdapter implements ModelClient {
  * Register the custom adapter
  */
 export function registerCustomAdapter(): void {
-  adapterRegistry.register('custom', async (config: any) => {
+  adapterRegistry.register('custom', async (config: unknown) => {
     return new CustomAdapter(config as CustomAdapterConfig);
   });
 }

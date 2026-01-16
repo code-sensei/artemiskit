@@ -30,7 +30,7 @@ export class OpenAIAdapter implements ModelClient {
         apiKey: azureConfig.apiKey,
         baseURL: `https://${azureConfig.resourceName}.openai.azure.com/openai/deployments/${azureConfig.deploymentName}`,
         defaultQuery: { 'api-version': azureConfig.apiVersion },
-        defaultHeaders: { 'api-key': azureConfig.apiKey! },
+        defaultHeaders: { 'api-key': azureConfig.apiKey ?? '' },
         timeout: azureConfig.timeout ?? 60000,
         maxRetries: azureConfig.maxRetries ?? 2,
       });

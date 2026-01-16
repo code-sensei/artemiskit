@@ -238,7 +238,7 @@ if [ "$DRY_RUN" = true ]; then
 else
   # Actually publish
   echo ""
-  changeset publish
+  bunx changeset publish
 
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"

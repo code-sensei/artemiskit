@@ -13,14 +13,7 @@
   "bugs": {
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
-  "keywords": [
-    "llm",
-    "testing",
-    "reports",
-    "html",
-    "evaluation",
-    "artemiskit"
-  ],
+  "keywords": ["llm", "testing", "reports", "html", "evaluation", "artemiskit"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

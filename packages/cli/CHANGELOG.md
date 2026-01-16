@@ -1,5 +1,17 @@
 # @artemiskit/cli
 
+## 0.1.3
+
+### Patch Changes
+
+- 11ac4a7: Updated Package Documentations
+- Updated dependencies [11ac4a7]
+  - @artemiskit/adapter-openai@0.1.3
+  - @artemiskit/adapter-vercel-ai@0.1.3
+  - @artemiskit/core@0.1.3
+  - @artemiskit/redteam@0.1.3
+  - @artemiskit/reports@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

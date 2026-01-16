@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/core",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Core runner, evaluators, and storage for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",

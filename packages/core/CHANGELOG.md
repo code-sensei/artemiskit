@@ -1,5 +1,11 @@
 # @artemiskit/core
 
+## 0.1.3
+
+### Patch Changes
+
+- 11ac4a7: Updated Package Documentations
+
 ## 0.1.2
 
 ### Patch Changes

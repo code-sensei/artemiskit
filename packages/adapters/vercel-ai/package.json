@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-vercel-ai",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Vercel AI SDK adapter for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",
@@ -13,7 +13,13 @@
   "bugs": {
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
-  "keywords": ["llm", "vercel", "ai-sdk", "adapter", "artemiskit"],
+  "keywords": [
+    "llm",
+    "vercel",
+    "ai-sdk",
+    "adapter",
+    "artemiskit"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -1,5 +1,13 @@
 # @artemiskit/adapter-anthropic
 
+## 0.1.3
+
+### Patch Changes
+
+- 11ac4a7: Updated Package Documentations
+- Updated dependencies [11ac4a7]
+  - @artemiskit/core@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes

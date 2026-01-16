@@ -138,6 +138,20 @@ const HTML_TEMPLATE = `
       color: #3730a3;
       margin-left: 0.5rem;
     }
+    .redaction-banner {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .redaction-banner .icon { font-size: 1.5rem; }
+    .redaction-banner .content { flex: 1; }
+    .redaction-banner .title { font-weight: 600; color: #92400e; }
+    .redaction-banner .details { font-size: 0.875rem; color: #a16207; margin-top: 0.25rem; }
     footer { margin-top: 3rem; text-align: center; color: #666; font-size: 0.875rem; }
   </style>
 </head>
@@ -153,6 +167,19 @@ const HTML_TEMPLATE = `
       {{#if manifest.config.model}}Model: {{manifest.config.model}} |{{/if}}
       {{formatDate manifest.start_time}}
     </p>
+
+    {{#if manifest.redaction.enabled}}
+    <div class="redaction-banner">
+      <div class="icon">🔒</div>
+      <div class="content">
+        <div class="title">Data Redaction Configured</div>
+        <div class="details">
+          Redaction was enabled for this stress test run.
+          Patterns: {{join manifest.redaction.patternsUsed ', '}}
+        </div>
+      </div>
+    </div>
+    {{/if}}
 
     <div class="summary">
       <div class="card">
@@ -335,6 +362,10 @@ export function generateStressHTMLReport(manifest: StressManifest): string {
     if (value >= 0.99) return 'high';
     if (value >= 0.95) return 'medium';
     return 'low';
+  });
+
+  Handlebars.registerHelper('join', (arr: string[], separator: string) => {
+    return arr?.join(separator) || '';
   });
 
   const template = Handlebars.compile(HTML_TEMPLATE);

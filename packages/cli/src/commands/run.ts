@@ -2,7 +2,7 @@
  * Run command - Execute test scenarios
  */
 
-import { createAdapter, parseScenarioFile, runScenario } from '@artemiskit/core';
+import { type RedactionConfig, createAdapter, parseScenarioFile, runScenario } from '@artemiskit/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { Command } from 'commander';
@@ -26,6 +26,8 @@ interface RunOptions {
   timeout?: number;
   retries?: number;
   config?: string;
+  redact?: boolean;
+  redactPatterns?: string[];
 }
 
 export function runCommand(): Command {
@@ -44,6 +46,8 @@ export function runCommand(): Command {
     .option('--timeout <ms>', 'Timeout per test case in milliseconds')
     .option('--retries <number>', 'Number of retries per test case')
     .option('--config <path>', 'Path to config file')
+    .option('--redact', 'Enable PII/sensitive data redaction in results')
+    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
     .action(async (scenarioPath: string, options: RunOptions) => {
       const spinner = ora('Loading configuration...').start();
 
@@ -91,6 +95,21 @@ export function runCommand(): Command {
         console.log(chalk.bold(`Running scenario: ${scenario.name}`));
         console.log();
 
+        // Build redaction config from CLI options
+        let redaction: RedactionConfig | undefined;
+        if (options.redact) {
+          redaction = {
+            enabled: true,
+            patterns: options.redactPatterns,
+            redactPrompts: true,
+            redactResponses: true,
+            redactMetadata: false,
+            replacement: '[REDACTED]',
+          };
+          console.log(chalk.dim(`Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`));
+          console.log();
+        }
+
         // Run scenario using core runner
         const result = await runScenario({
           scenario,
@@ -101,6 +120,7 @@ export function runCommand(): Command {
           concurrency: Number.parseInt(String(options.concurrency)) || 1,
           timeout: options.timeout ? Number.parseInt(String(options.timeout)) : undefined,
           retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
+          redaction,
           onCaseComplete: (caseResult) => {
             const statusIcon = caseResult.ok ? chalk.green('✓') : chalk.red('✗');
             const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
@@ -119,7 +139,7 @@ export function runCommand(): Command {
 
         // Display summary
         console.log();
-        displaySummary(result.manifest.metrics, result.manifest.run_id);
+        displaySummary(result.manifest.metrics, result.manifest.run_id, result.manifest.redaction);
 
         // Save results
         if (options.save) {
@@ -155,7 +175,15 @@ function displaySummary(
     median_latency_ms: number;
     total_tokens: number;
   },
-  runId: string
+  runId: string,
+  redaction?: {
+    enabled: boolean;
+    summary: {
+      promptsRedacted: number;
+      responsesRedacted: number;
+      totalRedactions: number;
+    };
+  }
 ): void {
   const table = new Table({
     head: [chalk.bold('Metric'), chalk.bold('Value')],
@@ -177,6 +205,14 @@ function displaySummary(
     ['Median Latency', `${metrics.median_latency_ms}ms`],
     ['Total Tokens', metrics.total_tokens.toLocaleString()]
   );
+
+  // Add redaction info if enabled
+  if (redaction?.enabled) {
+    table.push(
+      ['Redaction', chalk.yellow('Enabled')],
+      ['Redactions Made', `${redaction.summary.totalRedactions} (${redaction.summary.promptsRedacted} prompts, ${redaction.summary.responsesRedacted} responses)`]
+    );
+  }
 
   console.log(table.toString());
 }

@@ -5,6 +5,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
+  type ManifestRedactionInfo,
+  Redactor,
+  type RedactionConfig,
   type StressManifest,
   type StressMetrics,
   type StressRequestResult,
@@ -37,6 +40,8 @@ interface StressOptions {
   output?: string;
   verbose?: boolean;
   config?: string;
+  redact?: boolean;
+  redactPatterns?: string[];
 }
 
 export function stressCommand(): Command {
@@ -55,6 +60,8 @@ export function stressCommand(): Command {
     .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
+    .option('--redact', 'Enable PII/sensitive data redaction in results')
+    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
     .action(async (scenarioPath: string, options: StressOptions) => {
       const spinner = ora('Loading configuration...').start();
       const startTime = new Date();
@@ -107,6 +114,21 @@ export function stressCommand(): Command {
           ? Number.parseInt(String(options.requests))
           : undefined;
 
+        // Set up redaction if enabled
+        let redactionConfig: RedactionConfig | undefined;
+        let redactor: Redactor | undefined;
+        if (options.redact) {
+          redactionConfig = {
+            enabled: true,
+            patterns: options.redactPatterns,
+            redactPrompts: true,
+            redactResponses: true,
+            redactMetadata: false,
+            replacement: '[REDACTED]',
+          };
+          redactor = new Redactor(redactionConfig);
+        }
+
         console.log();
         console.log(chalk.bold('Stress Test Configuration'));
         console.log(chalk.dim(`Concurrency: ${concurrency}`));
@@ -114,6 +136,9 @@ export function stressCommand(): Command {
         console.log(chalk.dim(`Ramp-up: ${rampUpSec}s`));
         if (maxRequests) {
           console.log(chalk.dim(`Max requests: ${maxRequests}`));
+        }
+        if (options.redact) {
+          console.log(chalk.dim(`Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ' (default patterns)'}`));
         }
         console.log();
 
@@ -150,6 +175,21 @@ export function stressCommand(): Command {
         // Calculate stats
         const metrics = calculateMetrics(results, endTime.getTime() - startTime.getTime());
 
+        // Build redaction metadata if enabled
+        let redactionInfo: ManifestRedactionInfo | undefined;
+        if (redactor && redactionConfig?.enabled) {
+          redactionInfo = {
+            enabled: true,
+            patternsUsed: redactor.patternNames,
+            replacement: redactor.replacement,
+            summary: {
+              promptsRedacted: 0, // Stress test doesn't track individual prompts
+              responsesRedacted: 0,
+              totalRedactions: 0,
+            },
+          };
+        }
+
         // Build manifest
         const runId = `st_${nanoid(12)}`;
         const manifest: StressManifest = {
@@ -182,6 +222,7 @@ export function stressCommand(): Command {
             platform: process.platform,
             arch: process.arch,
           },
+          redaction: redactionInfo,
         };
 
         // Display stats

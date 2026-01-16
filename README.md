@@ -481,7 +481,8 @@ ArtemisKit is a monorepo with the following packages:
 | Package | Description |
 |---------|-------------|
 | `@artemiskit/cli` | Command-line interface |
-| `@artemiskit/core` | Core runner, types, and storage |
+| `@artemiskit/core` | Core runner, types, and storage (internal) |
+| `@artemiskit/sdk` | Programmatic SDK for TypeScript/JavaScript (coming soon) |
 | `@artemiskit/reports` | HTML and JSON report generation |
 | `@artemiskit/redteam` | Red team mutation strategies |
 | `@artemiskit/adapter-openai` | OpenAI/Azure provider adapter |

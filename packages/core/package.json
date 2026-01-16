@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Core runner, evaluators, and storage for Artemis LLM testing framework",
   "type": "module",
   "license": "Apache-2.0",

@@ -5,7 +5,14 @@
 import { nanoid } from 'nanoid';
 import { getEnvironmentInfo } from '../provenance/environment';
 import { getGitInfo } from '../provenance/git';
-import type { CaseResult, ResolvedConfig, RunConfig, RunManifest, RunMetrics } from './types';
+import type {
+  CaseResult,
+  ManifestRedactionInfo,
+  ResolvedConfig,
+  RunConfig,
+  RunManifest,
+  RunMetrics,
+} from './types';
 
 /**
  * Create a new run manifest
@@ -19,8 +26,10 @@ export function createRunManifest(options: {
   endTime: Date;
   runBy?: string;
   runReason?: string;
+  redaction?: ManifestRedactionInfo;
 }): RunManifest {
-  const { project, config, resolvedConfig, cases, startTime, endTime, runBy, runReason } = options;
+  const { project, config, resolvedConfig, cases, startTime, endTime, runBy, runReason, redaction } =
+    options;
 
   const metrics = calculateMetrics(cases);
   const git = getGitInfo();
@@ -44,6 +53,7 @@ export function createRunManifest(options: {
     },
     cases,
     environment,
+    redaction,
   };
 }
 

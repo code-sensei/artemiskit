@@ -26,3 +26,6 @@ export * from './provenance';
 
 // Utilities
 export * from './utils';
+
+// Redaction
+export * from './redaction';

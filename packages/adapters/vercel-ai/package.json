@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-vercel-ai",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Vercel AI SDK adapter for Artemis LLM testing framework",
   "type": "module",
   "license": "Apache-2.0",

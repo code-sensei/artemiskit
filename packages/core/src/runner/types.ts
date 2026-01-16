@@ -4,6 +4,7 @@
 
 import type { ModelClient } from '../adapters/types';
 import type { CaseResult, ResolvedConfig, RunManifest } from '../artifacts/types';
+import type { RedactionConfig } from '../redaction/types';
 import type { Scenario } from '../scenario/schema';
 
 /**
@@ -26,6 +27,8 @@ export interface RunOptions {
   timeout?: number;
   /** Number of retries per case */
   retries?: number;
+  /** Redaction configuration (CLI overrides scenario) */
+  redaction?: RedactionConfig;
   /** Callback for each case result */
   onCaseComplete?: (result: CaseResult, index: number, total: number) => void;
   /** Callback for progress updates */
@@ -52,4 +55,6 @@ export interface ExecutorContext {
   scenario: Scenario;
   timeout?: number;
   retries?: number;
+  /** Redaction configuration for this execution */
+  redaction?: RedactionConfig;
 }

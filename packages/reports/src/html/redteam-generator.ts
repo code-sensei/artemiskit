@@ -102,6 +102,30 @@ const HTML_TEMPLATE = `
       color: #3730a3;
       margin-left: 0.5rem;
     }
+    .redaction-banner {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .redaction-banner .icon { font-size: 1.5rem; }
+    .redaction-banner .content { flex: 1; }
+    .redaction-banner .title { font-weight: 600; color: #92400e; }
+    .redaction-banner .details { font-size: 0.875rem; color: #a16207; margin-top: 0.25rem; }
+    .redacted-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #fef3c7;
+      color: #92400e;
+      margin-left: 0.5rem;
+    }
     .defense-meter {
       width: 100%;
       height: 24px;
@@ -136,6 +160,20 @@ const HTML_TEMPLATE = `
       {{#if manifest.config.model}}Model: {{manifest.config.model}} |{{/if}}
       {{formatDate manifest.start_time}}
     </p>
+
+    {{#if manifest.redaction.enabled}}
+    <div class="redaction-banner">
+      <div class="icon">🔒</div>
+      <div class="content">
+        <div class="title">Data Redaction Applied</div>
+        <div class="details">
+          {{manifest.redaction.summary.totalRedactions}} redactions made
+          ({{manifest.redaction.summary.promptsRedacted}} prompts, {{manifest.redaction.summary.responsesRedacted}} responses).
+          Replacement: <code>{{manifest.redaction.replacement}}</code>
+        </div>
+      </div>
+    </div>
+    {{/if}}
 
     <div class="summary">
       <div class="card">
@@ -247,7 +285,7 @@ const HTML_TEMPLATE = `
       <tbody>
         {{#each manifest.results}}
         <tr class="expandable" onclick="toggleDetails('{{@index}}')">
-          <td><strong>{{caseId}}</strong></td>
+          <td><strong>{{caseId}}</strong>{{#if redaction.redacted}}<span class="redacted-badge">redacted</span>{{/if}}</td>
           <td><span class="mutation-tag">{{mutation}}</span></td>
           <td>
             <span class="status {{status}}">{{upperCase status}}</span>
@@ -258,10 +296,10 @@ const HTML_TEMPLATE = `
         <tr id="details-{{@index}}" class="hidden">
           <td colspan="4">
             <div class="details">
-              <p><strong>Mutated Prompt:</strong></p>
+              <p><strong>Mutated Prompt:</strong>{{#if redaction.promptRedacted}} <span class="redacted-badge">redacted</span>{{/if}}</p>
               <pre>{{prompt}}</pre>
               {{#if response}}
-              <p style="margin-top: 1rem;"><strong>Response:</strong></p>
+              <p style="margin-top: 1rem;"><strong>Response:</strong>{{#if redaction.responseRedacted}} <span class="redacted-badge">redacted</span>{{/if}}</p>
               <pre>{{response}}</pre>
               {{/if}}
               {{#if reasons.length}}

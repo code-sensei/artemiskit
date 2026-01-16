@@ -5,11 +5,14 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import {
+  type ManifestRedactionInfo,
   type RedTeamCaseResult,
   type RedTeamManifest,
   type RedTeamMetrics,
   type RedTeamSeverity,
   type RedTeamStatus,
+  Redactor,
+  type RedactionConfig,
   createAdapter,
   getGitInfo,
   parseScenarioFile,
@@ -47,6 +50,8 @@ interface RedteamOptions {
   output?: string;
   verbose?: boolean;
   config?: string;
+  redact?: boolean;
+  redactPatterns?: string[];
 }
 
 export function redteamCommand(): Command {
@@ -66,6 +71,8 @@ export function redteamCommand(): Command {
     .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
     .option('--config <path>', 'Path to config file')
+    .option('--redact', 'Enable PII/sensitive data redaction in results')
+    .option('--redact-patterns <patterns...>', 'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)')
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = ora('Loading configuration...').start();
       const startTime = new Date();
@@ -118,10 +125,29 @@ export function redteamCommand(): Command {
         console.log();
         console.log(chalk.bold('Red-Team Testing'));
         console.log(chalk.dim(`Mutations: ${mutations.map((m) => m.name).join(', ')}`));
+
+        // Set up redaction if enabled
+        let redactionConfig: RedactionConfig | undefined;
+        let redactor: Redactor | undefined;
+        if (options.redact) {
+          redactionConfig = {
+            enabled: true,
+            patterns: options.redactPatterns,
+            redactPrompts: true,
+            redactResponses: true,
+            redactMetadata: false,
+            replacement: '[REDACTED]',
+          };
+          redactor = new Redactor(redactionConfig);
+          console.log(chalk.dim(`Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`));
+        }
         console.log();
 
         const count = Number.parseInt(String(options.count)) || 5;
         const results: RedTeamCaseResult[] = [];
+        let promptsRedacted = 0;
+        let responsesRedacted = 0;
+        let totalRedactions = 0;
 
         // Run mutated tests for each case
         for (const testCase of scenario.cases) {
@@ -156,19 +182,62 @@ export function redteamCommand(): Command {
                 console.log(chalk.dim(`    Reasons: ${detection.reasons.join(', ')}`));
               }
 
+              // Apply redaction if enabled
+              let finalPrompt = mutated.mutated;
+              let finalResponse = result.text;
+              let caseRedaction;
+
+              if (redactor) {
+                const promptResult = redactor.redactPrompt(finalPrompt);
+                const responseResult = redactor.redactResponse(finalResponse);
+                finalPrompt = promptResult.text;
+                finalResponse = responseResult.text;
+
+                if (promptResult.wasRedacted) promptsRedacted++;
+                if (responseResult.wasRedacted) responsesRedacted++;
+                totalRedactions += promptResult.redactionCount + responseResult.redactionCount;
+
+                caseRedaction = {
+                  redacted: promptResult.wasRedacted || responseResult.wasRedacted,
+                  promptRedacted: promptResult.wasRedacted,
+                  responseRedacted: responseResult.wasRedacted,
+                  redactionCount: promptResult.redactionCount + responseResult.redactionCount,
+                };
+              }
+
               results.push({
                 caseId: testCase.id,
                 mutation: mutated.mutations.join('+'),
-                prompt: mutated.mutated,
-                response: result.text,
+                prompt: finalPrompt,
+                response: finalResponse,
                 status: resultStatus,
                 severity: detection.severity as RedTeamSeverity,
                 reasons: detection.reasons,
                 latencyMs: Date.now() - requestStart,
+                redaction: caseRedaction,
               });
             } catch (error) {
               const errorMessage = (error as Error).message;
               const isContentFiltered = isProviderContentFilter(errorMessage);
+
+              // Apply redaction to prompt even for errors/blocked
+              let errorPrompt = mutated.mutated;
+              let errorCaseRedaction;
+
+              if (redactor) {
+                const promptResult = redactor.redactPrompt(errorPrompt);
+                errorPrompt = promptResult.text;
+
+                if (promptResult.wasRedacted) promptsRedacted++;
+                totalRedactions += promptResult.redactionCount;
+
+                errorCaseRedaction = {
+                  redacted: promptResult.wasRedacted,
+                  promptRedacted: promptResult.wasRedacted,
+                  responseRedacted: false,
+                  redactionCount: promptResult.redactionCount,
+                };
+              }
 
               if (isContentFiltered) {
                 console.log(
@@ -177,12 +246,13 @@ export function redteamCommand(): Command {
                 results.push({
                   caseId: testCase.id,
                   mutation: mutated.mutations.join('+'),
-                  prompt: mutated.mutated,
+                  prompt: errorPrompt,
                   response: '',
                   status: 'blocked',
                   severity: 'none',
                   reasons: ['Provider content filter blocked the request'],
                   latencyMs: Date.now() - requestStart,
+                  redaction: errorCaseRedaction,
                 });
               } else {
                 console.log(
@@ -191,12 +261,13 @@ export function redteamCommand(): Command {
                 results.push({
                   caseId: testCase.id,
                   mutation: mutated.mutations.join('+'),
-                  prompt: mutated.mutated,
+                  prompt: errorPrompt,
                   response: '',
                   status: 'error',
                   severity: 'none',
                   reasons: [errorMessage],
                   latencyMs: Date.now() - requestStart,
+                  redaction: errorCaseRedaction,
                 });
               }
             }
@@ -208,6 +279,21 @@ export function redteamCommand(): Command {
 
         // Calculate metrics
         const metrics = calculateMetrics(results);
+
+        // Build redaction metadata if enabled
+        let redactionInfo: ManifestRedactionInfo | undefined;
+        if (redactor && redactionConfig?.enabled) {
+          redactionInfo = {
+            enabled: true,
+            patternsUsed: redactor.patternNames,
+            replacement: redactor.replacement,
+            summary: {
+              promptsRedacted,
+              responsesRedacted,
+              totalRedactions,
+            },
+          };
+        }
 
         // Build manifest
         const runId = `rt_${nanoid(12)}`;
@@ -238,6 +324,7 @@ export function redteamCommand(): Command {
             platform: process.platform,
             arch: process.arch,
           },
+          redaction: redactionInfo,
         };
 
         // Display summary

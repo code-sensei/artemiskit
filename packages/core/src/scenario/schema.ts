@@ -3,6 +3,7 @@
  */
 
 import { z } from 'zod';
+import { RedactionConfigSchema as BaseRedactionConfigSchema } from '../redaction/types';
 
 /**
  * Provider schema - supports all providers
@@ -109,6 +110,12 @@ export const ChatMessageSchema = z.object({
 export const VariablesSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]));
 
 /**
+ * Redaction configuration schema for scenario-level settings
+ * Re-exported from redaction module, made optional for scenario context
+ */
+const RedactionConfigSchema = BaseRedactionConfigSchema.optional();
+
+/**
  * Test case schema
  */
 export const TestCaseSchema = z.object({
@@ -124,6 +131,8 @@ export const TestCaseSchema = z.object({
   provider: ProviderSchema.optional(),
   model: z.string().optional(),
   variables: VariablesSchema.optional(),
+  /** Case-level redaction config (overrides scenario-level) */
+  redaction: RedactionConfigSchema,
 });
 
 /**
@@ -141,6 +150,8 @@ export const ScenarioSchema = z.object({
   maxTokens: z.number().optional(),
   tags: z.array(z.string()).optional().default([]),
   variables: VariablesSchema.optional(),
+  /** Scenario-level redaction configuration */
+  redaction: RedactionConfigSchema,
   setup: z
     .object({
       systemPrompt: z.string().optional(),
@@ -162,3 +173,4 @@ export type Provider = z.infer<typeof ProviderSchema>;
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 export type ChatMessageType = z.infer<typeof ChatMessageSchema>;
 export type Variables = z.infer<typeof VariablesSchema>;
+export type ScenarioRedactionConfig = z.infer<typeof RedactionConfigSchema>;

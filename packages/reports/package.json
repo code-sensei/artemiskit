@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/reports",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Report generation for Artemis LLM testing framework",
   "type": "module",
   "license": "Apache-2.0",

@@ -11,7 +11,7 @@ providers:
     apiKey: ${AZURE_OPENAI_API_KEY}
     resourceName: ${AZURE_OPENAI_RESOURCE}
     deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
-    apiVersion: "2024-02-15-preview"
+    apiVersion: ${AZURE_OPENAI_API_VERSION}
 
 # Storage configuration
 storage:

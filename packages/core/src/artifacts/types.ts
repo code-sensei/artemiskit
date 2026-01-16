@@ -2,6 +2,46 @@
  * Artifact types - run manifests and related structures
  */
 
+// ============================================================================
+// Redaction Types
+// ============================================================================
+
+/**
+ * Redaction details for a single case result
+ */
+export interface CaseRedactionInfo {
+  /** Whether this case had redaction applied */
+  redacted: boolean;
+  /** Whether prompt was redacted */
+  promptRedacted: boolean;
+  /** Whether response was redacted */
+  responseRedacted: boolean;
+  /** Number of redactions in this case */
+  redactionCount: number;
+}
+
+/**
+ * Redaction metadata for a manifest
+ */
+export interface ManifestRedactionInfo {
+  /** Whether redaction was enabled */
+  enabled: boolean;
+  /** Pattern names used (not actual regex for security) */
+  patternsUsed: string[];
+  /** Replacement string used */
+  replacement: string;
+  /** Summary of redactions */
+  summary: {
+    promptsRedacted: number;
+    responsesRedacted: number;
+    totalRedactions: number;
+  };
+}
+
+// ============================================================================
+// Case Result Types
+// ============================================================================
+
 /**
  * Individual test case result
  */
@@ -23,6 +63,8 @@ export interface CaseResult {
   expected: object;
   tags: string[];
   error?: string;
+  /** Redaction information for this case */
+  redaction?: CaseRedactionInfo;
 }
 
 /**
@@ -157,6 +199,8 @@ export interface RunManifest {
     platform: string;
     arch: string;
   };
+  /** Redaction information for this run */
+  redaction?: ManifestRedactionInfo;
 }
 
 // ============================================================================
@@ -193,6 +237,8 @@ export interface RedTeamCaseResult {
   reasons: string[];
   /** Latency in milliseconds */
   latencyMs?: number;
+  /** Redaction information for this case */
+  redaction?: CaseRedactionInfo;
 }
 
 /**
@@ -256,6 +302,8 @@ export interface RedTeamManifest {
     platform: string;
     arch: string;
   };
+  /** Redaction information for this run */
+  redaction?: ManifestRedactionInfo;
 }
 
 // ============================================================================
@@ -343,6 +391,8 @@ export interface StressManifest {
     platform: string;
     arch: string;
   };
+  /** Redaction information for this run */
+  redaction?: ManifestRedactionInfo;
 }
 
 // ============================================================================

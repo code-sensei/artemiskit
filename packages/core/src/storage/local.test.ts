@@ -3,8 +3,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, rm } from 'node:fs/promises';
 import type { RunManifest } from '../artifacts/types';
 import { LocalStorageAdapter } from './local';
 

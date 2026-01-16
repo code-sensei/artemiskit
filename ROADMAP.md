@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.0.1 (Pre-release)  
+**Current Version:** 0.1.0 (MVP Release)  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -100,6 +100,18 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Config precedence | ✅ | CLI > Scenario > Config > Env > Default |
 | Source tracking | ✅ | Track where each config value came from |
 
+### Redaction
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Built-in patterns | ✅ | Email, phone, SSN, API keys, etc. |
+| Custom regex patterns | ✅ | User-defined redaction rules |
+| CLI flags (`--redact`) | ✅ | Enable redaction via CLI |
+| Scenario-level config | ✅ | Configure redaction per scenario |
+| Case-level config | ✅ | Override redaction per test case |
+| Report indicators | ✅ | Visual badges for redacted content |
+| Config precedence | ✅ | CLI > Case > Scenario > Config |
+
 ### Storage
 
 | Feature | Status | Description |
@@ -108,6 +120,17 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Run history | ✅ | List and filter past runs |
 | Run comparison | ✅ | Compare two runs |
 | Supabase storage | ✅ | Cloud storage adapter |
+
+### CLI User Experience
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Color output (chalk) | ✅ | Colored terminal output |
+| Spinners (ora) | ✅ | Progress indicators |
+| Table formatting | ✅ | Structured result display |
+| Progress bars | 📋 | Visual progress for long operations |
+| Enhanced error display | 📋 | Formatted error messages with context |
+| Summary panels | 📋 | Boxed summary sections |
 
 ### Documentation & Release
 
@@ -158,11 +181,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | JUnit XML output | 📋 | Standard CI format |
 | GitHub annotations | 📋 | Inline PR comments |
 
-### Programmatic API
+### Programmatic SDK (TypeScript/JavaScript)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `@artemiskit/core` API | 📋 | Import and use programmatically |
+| `@artemiskit/sdk` | 📋 | Import and use programmatically |
 | Jest integration | 📋 | Use in Jest tests |
 | Vitest integration | 📋 | Use in Vitest tests |
 | Event emitters | 📋 | Progress callbacks |
@@ -192,6 +215,24 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Ramp-up testing | 📋 | Gradual load increase |
 | Token usage tracking | 📋 | Monitor token consumption |
 | Cost estimation | 📋 | Estimate API costs |
+
+### CLI Interactivity (Phase 1)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Interactive prompts | 📋 | Inquirer-based user prompts |
+| Scenario selection | 📋 | Choose scenarios interactively |
+| Provider selection | 📋 | Select provider at runtime |
+| Confirmation dialogs | 📋 | Confirm destructive actions |
+| Interactive init wizard | 📋 | Guided configuration setup |
+
+### Metrics & Observability
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Prometheus metrics | 📋 | Export metrics in Prometheus format |
+| OpenTelemetry spans | 📋 | Distributed tracing support |
+| Custom metrics hooks | 📋 | User-defined metric collectors |
 
 ---
 
@@ -234,11 +275,30 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Secrets management | 💡 | Secure credential storage |
 | Config validation | 💡 | Schema validation |
 
+### CLI Interactivity (Phase 2)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Real-time TUI | 💡 | Ink-based reactive interface |
+| Live progress dashboard | 💡 | Real-time test progress display |
+| Keyboard navigation | 💡 | Navigate results with arrow keys |
+| Interactive filtering | 💡 | Filter results in real-time |
+| Watch mode | 💡 | Re-run on file changes |
+
 ---
 
 ## Future Considerations
 
 These features are under consideration for future releases:
+
+### Python Support
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `artemiskit` CLI (Python) | 💡 | Native Python CLI with pip install |
+| `artemiskit` SDK (Python) | 💡 | Python SDK for programmatic use |
+| pytest integration | 💡 | Use ArtemisKit in pytest tests |
+| Shared scenario format | 💡 | Same YAML format across TS/Python |
 
 ### IDE Integration
 - VS Code extension with YAML schema support

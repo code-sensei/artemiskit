@@ -2,11 +2,66 @@
  * Test case executor
  */
 
-import type { CaseResult } from '../artifacts/types';
+import type { CaseRedactionInfo, CaseResult } from '../artifacts/types';
 import { getEvaluator } from '../evaluators';
+import { Redactor, type RedactionConfig } from '../redaction';
 import type { TestCase } from '../scenario/schema';
 import { mergeVariables, substituteVariables } from '../scenario/variables';
 import type { ExecutorContext } from './types';
+
+/**
+ * Merge redaction configs with priority: CLI > case > scenario
+ */
+function mergeRedactionConfig(
+  scenarioConfig?: RedactionConfig,
+  caseConfig?: RedactionConfig,
+  cliConfig?: RedactionConfig
+): RedactionConfig {
+  // CLI config takes highest priority if enabled is explicitly set
+  if (cliConfig?.enabled !== undefined) {
+    return {
+      enabled: cliConfig.enabled,
+      patterns: cliConfig.patterns ?? caseConfig?.patterns ?? scenarioConfig?.patterns,
+      redactPrompts: cliConfig.redactPrompts ?? caseConfig?.redactPrompts ?? scenarioConfig?.redactPrompts ?? true,
+      redactResponses: cliConfig.redactResponses ?? caseConfig?.redactResponses ?? scenarioConfig?.redactResponses ?? true,
+      redactMetadata: cliConfig.redactMetadata ?? caseConfig?.redactMetadata ?? scenarioConfig?.redactMetadata ?? false,
+      replacement: cliConfig.replacement ?? caseConfig?.replacement ?? scenarioConfig?.replacement ?? '[REDACTED]',
+    };
+  }
+
+  // Case config takes priority over scenario
+  if (caseConfig?.enabled !== undefined) {
+    return {
+      enabled: caseConfig.enabled,
+      patterns: caseConfig.patterns ?? scenarioConfig?.patterns,
+      redactPrompts: caseConfig.redactPrompts ?? scenarioConfig?.redactPrompts ?? true,
+      redactResponses: caseConfig.redactResponses ?? scenarioConfig?.redactResponses ?? true,
+      redactMetadata: caseConfig.redactMetadata ?? scenarioConfig?.redactMetadata ?? false,
+      replacement: caseConfig.replacement ?? scenarioConfig?.replacement ?? '[REDACTED]',
+    };
+  }
+
+  // Fall back to scenario config
+  if (scenarioConfig?.enabled) {
+    return {
+      enabled: scenarioConfig.enabled,
+      patterns: scenarioConfig.patterns,
+      redactPrompts: scenarioConfig.redactPrompts ?? true,
+      redactResponses: scenarioConfig.redactResponses ?? true,
+      redactMetadata: scenarioConfig.redactMetadata ?? false,
+      replacement: scenarioConfig.replacement ?? '[REDACTED]',
+    };
+  }
+
+  // Default: disabled
+  return {
+    enabled: false,
+    redactPrompts: true,
+    redactResponses: true,
+    redactMetadata: false,
+    replacement: '[REDACTED]',
+  };
+}
 
 /**
  * Execute a single test case
@@ -57,7 +112,7 @@ async function executeCaseAttempt(
   context: ExecutorContext,
   timeout?: number
 ): Promise<CaseResult> {
-  const { client, scenario } = context;
+  const { client, scenario, redaction: cliRedaction } = context;
 
   // Merge scenario-level and case-level variables (case overrides scenario)
   const variables = mergeVariables(scenario.variables, testCase.variables);
@@ -94,6 +149,64 @@ async function executeCaseAttempt(
     testCase,
   });
 
+  // Determine effective redaction config (CLI > case > scenario)
+  const effectiveRedaction = mergeRedactionConfig(
+    scenario.redaction,
+    testCase.redaction,
+    cliRedaction
+  );
+
+  // Apply redaction if enabled
+  let finalPrompt: string | object = testCase.prompt;
+  let finalResponse = result.text;
+  let redactionInfo: CaseRedactionInfo | undefined;
+
+  if (effectiveRedaction.enabled) {
+    const redactor = new Redactor(effectiveRedaction);
+
+    let promptRedacted = false;
+    let responseRedacted = false;
+    let totalRedactions = 0;
+
+    // Redact prompt if configured
+    if (effectiveRedaction.redactPrompts) {
+      if (typeof finalPrompt === 'string') {
+        const promptResult = redactor.redactPrompt(finalPrompt);
+        finalPrompt = promptResult.text;
+        promptRedacted = promptResult.wasRedacted;
+        totalRedactions += promptResult.redactionCount;
+      } else if (Array.isArray(finalPrompt)) {
+        // Handle chat message array
+        finalPrompt = finalPrompt.map((msg) => {
+          if (typeof msg === 'object' && 'content' in msg && typeof msg.content === 'string') {
+            const promptResult = redactor.redactPrompt(msg.content);
+            if (promptResult.wasRedacted) {
+              promptRedacted = true;
+              totalRedactions += promptResult.redactionCount;
+            }
+            return { ...msg, content: promptResult.text };
+          }
+          return msg;
+        });
+      }
+    }
+
+    // Redact response if configured
+    if (effectiveRedaction.redactResponses) {
+      const responseResult = redactor.redactResponse(finalResponse);
+      finalResponse = responseResult.text;
+      responseRedacted = responseResult.wasRedacted;
+      totalRedactions += responseResult.redactionCount;
+    }
+
+    redactionInfo = {
+      redacted: promptRedacted || responseRedacted,
+      promptRedacted,
+      responseRedacted,
+      redactionCount: totalRedactions,
+    };
+  }
+
   return {
     id: testCase.id,
     name: testCase.name,
@@ -103,10 +216,11 @@ async function executeCaseAttempt(
     reason: evalResult.reason,
     latencyMs: result.latencyMs,
     tokens: result.tokens,
-    prompt: testCase.prompt,
-    response: result.text,
+    prompt: finalPrompt,
+    response: finalResponse,
     expected: testCase.expected,
     tags: testCase.tags,
+    redaction: redactionInfo,
   };
 }
 

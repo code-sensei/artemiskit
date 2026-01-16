@@ -3,7 +3,8 @@
  */
 
 import { createRunManifest } from '../artifacts/manifest';
-import type { CaseResult } from '../artifacts/types';
+import type { CaseResult, ManifestRedactionInfo } from '../artifacts/types';
+import { Redactor } from '../redaction';
 import { executeCase } from './executor';
 import type { RunOptions, RunResult } from './types';
 
@@ -20,6 +21,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     concurrency = 1,
     timeout,
     retries,
+    redaction,
     onCaseComplete,
     onProgress,
   } = options;
@@ -49,6 +51,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
         scenario,
         timeout: testCase.timeout || timeout,
         retries: testCase.retries ?? retries,
+        redaction,
       });
       results.push(result);
       onCaseComplete?.(result, i, cases.length);
@@ -66,6 +69,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
             scenario,
             timeout: testCase.timeout || timeout,
             retries: testCase.retries ?? retries,
+            redaction,
           });
           completed++;
           onCaseComplete?.(result, completed - 1, cases.length);
@@ -77,6 +81,28 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
   }
 
   const endTime = new Date();
+
+  // Calculate redaction metadata if any redaction occurred
+  let redactionInfo: ManifestRedactionInfo | undefined;
+  const effectiveRedaction = redaction ?? scenario.redaction;
+
+  if (effectiveRedaction?.enabled) {
+    const redactor = new Redactor(effectiveRedaction);
+    const promptsRedacted = results.filter((r) => r.redaction?.promptRedacted).length;
+    const responsesRedacted = results.filter((r) => r.redaction?.responseRedacted).length;
+    const totalRedactions = results.reduce((sum, r) => sum + (r.redaction?.redactionCount ?? 0), 0);
+
+    redactionInfo = {
+      enabled: true,
+      patternsUsed: redactor.patternNames,
+      replacement: redactor.replacement,
+      summary: {
+        promptsRedacted,
+        responsesRedacted,
+        totalRedactions,
+      },
+    };
+  }
 
   // Create manifest
   const manifest = createRunManifest({
@@ -92,6 +118,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     cases: results,
     startTime,
     endTime,
+    redaction: redactionInfo,
   });
 
   const success = manifest.metrics.failed_cases === 0;

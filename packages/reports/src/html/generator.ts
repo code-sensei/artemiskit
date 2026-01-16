@@ -65,6 +65,30 @@ const HTML_TEMPLATE = `
       color: #3730a3;
       margin-left: 0.5rem;
     }
+    .redaction-banner {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .redaction-banner .icon { font-size: 1.5rem; }
+    .redaction-banner .content { flex: 1; }
+    .redaction-banner .title { font-weight: 600; color: #92400e; }
+    .redaction-banner .details { font-size: 0.875rem; color: #a16207; margin-top: 0.25rem; }
+    .redacted-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #fef3c7;
+      color: #92400e;
+      margin-left: 0.5rem;
+    }
     footer { margin-top: 3rem; text-align: center; color: #666; font-size: 0.875rem; }
   </style>
 </head>
@@ -77,6 +101,20 @@ const HTML_TEMPLATE = `
       Model: {{manifest.config.model}} |
       {{formatDate manifest.start_time}}
     </p>
+
+    {{#if manifest.redaction.enabled}}
+    <div class="redaction-banner">
+      <div class="icon">🔒</div>
+      <div class="content">
+        <div class="title">Data Redaction Applied</div>
+        <div class="details">
+          {{manifest.redaction.summary.totalRedactions}} redactions made
+          ({{manifest.redaction.summary.promptsRedacted}} prompts, {{manifest.redaction.summary.responsesRedacted}} responses).
+          Replacement: <code>{{manifest.redaction.replacement}}</code>
+        </div>
+      </div>
+    </div>
+    {{/if}}
 
     <div class="summary">
       <div class="card">
@@ -114,7 +152,7 @@ const HTML_TEMPLATE = `
       <tbody>
         {{#each manifest.cases}}
         <tr class="expandable" onclick="toggleDetails('{{id}}')">
-          <td><strong>{{id}}</strong>{{#if name}}<br><small>{{name}}</small>{{/if}}</td>
+          <td><strong>{{id}}</strong>{{#if name}}<br><small>{{name}}</small>{{/if}}{{#if redaction.redacted}}<span class="redacted-badge">redacted</span>{{/if}}</td>
           <td><span class="status {{#if ok}}passed{{else}}failed{{/if}}">{{#if ok}}PASSED{{else}}FAILED{{/if}}</span></td>
           <td class="score">{{formatPercent score}}</td>
           <td>{{matcherType}}</td>
@@ -125,9 +163,9 @@ const HTML_TEMPLATE = `
           <td colspan="6">
             <div class="details">
               <p><strong>Reason:</strong> {{reason}}</p>
-              <p><strong>Prompt:</strong></p>
+              <p><strong>Prompt:</strong>{{#if redaction.promptRedacted}} <span class="redacted-badge">redacted</span>{{/if}}</p>
               <pre>{{formatPrompt prompt}}</pre>
-              <p><strong>Response:</strong></p>
+              <p><strong>Response:</strong>{{#if redaction.responseRedacted}} <span class="redacted-badge">redacted</span>{{/if}}</p>
               <pre>{{response}}</pre>
             </div>
           </td>

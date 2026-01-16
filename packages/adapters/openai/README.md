@@ -14,7 +14,7 @@ bun add @artemiskit/adapter-openai
 
 This adapter provides connectivity to:
 
-- **OpenAI API** - GPT-4, GPT-4o, GPT-3.5-turbo, etc.
+- **OpenAI API** - GPT-5.2, GPT-4.1, GPT-4o, and more
 - **Azure OpenAI Service** - Azure-hosted OpenAI models
 
 ## Usage
@@ -26,7 +26,7 @@ Configure in `artemis.config.yaml`:
 ```yaml
 # OpenAI
 provider: openai
-model: gpt-4o
+model: gpt-4.1
 
 providers:
   openai:
@@ -46,19 +46,30 @@ providers:
     apiVersion: "2024-02-15-preview"
 ```
 
-### Programmatic
+### Programmatic - OpenAI
 
 ```typescript
 import { OpenAIAdapter } from '@artemiskit/adapter-openai';
 
-// OpenAI
 const adapter = new OpenAIAdapter({
   provider: 'openai',
   apiKey: process.env.OPENAI_API_KEY,
-  defaultModel: 'gpt-4o',
+  defaultModel: 'gpt-4.1',
 });
 
-// Azure OpenAI
+const result = await adapter.generate({
+  prompt: 'Hello, how are you?',
+  model: 'gpt-4.1',
+});
+
+console.log(result.text);
+```
+
+### Programmatic - Azure OpenAI
+
+```typescript
+import { OpenAIAdapter } from '@artemiskit/adapter-openai';
+
 const azureAdapter = new OpenAIAdapter({
   provider: 'azure-openai',
   apiKey: process.env.AZURE_OPENAI_API_KEY,
@@ -67,10 +78,9 @@ const azureAdapter = new OpenAIAdapter({
   apiVersion: '2024-02-15-preview',
 });
 
-// Generate response
-const result = await adapter.generate({
+const result = await azureAdapter.generate({
   prompt: 'Hello, how are you?',
-  model: 'gpt-4o',
+  model: 'gpt-4o-deployment', // Use your deployment name
 });
 
 console.log(result.text);
@@ -118,14 +128,20 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 ## Supported Models
 
 ### OpenAI
-- `gpt-4o`
-- `gpt-4o-mini`
-- `gpt-4-turbo`
-- `gpt-4`
-- `gpt-3.5-turbo`
+
+| Model | Description |
+|-------|-------------|
+| `gpt-5.2` | Latest flagship model for professional work |
+| `gpt-5.1` | Previous flagship in GPT-5 series |
+| `gpt-4.1` | High performance with 1M token context |
+| `gpt-4.1-mini` | Smaller, faster version of GPT-4.1 |
+| `gpt-4.1-nano` | Fastest, most cost-efficient |
+| `gpt-4o` | Multimodal model (text + vision) |
+| `gpt-4o-mini` | Smaller multimodal model |
 
 ### Azure OpenAI
-Any model deployed to your Azure OpenAI resource.
+
+Any model deployed to your Azure OpenAI resource. Common deployments include GPT-4o, GPT-4, and GPT-3.5-turbo.
 
 ## Related Packages
 

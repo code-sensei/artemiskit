@@ -12,13 +12,7 @@ bun add @artemiskit/adapter-anthropic
 
 ## Overview
 
-This adapter provides connectivity to Anthropic's Claude models:
-
-- Claude 3.5 Sonnet
-- Claude 3.5 Haiku
-- Claude 3 Opus
-- Claude 3 Sonnet
-- Claude 3 Haiku
+This adapter provides connectivity to Anthropic's Claude models via the Anthropic API.
 
 ## Usage
 
@@ -28,7 +22,7 @@ Configure in `artemis.config.yaml`:
 
 ```yaml
 provider: anthropic
-model: claude-3-5-sonnet-20241022
+model: claude-sonnet-4-5-20241022
 
 providers:
   anthropic:
@@ -49,12 +43,12 @@ import { AnthropicAdapter } from '@artemiskit/adapter-anthropic';
 const adapter = new AnthropicAdapter({
   provider: 'anthropic',
   apiKey: process.env.ANTHROPIC_API_KEY,
-  defaultModel: 'claude-3-5-sonnet-20241022',
+  defaultModel: 'claude-sonnet-4-5-20241022',
 });
 
 const result = await adapter.generate({
   prompt: 'Hello, how are you?',
-  model: 'claude-3-5-sonnet-20241022',
+  model: 'claude-sonnet-4-5-20241022',
 });
 
 console.log(result.text);
@@ -81,11 +75,14 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 | Model | Description |
 |-------|-------------|
-| `claude-3-5-sonnet-20241022` | Latest Sonnet - balanced performance |
-| `claude-3-5-haiku-20241022` | Latest Haiku - fast and efficient |
-| `claude-3-opus-20240229` | Most capable model |
-| `claude-3-sonnet-20240229` | Balanced performance |
-| `claude-3-haiku-20240307` | Fast and efficient |
+| `claude-opus-4-5-20241101` | Most intelligent, flagship model |
+| `claude-sonnet-4-5-20241022` | Balanced performance, recommended for most use cases |
+| `claude-haiku-4-5-20241022` | Fast and efficient |
+| `claude-opus-4-1-20250414` | Opus 4.1 - strong coding and agent capabilities |
+| `claude-sonnet-4-1-20250414` | Sonnet 4.1 |
+| `claude-haiku-4-1-20250414` | Haiku 4.1 |
+
+Note: Claude 3 Opus and Claude 3 Sonnet have been deprecated. Migrate to Claude 4.x models.
 
 ## Related Packages
 

@@ -12,11 +12,16 @@ bun add @artemiskit/adapter-vercel-ai
 
 ## Overview
 
-This adapter uses the [Vercel AI SDK](https://sdk.vercel.ai/) to provide a unified interface to multiple LLM providers:
+This adapter uses the [Vercel AI SDK](https://ai-sdk.dev/) to provide a unified interface to LLM providers.
 
-- OpenAI
+**Currently Supported (MVP):**
+- OpenAI (GPT-5.2, GPT-4.1, GPT-4o)
 - Azure OpenAI
-- And other providers supported by Vercel AI SDK
+
+**Coming Soon:**
+- Anthropic
+- Google
+- Mistral
 
 ## Usage
 
@@ -26,7 +31,7 @@ Configure in `artemis.config.yaml`:
 
 ```yaml
 provider: vercel-ai
-model: gpt-4o
+model: gpt-4.1
 
 providers:
   vercel-ai:
@@ -43,12 +48,34 @@ const adapter = new VercelAIAdapter({
   provider: 'vercel-ai',
   apiKey: process.env.OPENAI_API_KEY,
   underlyingProvider: 'openai',
-  defaultModel: 'gpt-4o',
+  defaultModel: 'gpt-4.1',
 });
 
 const result = await adapter.generate({
   prompt: 'Hello, how are you?',
-  model: 'gpt-4o',
+  model: 'gpt-4.1',
+});
+
+console.log(result.text);
+```
+
+### Azure OpenAI via Vercel AI SDK
+
+```typescript
+import { VercelAIAdapter } from '@artemiskit/adapter-vercel-ai';
+
+const adapter = new VercelAIAdapter({
+  provider: 'vercel-ai',
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  underlyingProvider: 'azure',
+  defaultModel: 'gpt-4o-deployment',
+  providerConfig: {
+    resourceName: 'my-azure-resource',
+  },
+});
+
+const result = await adapter.generate({
+  prompt: 'Hello, how are you?',
 });
 
 console.log(result.text);
@@ -60,12 +87,19 @@ console.log(result.text);
 |--------|------|----------|-------------|
 | `provider` | `'vercel-ai'` | Yes | Provider identifier |
 | `apiKey` | `string` | No | API key for underlying provider |
-| `underlyingProvider` | `string` | Yes | Provider to use: `openai`, `azure`, `anthropic`, `google`, `mistral` |
+| `underlyingProvider` | `string` | Yes | Provider to use: `openai`, `azure` (MVP) |
 | `defaultModel` | `string` | No | Default model to use |
 | `baseUrl` | `string` | No | Custom API base URL |
 | `timeout` | `number` | No | Request timeout (ms) |
 | `maxRetries` | `number` | No | Max retry attempts |
 | `providerConfig` | `object` | No | Additional provider-specific configuration |
+
+## Supported Providers (MVP)
+
+| Provider | Example Models |
+|----------|---------------|
+| `openai` | `gpt-5.2`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o` |
+| `azure` | Depends on your Azure OpenAI deployment |
 
 ## When to Use This Adapter
 

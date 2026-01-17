@@ -1,5 +1,16 @@
 # @artemiskit/core
 
+## 0.1.4
+
+### Patch Changes
+
+- 367eb3b: fix: resolve npm install error caused by workspace:\* protocol
+
+  Fixed an issue where `npm i -g @artemiskit/cli` would fail with
+  "Unsupported URL Type workspace:_" error. The publish workflow now
+  automatically replaces workspace:_ dependencies with actual version
+  numbers before publishing to npm.
+
 ## 0.1.3
 
 ### Patch Changes

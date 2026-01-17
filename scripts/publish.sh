@@ -202,9 +202,17 @@ if [ -n "$(git status --porcelain)" ]; then
   echo -e "${GREEN}✓ Version changes committed${NC}"
 fi
 
-# Step 8: Publish
+# Step 8: Fix workspace dependencies
 echo ""
-echo -e "${YELLOW}[8/8] Publishing to npm...${NC}"
+echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
+
+# Replace workspace:* with actual version numbers for npm compatibility
+./scripts/fix-workspace-deps.sh
+echo -e "${GREEN}✓ Workspace dependencies fixed${NC}"
+
+# Step 9: Publish
+echo ""
+echo -e "${YELLOW}[9/9] Publishing to npm...${NC}"
 
 # Configure npm with token
 npm config set //registry.npmjs.org/:_authToken=$NPM_API_KEY
@@ -235,6 +243,11 @@ if [ "$DRY_RUN" = true ]; then
 
   echo ""
   echo -e "${YELLOW}Run without --dry-run to actually publish${NC}"
+
+  # Restore workspace:* in dry-run mode too
+  echo ""
+  echo "Restoring workspace:* dependencies..."
+  ./scripts/fix-workspace-deps.sh --restore
 else
   # Actually publish
   echo ""
@@ -242,6 +255,12 @@ else
 
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"
+
+  # Restore workspace:* dependencies
+  echo ""
+  echo "Restoring workspace:* dependencies..."
+  ./scripts/fix-workspace-deps.sh --restore
+  echo -e "${GREEN}✓ Workspace dependencies restored${NC}"
 
   # Create git tag
   echo ""

@@ -1,5 +1,14 @@
 # @artemiskit/core
 
+## 0.1.5
+
+### Patch Changes
+
+- 8e10aaa: fix: move pino-pretty from devDependencies to dependencies
+
+  Fixes runtime error "unable to determine transport target for pino-pretty"
+  when running the CLI after global npm install.
+
 ## 0.1.4
 
 ### Patch Changes

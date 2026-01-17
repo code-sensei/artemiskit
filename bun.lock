@@ -14,7 +14,7 @@
     },
     "packages/adapters/anthropic": {
       "name": "@artemiskit/adapter-anthropic",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.30.0",
         "@artemiskit/core": "workspace:*",
@@ -27,7 +27,7 @@
     },
     "packages/adapters/openai": {
       "name": "@artemiskit/adapter-openai",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -40,7 +40,7 @@
     },
     "packages/adapters/vercel-ai": {
       "name": "@artemiskit/adapter-vercel-ai",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@ai-sdk/azure": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
@@ -55,7 +55,7 @@
     },
     "packages/cli": {
       "name": "@artemiskit/cli",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "bin": {
         "artemis": "./bin/artemis.ts",
       },
@@ -81,25 +81,25 @@
     },
     "packages/core": {
       "name": "@artemiskit/core",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
         "fastest-levenshtein": "^1.0.16",
         "nanoid": "^5.0.0",
         "pino": "^8.17.0",
+        "pino-pretty": "^10.3.0",
         "prom-client": "^15.1.0",
         "yaml": "^2.3.0",
         "zod": "^3.22.0",
       },
       "devDependencies": {
         "@types/bun": "^1.1.0",
-        "pino-pretty": "^10.3.0",
         "typescript": "^5.3.0",
       },
     },
     "packages/redteam": {
       "name": "@artemiskit/redteam",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
       },
@@ -110,7 +110,7 @@
     },
     "packages/reports": {
       "name": "@artemiskit/reports",
-      "version": "0.0.1",
+      "version": "0.1.4",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "handlebars": "^4.7.8",

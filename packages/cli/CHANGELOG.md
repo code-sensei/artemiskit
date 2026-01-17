@@ -1,5 +1,16 @@
 # @artemiskit/cli
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies [8e10aaa]
+  - @artemiskit/core@0.1.5
+  - @artemiskit/adapter-openai@0.1.5
+  - @artemiskit/adapter-vercel-ai@0.1.5
+  - @artemiskit/redteam@0.1.5
+  - @artemiskit/reports@0.1.5
+
 ## 0.1.4
 
 ### Patch Changes

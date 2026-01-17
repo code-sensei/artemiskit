@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Command-line interface for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",

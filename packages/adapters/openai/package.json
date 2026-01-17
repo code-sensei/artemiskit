@@ -14,14 +14,7 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": [
-    "llm",
-    "openai",
-    "azure",
-    "gpt-4",
-    "adapter",
-    "artemiskit"
-  ],
+  "keywords": ["llm", "openai", "azure", "gpt-4", "adapter", "artemiskit"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

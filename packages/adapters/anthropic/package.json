@@ -14,13 +14,7 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": [
-    "llm",
-    "anthropic",
-    "claude",
-    "adapter",
-    "artemiskit"
-  ],
+  "keywords": ["llm", "anthropic", "claude", "adapter", "artemiskit"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

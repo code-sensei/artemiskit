@@ -249,6 +249,14 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Trend analysis | 💡 | Track metrics over time |
 | Data export | 💡 | Export to CSV/JSON |
 
+### Supabase Storage Enhancements
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Case results table | 📋 | Store individual test case results |
+| Baselines table | 📋 | Baseline runs for regression comparison |
+| Metrics history table | 📋 | Aggregated daily metrics and trending |
+
 ### Model Comparison
 
 | Feature | Status | Description |

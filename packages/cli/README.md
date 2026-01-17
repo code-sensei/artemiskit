@@ -174,6 +174,7 @@ akit run my-scenario.yaml
 
 - [`@artemiskit/core`](https://www.npmjs.com/package/@artemiskit/core) - Core runtime and evaluators
 - [`@artemiskit/adapter-openai`](https://www.npmjs.com/package/@artemiskit/adapter-openai) - OpenAI/Azure adapter
+- [`@artemiskit/adapter-vercel-ai`](https://www.npmjs.com/package/@artemiskit/adapter-vercel-ai) - Vercel AI SDK adapter (20+ providers)
 - [`@artemiskit/adapter-anthropic`](https://www.npmjs.com/package/@artemiskit/adapter-anthropic) - Anthropic Claude adapter
 - [`@artemiskit/redteam`](https://www.npmjs.com/package/@artemiskit/redteam) - Security testing
 - [`@artemiskit/reports`](https://www.npmjs.com/package/@artemiskit/reports) - HTML report generation

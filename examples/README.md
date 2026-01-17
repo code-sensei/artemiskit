@@ -7,6 +7,7 @@ This directory contains example configurations, scenarios, and integrations for 
 ```
 examples/
 ├── scenarios/           # Test scenario examples
+│   ├── getting-started/ # Beginner examples
 │   ├── evaluators/      # Examples for each evaluator type
 │   ├── redteam/         # Red-team/adversarial testing scenarios
 │   └── use-cases/       # Domain-specific scenario suites
@@ -30,14 +31,25 @@ examples/
 3. Run with ArtemisKit CLI
 
 ```bash
+# Run a getting started example
+artemiskit run examples/scenarios/getting-started/hello-world.yaml
+
 # Run an evaluator example
-bun run artemis run examples/scenarios/evaluators/json-schema.yaml
+artemiskit run examples/scenarios/evaluators/json-schema.yaml
 
 # Run a use-case suite
-bun run artemis run examples/scenarios/use-cases/customer-support/intent-classification.yaml
+artemiskit run examples/scenarios/use-cases/customer-support/intent-classification.yaml
 ```
 
 ## Scenarios
+
+### Getting Started
+
+Beginner-friendly examples to get you up and running:
+- `hello-world.yaml` - Simplest possible scenario
+- `basic-assertions.yaml` - Basic expectation examples
+- `with-variables.yaml` - Using template variables
+- `multi-turn-conversation.yaml` - Multi-turn conversation testing
 
 ### Evaluators
 
@@ -45,7 +57,7 @@ Examples demonstrating each evaluator type:
 - `exact.yaml` - Exact string matching
 - `regex.yaml` - Regular expression patterns
 - `contains.yaml` - Keyword presence checking
-- `fuzzy.yaml` - Semantic similarity matching
+- `fuzzy.yaml` - Fuzzy string similarity matching
 - `json-schema.yaml` - Structured output validation
 - `llm-grader.yaml` - AI-powered response grading
 
@@ -60,10 +72,10 @@ Adversarial testing scenarios:
 ### Use Cases
 
 Domain-specific test suites:
-- **Customer Support** - Intent, sentiment, escalation
-- **Code Generation** - Syntax, security, style
-- **Data Extraction** - Schema compliance, edge cases
-- **RAG Agent** - Attribution, hallucination, citations
+- **Customer Support** - Intent classification, sentiment response, escalation detection
+- **Code Generation** - Syntax validation, security checks
+- **Data Extraction** - Entity extraction
+- **RAG Agent** - Citation accuracy
 
 ## Configs
 

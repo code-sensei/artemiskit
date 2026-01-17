@@ -36,7 +36,7 @@ export class AnthropicAdapter implements ModelClient {
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
     const startTime = Date.now();
-    const model = options.model || this.config.defaultModel || 'claude-3-5-sonnet-20241022';
+    const model = options.model || this.config.defaultModel || 'claude-sonnet-4-5-20241022';
 
     const { systemPrompt, messages } = this.normalizePrompt(options.prompt);
 
@@ -69,7 +69,7 @@ export class AnthropicAdapter implements ModelClient {
   }
 
   async *stream(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
-    const model = options.model || this.config.defaultModel || 'claude-3-5-sonnet-20241022';
+    const model = options.model || this.config.defaultModel || 'claude-sonnet-4-5-20241022';
     const { systemPrompt, messages } = this.normalizePrompt(options.prompt);
 
     const stream = this.client.messages.stream({

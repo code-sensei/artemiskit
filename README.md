@@ -4,6 +4,9 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/@artemiskit/cli.svg)](https://www.npmjs.com/package/@artemiskit/cli)
+[![Documentation](https://img.shields.io/badge/docs-artemiskit.vercel.app-blue)](https://artemiskit.vercel.app)
+
+📚 **[Documentation](https://artemiskit.vercel.app)** | 🚀 **[Getting Started](https://artemiskit.vercel.app/docs/cli/getting-started/)**
 
 ## Features
 

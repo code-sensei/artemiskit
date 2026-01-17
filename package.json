@@ -10,11 +10,9 @@
   },
   "license": "Apache-2.0",
   "author": "code-sensei",
-  "workspaces": [
-    "packages/*",
-    "packages/adapters/*"
-  ],
+  "workspaces": ["packages/*", "packages/adapters/*"],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "build": "bun run --filter '*' build",
     "test": "bun test",
     "test:watch": "bun test --watch",
@@ -31,12 +29,8 @@
     "version": "changeset version",
     "release": "bun run build && changeset publish"
   },
-  "simple-git-hooks": {
-    "pre-commit": "bun format && git add -u"
-  },
   "devDependencies": {
     "@biomejs/biome": "^1.5.0",
-    "simple-git-hooks": "^2.11.1",
     "@changesets/changelog-github": "0.5.2",
     "@changesets/cli": "2.29.8",
     "@types/bun": "^1.1.0",

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: auto-format staged files with biome
+#
+
+# Run bun format
+bun format
+
+# Re-add any files that were modified by formatting
+git add -u

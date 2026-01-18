@@ -91,24 +91,10 @@ function renderWelcomeBanner(): string {
 
   const lines = [
     '',
-    chalk.cyan('  ╭──────────────────────────────────────────────────────────╮'),
-    chalk.cyan('  │                                                          │'),
-    chalk.cyan('  │') +
-      chalk.bold.white('      ▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') +
-      brandColor.bold('█▄▀ █ ▀█▀') +
-      '              ' +
-      chalk.cyan('│'),
-    chalk.cyan('  │') +
-      chalk.bold.white('      █▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') +
-      brandColor.bold('█ █ █  █ ') +
-      '              ' +
-      chalk.cyan('│'),
-    chalk.cyan('  │                                                          │'),
-    chalk.cyan('  │') +
-      chalk.gray('      LLM Testing & Evaluation Toolkit                    ') +
-      chalk.cyan('│'),
-    chalk.cyan('  │                                                          │'),
-    chalk.cyan('  ╰──────────────────────────────────────────────────────────╯'),
+    '  ' + chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') + brandColor.bold('█▄▀ █ ▀█▀'),
+    '  ' + chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') + brandColor.bold('█ █ █  █ '),
+    '',
+    chalk.gray('  Open-source testing toolkit for LLM applications'),
     '',
   ];
   return lines.join('\n');

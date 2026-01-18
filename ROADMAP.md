@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.1.0 (MVP Release)  
+**Current Version:** 0.1.5  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -17,9 +17,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 ---
 
-## v0.1.0 - Initial Public Release
+## v0.1.x - Initial Public Release ✅
 
 **Goal:** Stable, production-ready CLI toolkit with core evaluation capabilities.
+
+**Status:** Complete (v0.1.5 released)
 
 ### CLI Commands
 
@@ -128,9 +130,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Color output (chalk) | ✅ | Colored terminal output |
 | Spinners (ora) | ✅ | Progress indicators |
 | Table formatting | ✅ | Structured result display |
-| Progress bars | 📋 | Visual progress for long operations |
-| Enhanced error display | 📋 | Formatted error messages with context |
-| Summary panels | 📋 | Boxed summary sections |
+| Progress bars | ✅ | Visual progress for long operations |
+| Enhanced error display | ✅ | Formatted error messages with context |
+| Summary panels | ✅ | Boxed summary sections |
+| Box-drawing tables | ✅ | Unicode box-drawing for compare/history |
+| TTY detection | ✅ | Graceful fallback for non-TTY environments |
 
 ### Documentation & Release
 
@@ -139,16 +143,18 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | README | ✅ | Project documentation |
 | CONTRIBUTING guide | ✅ | Contribution guidelines |
 | Provider docs | ✅ | Provider-specific setup guides |
+| Storage docs | ✅ | Local and Supabase storage guides |
 | CLI help text | ✅ | `--help` for all commands |
-| npm package publish | 📋 | Publish to npm registry |
+| npm package publish | ✅ | Published to npm registry |
 | Changesets configured | ✅ | Version management ready |
 
 ### Testing & Quality
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Unit tests | 🚧 | Core module tests |
-| Integration tests | 📋 | End-to-end tests |
+| Unit tests | ✅ | Core module tests (95+ tests) |
+| Integration tests | ✅ | CLI command tests (60+ tests) |
+| Test coverage | ✅ | 80%+ source file coverage |
 | Linting (Biome) | ✅ | Code quality |
 | TypeScript strict mode | ✅ | Type safety |
 

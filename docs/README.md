@@ -29,16 +29,18 @@ For installation and basic usage, see the main [README](../README.md).
 
 3. **Create a Scenario**
    ```yaml
-   # scenario.yaml
-   name: my-evaluation
-   provider:
-     type: openai
-     model: gpt-4o-mini
-   prompts:
-     - "What is 2+2?"
-   evaluators:
-     - type: contains
-       value: "4"
+   # scenarios/math-test.yaml
+   name: math-evaluation
+   description: Simple math test
+   
+   cases:
+     - id: addition
+       prompt: "What is 2+2?"
+       expected:
+         type: contains
+         values:
+           - "4"
+         mode: any
    ```
 
 4. **Run Evaluation**
@@ -89,30 +91,25 @@ ArtemisKit uses a layered configuration system with the following precedence:
 
 1. **CLI flags** (highest priority)
 2. **Scenario file** settings
-3. **Config file** (`artemis.config.ts`)
+3. **Config file** (`artemis.config.yaml`)
 4. **Environment variables**
 5. **Defaults** (lowest priority)
 
 ### Config File Example
 
-```typescript
-// artemis.config.ts
-import { defineConfig } from '@artemiskit/cli';
+```yaml
+# artemis.config.yaml
+project: my-project
+provider: openai
+model: gpt-4o
 
-export default defineConfig({
-  provider: {
-    type: 'openai',
-    model: 'gpt-4o-mini',
-  },
-  storage: {
-    type: 'local',
-    basePath: '.artemis',
-  },
-  defaults: {
-    timeout: 30000,
-    retries: 3,
-  },
-});
+storage:
+  type: local
+  basePath: ./artemis-runs
+
+output:
+  format: html
+  dir: ./artemis-output
 ```
 
 ## Evaluators

@@ -100,26 +100,7 @@ export function formatVersionDisplay(version: string): string {
  * Format update available message
  */
 export function formatUpdateMessage(current: string, latest: string): string {
-  return (
-    '\n' +
-    chalk.yellow('╭─────────────────────────────────────────────────────╮') +
-    '\n' +
-    chalk.yellow('│') +
-    chalk.yellow('  Update available! ') +
-    chalk.gray(`${current}`) +
-    chalk.yellow(' → ') +
-    brandColor.bold(`${latest}`) +
-    ' '.repeat(24 - current.length - latest.length) +
-    chalk.yellow('│') +
-    '\n' +
-    chalk.yellow('│') +
-    chalk.white('  Run ') +
-    chalk.cyan('npm install -g @artemiskit/cli') +
-    chalk.white(' to update  ') +
-    chalk.yellow('│') +
-    '\n' +
-    chalk.yellow('╰─────────────────────────────────────────────────────╯')
-  );
+  return `\n${chalk.yellow('╭─────────────────────────────────────────────────────╮')}\n${chalk.yellow('│')}${chalk.yellow('  Update available! ')}${chalk.gray(`${current}`)}${chalk.yellow(' → ')}${brandColor.bold(`${latest}`)}${' '.repeat(24 - current.length - latest.length)}${chalk.yellow('│')}\n${chalk.yellow('│')}${chalk.white('  Run ')}${chalk.cyan('npm install -g @artemiskit/cli')}${chalk.white(' to update  ')}${chalk.yellow('│')}\n${chalk.yellow('╰─────────────────────────────────────────────────────╯')}`;
 }
 
 /**

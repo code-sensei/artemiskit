@@ -101,8 +101,8 @@ function renderWelcomeBanner(): string {
   };
 
   // All lines are exactly 52 chars inside the borders for perfect alignment
-  const topBorder = '╭' + '─'.repeat(52) + '╮';
-  const bottomBorder = '╰' + '─'.repeat(52) + '╯';
+  const topBorder = `╭${'─'.repeat(52)}╮`;
+  const bottomBorder = `╰${'─'.repeat(52)}╯`;
   const sideBorderLeft = '│';
   const sideBorderRight = '│';
   const emptyContent = ' '.repeat(52);
@@ -125,28 +125,16 @@ function renderWelcomeBanner(): string {
 
   const lines = [
     '',
-    '  ' + colorBorder(topBorder),
-    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
-    '  ' +
-      colorBorderChar(sideBorderLeft) +
-      '        ' +
-      chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') +
-      brandColor.bold('█▄▀ █ ▀█▀') +
-      '        ' +
-      colorBorderChar(sideBorderRight),
-    '  ' +
-      colorBorderChar(sideBorderLeft) +
-      '        ' +
-      chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') +
-      brandColor.bold('█ █ █  █ ') +
-      '        ' +
-      colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + versionLine + colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + taglineLine + colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
-    '  ' + colorBorder(bottomBorder),
+    `  ${colorBorder(topBorder)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${emptyContent}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}        ${chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ')}${brandColor.bold('█▄▀ █ ▀█▀')}        ${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}        ${chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ')}${brandColor.bold('█ █ █  █ ')}        ${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${emptyContent}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${versionLine}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${emptyContent}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${taglineLine}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorderChar(sideBorderLeft)}${emptyContent}${colorBorderChar(sideBorderRight)}`,
+    `  ${colorBorder(bottomBorder)}`,
     '',
   ];
   return lines.join('\n');

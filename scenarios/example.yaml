@@ -1,0 +1,27 @@
+name: Example Scenario
+description: Basic example scenario for testing
+version: "1.0"
+provider: openai
+model: gpt-4o-mini
+temperature: 0
+
+cases:
+  - id: greeting
+    name: Simple Greeting
+    prompt: "Say hello in exactly 3 words."
+    expected:
+      type: regex
+      pattern: "^\\w+\\s+\\w+\\s+\\w+$"
+    tags:
+      - greeting
+      - basic
+
+  - id: math
+    name: Basic Math
+    prompt: "What is 2 + 2? Reply with just the number."
+    expected:
+      type: exact
+      value: "4"
+    tags:
+      - math
+      - basic

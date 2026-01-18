@@ -1,5 +1,7 @@
 # ArtemisKit
 
+ ![Artemiskit logo](https://artemiskit.vercel.app/artemiskit-logo.png)
+
 **Open-source LLM evaluation toolkit** - Test, evaluate, stress-test, and red-team your AI applications with scenario-based testing and multi-provider support.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)

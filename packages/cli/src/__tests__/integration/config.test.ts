@@ -2,11 +2,11 @@
  * Integration tests for CLI configuration loading
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadConfig } from '../../config/loader.js';
-import { createTestDir, cleanupTestDir } from '../helpers/test-utils.js';
+import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
 describe('Config Loader', () => {
   let testDir: string;

@@ -5,7 +5,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
-import { createSpinner, renderError, icons, isTTY, padText } from '../ui/index.js';
+import { createSpinner, icons, isTTY, padText, renderError } from '../ui/index.js';
 import { createStorage } from '../utils/storage.js';
 
 interface CompareOptions {
@@ -183,9 +183,7 @@ export function compareCommand(): Command {
 
         if (hasRegression) {
           console.log(
-            `${icons.failed} ${chalk.red('Regression detected!')} ` +
-              `Success rate dropped by ${chalk.bold(Math.abs(delta.successRate * 100).toFixed(1) + '%')} ` +
-              chalk.dim(`(threshold: ${threshold * 100}%)`)
+            `${icons.failed} ${chalk.red('Regression detected!')} Success rate dropped by ${chalk.bold(`${Math.abs(delta.successRate * 100).toFixed(1)}%`)} ${chalk.dim(`(threshold: ${threshold * 100}%)`)}`
           );
           process.exit(1);
         } else {

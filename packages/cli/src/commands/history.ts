@@ -5,7 +5,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
-import { createSpinner, renderError, isTTY, padText } from '../ui/index.js';
+import { createSpinner, isTTY, padText, renderError } from '../ui/index.js';
 import { createStorage } from '../utils/storage.js';
 
 interface HistoryOptions {
@@ -57,7 +57,7 @@ function renderHistoryTable(
     const runIdPad = padText(run.runId, runIdWidth);
     const truncScenario =
       run.scenario.length > scenarioWidth - 2
-        ? run.scenario.slice(0, scenarioWidth - 3) + '…'
+        ? `${run.scenario.slice(0, scenarioWidth - 3)}…`
         : run.scenario;
     const scenarioPad = padText(truncScenario, scenarioWidth);
 

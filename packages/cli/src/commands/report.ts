@@ -13,7 +13,7 @@ import {
 } from '@artemiskit/reports';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
-import { createSpinner, renderError, renderInfoBox, icons } from '../ui/index.js';
+import { createSpinner, icons, renderError, renderInfoBox } from '../ui/index.js';
 import { createStorage } from '../utils/storage.js';
 
 interface ReportOptions {
@@ -96,7 +96,7 @@ export function reportCommand(): Command {
           const htmlPath = join(outputDir, `${runId}.html`);
           await writeFile(htmlPath, html);
           generatedFiles.push(htmlPath);
-          spinner.succeed(`Generated HTML report`);
+          spinner.succeed('Generated HTML report');
         }
 
         if (format === 'json' || format === 'both') {
@@ -105,7 +105,7 @@ export function reportCommand(): Command {
           const jsonPath = join(outputDir, `${runId}.json`);
           await writeFile(jsonPath, json);
           generatedFiles.push(jsonPath);
-          spinner.succeed(`Generated JSON report`);
+          spinner.succeed('Generated JSON report');
         }
 
         // Show success panel

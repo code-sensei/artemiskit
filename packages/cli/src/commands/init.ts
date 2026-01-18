@@ -3,7 +3,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -180,7 +180,7 @@ async function appendEnvKeys(cwd: string): Promise<{ added: string[]; skipped: s
     // Add newline before our content if file exists and doesn't end with newline
     const prefix =
       existingContent && !existingContent.endsWith('\n') ? '\n\n' : existingContent ? '\n' : '';
-    await appendFile(envPath, prefix + linesToAdd.join('\n') + '\n');
+    await appendFile(envPath, `${prefix + linesToAdd.join('\n')}\n`);
   }
 
   return { added, skipped };

@@ -4,9 +4,9 @@
 
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import { isTTY } from './utils.js';
 import { icons } from './colors.js';
 import { renderProgressBar } from './progress.js';
+import { isTTY } from './utils.js';
 
 export type TestStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped';
 

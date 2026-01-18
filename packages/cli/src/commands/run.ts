@@ -13,14 +13,14 @@ import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
 import {
   createSpinner,
+  formatDuration,
+  getProviderErrorContext,
   icons,
+  isTTY,
+  padText,
   renderError,
   renderProgressBar,
   renderSummaryPanel,
-  getProviderErrorContext,
-  formatDuration,
-  padText,
-  isTTY,
 } from '../ui/index.js';
 import {
   buildAdapterConfig,

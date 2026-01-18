@@ -2,11 +2,11 @@
  * Integration tests for compare command
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createTestDir, cleanupTestDir } from '../helpers/test-utils.js';
 import { createStorage } from '../../utils/storage.js';
+import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
 describe('Compare Command', () => {
   let testDir: string;
@@ -73,7 +73,7 @@ describe('Compare Command', () => {
         },
       });
 
-      const comparison = await storage.compare!('baseline-001', 'current-001');
+      const comparison = await storage.compare?.('baseline-001', 'current-001');
 
       expect(comparison.baseline.metrics.success_rate).toBe(0.8);
       expect(comparison.current.metrics.success_rate).toBe(1.0);
@@ -128,7 +128,7 @@ describe('Compare Command', () => {
         },
       });
 
-      const comparison = await storage.compare!('baseline-002', 'current-002');
+      const comparison = await storage.compare?.('baseline-002', 'current-002');
 
       // Success rate dropped by 0.4 (40%)
       expect(comparison.delta.successRate).toBeCloseTo(-0.4, 5);
@@ -166,7 +166,7 @@ describe('Compare Command', () => {
         },
       });
 
-      const comparison = await storage.compare!('same-001', 'same-001');
+      const comparison = await storage.compare?.('same-001', 'same-001');
 
       expect(comparison.delta.successRate).toBe(0);
       expect(comparison.delta.latency).toBe(0);
@@ -200,7 +200,7 @@ describe('Compare Command', () => {
         },
       });
 
-      await expect(storage.compare!('non-existent', 'exists-001')).rejects.toThrow();
+      await expect(storage.compare?.('non-existent', 'exists-001')).rejects.toThrow();
     });
 
     it('should throw error for non-existent current', async () => {
@@ -230,7 +230,7 @@ describe('Compare Command', () => {
         },
       });
 
-      await expect(storage.compare!('exists-002', 'non-existent')).rejects.toThrow();
+      await expect(storage.compare?.('exists-002', 'non-existent')).rejects.toThrow();
     });
   });
 });

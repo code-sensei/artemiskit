@@ -2,11 +2,11 @@
  * Integration tests for history command
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createTestDir, cleanupTestDir } from '../helpers/test-utils.js';
 import { createStorage } from '../../utils/storage.js';
+import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
 describe('History Command', () => {
   let testDir: string;

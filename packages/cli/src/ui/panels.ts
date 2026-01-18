@@ -4,7 +4,7 @@
 
 import chalk from 'chalk';
 import { formatPercentage, icons } from './colors.js';
-import { isTTY, centerText, padText, formatDuration } from './utils.js';
+import { centerText, formatDuration, isTTY, padText } from './utils.js';
 
 export interface SummaryData {
   passed: number;
@@ -180,7 +180,7 @@ export function renderRedteamSummaryPanel(data: RedteamSummaryData): string {
       chalk.magenta('║'),
     chalk.magenta(`╠${border}╣`),
     chalk.magenta('║') +
-      padText(`  Defense Rate: ${defenseColor(data.defenseRate.toFixed(1) + '%')}`, width - 2) +
+      padText(`  Defense Rate: ${defenseColor(`${data.defenseRate.toFixed(1)}%`)}`, width - 2) +
       chalk.magenta('║'),
     chalk.magenta(`╚${border}╝`),
   ];

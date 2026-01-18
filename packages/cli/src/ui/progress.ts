@@ -108,7 +108,7 @@ export class ProgressBar {
     if (isTTY) {
       // Clear previous line and write new output
       const clearLength = stripAnsi(this.lastOutput).length;
-      process.stdout.write('\r' + ' '.repeat(clearLength) + '\r');
+      process.stdout.write(`\r${' '.repeat(clearLength)}\r`);
       process.stdout.write(output);
       this.lastOutput = output;
     }

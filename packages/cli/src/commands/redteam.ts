@@ -35,13 +35,13 @@ import { nanoid } from 'nanoid';
 import { loadConfig } from '../config/loader.js';
 import {
   createSpinner,
-  renderRedteamSummaryPanel,
+  getProviderErrorContext,
+  icons,
+  isTTY,
   renderError,
   renderInfoBox,
   renderProgressBar,
-  getProviderErrorContext,
-  isTTY,
-  icons,
+  renderRedteamSummaryPanel,
 } from '../ui/index.js';
 import {
   buildAdapterConfig,
@@ -213,7 +213,7 @@ export function redteamCommand(): Command {
 
               // Clear progress line
               if (isTTY) {
-                process.stdout.write('\r' + ' '.repeat(60) + '\r');
+                process.stdout.write(`\r${' '.repeat(60)}\r`);
               }
 
               // Display status with appropriate icon
@@ -267,7 +267,7 @@ export function redteamCommand(): Command {
 
               // Clear progress line
               if (isTTY) {
-                process.stdout.write('\r' + ' '.repeat(60) + '\r');
+                process.stdout.write(`\r${' '.repeat(60)}\r`);
               }
 
               // Apply redaction to prompt even for errors/blocked

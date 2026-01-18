@@ -2,13 +2,13 @@
  * Integration tests for report command
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
-import { createTestDir, cleanupTestDir } from '../helpers/test-utils.js';
 import { createStorage } from '../../utils/storage.js';
+import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
 describe('Report Command', () => {
   let testDir: string;

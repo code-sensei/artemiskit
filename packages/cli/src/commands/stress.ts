@@ -21,14 +21,14 @@ import { Command } from 'commander';
 import { nanoid } from 'nanoid';
 import { loadConfig } from '../config/loader.js';
 import {
+  colors,
   createSpinner,
-  renderStressSummaryPanel,
+  getProviderErrorContext,
+  isTTY,
   renderError,
   renderInfoBox,
   renderProgressBar,
-  getProviderErrorContext,
-  isTTY,
-  colors,
+  renderStressSummaryPanel,
 } from '../ui/index.js';
 import {
   buildAdapterConfig,

@@ -2,11 +2,11 @@
  * Integration tests for init command
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createTestDir, cleanupTestDir } from '../helpers/test-utils.js';
+import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
 // Import init command internals for testing
 // We'll test the file creation logic directly
@@ -126,7 +126,7 @@ SOME_OTHER_VAR=value
       });
 
       if (missingKeys.length > 0) {
-        const newContent = envContent + '\n# Added by ArtemisKit\n' + missingKeys.join('\n') + '\n';
+        const newContent = `${envContent}\n# Added by ArtemisKit\n${missingKeys.join('\n')}\n`;
         await writeFile(envPath, newContent);
       }
 

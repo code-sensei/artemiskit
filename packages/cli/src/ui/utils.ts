@@ -46,7 +46,8 @@ export function padText(
 
   if (align === 'center') {
     return centerText(text, width);
-  } else if (align === 'right') {
+  }
+  if (align === 'right') {
     return ' '.repeat(paddingNeeded) + text;
   }
   return text + ' '.repeat(paddingNeeded);
@@ -56,7 +57,7 @@ export function padText(
  * Strip ANSI escape codes from string (for length calculations)
  */
 export function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape codes require control characters
   return str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 }
 
@@ -66,7 +67,7 @@ export function stripAnsi(str: string): string {
 export function truncate(text: string, maxWidth: number): string {
   const visibleLength = stripAnsi(text).length;
   if (visibleLength <= maxWidth) return text;
-  return text.slice(0, maxWidth - 1) + '…';
+  return `${text.slice(0, maxWidth - 1)}…`;
 }
 
 /**

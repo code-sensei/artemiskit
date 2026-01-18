@@ -4,15 +4,15 @@
 
 import { describe, expect, it } from 'bun:test';
 import {
-  renderProgressBar,
-  renderSummaryPanel,
+  colors,
+  createSpinner,
+  formatDuration,
+  icons,
+  padText,
   renderError,
   renderInfoBox,
-  createSpinner,
-  icons,
-  colors,
-  padText,
-  formatDuration,
+  renderProgressBar,
+  renderSummaryPanel,
 } from '../../ui/index.js';
 
 describe('UI Components', () => {

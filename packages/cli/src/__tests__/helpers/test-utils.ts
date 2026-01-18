@@ -3,8 +3,8 @@
  */
 
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * Creates a temporary directory for test isolation

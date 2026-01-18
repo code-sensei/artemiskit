@@ -148,7 +148,7 @@ export function renderWarning(title: string, message: string, suggestions?: stri
       currentLine += (currentLine.length > 2 ? ' ' : '') + word;
     } else {
       lines.push(chalk.yellow('│') + padText(currentLine, width - 2) + chalk.yellow('│'));
-      currentLine = '  ' + word;
+      currentLine = `  ${word}`;
     }
   }
   if (currentLine.length > 2) {

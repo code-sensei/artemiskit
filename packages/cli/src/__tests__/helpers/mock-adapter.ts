@@ -65,7 +65,7 @@ export function createMockAdapter(options: MockAdapterOptions = {}): MockLLMAdap
 
       // Simulate latency
       if (mockResponse.latencyMs) {
-        await new Promise((resolve) => setTimeout(resolve, Math.min(mockResponse.latencyMs!, 50)));
+        await new Promise((resolve) => setTimeout(resolve, Math.min(mockResponse.latencyMs, 50)));
       }
 
       return {

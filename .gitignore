@@ -51,9 +51,12 @@ dev-docs/
 
 # Test artifacts
 *.test-output.json
--e 
+-e
 # Test scenarios (local testing)
 tests/
 dev-docs/
 # Ignore announcements folder
 announcements/
+
+# Release notes (internal)
+release-notes/

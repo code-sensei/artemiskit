@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.1.5  
+**Current Version:** 0.1.7  
 **License:** Apache-2.0  
 **Status:** Active Development
 

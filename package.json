@@ -27,7 +27,7 @@
     "db:generate-types": "bunx supabase gen types typescript --local > packages/core/src/storage/database.types.ts",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "bun run build && changeset publish"
+    "release": "bun format && bun run version && ./scripts/publish.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.0",

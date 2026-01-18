@@ -30,17 +30,25 @@ import {
 } from '@artemiskit/redteam';
 import { generateJSONReport, generateRedTeamHTMLReport } from '@artemiskit/reports';
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import { Command } from 'commander';
 import { nanoid } from 'nanoid';
-import ora from 'ora';
-import { loadConfig } from '../config/loader';
+import { loadConfig } from '../config/loader.js';
+import {
+  createSpinner,
+  renderRedteamSummaryPanel,
+  renderError,
+  renderInfoBox,
+  renderProgressBar,
+  getProviderErrorContext,
+  isTTY,
+  icons,
+} from '../ui/index.js';
 import {
   buildAdapterConfig,
   resolveModelWithSource,
   resolveProviderWithSource,
-} from '../utils/adapter';
-import { createStorage } from '../utils/storage';
+} from '../utils/adapter.js';
+import { createStorage } from '../utils/storage.js';
 
 interface RedteamOptions {
   provider?: string;
@@ -78,7 +86,8 @@ export function redteamCommand(): Command {
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
     .action(async (scenarioPath: string, options: RedteamOptions) => {
-      const spinner = ora('Loading configuration...').start();
+      const spinner = createSpinner('Loading configuration...');
+      spinner.start();
       const startTime = new Date();
 
       try {
@@ -125,10 +134,22 @@ export function redteamCommand(): Command {
         const mutations = selectMutations(options.mutations);
         const generator = new RedTeamGenerator(mutations);
         const detector = new UnsafeResponseDetector();
+        const count = Number.parseInt(String(options.count)) || 5;
 
+        // Display configuration using info box
         console.log();
-        console.log(chalk.bold('Red-Team Testing'));
-        console.log(chalk.dim(`Mutations: ${mutations.map((m) => m.name).join(', ')}`));
+        const configLines = [
+          `Mutations: ${mutations.map((m) => m.name).join(', ')}`,
+          `Prompts per case: ${count}`,
+          `Total cases: ${scenario.cases.length}`,
+        ];
+        if (options.redact) {
+          configLines.push(
+            `Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ''}`
+          );
+        }
+        console.log(renderInfoBox('Red Team Configuration', configLines));
+        console.log();
 
         // Set up redaction if enabled
         let redactionConfig: RedactionConfig | undefined;
@@ -143,19 +164,16 @@ export function redteamCommand(): Command {
             replacement: '[REDACTED]',
           };
           redactor = new Redactor(redactionConfig);
-          console.log(
-            chalk.dim(
-              `Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`
-            )
-          );
         }
-        console.log();
 
-        const count = Number.parseInt(String(options.count)) || 5;
         const results: RedTeamCaseResult[] = [];
         let promptsRedacted = 0;
         let responsesRedacted = 0;
         let totalRedactions = 0;
+
+        // Calculate total tests for progress
+        const totalTests = scenario.cases.length * count;
+        let completedTests = 0;
 
         // Run mutated tests for each case
         for (const testCase of scenario.cases) {
@@ -169,6 +187,18 @@ export function redteamCommand(): Command {
           const mutatedPrompts = generator.generate(originalPrompt, count);
 
           for (const mutated of mutatedPrompts) {
+            completedTests++;
+
+            // Show progress bar in TTY mode
+            if (isTTY) {
+              const progressBar = renderProgressBar(completedTests, totalTests, {
+                width: 15,
+                showPercentage: true,
+                showCount: false,
+              });
+              process.stdout.write(`\r  ${progressBar}  `);
+            }
+
             const requestStart = Date.now();
             try {
               const result = await client.generate({
@@ -180,14 +210,21 @@ export function redteamCommand(): Command {
               const detection = detector.detect(result.text);
 
               const resultStatus: RedTeamStatus = detection.unsafe ? 'unsafe' : 'safe';
-              const statusDisplay = detection.unsafe
+
+              // Clear progress line
+              if (isTTY) {
+                process.stdout.write('\r' + ' '.repeat(60) + '\r');
+              }
+
+              // Display status with appropriate icon
+              const statusIcon = detection.unsafe ? icons.failed : icons.passed;
+              const statusLabel = detection.unsafe
                 ? chalk.red(`UNSAFE (${detection.severity})`)
                 : chalk.green('SAFE');
-
-              console.log(`  ${statusDisplay} [${mutated.mutations.join(', ')}]`);
+              console.log(`  ${statusIcon} ${statusLabel} [${mutated.mutations.join(', ')}]`);
 
               if (detection.unsafe && options.verbose) {
-                console.log(chalk.dim(`    Reasons: ${detection.reasons.join(', ')}`));
+                console.log(chalk.dim(`      Reasons: ${detection.reasons.join(', ')}`));
               }
 
               // Apply redaction if enabled
@@ -228,6 +265,11 @@ export function redteamCommand(): Command {
               const errorMessage = (error as Error).message;
               const isContentFiltered = isProviderContentFilter(errorMessage);
 
+              // Clear progress line
+              if (isTTY) {
+                process.stdout.write('\r' + ' '.repeat(60) + '\r');
+              }
+
               // Apply redaction to prompt even for errors/blocked
               let errorPrompt = mutated.mutated;
               let errorCaseRedaction: CaseRedactionInfo | undefined;
@@ -249,8 +291,11 @@ export function redteamCommand(): Command {
 
               if (isContentFiltered) {
                 console.log(
-                  `  ${chalk.cyan('BLOCKED')} [${mutated.mutations.join(', ')}]: Provider content filter triggered`
+                  `  ${chalk.cyan('⊘')} ${chalk.cyan('BLOCKED')} [${mutated.mutations.join(', ')}]`
                 );
+                if (options.verbose) {
+                  console.log(chalk.dim('      Provider content filter triggered'));
+                }
                 results.push({
                   caseId: testCase.id,
                   mutation: mutated.mutations.join('+'),
@@ -264,8 +309,11 @@ export function redteamCommand(): Command {
                 });
               } else {
                 console.log(
-                  `  ${chalk.yellow('ERROR')} [${mutated.mutations.join(', ')}]: ${errorMessage}`
+                  `  ${icons.warning} ${chalk.yellow('ERROR')} [${mutated.mutations.join(', ')}]`
                 );
+                if (options.verbose) {
+                  console.log(chalk.dim(`      ${errorMessage}`));
+                }
                 results.push({
                   caseId: testCase.id,
                   mutation: mutated.mutations.join('+'),
@@ -335,8 +383,48 @@ export function redteamCommand(): Command {
           redaction: redactionInfo,
         };
 
-        // Display summary
-        displaySummary(metrics, runId);
+        // Display summary using enhanced panel
+        const summaryData = {
+          totalCases: metrics.total_tests,
+          safeResponses: metrics.safe_responses,
+          unsafeResponses: metrics.unsafe_responses,
+          blockedResponses: metrics.blocked_responses,
+          errorResponses: metrics.error_responses,
+          defenseRate: metrics.defense_rate * 100,
+          severityBreakdown: metrics.by_severity,
+        };
+        console.log(renderRedteamSummaryPanel(summaryData));
+
+        // Show run ID and defense rate detail
+        console.log();
+        const testableResults = metrics.total_tests - metrics.error_responses;
+        console.log(
+          chalk.dim(
+            `Run ID: ${runId}  |  Defense Rate: ${(metrics.defense_rate * 100).toFixed(1)}% (${metrics.defended}/${testableResults})`
+          )
+        );
+
+        // Show severity breakdown if there were unsafe responses
+        if (metrics.unsafe_responses > 0) {
+          console.log();
+          console.log(chalk.bold('Severity Breakdown:'));
+          for (const severity of ['critical', 'high', 'medium', 'low'] as const) {
+            if (metrics.by_severity[severity]) {
+              const info = SeverityMapper.getInfo(severity);
+              console.log(`  ${info.label}: ${metrics.by_severity[severity]}`);
+            }
+          }
+
+          console.log();
+          console.log(
+            chalk.red(
+              `${icons.warning} ${metrics.unsafe_responses} potentially unsafe responses detected`
+            )
+          );
+        } else if (testableResults > 0) {
+          console.log();
+          console.log(chalk.green(`${icons.passed} No unsafe responses detected`));
+        }
 
         // Save results if requested
         if (options.save) {
@@ -372,7 +460,13 @@ export function redteamCommand(): Command {
         }
       } catch (error) {
         spinner.fail('Error');
-        console.error(chalk.red('Error:'), (error as Error).message);
+
+        // Display enhanced error message
+        const provider = options.provider || 'unknown';
+        const errorContext = getProviderErrorContext(provider, error as Error);
+        console.log();
+        console.log(renderError(errorContext));
+
         process.exit(1);
       }
     });
@@ -457,55 +551,4 @@ function calculateMetrics(results: RedTeamCaseResult[]): RedTeamMetrics {
     defense_rate: defenseRate,
     by_severity: bySeverity,
   };
-}
-
-function displaySummary(metrics: RedTeamMetrics, runId: string): void {
-  const table = new Table({
-    head: [chalk.bold('Metric'), chalk.bold('Value')],
-    style: { head: [], border: [] },
-  });
-
-  table.push(
-    ['Run ID', runId],
-    ['Total Tests', metrics.total_tests.toString()],
-    ['Defended', chalk.green(metrics.defended.toString())],
-    [`  ${chalk.dim('Model handled safely')}`, chalk.green(metrics.safe_responses.toString())],
-    [`  ${chalk.dim('Provider blocked')}`, chalk.cyan(metrics.blocked_responses.toString())],
-    [
-      'Unsafe Responses',
-      metrics.unsafe_responses > 0 ? chalk.red(metrics.unsafe_responses.toString()) : '0',
-    ]
-  );
-
-  for (const severity of ['critical', 'high', 'medium', 'low'] as const) {
-    if (metrics.by_severity[severity]) {
-      const info = SeverityMapper.getInfo(severity);
-      table.push([`  ${info.label}`, metrics.by_severity[severity].toString()]);
-    }
-  }
-
-  if (metrics.error_responses > 0) {
-    table.push(['Errors', chalk.yellow(metrics.error_responses.toString())]);
-  }
-
-  console.log(chalk.bold('Summary'));
-  console.log(table.toString());
-
-  // Calculate defense rate (excluding errors from denominator)
-  const testableResults = metrics.total_tests - metrics.error_responses;
-  if (testableResults > 0) {
-    const defenseRate = (metrics.defense_rate * 100).toFixed(1);
-    console.log();
-    console.log(
-      chalk.dim(`Defense Rate: ${defenseRate}% (${metrics.defended}/${testableResults})`)
-    );
-  }
-
-  if (metrics.unsafe_responses > 0) {
-    console.log();
-    console.log(chalk.red(`⚠ ${metrics.unsafe_responses} potentially unsafe responses detected`));
-  } else if (testableResults > 0) {
-    console.log();
-    console.log(chalk.green('✓ No unsafe responses detected'));
-  }
 }

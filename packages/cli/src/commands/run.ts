@@ -9,16 +9,25 @@ import {
   runScenario,
 } from '@artemiskit/core';
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import { Command } from 'commander';
-import ora from 'ora';
-import { loadConfig } from '../config/loader';
+import { loadConfig } from '../config/loader.js';
+import {
+  createSpinner,
+  icons,
+  renderError,
+  renderProgressBar,
+  renderSummaryPanel,
+  getProviderErrorContext,
+  formatDuration,
+  padText,
+  isTTY,
+} from '../ui/index.js';
 import {
   buildAdapterConfig,
   resolveModelWithSource,
   resolveProviderWithSource,
-} from '../utils/adapter';
-import { createStorage } from '../utils/storage';
+} from '../utils/adapter.js';
+import { createStorage } from '../utils/storage.js';
 
 interface RunOptions {
   provider?: string;
@@ -57,7 +66,8 @@ export function runCommand(): Command {
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
     .action(async (scenarioPath: string, options: RunOptions) => {
-      const spinner = ora('Loading configuration...').start();
+      const spinner = createSpinner('Loading configuration...');
+      spinner.start();
 
       try {
         // Load config file if present
@@ -122,6 +132,15 @@ export function runCommand(): Command {
           console.log();
         }
 
+        // Track progress
+        const totalCases = scenario.cases.length;
+        let completedCases = 0;
+
+        // Calculate max widths for alignment
+        const maxIdLength = Math.max(...scenario.cases.map((c) => c.id.length));
+        const maxScoreLength = 6; // "(100%)"
+        const maxDurationLength = 6; // "10.0s" or "999ms"
+
         // Run scenario using core runner
         const result = await runScenario({
           scenario,
@@ -134,9 +153,29 @@ export function runCommand(): Command {
           retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
           redaction,
           onCaseComplete: (caseResult) => {
-            const statusIcon = caseResult.ok ? chalk.green('✓') : chalk.red('✗');
+            completedCases++;
+
+            const statusIcon = caseResult.ok ? icons.passed : icons.failed;
             const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
-            console.log(`${statusIcon} ${caseResult.id} ${chalk.dim(scoreStr)}`);
+            const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
+
+            // Pad columns for alignment
+            const paddedId = padText(caseResult.id, maxIdLength);
+            const paddedScore = padText(scoreStr, maxScoreLength, 'right');
+            const paddedDuration = padText(durationStr, maxDurationLength, 'right');
+
+            // Show result - with progress bar in TTY, simple format in CI/CD
+            if (isTTY) {
+              const progressBar = renderProgressBar(completedCases, totalCases, { width: 15 });
+              console.log(
+                `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
+              );
+            } else {
+              // CI/CD friendly output - no progress bar, just count
+              console.log(
+                `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+              );
+            }
 
             if (!caseResult.ok && options.verbose) {
               console.log(chalk.dim(`   Reason: ${caseResult.reason}`));
@@ -149,9 +188,35 @@ export function runCommand(): Command {
           },
         });
 
-        // Display summary
+        // Display summary using enhanced panel
         console.log();
-        displaySummary(result.manifest.metrics, result.manifest.run_id, result.manifest.redaction);
+        const summaryData = {
+          passed: result.manifest.metrics.passed_cases,
+          failed: result.manifest.metrics.failed_cases,
+          skipped: 0,
+          successRate: result.manifest.metrics.success_rate * 100,
+          duration: result.manifest.duration_ms,
+          title: 'TEST RESULTS',
+        };
+        console.log(renderSummaryPanel(summaryData));
+
+        // Show additional metrics
+        console.log();
+        console.log(
+          chalk.dim(
+            `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
+          )
+        );
+
+        // Show redaction info if enabled
+        if (result.manifest.redaction?.enabled) {
+          const r = result.manifest.redaction;
+          console.log(
+            chalk.dim(
+              `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+            )
+          );
+        }
 
         // Save results
         if (options.save) {
@@ -167,67 +232,22 @@ export function runCommand(): Command {
         }
       } catch (error) {
         spinner.fail('Error');
-        console.error(chalk.red('Error:'), (error as Error).message);
+
+        // Get provider from options or default
+        const provider = options.provider || 'unknown';
+
+        // Display enhanced error message
+        const errorContext = getProviderErrorContext(provider, error as Error);
+        console.log();
+        console.log(renderError(errorContext));
+
         if (options.verbose) {
-          console.error((error as Error).stack);
+          console.log();
+          console.error(chalk.dim((error as Error).stack));
         }
         process.exit(1);
       }
     });
 
   return cmd;
-}
-
-function displaySummary(
-  metrics: {
-    success_rate: number;
-    total_cases: number;
-    passed_cases: number;
-    failed_cases: number;
-    median_latency_ms: number;
-    total_tokens: number;
-  },
-  runId: string,
-  redaction?: {
-    enabled: boolean;
-    summary: {
-      promptsRedacted: number;
-      responsesRedacted: number;
-      totalRedactions: number;
-    };
-  }
-): void {
-  const table = new Table({
-    head: [chalk.bold('Metric'), chalk.bold('Value')],
-    style: { head: [], border: [] },
-  });
-
-  const successColor =
-    metrics.success_rate >= 0.9
-      ? chalk.green
-      : metrics.success_rate >= 0.7
-        ? chalk.yellow
-        : chalk.red;
-
-  table.push(
-    ['Run ID', runId],
-    ['Success Rate', successColor(`${(metrics.success_rate * 100).toFixed(1)}%`)],
-    ['Passed', chalk.green(metrics.passed_cases.toString())],
-    ['Failed', metrics.failed_cases > 0 ? chalk.red(metrics.failed_cases.toString()) : '0'],
-    ['Median Latency', `${metrics.median_latency_ms}ms`],
-    ['Total Tokens', metrics.total_tokens.toLocaleString()]
-  );
-
-  // Add redaction info if enabled
-  if (redaction?.enabled) {
-    table.push(
-      ['Redaction', chalk.yellow('Enabled')],
-      [
-        'Redactions Made',
-        `${redaction.summary.totalRedactions} (${redaction.summary.promptsRedacted} prompts, ${redaction.summary.responsesRedacted} responses)`,
-      ]
-    );
-  }
-
-  console.log(table.toString());
 }

@@ -17,17 +17,25 @@ import {
 } from '@artemiskit/core';
 import { generateJSONReport, generateStressHTMLReport } from '@artemiskit/reports';
 import chalk from 'chalk';
-import Table from 'cli-table3';
 import { Command } from 'commander';
 import { nanoid } from 'nanoid';
-import ora from 'ora';
-import { loadConfig } from '../config/loader';
+import { loadConfig } from '../config/loader.js';
+import {
+  createSpinner,
+  renderStressSummaryPanel,
+  renderError,
+  renderInfoBox,
+  renderProgressBar,
+  getProviderErrorContext,
+  isTTY,
+  colors,
+} from '../ui/index.js';
 import {
   buildAdapterConfig,
   resolveModelWithSource,
   resolveProviderWithSource,
-} from '../utils/adapter';
-import { createStorage } from '../utils/storage';
+} from '../utils/adapter.js';
+import { createStorage } from '../utils/storage.js';
 
 interface StressOptions {
   provider?: string;
@@ -66,7 +74,8 @@ export function stressCommand(): Command {
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
     .action(async (scenarioPath: string, options: StressOptions) => {
-      const spinner = ora('Loading configuration...').start();
+      const spinner = createSpinner('Loading configuration...');
+      spinner.start();
       const startTime = new Date();
 
       try {
@@ -132,21 +141,22 @@ export function stressCommand(): Command {
           redactor = new Redactor(redactionConfig);
         }
 
+        // Display configuration using info box
         console.log();
-        console.log(chalk.bold('Stress Test Configuration'));
-        console.log(chalk.dim(`Concurrency: ${concurrency}`));
-        console.log(chalk.dim(`Duration: ${durationSec}s`));
-        console.log(chalk.dim(`Ramp-up: ${rampUpSec}s`));
+        const configLines = [
+          `Concurrency: ${concurrency}`,
+          `Duration: ${durationSec}s`,
+          `Ramp-up: ${rampUpSec}s`,
+        ];
         if (maxRequests) {
-          console.log(chalk.dim(`Max requests: ${maxRequests}`));
+          configLines.push(`Max requests: ${maxRequests}`);
         }
         if (options.redact) {
-          console.log(
-            chalk.dim(
-              `Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ' (default patterns)'}`
-            )
+          configLines.push(
+            `Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ''}`
           );
         }
+        console.log(renderInfoBox('Stress Test Configuration', configLines));
         console.log();
 
         // Get test prompts from scenario cases
@@ -169,8 +179,13 @@ export function stressCommand(): Command {
           rampUpMs: rampUpSec * 1000,
           maxRequests,
           temperature: scenario.temperature,
-          onProgress: (completed, active) => {
-            spinner.text = `Running stress test... ${completed} completed, ${active} active`;
+          onProgress: (completed, active, _total) => {
+            if (isTTY) {
+              const progress = maxRequests
+                ? renderProgressBar(completed, maxRequests, { width: 15, showPercentage: true })
+                : `${completed} completed`;
+              spinner.update(`Running stress test... ${progress}, ${active} active`);
+            }
           },
           verbose: options.verbose,
         });
@@ -232,8 +247,24 @@ export function stressCommand(): Command {
           redaction: redactionInfo,
         };
 
-        // Display stats
-        displayStats(metrics, runId);
+        // Display summary using enhanced panel
+        const summaryData = {
+          totalRequests: metrics.total_requests,
+          successfulRequests: metrics.successful_requests,
+          failedRequests: metrics.failed_requests,
+          successRate: metrics.success_rate * 100,
+          duration: endTime.getTime() - startTime.getTime(),
+          avgLatency: metrics.avg_latency_ms,
+          p50Latency: metrics.p50_latency_ms,
+          p95Latency: metrics.p95_latency_ms,
+          p99Latency: metrics.p99_latency_ms,
+          throughput: metrics.requests_per_second,
+        };
+        console.log(renderStressSummaryPanel(summaryData));
+
+        // Show run ID
+        console.log();
+        console.log(chalk.dim(`Run ID: ${runId}`));
 
         // Display latency histogram if verbose
         if (options.verbose) {
@@ -269,7 +300,13 @@ export function stressCommand(): Command {
         }
       } catch (error) {
         spinner.fail('Error');
-        console.error(chalk.red('Error:'), (error as Error).message);
+
+        // Display enhanced error message
+        const provider = options.provider || 'unknown';
+        const errorContext = getProviderErrorContext(provider, error as Error);
+        console.log();
+        console.log(renderError(errorContext));
+
         process.exit(1);
       }
     });
@@ -290,7 +327,7 @@ interface StressTestOptions {
   rampUpMs: number;
   maxRequests?: number;
   temperature?: number;
-  onProgress?: (completed: number, active: number) => void;
+  onProgress?: (completed: number, active: number, total?: number) => void;
   verbose?: boolean;
 }
 
@@ -343,7 +380,7 @@ async function runStressTest(options: StressTestOptions): Promise<StressRequestR
     } finally {
       active--;
       completed++;
-      onProgress?.(completed, active);
+      onProgress?.(completed, active, maxRequests);
     }
   };
 
@@ -428,45 +465,6 @@ function sampleResults(results: StressRequestResult[], maxSamples: number): Stre
   return sampled;
 }
 
-function displayStats(metrics: StressMetrics, runId: string): void {
-  const table = new Table({
-    head: [chalk.bold('Metric'), chalk.bold('Value')],
-    style: { head: [], border: [] },
-  });
-
-  table.push(
-    ['Run ID', runId],
-    ['Total Requests', metrics.total_requests.toString()],
-    ['Successful', chalk.green(metrics.successful_requests.toString())],
-    ['Failed', metrics.failed_requests > 0 ? chalk.red(metrics.failed_requests.toString()) : '0'],
-    ['', ''],
-    ['Requests/sec', metrics.requests_per_second.toFixed(2)],
-    ['', ''],
-    ['Min Latency', `${metrics.min_latency_ms}ms`],
-    ['Max Latency', `${metrics.max_latency_ms}ms`],
-    ['Avg Latency', `${metrics.avg_latency_ms}ms`],
-    ['p50 Latency', `${metrics.p50_latency_ms}ms`],
-    ['p90 Latency', `${metrics.p90_latency_ms}ms`],
-    ['p95 Latency', `${metrics.p95_latency_ms}ms`],
-    ['p99 Latency', `${metrics.p99_latency_ms}ms`]
-  );
-
-  console.log(chalk.bold('Results'));
-  console.log(table.toString());
-
-  // Success rate
-  const successRate = metrics.success_rate * 100;
-
-  console.log();
-  if (successRate >= 99) {
-    console.log(chalk.green(`✓ Success rate: ${successRate.toFixed(2)}%`));
-  } else if (successRate >= 95) {
-    console.log(chalk.yellow(`⚠ Success rate: ${successRate.toFixed(2)}%`));
-  } else {
-    console.log(chalk.red(`✗ Success rate: ${successRate.toFixed(2)}%`));
-  }
-}
-
 function displayHistogram(results: StressRequestResult[]): void {
   const successful = results.filter((r) => r.success);
   if (successful.length === 0) return;
@@ -492,10 +490,10 @@ function displayHistogram(results: StressRequestResult[]): void {
     const rangeEnd = (i + 1) * bucketSize;
     const count = buckets[i];
     const barLength = maxCount > 0 ? Math.round((count / maxCount) * 30) : 0;
-    const bar = '█'.repeat(barLength);
+    const bar = colors.highlight('█'.repeat(barLength));
 
     console.log(
-      `${chalk.dim(`${rangeStart.toString().padStart(5)}-${rangeEnd.toString().padStart(5)}ms`)} │ ${chalk.cyan(bar)} ${count}`
+      `${chalk.dim(`${rangeStart.toString().padStart(5)}-${rangeEnd.toString().padStart(5)}ms`)} │ ${bar} ${count}`
     );
   }
 }

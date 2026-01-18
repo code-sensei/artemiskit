@@ -11,11 +11,10 @@ import {
   generateRedTeamHTMLReport,
   generateStressHTMLReport,
 } from '@artemiskit/reports';
-import chalk from 'chalk';
 import { Command } from 'commander';
-import ora from 'ora';
-import { loadConfig } from '../config/loader';
-import { createStorage } from '../utils/storage';
+import { loadConfig } from '../config/loader.js';
+import { createSpinner, renderError, renderInfoBox, icons } from '../ui/index.js';
+import { createStorage } from '../utils/storage.js';
 
 interface ReportOptions {
   format?: 'html' | 'json' | 'both';
@@ -74,7 +73,8 @@ export function reportCommand(): Command {
     .option('-o, --output <dir>', 'Output directory', './artemis-output')
     .option('--config <path>', 'Path to config file')
     .action(async (runId: string, options: ReportOptions) => {
-      const spinner = ora('Loading run...').start();
+      const spinner = createSpinner('Loading run...');
+      spinner.start();
 
       try {
         const config = await loadConfig(options.config);
@@ -96,7 +96,7 @@ export function reportCommand(): Command {
           const htmlPath = join(outputDir, `${runId}.html`);
           await writeFile(htmlPath, html);
           generatedFiles.push(htmlPath);
-          spinner.succeed(`Generated HTML report: ${htmlPath}`);
+          spinner.succeed(`Generated HTML report`);
         }
 
         if (format === 'json' || format === 'both') {
@@ -105,19 +105,34 @@ export function reportCommand(): Command {
           const jsonPath = join(outputDir, `${runId}.json`);
           await writeFile(jsonPath, json);
           generatedFiles.push(jsonPath);
-          spinner.succeed(`Generated JSON report: ${jsonPath}`);
+          spinner.succeed(`Generated JSON report`);
         }
 
+        // Show success panel
         console.log();
-        console.log(chalk.bold('Report generated successfully!'));
-        console.log();
-        console.log('Files:');
-        for (const file of generatedFiles) {
-          console.log(`  ${chalk.green('•')} ${file}`);
-        }
+        console.log(
+          renderInfoBox('Report Generated', [
+            `Run ID: ${runId}`,
+            `Type: ${manifestType}`,
+            '',
+            'Files:',
+            ...generatedFiles.map((f) => `${icons.passed} ${f}`),
+          ])
+        );
       } catch (error) {
         spinner.fail('Error');
-        console.error(chalk.red('Error:'), (error as Error).message);
+        console.log();
+        console.log(
+          renderError({
+            title: 'Failed to Generate Report',
+            reason: (error as Error).message,
+            suggestions: [
+              'Check that the run ID exists',
+              'Run "artemiskit history" to see available runs',
+              'Verify storage configuration in artemis.config.yaml',
+            ],
+          })
+        );
         process.exit(1);
       }
     });

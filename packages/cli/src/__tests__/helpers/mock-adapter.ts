@@ -1,8 +1,26 @@
 /**
  * Mock adapter for CLI integration tests
+ *
+ * This module provides mock types and adapters for testing CLI commands
+ * without making actual LLM API calls.
  */
 
-import type { LLMAdapter, LLMResponse } from '@artemiskit/core';
+/** Message format for chat interactions */
+export interface MockMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/** Response from the mock adapter */
+export interface MockLLMResponse {
+  content: string;
+  usage: { input: number; output: number };
+}
+
+/** Mock adapter interface */
+export interface MockLLMAdapter {
+  chat: (messages: MockMessage[]) => Promise<MockLLMResponse>;
+}
 
 export interface MockResponse {
   content: string;
@@ -20,7 +38,7 @@ export interface MockAdapterOptions {
 /**
  * Creates a mock LLM adapter for testing
  */
-export function createMockAdapter(options: MockAdapterOptions = {}): LLMAdapter {
+export function createMockAdapter(options: MockAdapterOptions = {}): MockLLMAdapter {
   const {
     responses = new Map(),
     defaultResponse = {
@@ -33,7 +51,7 @@ export function createMockAdapter(options: MockAdapterOptions = {}): LLMAdapter 
   } = options;
 
   return {
-    chat: async (messages): Promise<LLMResponse> => {
+    chat: async (messages: MockMessage[]): Promise<MockLLMResponse> => {
       if (shouldFail) {
         throw new Error(failureMessage);
       }

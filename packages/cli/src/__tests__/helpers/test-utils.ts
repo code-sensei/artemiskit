@@ -169,8 +169,8 @@ cases:
  * Captures console output during test execution
  */
 export class OutputCapture {
-  private originalLog: typeof console.log;
-  private originalError: typeof console.error;
+  private originalLog: typeof console.log = console.log;
+  private originalError: typeof console.error = console.error;
   private logs: string[] = [];
   private errors: string[] = [];
 

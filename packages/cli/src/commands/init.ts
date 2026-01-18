@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { createSpinner, icons } from '../ui/index.js';
+import { checkForUpdateAndNotify, getCurrentVersion } from '../utils/update-checker.js';
 
 const DEFAULT_CONFIG = `# ArtemisKit Configuration
 project: my-project
@@ -88,6 +89,7 @@ const ENV_KEYS = [
 function renderWelcomeBanner(): string {
   // Brand color for "KIT" portion: #fb923c (orange)
   const brandColor = chalk.hex('#fb923c');
+  const version = getCurrentVersion();
 
   // Randomly color each border character white or brand color
   const colorBorderChar = (char: string): string => {
@@ -104,6 +106,14 @@ function renderWelcomeBanner(): string {
   const sideBorderLeft = '│';
   const sideBorderRight = '│';
   const emptyContent = ' '.repeat(52);
+
+  // Version line: "v0.1.7" centered
+  const versionText = `v${version}`;
+  const versionPadding = Math.floor((52 - versionText.length) / 2);
+  const versionLine =
+    ' '.repeat(versionPadding) +
+    chalk.gray(versionText) +
+    ' '.repeat(52 - versionPadding - versionText.length);
 
   const lines = [
     '',
@@ -123,7 +133,7 @@ function renderWelcomeBanner(): string {
       brandColor.bold('█ █ █  █ ') +
       '        ' +
       colorBorderChar(sideBorderRight),
-    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + versionLine + colorBorderChar(sideBorderRight),
     '  ' +
       colorBorderChar(sideBorderLeft) +
       '  ' +
@@ -294,6 +304,9 @@ export function initCommand(): Command {
 
         // Show success panel
         console.log(renderSuccessPanel());
+
+        // Non-blocking update check (fire and forget)
+        checkForUpdateAndNotify();
       } catch (error) {
         spinner.fail('Error');
         console.error(chalk.red(`\n${icons.failed} ${(error as Error).message}`));

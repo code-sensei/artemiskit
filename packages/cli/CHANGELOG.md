@@ -1,5 +1,31 @@
 # @artemiskit/cli
 
+## 0.1.7
+
+### Patch Changes
+
+- @artemiskit/cli\*\* (patch)
+
+  Enhanced CLI user experience and added comprehensive integration tests
+
+  **UI Enhancements:**
+
+  - Fixed table border alignment in compare and history commands (ANSI color codes no longer affect column widths)
+  - Added progress bars, error display panels, and summary boxes
+  - Added box-drawing tables with Unicode characters for structured output
+  - Added TTY detection for graceful fallback in non-TTY/CI environments
+
+  **Testing:**
+
+  - Added 60+ integration tests for CLI commands (init, history, compare, report)
+  - Added test helpers including mock LLM adapter and test utilities
+  - Achieved 80%+ source file test coverage (155 total tests passing)
+
+  **Documentation:**
+
+  - Updated ROADMAP.md to mark v0.1.x as complete
+  - Fixed docs to use correct YAML config format
+
 ## 0.1.6
 
 ### Patch Changes

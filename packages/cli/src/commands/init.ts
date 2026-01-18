@@ -86,6 +86,7 @@ const ENV_KEYS = [
 ];
 
 function renderWelcomeBanner(): string {
+  // Note: The emoji 🎯 takes 2 visual columns, so we use 1 fewer space to align
   const lines = [
     '',
     chalk.cyan('  ╔═══════════════════════════════════════════════════════╗'),
@@ -94,7 +95,7 @@ function renderWelcomeBanner(): string {
       chalk.bold.white('     🎯 Welcome to ArtemisKit                         ') +
       chalk.cyan('║'),
     chalk.cyan('  ║') +
-      chalk.gray('     LLM Testing & Evaluation Toolkit                 ') +
+      chalk.gray('     LLM Testing & Evaluation Toolkit                  ') +
       chalk.cyan('║'),
     chalk.cyan('  ║                                                       ║'),
     chalk.cyan('  ╚═══════════════════════════════════════════════════════╝'),

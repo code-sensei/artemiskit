@@ -89,25 +89,49 @@ function renderWelcomeBanner(): string {
   // Brand color for "KIT" portion: #fb923c (orange)
   const brandColor = chalk.hex('#fb923c');
 
+  // Randomly color each border character white or brand color
+  const colorBorderChar = (char: string): string => {
+    return Math.random() > 0.5 ? chalk.white(char) : brandColor(char);
+  };
+
+  const colorBorder = (str: string): string => {
+    return str.split('').map(colorBorderChar).join('');
+  };
+
   // All lines are exactly 52 chars inside the borders for perfect alignment
+  const topBorder = '╭' + '─'.repeat(52) + '╮';
+  const bottomBorder = '╰' + '─'.repeat(52) + '╯';
+  const sideBorderLeft = '│';
+  const sideBorderRight = '│';
+  const emptyContent = ' '.repeat(52);
+
   const lines = [
     '',
-    chalk.cyan('  ╭────────────────────────────────────────────────────╮'),
-    chalk.cyan('  │                                                    │'),
-    chalk.cyan('  │        ') +
+    '  ' + colorBorder(topBorder),
+    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
+    '  ' +
+      colorBorderChar(sideBorderLeft) +
+      '        ' +
       chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') +
       brandColor.bold('█▄▀ █ ▀█▀') +
-      chalk.cyan('        │'),
-    chalk.cyan('  │        ') +
+      '        ' +
+      colorBorderChar(sideBorderRight),
+    '  ' +
+      colorBorderChar(sideBorderLeft) +
+      '        ' +
       chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') +
       brandColor.bold('█ █ █  █ ') +
-      chalk.cyan('        │'),
-    chalk.cyan('  │                                                    │'),
-    chalk.cyan('  │  ') +
+      '        ' +
+      colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
+    '  ' +
+      colorBorderChar(sideBorderLeft) +
+      '  ' +
       chalk.gray('Open-source testing toolkit for LLM applications') +
-      chalk.cyan('  │'),
-    chalk.cyan('  │                                                    │'),
-    chalk.cyan('  ╰────────────────────────────────────────────────────╯'),
+      '  ' +
+      colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
+    '  ' + colorBorder(bottomBorder),
     '',
   ];
   return lines.join('\n');

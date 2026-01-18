@@ -21,7 +21,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 **Goal:** Stable, production-ready CLI toolkit with core evaluation capabilities.
 
-**Status:** Complete (v0.1.5 released)
+**Status:** Complete (v0.1.6 released)
 
 ### CLI Commands
 

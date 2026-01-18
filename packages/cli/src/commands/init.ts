@@ -89,12 +89,25 @@ function renderWelcomeBanner(): string {
   // Brand color for "KIT" portion: #fb923c (orange)
   const brandColor = chalk.hex('#fb923c');
 
+  // All lines are exactly 52 chars inside the borders for perfect alignment
   const lines = [
     '',
-    '  ' + chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') + brandColor.bold('█▄▀ █ ▀█▀'),
-    '  ' + chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') + brandColor.bold('█ █ █  █ '),
-    '',
-    chalk.gray('  Open-source testing toolkit for LLM applications'),
+    chalk.cyan('  ╭────────────────────────────────────────────────────╮'),
+    chalk.cyan('  │                                                    │'),
+    chalk.cyan('  │        ') +
+      chalk.bold.white('▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') +
+      brandColor.bold('█▄▀ █ ▀█▀') +
+      chalk.cyan('        │'),
+    chalk.cyan('  │        ') +
+      chalk.bold.white('█▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') +
+      brandColor.bold('█ █ █  █ ') +
+      chalk.cyan('        │'),
+    chalk.cyan('  │                                                    │'),
+    chalk.cyan('  │  ') +
+      chalk.gray('Open-source testing toolkit for LLM applications') +
+      chalk.cyan('  │'),
+    chalk.cyan('  │                                                    │'),
+    chalk.cyan('  ╰────────────────────────────────────────────────────╯'),
     '',
   ];
   return lines.join('\n');

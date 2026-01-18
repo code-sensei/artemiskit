@@ -107,13 +107,21 @@ function renderWelcomeBanner(): string {
   const sideBorderRight = '│';
   const emptyContent = ' '.repeat(52);
 
-  // Version line: "v0.1.7" centered
+  // Version line: "v0.1.7" centered in brand color
   const versionText = `v${version}`;
   const versionPadding = Math.floor((52 - versionText.length) / 2);
   const versionLine =
     ' '.repeat(versionPadding) +
-    chalk.gray(versionText) +
+    brandColor(versionText) +
     ' '.repeat(52 - versionPadding - versionText.length);
+
+  // Tagline centered
+  const tagline = 'Open-source testing toolkit for LLM applications';
+  const taglinePadding = Math.floor((52 - tagline.length) / 2);
+  const taglineLine =
+    ' '.repeat(taglinePadding) +
+    chalk.gray(tagline) +
+    ' '.repeat(52 - taglinePadding - tagline.length);
 
   const lines = [
     '',
@@ -133,13 +141,10 @@ function renderWelcomeBanner(): string {
       brandColor.bold('█ █ █  █ ') +
       '        ' +
       colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
     '  ' + colorBorderChar(sideBorderLeft) + versionLine + colorBorderChar(sideBorderRight),
-    '  ' +
-      colorBorderChar(sideBorderLeft) +
-      '  ' +
-      chalk.gray('Open-source testing toolkit for LLM applications') +
-      '  ' +
-      colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
+    '  ' + colorBorderChar(sideBorderLeft) + taglineLine + colorBorderChar(sideBorderRight),
     '  ' + colorBorderChar(sideBorderLeft) + emptyContent + colorBorderChar(sideBorderRight),
     '  ' + colorBorder(bottomBorder),
     '',

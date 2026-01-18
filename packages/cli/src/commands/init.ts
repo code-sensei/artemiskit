@@ -86,15 +86,22 @@ const ENV_KEYS = [
 ];
 
 function renderWelcomeBanner(): string {
+  // Brand color for "KIT" portion: #fb923c (orange)
+  const brandColor = chalk.hex('#fb923c');
+
   const lines = [
     '',
     chalk.cyan('  ╭──────────────────────────────────────────────────────────╮'),
     chalk.cyan('  │                                                          │'),
     chalk.cyan('  │') +
-      chalk.bold.cyan('      ▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ █▄▀ █ ▀█▀              ') +
+      chalk.bold.white('      ▄▀█ █▀█ ▀█▀ █▀▀ █▀▄▀█ █ █▀ ') +
+      brandColor.bold('█▄▀ █ ▀█▀') +
+      '              ' +
       chalk.cyan('│'),
     chalk.cyan('  │') +
-      chalk.bold.cyan('      █▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ █ █ █  █               ') +
+      chalk.bold.white('      █▀█ █▀▄  █  ██▄ █ ▀ █ █ ▄█ ') +
+      brandColor.bold('█ █ █  █ ') +
+      '              ' +
       chalk.cyan('│'),
     chalk.cyan('  │                                                          │'),
     chalk.cyan('  │') +

@@ -12,3 +12,11 @@ export { generateRedTeamHTMLReport } from './html/redteam-generator';
 
 // Stress test reports
 export { generateStressHTMLReport } from './html/stress-generator';
+
+// Comparison reports
+export {
+  generateCompareHTMLReport,
+  buildComparisonData,
+  type ComparisonData,
+  type CaseComparison,
+} from './html/compare-generator';

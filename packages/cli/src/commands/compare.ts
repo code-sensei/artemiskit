@@ -4,6 +4,9 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { generateCompareHTMLReport, buildComparisonData } from '@artemiskit/reports';
 import { loadConfig } from '../config/loader.js';
 import { createSpinner, icons, isTTY, padText, renderError } from '../ui/index.js';
 import { createStorage } from '../utils/storage.js';
@@ -11,6 +14,8 @@ import { createStorage } from '../utils/storage.js';
 interface CompareOptions {
   threshold?: number;
   config?: string;
+  html?: string;
+  json?: string;
 }
 
 function renderComparisonPanel(
@@ -135,6 +140,8 @@ export function compareCommand(): Command {
     .argument('<current>', 'Current run ID')
     .option('--threshold <number>', 'Regression threshold (0-1)', '0.05')
     .option('--config <path>', 'Path to config file')
+    .option('--html <path>', 'Generate HTML comparison report')
+    .option('--json <path>', 'Generate JSON comparison report')
     .action(async (baselineId: string, currentId: string, options: CompareOptions) => {
       const spinner = createSpinner('Loading runs...');
       spinner.start();
@@ -164,6 +171,24 @@ export function compareCommand(): Command {
 
         const comparison = await storage.compare(baselineId, currentId);
         const { baseline, current, delta } = comparison;
+
+        // Generate HTML report if requested
+        if (options.html) {
+          const htmlPath = resolve(options.html);
+          const html = generateCompareHTMLReport(baseline, current);
+          writeFileSync(htmlPath, html, 'utf-8');
+          console.log(`${icons.passed} HTML comparison report saved to: ${chalk.cyan(htmlPath)}`);
+          console.log();
+        }
+
+        // Generate JSON report if requested
+        if (options.json) {
+          const jsonPath = resolve(options.json);
+          const comparisonData = buildComparisonData(baseline, current);
+          writeFileSync(jsonPath, JSON.stringify(comparisonData, null, 2), 'utf-8');
+          console.log(`${icons.passed} JSON comparison report saved to: ${chalk.cyan(jsonPath)}`);
+          console.log();
+        }
 
         // Show comparison panel
         if (isTTY) {

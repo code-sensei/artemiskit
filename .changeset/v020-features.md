@@ -43,6 +43,20 @@
   - Predefined scores for all mutations and detection categories
   - Human-readable score descriptions and vector strings
 
+### Reports (`@artemiskit/reports`)
+
+#### New Features
+- **Run comparison HTML report**: Visual diff between two runs showing:
+  - Metrics overview with baseline vs current comparison
+  - Change summary (regressions, improvements, unchanged)
+  - Case-by-case comparison table with filtering
+  - Side-by-side response comparison for each case
+- **Comparison JSON export**: Structured comparison data for programmatic use
+
+### CLI Enhancements
+- **Compare command `--html` flag**: Generate HTML comparison report
+- **Compare command `--json` flag**: Generate JSON comparison data
+
 ### Documentation
 - Updated all CLI command documentation
 - Added comprehensive examples for custom multi-turn scenarios

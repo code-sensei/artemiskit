@@ -193,7 +193,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Collapsible sections | ✅ | Expand/collapse in HTML |
 | Filter by status | ✅ | Show only failures |
 | Search functionality | ✅ | Search through results |
-| Run comparison view | 📋 | Visual diff between runs |
+| Run comparison view | ✅ | Visual diff between runs (`--html` and `--json` flags in compare command) |
 
 ### Red Team Enhancements
 

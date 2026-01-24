@@ -190,9 +190,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Collapsible sections | 📋 | Expand/collapse in HTML |
-| Filter by status | 📋 | Show only failures |
-| Search functionality | 📋 | Search through results |
+| Collapsible sections | ✅ | Expand/collapse in HTML |
+| Filter by status | ✅ | Show only failures |
+| Search functionality | ✅ | Search through results |
 | Run comparison view | 📋 | Visual diff between runs |
 
 ### Red Team Enhancements

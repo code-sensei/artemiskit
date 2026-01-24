@@ -10,6 +10,7 @@ import { JsonSchemaEvaluator } from './json-schema';
 import { LLMGraderEvaluator } from './llm-grader';
 import { NotContainsEvaluator } from './not-contains';
 import { RegexEvaluator } from './regex';
+import { SimilarityEvaluator } from './similarity';
 import type { Evaluator } from './types';
 
 const evaluators = new Map<string, Evaluator>();
@@ -21,6 +22,7 @@ evaluators.set('not_contains', new NotContainsEvaluator());
 evaluators.set('combined', new CombinedEvaluator());
 evaluators.set('json_schema', new JsonSchemaEvaluator());
 evaluators.set('llm_grader', new LLMGraderEvaluator());
+evaluators.set('similarity', new SimilarityEvaluator());
 
 /**
  * Get an evaluator by type
@@ -57,3 +59,4 @@ export { NotContainsEvaluator } from './not-contains';
 export { CombinedEvaluator } from './combined';
 export { JsonSchemaEvaluator } from './json-schema';
 export { LLMGraderEvaluator } from './llm-grader';
+export { SimilarityEvaluator } from './similarity';

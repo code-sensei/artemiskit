@@ -27,6 +27,10 @@
 #### New Features
 - **Combined matchers**: New `type: combined` expectation with `operator: and|or` for complex assertion logic
 - **`not_contains` expectation**: Negative containment check to ensure responses don't include specific text
+- **`similarity` expectation**: Semantic similarity matching with two modes:
+  - Embedding-based: Uses vector embeddings for fast semantic comparison
+  - LLM-based fallback: Uses LLM to evaluate semantic similarity when embeddings unavailable
+  - Configurable threshold (default 0.75)
 - **p90 latency metric**: Added p90 percentile to stress test latency metrics
 - **Token usage tracking**: Monitor token consumption per request in stress tests
 - **Cost estimation**: Estimate API costs with model pricing data

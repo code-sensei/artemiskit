@@ -100,6 +100,13 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
     evaluator: z.string(),
     config: z.record(z.unknown()).optional(),
   }),
+
+  z.object({
+    type: z.literal('similarity'),
+    value: z.string(),
+    threshold: z.number().min(0).max(1).default(0.75),
+    model: z.string().optional(),
+  }),
 ]);
 
 /**

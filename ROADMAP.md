@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.1.7  
+**Current Version:** 0.2.0 (in development)  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -170,10 +170,10 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 |---------|--------|-------------|
 | Directory scanning | ✅ | Run all scenarios in a directory |
 | Glob pattern matching | ✅ | `akit run scenarios/**/*.yaml` |
-| Parallel execution | ✅ | Run scenarios concurrently |
+| Parallel execution | ✅ | Run scenarios concurrently (`--parallel` flag) |
 | `similarity` expectation | 📋 | Semantic similarity matching |
-| Scenario tags | ✅ | Label and filter scenarios |
-| Combined matchers | ✅ | `and`/`or` logic between assertions |
+| Scenario tags | ✅ | Label and filter scenarios (`--tags` flag) |
+| Combined matchers | ✅ | `and`/`or` logic between assertions (`type: combined`) |
 | `not_contains` expectation | ✅ | Negative containment check |
 | Inline custom matchers | 📋 | Define matcher functions in YAML |
 
@@ -199,18 +199,20 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `encoding` attacks | ✅ | Base64, ROT13, hex, unicode obfuscation |
-| `multi_turn` attacks | ✅ | Multi-message sequences with strategies |
-| Custom attack YAML | ✅ | Define custom attacks in YAML format |
+| `encoding` mutation | ✅ | Base64, ROT13, hex, unicode obfuscation (`--mutations encoding`) |
+| `multi_turn` mutation | ✅ | Multi-message sequences with 4 strategies + custom conversations |
+| Custom attack YAML | ✅ | Define custom attacks in YAML format (`--custom-attacks`) |
+| Custom multi-turn | ✅ | Use array prompts for custom conversation flows (consistent with `run` command) |
 | Severity scoring | 📋 | CVSS-like ratings |
 
 ### Stress Test Enhancements
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Ramp-up testing | ✅ | Gradual load increase (already present) |
+| Ramp-up testing | ✅ | Gradual load increase |
 | Token usage tracking | ✅ | Monitor token consumption per request |
 | Cost estimation | ✅ | Estimate API costs with model pricing data |
+| p90 latency | ✅ | Added p90 percentile to latency metrics |
 
 ### CLI Interactivity (Phase 1)
 

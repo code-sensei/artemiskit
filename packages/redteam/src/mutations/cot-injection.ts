@@ -3,11 +3,13 @@
  */
 
 import type { Mutation } from './index';
+import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class CotInjectionMutation implements Mutation {
   readonly name = 'cot-injection';
   readonly description = 'Injects misleading chain-of-thought reasoning';
   readonly severity = 'high' as const;
+  readonly cvssScore: CvssScore = MUTATION_CVSS_SCORES['cot-injection'];
 
   private injections: string[];
 

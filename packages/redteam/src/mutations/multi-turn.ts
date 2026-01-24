@@ -8,6 +8,7 @@
  */
 
 import type { Mutation } from './index';
+import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export type MultiTurnStrategy =
   | 'gradual_escalation'
@@ -41,6 +42,7 @@ export class MultiTurnMutation implements Mutation {
   readonly name = 'multi_turn';
   readonly description = 'Splits attacks into multi-message sequences to gradually manipulate';
   readonly severity = 'critical' as const;
+  readonly cvssScore: CvssScore = MUTATION_CVSS_SCORES.multi_turn;
 
   private strategy: MultiTurnStrategy;
   private currentPrefix?: ConversationTurn[];

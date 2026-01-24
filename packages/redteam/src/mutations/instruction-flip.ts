@@ -3,11 +3,13 @@
  */
 
 import type { Mutation } from './index';
+import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class InstructionFlipMutation implements Mutation {
   readonly name = 'instruction-flip';
   readonly description = 'Inverts or negates instructions to test guardrails';
   readonly severity = 'medium' as const;
+  readonly cvssScore: CvssScore = MUTATION_CVSS_SCORES['instruction-flip'];
 
   private flips: Array<[RegExp, string]>;
 

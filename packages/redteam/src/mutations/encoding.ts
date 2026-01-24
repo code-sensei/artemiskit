@@ -4,6 +4,7 @@
  */
 
 import type { Mutation } from './index';
+import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export type EncodingType = 'base64' | 'rot13' | 'hex' | 'unicode' | 'mixed';
 
@@ -11,6 +12,7 @@ export class EncodingMutation implements Mutation {
   readonly name = 'encoding';
   readonly description = 'Obfuscates prompts using Base64, ROT13, hex, or unicode encoding';
   readonly severity = 'high' as const;
+  readonly cvssScore: CvssScore = MUTATION_CVSS_SCORES.encoding;
 
   private encodingType: EncodingType;
 

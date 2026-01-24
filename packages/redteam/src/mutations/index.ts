@@ -2,6 +2,8 @@
  * Red-team mutations module
  */
 
+import type { CvssScore } from '../severity';
+
 export { TypoMutation } from './typo';
 export { RoleSpoofMutation } from './role-spoof';
 export { InstructionFlipMutation } from './instruction-flip';
@@ -19,6 +21,8 @@ export interface Mutation {
   readonly name: string;
   readonly description: string;
   readonly severity: 'low' | 'medium' | 'high' | 'critical';
+  /** CVSS-like score for detailed severity assessment */
+  readonly cvssScore?: CvssScore;
 
   mutate(prompt: string): string;
 }

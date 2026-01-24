@@ -37,6 +37,11 @@
 - **MultiTurnMutation class**: Full implementation with strategy support and custom conversation prefixes
 - **Custom attack loader**: Parse and load custom attack patterns from YAML
 - **Encoding mutation**: Obfuscate attack payloads using various encoding schemes
+- **CVSS-like severity scoring**: Detailed attack severity scoring with:
+  - `CvssScore` interface with attack vector, complexity, impact metrics
+  - `CvssCalculator` class for score calculation and aggregation
+  - Predefined scores for all mutations and detection categories
+  - Human-readable score descriptions and vector strings
 
 ### Documentation
 - Updated all CLI command documentation

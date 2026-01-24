@@ -3,11 +3,13 @@
  */
 
 import type { Mutation } from './index';
+import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class TypoMutation implements Mutation {
   readonly name = 'typo';
   readonly description = 'Introduces random typos to test input robustness';
   readonly severity = 'low' as const;
+  readonly cvssScore: CvssScore = MUTATION_CVSS_SCORES.typo;
 
   private typoRate: number;
 

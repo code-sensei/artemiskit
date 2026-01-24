@@ -203,7 +203,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | `multi_turn` mutation | ✅ | Multi-message sequences with 4 strategies + custom conversations |
 | Custom attack YAML | ✅ | Define custom attacks in YAML format (`--custom-attacks`) |
 | Custom multi-turn | ✅ | Use array prompts for custom conversation flows (consistent with `run` command) |
-| Severity scoring | 📋 | CVSS-like ratings |
+| Severity scoring | ✅ | CVSS-like severity ratings with attack/detection scoring |
 
 ### Stress Test Enhancements
 

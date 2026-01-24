@@ -1,5 +1,21 @@
 # @artemiskit/core
 
+## 0.1.6
+
+### Patch Changes
+
+- 27d7645: ### Fixed
+
+  - Replaced `pino` logger with `consola` to fix Bun bundler compatibility issues. Some users experienced `ModuleNotFound: thread-stream/lib/worker.js` errors during installation due to pino's dynamic worker thread resolution that Bun's bundler cannot statically analyze.
+
+  ### Changed
+
+  - Logger implementation now uses `consola` internally. The public `Logger` class API remains unchanged - no code changes required for consumers.
+
+  ### Removed
+
+  - Removed `pino` and `pino-pretty` dependencies from `@artemiskit/core`.
+
 ## 0.1.5
 
 ### Patch Changes

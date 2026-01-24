@@ -20,13 +20,16 @@ import {
 } from '@artemiskit/core';
 import {
   CotInjectionMutation,
+  EncodingMutation,
   InstructionFlipMutation,
   type Mutation,
+  MultiTurnMutation,
   RedTeamGenerator,
   RoleSpoofMutation,
   SeverityMapper,
   TypoMutation,
   UnsafeResponseDetector,
+  loadCustomAttacks,
 } from '@artemiskit/redteam';
 import { generateJSONReport, generateRedTeamHTMLReport } from '@artemiskit/reports';
 import chalk from 'chalk';
@@ -55,6 +58,7 @@ interface RedteamOptions {
   model?: string;
   mutations?: string[];
   count?: number;
+  customAttacks?: string;
   save?: boolean;
   output?: string;
   verbose?: boolean;
@@ -73,9 +77,10 @@ export function redteamCommand(): Command {
     .option('-m, --model <model>', 'Model to use')
     .option(
       '--mutations <mutations...>',
-      'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection)'
+      'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection, encoding, multi-turn)'
     )
     .option('-c, --count <number>', 'Number of mutated prompts per case', '5')
+    .option('--custom-attacks <path>', 'Path to custom attacks YAML file')
     .option('--save', 'Save results to storage')
     .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
@@ -131,7 +136,7 @@ export function redteamCommand(): Command {
         spinner.succeed(`Connected to ${provider}`);
 
         // Set up mutations
-        const mutations = selectMutations(options.mutations);
+        const mutations = selectMutations(options.mutations, options.customAttacks);
         const generator = new RedTeamGenerator(mutations);
         const detector = new UnsafeResponseDetector();
         const count = Number.parseInt(String(options.count)) || 5;
@@ -474,19 +479,31 @@ export function redteamCommand(): Command {
   return cmd;
 }
 
-function selectMutations(names?: string[]): Mutation[] {
+function selectMutations(names?: string[], customAttacksPath?: string): Mutation[] {
   const allMutations: Record<string, Mutation> = {
     typo: new TypoMutation(),
     'role-spoof': new RoleSpoofMutation(),
     'instruction-flip': new InstructionFlipMutation(),
     'cot-injection': new CotInjectionMutation(),
+    encoding: new EncodingMutation(),
+    'multi-turn': new MultiTurnMutation(),
   };
 
+  let mutations: Mutation[];
+
   if (!names || names.length === 0) {
-    return Object.values(allMutations);
+    mutations = Object.values(allMutations);
+  } else {
+    mutations = names.filter((name) => name in allMutations).map((name) => allMutations[name]);
   }
 
-  return names.filter((name) => name in allMutations).map((name) => allMutations[name]);
+  // Load custom attacks if path provided
+  if (customAttacksPath) {
+    const customMutations = loadCustomAttacks(customAttacksPath);
+    mutations.push(...customMutations);
+  }
+
+  return mutations;
 }
 
 /**

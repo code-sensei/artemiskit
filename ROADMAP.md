@@ -173,7 +173,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Parallel execution | 📋 | Run scenarios concurrently |
 | `similarity` expectation | 📋 | Semantic similarity matching |
 | Scenario tags | ✅ | Label and filter scenarios |
-| Combined matchers | 📋 | `and`/`or` logic between assertions |
+| Combined matchers | ✅ | `and`/`or` logic between assertions |
 | `not_contains` expectation | ✅ | Negative containment check |
 | Inline custom matchers | 📋 | Define matcher functions in YAML |
 

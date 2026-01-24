@@ -2,6 +2,7 @@
  * Evaluators module - exports all evaluator types and utilities
  */
 
+import { CombinedEvaluator } from './combined';
 import { ContainsEvaluator } from './contains';
 import { ExactEvaluator } from './exact';
 import { FuzzyEvaluator } from './fuzzy';
@@ -17,6 +18,7 @@ evaluators.set('regex', new RegexEvaluator());
 evaluators.set('fuzzy', new FuzzyEvaluator());
 evaluators.set('contains', new ContainsEvaluator());
 evaluators.set('not_contains', new NotContainsEvaluator());
+evaluators.set('combined', new CombinedEvaluator());
 evaluators.set('json_schema', new JsonSchemaEvaluator());
 evaluators.set('llm_grader', new LLMGraderEvaluator());
 
@@ -52,5 +54,6 @@ export { RegexEvaluator } from './regex';
 export { FuzzyEvaluator } from './fuzzy';
 export { ContainsEvaluator } from './contains';
 export { NotContainsEvaluator } from './not-contains';
+export { CombinedEvaluator } from './combined';
 export { JsonSchemaEvaluator } from './json-schema';
 export { LLMGraderEvaluator } from './llm-grader';

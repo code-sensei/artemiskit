@@ -49,9 +49,9 @@ export const ProviderConfigSchema = z
   .optional();
 
 /**
- * Expected result types - how to evaluate responses
+ * Base expected types (non-recursive)
  */
-export const ExpectedSchema = z.discriminatedUnion('type', [
+const BaseExpectedSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('exact'),
     value: z.string(),
@@ -101,6 +101,22 @@ export const ExpectedSchema = z.discriminatedUnion('type', [
     config: z.record(z.unknown()).optional(),
   }),
 ]);
+
+/**
+ * Combined expectation schema - allows combining multiple expectations with and/or logic
+ * Note: Combined expectations can only contain base expectations (no nested combined)
+ */
+const CombinedExpectedSchema = z.object({
+  type: z.literal('combined'),
+  operator: z.enum(['and', 'or']),
+  expectations: z.array(BaseExpectedSchema).min(1),
+});
+
+/**
+ * Expected result types - how to evaluate responses
+ * Includes base types and combined type for logical grouping
+ */
+export const ExpectedSchema = z.union([BaseExpectedSchema, CombinedExpectedSchema]);
 
 /**
  * Chat message schema

@@ -191,12 +191,18 @@ export async function matchScenarioGlob(
     return new RegExp(`^${regexStr}$`);
   };
 
+  // Check if pattern is an absolute path
+  const isAbsolute = pattern.startsWith('/');
+
   // Extract the base directory (non-glob prefix)
   const patternParts = pattern.split('/');
-  let baseDir = resolvedBase;
+  let baseDir = isAbsolute ? '/' : resolvedBase;
   let globPart = pattern;
 
-  for (let i = 0; i < patternParts.length; i++) {
+  // Start from index 1 if absolute path (skip empty string from leading /)
+  const startIndex = isAbsolute ? 1 : 0;
+
+  for (let i = startIndex; i < patternParts.length; i++) {
     const part = patternParts[i];
     if (/[*?]/.test(part)) {
       // Found first glob character - everything before is base

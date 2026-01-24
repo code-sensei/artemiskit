@@ -2,7 +2,7 @@
  * Logger utility for Artemis
  */
 
-import { createConsola, type ConsolaInstance, LogLevels } from 'consola';
+import { type ConsolaInstance, LogLevels, createConsola } from 'consola';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

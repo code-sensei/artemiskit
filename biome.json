@@ -40,7 +40,8 @@
       ".supabase",
       "ai-trace",
       "artemis-runs",
-      "artemis-output"
+      "artemis-output",
+      "announcements"
     ]
   }
 }

@@ -39,7 +39,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@artemiskit/core": "workspace:*"
+    "@artemiskit/core": "workspace:*",
+    "yaml": "2.8.2"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",

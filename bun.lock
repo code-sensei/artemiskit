@@ -14,7 +14,7 @@
     },
     "packages/adapters/anthropic": {
       "name": "@artemiskit/adapter-anthropic",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.30.0",
         "@artemiskit/core": "workspace:*",
@@ -27,7 +27,7 @@
     },
     "packages/adapters/openai": {
       "name": "@artemiskit/adapter-openai",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -40,7 +40,7 @@
     },
     "packages/adapters/vercel-ai": {
       "name": "@artemiskit/adapter-vercel-ai",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@ai-sdk/azure": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
@@ -55,7 +55,7 @@
     },
     "packages/cli": {
       "name": "@artemiskit/cli",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "bin": {
         "artemis": "./bin/artemis.ts",
       },
@@ -81,7 +81,7 @@
     },
     "packages/core": {
       "name": "@artemiskit/core",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
         "consola": "3.4.2",
@@ -98,9 +98,10 @@
     },
     "packages/redteam": {
       "name": "@artemiskit/redteam",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
+        "yaml": "2.8.2",
       },
       "devDependencies": {
         "@types/bun": "^1.1.0",
@@ -109,7 +110,7 @@
     },
     "packages/reports": {
       "name": "@artemiskit/reports",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "handlebars": "^4.7.8",

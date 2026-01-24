@@ -20,6 +20,7 @@ import {
 } from '@artemiskit/core';
 import {
   CotInjectionMutation,
+  type ConversationTurn,
   EncodingMutation,
   InstructionFlipMutation,
   type Mutation,
@@ -184,12 +185,47 @@ export function redteamCommand(): Command {
         for (const testCase of scenario.cases) {
           console.log(chalk.bold(`Testing case: ${testCase.id}`));
 
-          const originalPrompt =
-            typeof testCase.prompt === 'string'
-              ? testCase.prompt
-              : testCase.prompt.map((m) => m.content).join('\n');
+          // Handle both string and array prompts (consistent with run command)
+          // For array prompts: last user message is the attack target, rest is context
+          let attackPrompt: string;
+          let conversationPrefix: ConversationTurn[] | undefined;
 
-          const mutatedPrompts = generator.generate(originalPrompt, count);
+          if (typeof testCase.prompt === 'string') {
+            // Simple string prompt - use directly
+            attackPrompt = testCase.prompt;
+          } else {
+            // Array prompt - extract last user message as attack, rest as context
+            const messages = testCase.prompt;
+            const lastUserIndex = messages.map((m) => m.role).lastIndexOf('user');
+
+            if (lastUserIndex === -1) {
+              // No user message found - use concatenated content
+              attackPrompt = messages.map((m) => m.content).join('\n');
+            } else {
+              // Extract attack prompt (last user message)
+              attackPrompt = messages[lastUserIndex].content;
+
+              // Extract conversation prefix (everything before the last user message)
+              if (lastUserIndex > 0) {
+                conversationPrefix = messages.slice(0, lastUserIndex).map((m) => ({
+                  role: m.role as 'user' | 'assistant' | 'system',
+                  content: m.content,
+                }));
+              }
+            }
+          }
+
+          // Clear any previous prefix and set new one if applicable
+          for (const mutation of mutations) {
+            if (mutation instanceof MultiTurnMutation) {
+              mutation.clearConversationPrefix();
+              if (conversationPrefix && conversationPrefix.length > 0) {
+                mutation.setConversationPrefix(conversationPrefix);
+              }
+            }
+          }
+
+          const mutatedPrompts = generator.generate(attackPrompt, count);
 
           for (const mutated of mutatedPrompts) {
             completedTests++;

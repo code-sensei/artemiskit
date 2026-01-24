@@ -7,11 +7,18 @@
 # Run with:
 #   artemiskit redteam examples/scenarios/redteam/mutations/multi-turn-attacks.yaml --mutations multi-turn
 #
-# The mutation supports these strategies:
-# - gradual_escalation: Start harmless, slowly increase severity
-# - context_switching: Abruptly change topics to confuse safety measures
-# - persona_building: Establish trusted persona before attack
-# - distraction: Bury attack within benign content
+# The mutation supports TWO modes:
+#
+# 1. STRATEGY-BASED (used in this file):
+#    - Uses string prompts (the attack target)
+#    - Built-in strategies generate conversation context automatically
+#    - Strategies: gradual_escalation, context_switching, persona_building, distraction
+#
+# 2. CUSTOM CONVERSATIONS (see custom-multi-turn.yaml):
+#    - Uses array prompts (same format as the run command)
+#    - You define the full conversation history
+#    - Last user message becomes the attack target
+#    - Provides full control over the social engineering scenario
 
 name: Multi-Turn Mutation Tests
 description: |

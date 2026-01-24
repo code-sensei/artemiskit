@@ -68,6 +68,10 @@ Adversarial testing scenarios:
 - `jailbreak-attempts.yaml` - Safety guardrail testing
 - `role-spoofing.yaml` - Authority impersonation tests
 - `data-exfiltration.yaml` - Sensitive data leak prevention
+- `custom-attacks.yaml` - Custom attack definitions with templates
+- `custom-multi-turn.yaml` - Custom multi-turn conversation attacks
+- `mutations/encoding-attacks.yaml` - Obfuscation-based attacks (Base64, ROT13, hex, unicode)
+- `mutations/multi-turn-attacks.yaml` - Strategy-based multi-turn attacks
 
 ### Use Cases
 

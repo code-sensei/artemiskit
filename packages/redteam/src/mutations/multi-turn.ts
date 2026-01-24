@@ -1,6 +1,10 @@
 /**
  * Multi-turn mutation - splits attack into multiple conversational turns
  * Tests if the model can be gradually manipulated through conversation
+ *
+ * Supports two input formats (consistent with the run command):
+ * 1. String prompt: Uses built-in strategies to generate conversation context
+ * 2. Array prompt: Uses the conversation as custom context, with the last user message as the attack target
  */
 
 import type { Mutation } from './index';
@@ -9,11 +13,28 @@ export type MultiTurnStrategy =
   | 'gradual_escalation'
   | 'context_switching'
   | 'persona_building'
-  | 'distraction';
+  | 'distraction'
+  | 'custom';
 
 export interface ConversationTurn {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+/**
+ * Options for multi-turn mutation with custom conversation support
+ */
+export interface MultiTurnOptions {
+  /** The strategy to use for generating conversation context */
+  strategy?: MultiTurnStrategy;
+}
+
+/**
+ * Input for multi-turn mutation - supports both string and array formats
+ */
+export interface MultiTurnInput {
+  /** The attack prompt (string) or full conversation (array) */
+  prompt: string | ConversationTurn[];
 }
 
 export class MultiTurnMutation implements Mutation {
@@ -22,15 +43,48 @@ export class MultiTurnMutation implements Mutation {
   readonly severity = 'critical' as const;
 
   private strategy: MultiTurnStrategy;
+  private currentPrefix?: ConversationTurn[];
 
-  constructor(strategy: MultiTurnStrategy = 'gradual_escalation') {
-    this.strategy = strategy;
+  constructor(strategyOrOptions: MultiTurnStrategy | MultiTurnOptions = 'gradual_escalation') {
+    if (typeof strategyOrOptions === 'string') {
+      this.strategy = strategyOrOptions;
+    } else {
+      this.strategy = strategyOrOptions.strategy ?? 'gradual_escalation';
+    }
   }
 
   /**
-   * For single-prompt use, returns a prompt that simulates multi-turn context
+   * Set custom conversation prefix from an array prompt.
+   * Called by the redteam command when a test case has an array prompt.
+   */
+  setConversationPrefix(prefix: ConversationTurn[]): void {
+    this.currentPrefix = prefix;
+  }
+
+  /**
+   * Clear the current conversation prefix (reset to use strategy-based generation)
+   */
+  clearConversationPrefix(): void {
+    this.currentPrefix = undefined;
+  }
+
+  /**
+   * Check if this mutation has a custom prefix set
+   */
+  hasCustomPrefix(): boolean {
+    return this.currentPrefix !== undefined && this.currentPrefix.length > 0;
+  }
+
+  /**
+   * For single-prompt use, returns a prompt that simulates multi-turn context.
+   * If a custom prefix is set, uses that; otherwise uses the configured strategy.
    */
   mutate(prompt: string): string {
+    // If custom prefix is set (from array prompt), use it
+    if (this.currentPrefix && this.currentPrefix.length > 0) {
+      return this.customConversation(prompt);
+    }
+
     switch (this.strategy) {
       case 'gradual_escalation':
         return this.gradualEscalation(prompt);
@@ -40,15 +94,24 @@ export class MultiTurnMutation implements Mutation {
         return this.personaBuilding(prompt);
       case 'distraction':
         return this.distraction(prompt);
+      case 'custom':
+        // No prefix set but strategy is custom - just return the prompt
+        return prompt;
       default:
         return prompt;
     }
   }
 
   /**
-   * Generate a full multi-turn conversation sequence
+   * Generate a full multi-turn conversation sequence.
+   * If a custom prefix is set, uses that; otherwise uses the configured strategy.
    */
   generateConversation(targetPrompt: string): ConversationTurn[] {
+    // If custom prefix is set (from array prompt), use it
+    if (this.currentPrefix && this.currentPrefix.length > 0) {
+      return this.generateCustomConversation(targetPrompt);
+    }
+
     switch (this.strategy) {
       case 'gradual_escalation':
         return this.generateGradualEscalation(targetPrompt);
@@ -58,9 +121,39 @@ export class MultiTurnMutation implements Mutation {
         return this.generatePersonaBuilding(targetPrompt);
       case 'distraction':
         return this.generateDistraction(targetPrompt);
+      case 'custom':
+        // No prefix set but strategy is custom - just return the target prompt
+        return [{ role: 'user', content: targetPrompt }];
       default:
         return [{ role: 'user', content: targetPrompt }];
     }
+  }
+
+  /**
+   * Custom conversation using user-provided prefix (from array prompt)
+   */
+  private customConversation(prompt: string): string {
+    if (!this.currentPrefix || this.currentPrefix.length === 0) {
+      return prompt;
+    }
+
+    // Format the conversation prefix as context, then append the attack prompt
+    const contextLines = this.currentPrefix.map(
+      (turn) => `[${turn.role.toUpperCase()}]: ${turn.content}`
+    );
+    return `${contextLines.join('\n')}\n\n[USER]: ${prompt}`;
+  }
+
+  /**
+   * Generate full conversation with custom prefix
+   */
+  private generateCustomConversation(targetPrompt: string): ConversationTurn[] {
+    if (!this.currentPrefix || this.currentPrefix.length === 0) {
+      return [{ role: 'user', content: targetPrompt }];
+    }
+
+    // Return the custom prefix followed by the attack prompt
+    return [...this.currentPrefix, { role: 'user', content: targetPrompt }];
   }
 
   /**

@@ -175,7 +175,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Scenario tags | ✅ | Label and filter scenarios (`--tags` flag) |
 | Combined matchers | ✅ | `and`/`or` logic between assertions (`type: combined`) |
 | `not_contains` expectation | ✅ | Negative containment check |
-| Inline custom matchers | 📋 | Define matcher functions in YAML |
+| Inline custom matchers | ✅ | Safe expression-based matchers in YAML (`type: inline`) |
 
 ### Programmatic SDK (TypeScript/JavaScript)
 

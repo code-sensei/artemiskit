@@ -107,6 +107,12 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
     threshold: z.number().min(0).max(1).default(0.75),
     model: z.string().optional(),
   }),
+
+  z.object({
+    type: z.literal('inline'),
+    expression: z.string(),
+    value: z.string().optional(),
+  }),
 ]);
 
 /**

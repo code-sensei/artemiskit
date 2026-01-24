@@ -6,6 +6,7 @@ import { CombinedEvaluator } from './combined';
 import { ContainsEvaluator } from './contains';
 import { ExactEvaluator } from './exact';
 import { FuzzyEvaluator } from './fuzzy';
+import { InlineEvaluator } from './inline';
 import { JsonSchemaEvaluator } from './json-schema';
 import { LLMGraderEvaluator } from './llm-grader';
 import { NotContainsEvaluator } from './not-contains';
@@ -23,6 +24,7 @@ evaluators.set('combined', new CombinedEvaluator());
 evaluators.set('json_schema', new JsonSchemaEvaluator());
 evaluators.set('llm_grader', new LLMGraderEvaluator());
 evaluators.set('similarity', new SimilarityEvaluator());
+evaluators.set('inline', new InlineEvaluator());
 
 /**
  * Get an evaluator by type
@@ -60,3 +62,4 @@ export { CombinedEvaluator } from './combined';
 export { JsonSchemaEvaluator } from './json-schema';
 export { LLMGraderEvaluator } from './llm-grader';
 export { SimilarityEvaluator } from './similarity';
+export { InlineEvaluator, SUPPORTED_EXPRESSIONS } from './inline';

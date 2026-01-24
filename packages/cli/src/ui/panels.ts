@@ -23,6 +23,7 @@ export interface StressSummaryData {
   duration: number;
   avgLatency: number;
   p50Latency: number;
+  p90Latency: number;
   p95Latency: number;
   p99Latency: number;
   throughput: number;
@@ -128,7 +129,7 @@ export function renderStressSummaryPanel(data: StressSummaryData): string {
       `Failed: ${data.failedRequests}`,
       `Duration: ${formatDuration(data.duration)}`,
       `Throughput: ${data.throughput.toFixed(1)} req/s`,
-      `Latency: avg=${data.avgLatency.toFixed(0)}ms p50=${data.p50Latency.toFixed(0)}ms p95=${data.p95Latency.toFixed(0)}ms p99=${data.p99Latency.toFixed(0)}ms`,
+      `Latency: avg=${data.avgLatency.toFixed(0)}ms p50=${data.p50Latency.toFixed(0)}ms p90=${data.p90Latency.toFixed(0)}ms p95=${data.p95Latency.toFixed(0)}ms p99=${data.p99Latency.toFixed(0)}ms`,
     ];
     if (data.tokens) {
       lines.push(
@@ -176,7 +177,7 @@ export function renderStressSummaryPanel(data: StressSummaryData): string {
       chalk.cyan('║'),
     chalk.cyan('║') +
       padText(
-        `  p50: ${data.p50Latency.toFixed(0)}ms  p95: ${data.p95Latency.toFixed(0)}ms  p99: ${data.p99Latency.toFixed(0)}ms`,
+        `  p50: ${data.p50Latency.toFixed(0)}ms  p90: ${data.p90Latency.toFixed(0)}ms  p95: ${data.p95Latency.toFixed(0)}ms  p99: ${data.p99Latency.toFixed(0)}ms`,
         width - 2
       ) +
       chalk.cyan('║'),

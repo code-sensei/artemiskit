@@ -84,7 +84,7 @@ export function stressCommand(): Command {
         // Load config file if present
         const config = await loadConfig(options.config);
         if (config) {
-          spinner.succeed('Loaded config file');
+          spinner.succeed(`Loaded config file`);
         } else {
           spinner.info('No config file found, using defaults');
         }
@@ -262,6 +262,7 @@ export function stressCommand(): Command {
           duration: endTime.getTime() - startTime.getTime(),
           avgLatency: metrics.avg_latency_ms,
           p50Latency: metrics.p50_latency_ms,
+          p90Latency: metrics.p90_latency_ms,
           p95Latency: metrics.p95_latency_ms,
           p99Latency: metrics.p99_latency_ms,
           throughput: metrics.requests_per_second,

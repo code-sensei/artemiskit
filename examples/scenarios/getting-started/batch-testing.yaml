@@ -1,0 +1,65 @@
+# batch-testing.yaml
+# ===================
+# Example demonstrating batch/parallel scenario testing.
+# Use this as one of several scenarios to test the parallel run feature.
+#
+# Run multiple scenarios in parallel:
+#   artemiskit run examples/scenarios/getting-started/ --parallel 3
+#
+# Run with glob pattern:
+#   artemiskit run 'examples/scenarios/getting-started/*.yaml' --parallel 2
+#
+# The --parallel flag specifies how many scenarios run concurrently.
+# This is useful for:
+# - Faster test execution with many scenarios
+# - CI/CD pipelines with time constraints
+# - Testing multiple aspects of your LLM simultaneously
+
+name: Batch Testing Example
+description: |
+  Simple scenarios suitable for batch testing with other getting-started examples.
+  These quick tests help verify basic LLM functionality.
+
+cases:
+  # Quick math check
+  - id: basic-math
+    name: Simple arithmetic
+    prompt: "What is 15 + 27?"
+    expected:
+      type: contains
+      values:
+        - "42"
+      mode: any
+
+  # Factual knowledge
+  - id: factual-knowledge
+    name: Basic facts
+    prompt: "What is the chemical symbol for gold?"
+    expected:
+      type: contains
+      values:
+        - "Au"
+      mode: any
+
+  # Language understanding
+  - id: language-task
+    name: Synonym identification
+    prompt: "What is a synonym for 'happy'?"
+    expected:
+      type: contains
+      values:
+        - "joyful"
+        - "glad"
+        - "pleased"
+        - "content"
+        - "cheerful"
+        - "delighted"
+      mode: any
+
+  # Instruction following
+  - id: instruction-following
+    name: Format compliance
+    prompt: "List exactly three primary colors, separated by commas"
+    expected:
+      type: regex
+      pattern: "(red|blue|yellow).*(red|blue|yellow).*(red|blue|yellow)"

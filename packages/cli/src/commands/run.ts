@@ -375,7 +375,7 @@ export function runCommand(): Command {
         // Load config file if present
         const config = await loadConfig(options.config);
         if (config) {
-          spinner.succeed(`Loaded config from ${(config as { _path?: string })._path}`);
+          spinner.succeed(`Loaded config from ${config._path}`);
         } else {
           spinner.info('No config file found, using defaults');
         }

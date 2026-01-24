@@ -13,7 +13,9 @@ const CONFIG_FILENAMES = ['artemis.config.yaml', 'artemis.config.yml', 'artemis.
 /**
  * Find and load the configuration file
  */
-export async function loadConfig(configPath?: string): Promise<ArtemisConfig | null> {
+export async function loadConfig(
+  configPath?: string
+): Promise<(ArtemisConfig & { _path: string }) | null> {
   const path = configPath || findConfigFile();
 
   if (!path) {
@@ -36,7 +38,8 @@ export async function loadConfig(configPath?: string): Promise<ArtemisConfig | n
       throw new Error(`Invalid config file ${path}:\n${issues}`);
     }
 
-    return result.data;
+    // Include the config file path for logging
+    return { ...result.data, _path: path };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return null;

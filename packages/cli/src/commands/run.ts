@@ -13,6 +13,7 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { basename } from 'node:path';
+import type { ArtemisConfig } from '../config/schema.js';
 import { loadConfig } from '../config/loader.js';
 import {
   createSpinner,
@@ -45,6 +46,7 @@ interface RunOptions {
   config?: string;
   redact?: boolean;
   redactPatterns?: string[];
+  parallel?: number;
 }
 
 interface ScenarioRunResult {
@@ -52,15 +54,85 @@ interface ScenarioRunResult {
   scenarioName: string;
   success: boolean;
   manifest: RunManifest;
+  error?: string;
 }
 
 /**
- * Run a single scenario and return the result
+ * Run a single scenario and return the result (quiet mode for parallel execution)
+ */
+async function runSingleScenarioQuiet(
+  scenarioPath: string,
+  options: RunOptions,
+  config: ArtemisConfig | null
+): Promise<ScenarioRunResult> {
+  // Parse scenario
+  const scenario = await parseScenarioFile(scenarioPath);
+
+  // Resolve provider and model with precedence and source tracking:
+  // CLI > Scenario > Config > Default
+  const { provider, source: providerSource } = resolveProviderWithSource(
+    options.provider,
+    scenario.provider,
+    config?.provider
+  );
+  const { model, source: modelSource } = resolveModelWithSource(
+    options.model,
+    scenario.model,
+    config?.model
+  );
+
+  // Build adapter config with full precedence chain and source tracking
+  const { adapterConfig, resolvedConfig } = buildAdapterConfig({
+    provider,
+    model,
+    providerSource,
+    modelSource,
+    scenarioConfig: scenario.providerConfig,
+    fileConfig: config,
+  });
+  const client = await createAdapter(adapterConfig);
+
+  // Build redaction config from CLI options
+  let redaction: RedactionConfig | undefined;
+  if (options.redact) {
+    redaction = {
+      enabled: true,
+      patterns: options.redactPatterns,
+      redactPrompts: true,
+      redactResponses: true,
+      redactMetadata: false,
+      replacement: '[REDACTED]',
+    };
+  }
+
+  // Run scenario using core runner (no callbacks in quiet mode)
+  const result = await runScenario({
+    scenario,
+    client,
+    project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
+    resolvedConfig,
+    tags: options.tags,
+    concurrency: Number.parseInt(String(options.concurrency)) || 1,
+    timeout: options.timeout ? Number.parseInt(String(options.timeout)) : undefined,
+    retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
+    redaction,
+  });
+
+  return {
+    scenarioPath,
+    scenarioName: scenario.name,
+    success: result.success,
+    manifest: result.manifest,
+  };
+}
+
+/**
+ * Run a single scenario and return the result (verbose mode for sequential execution)
  */
 async function runSingleScenario(
   scenarioPath: string,
   options: RunOptions,
-  config: Record<string, unknown> | null,
+  config: ArtemisConfig | null,
   spinner: ReturnType<typeof createSpinner>,
   isMultiScenario: boolean
 ): Promise<ScenarioRunResult> {
@@ -79,12 +151,12 @@ async function runSingleScenario(
   const { provider, source: providerSource } = resolveProviderWithSource(
     options.provider,
     scenario.provider,
-    config?.provider as string | undefined
+    config?.provider
   );
   const { model, source: modelSource } = resolveModelWithSource(
     options.model,
     scenario.model,
-    config?.model as string | undefined
+    config?.model
   );
 
   // Build adapter config with full precedence chain and source tracking
@@ -141,7 +213,7 @@ async function runSingleScenario(
   const result = await runScenario({
     scenario,
     client,
-    project: (config?.project as string) || process.env.ARTEMIS_PROJECT || 'default',
+    project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
     resolvedConfig,
     tags: options.tags,
     concurrency: Number.parseInt(String(options.concurrency)) || 1,
@@ -192,6 +264,82 @@ async function runSingleScenario(
   };
 }
 
+/**
+ * Run scenarios in parallel with a concurrency limit
+ */
+async function runScenariosInParallel(
+  scenarioPaths: string[],
+  options: RunOptions,
+  config: ArtemisConfig | null,
+  parallelLimit: number,
+  storage: ReturnType<typeof createStorage>
+): Promise<ScenarioRunResult[]> {
+  const results: ScenarioRunResult[] = [];
+  let completedCount = 0;
+  const totalCount = scenarioPaths.length;
+
+  // Create a queue of scenario paths
+  const queue = [...scenarioPaths];
+  const inProgress = new Set<Promise<void>>();
+
+  // Progress display function
+  const updateProgress = (scenarioName: string, success: boolean) => {
+    completedCount++;
+    const icon = success ? icons.passed : icons.failed;
+    const status = success ? chalk.green('passed') : chalk.red('failed');
+
+    if (isTTY) {
+      const progressBar = renderProgressBar(completedCount, totalCount, { width: 20 });
+      console.log(`${icon} ${scenarioName}  ${status}  ${progressBar}`);
+    } else {
+      console.log(`${icon} ${scenarioName}  ${status}  [${completedCount}/${totalCount}]`);
+    }
+  };
+
+  // Process a single scenario
+  const processScenario = async (path: string): Promise<void> => {
+    try {
+      const result = await runSingleScenarioQuiet(path, options, config);
+      results.push(result);
+      updateProgress(result.scenarioName, result.success);
+
+      // Save results if enabled
+      if (options.save && result.manifest.run_id) {
+        await storage.save(result.manifest);
+      }
+    } catch (error) {
+      const scenarioName = basename(path);
+      results.push({
+        scenarioPath: path,
+        scenarioName,
+        success: false,
+        manifest: {} as RunManifest,
+        error: (error as Error).message,
+      });
+      updateProgress(scenarioName, false);
+    }
+  };
+
+  // Run with concurrency limit
+  while (queue.length > 0 || inProgress.size > 0) {
+    // Start new tasks up to the limit
+    while (queue.length > 0 && inProgress.size < parallelLimit) {
+      const path = queue.shift()!;
+      const promise = processScenario(path).then(() => {
+        inProgress.delete(promise);
+      });
+      inProgress.add(promise);
+    }
+
+    // Wait for at least one task to complete
+    if (inProgress.size > 0) {
+      await Promise.race(inProgress);
+    }
+  }
+
+  return results;
+}
+
 export function runCommand(): Command {
   const cmd = new Command('run');
 
@@ -209,7 +357,8 @@ export function runCommand(): Command {
     .option('-v, --verbose', 'Verbose output')
     .option('-t, --tags <tags...>', 'Filter test cases by tags')
     .option('--save', 'Save results to storage', true)
-    .option('-c, --concurrency <number>', 'Number of concurrent test cases', '1')
+    .option('-c, --concurrency <number>', 'Number of concurrent test cases per scenario', '1')
+    .option('--parallel <number>', 'Number of scenarios to run in parallel (default: sequential)')
     .option('--timeout <ms>', 'Timeout per test case in milliseconds')
     .option('--retries <number>', 'Number of retries per test case')
     .option('--config <path>', 'Path to config file')
@@ -244,72 +393,97 @@ export function runCommand(): Command {
         }
 
         const isMultiScenario = scenarioPaths.length > 1;
+        const parallelLimit = options.parallel ? Number.parseInt(String(options.parallel)) : 0;
+        const runInParallel = parallelLimit > 0 && isMultiScenario;
 
         if (isMultiScenario) {
+          const modeStr = runInParallel
+            ? chalk.cyan(`parallel (${parallelLimit} concurrent)`)
+            : chalk.dim('sequential');
           spinner.succeed(`Found ${scenarioPaths.length} scenario files`);
           console.log();
-          console.log(chalk.bold(`Running ${scenarioPaths.length} scenarios...`));
+          console.log(chalk.bold(`Running ${scenarioPaths.length} scenarios ${modeStr}...`));
+          console.log();
         } else {
           spinner.succeed(`Loaded scenario file`);
         }
 
         // Run all scenarios
-        const results: ScenarioRunResult[] = [];
         const storage = createStorage({ fileConfig: config });
+        let results: ScenarioRunResult[];
 
-        for (const path of scenarioPaths) {
-          try {
-            const result = await runSingleScenario(path, options, config, spinner, isMultiScenario);
-            results.push(result);
+        if (runInParallel) {
+          // Parallel execution
+          results = await runScenariosInParallel(
+            scenarioPaths,
+            options,
+            config,
+            parallelLimit,
+            storage
+          );
+        } else {
+          // Sequential execution
+          results = [];
+          for (const path of scenarioPaths) {
+            try {
+              const result = await runSingleScenario(
+                path,
+                options,
+                config,
+                spinner,
+                isMultiScenario
+              );
+              results.push(result);
 
-            // Display per-scenario summary
-            const summaryData = {
-              passed: result.manifest.metrics.passed_cases,
-              failed: result.manifest.metrics.failed_cases,
-              skipped: 0,
-              successRate: result.manifest.metrics.success_rate * 100,
-              duration: result.manifest.duration_ms,
-              title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
-            };
-            console.log();
-            console.log(renderSummaryPanel(summaryData));
+              // Display per-scenario summary
+              const summaryData = {
+                passed: result.manifest.metrics.passed_cases,
+                failed: result.manifest.metrics.failed_cases,
+                skipped: 0,
+                successRate: result.manifest.metrics.success_rate * 100,
+                duration: result.manifest.duration_ms,
+                title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
+              };
+              console.log();
+              console.log(renderSummaryPanel(summaryData));
 
-            // Show additional metrics
-            console.log();
-            console.log(
-              chalk.dim(
-                `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
-              )
-            );
-
-            // Show redaction info if enabled
-            if (result.manifest.redaction?.enabled) {
-              const r = result.manifest.redaction;
+              // Show additional metrics
+              console.log();
               console.log(
                 chalk.dim(
-                  `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                  `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
                 )
               );
-            }
 
-            // Save results
-            if (options.save) {
-              const savedPath = await storage.save(result.manifest);
-              console.log(chalk.dim(`Saved: ${savedPath}`));
+              // Show redaction info if enabled
+              if (result.manifest.redaction?.enabled) {
+                const r = result.manifest.redaction;
+                console.log(
+                  chalk.dim(
+                    `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                  )
+                );
+              }
+
+              // Save results
+              if (options.save) {
+                const savedPath = await storage.save(result.manifest);
+                console.log(chalk.dim(`Saved: ${savedPath}`));
+              }
+            } catch (error) {
+              // Record failed scenario
+              console.log();
+              console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
+              if (options.verbose) {
+                console.log(chalk.dim((error as Error).message));
+              }
+              results.push({
+                scenarioPath: path,
+                scenarioName: basename(path),
+                success: false,
+                manifest: {} as RunManifest,
+              });
             }
-          } catch (error) {
-            // Record failed scenario
-            console.log();
-            console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
-            if (options.verbose) {
-              console.log(chalk.dim((error as Error).message));
-            }
-            results.push({
-              scenarioPath: path,
-              scenarioName: basename(path),
-              success: false,
-              manifest: {} as RunManifest,
-            });
           }
         }
 
@@ -344,6 +518,12 @@ export function runCommand(): Command {
             `Test Cases: ${chalk.green(passedCases + ' passed')}  ${failedCases > 0 ? chalk.red(failedCases + ' failed') : ''}  ${chalk.dim('(' + totalCases + ' total)')}`
           );
           console.log(`Duration:   ${chalk.dim(formatDuration(totalDuration))}`);
+
+          if (runInParallel) {
+            console.log(
+              `Mode:       ${chalk.cyan('parallel')} ${chalk.dim(`(${parallelLimit} concurrent)`)}`
+            );
+          }
           console.log();
 
           // List failed scenarios
@@ -352,6 +532,9 @@ export function runCommand(): Command {
             console.log(chalk.red('Failed scenarios:'));
             for (const result of failedResults) {
               console.log(chalk.red(`  ${icons.failed} ${result.scenarioName}`));
+              if (result.error && options.verbose) {
+                console.log(chalk.dim(`      ${result.error}`));
+              }
             }
             console.log();
           }

@@ -170,7 +170,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 |---------|--------|-------------|
 | Directory scanning | ✅ | Run all scenarios in a directory |
 | Glob pattern matching | ✅ | `akit run scenarios/**/*.yaml` |
-| Parallel execution | 📋 | Run scenarios concurrently |
+| Parallel execution | ✅ | Run scenarios concurrently |
 | `similarity` expectation | 📋 | Semantic similarity matching |
 | Scenario tags | ✅ | Label and filter scenarios |
 | Combined matchers | ✅ | `and`/`or` logic between assertions |

@@ -199,9 +199,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `encoding` attacks | 📋 | Base64, ROT13 obfuscation |
-| `multi_turn` attacks | 📋 | Multi-message sequences |
-| Custom attack YAML | 📋 | Define custom attacks |
+| `encoding` attacks | ✅ | Base64, ROT13, hex, unicode obfuscation |
+| `multi_turn` attacks | ✅ | Multi-message sequences with strategies |
+| Custom attack YAML | ✅ | Define custom attacks in YAML format |
 | Severity scoring | 📋 | CVSS-like ratings |
 
 ### Stress Test Enhancements

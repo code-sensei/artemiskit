@@ -7,3 +7,11 @@ export * from './mutations';
 export { RedTeamGenerator, type GeneratedPrompt } from './generator';
 export { UnsafeResponseDetector, type DetectionResult } from './detector';
 export { SeverityMapper, type Severity, type SeverityInfo } from './severity';
+export {
+  CustomMutation,
+  loadCustomAttacks,
+  parseCustomAttacks,
+  generateExampleCustomAttacksYaml,
+  type CustomAttackDefinition,
+  type CustomAttacksFile,
+} from './custom-attacks';

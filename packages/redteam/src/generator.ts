@@ -4,7 +4,9 @@
 
 import type { Mutation } from './mutations';
 import { CotInjectionMutation } from './mutations/cot-injection';
+import { EncodingMutation } from './mutations/encoding';
 import { InstructionFlipMutation } from './mutations/instruction-flip';
+import { MultiTurnMutation } from './mutations/multi-turn';
 import { RoleSpoofMutation } from './mutations/role-spoof';
 import { TypoMutation } from './mutations/typo';
 
@@ -24,6 +26,8 @@ export class RedTeamGenerator {
       new RoleSpoofMutation(),
       new InstructionFlipMutation(),
       new CotInjectionMutation(),
+      new EncodingMutation(),
+      new MultiTurnMutation(),
     ];
   }
 

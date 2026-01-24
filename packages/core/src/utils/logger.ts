@@ -2,53 +2,82 @@
  * Logger utility for Artemis
  */
 
-import pino from 'pino';
+import { createConsola, type ConsolaInstance, LogLevels } from 'consola';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const level = process.env.ARTEMIS_LOG_LEVEL || 'info';
+const LOG_LEVEL_MAP: Record<LogLevel, number> = {
+  debug: LogLevels.debug,
+  info: LogLevels.info,
+  warn: LogLevels.warn,
+  error: LogLevels.error,
+};
 
-const baseLogger = pino({
-  level,
-  transport:
-    process.env.NODE_ENV === 'development'
-      ? { target: 'pino-pretty', options: { colorize: true } }
-      : undefined,
+const level = (process.env.ARTEMIS_LOG_LEVEL as LogLevel) || 'info';
+
+const baseLogger = createConsola({
+  level: LOG_LEVEL_MAP[level] ?? LogLevels.info,
+  formatOptions: {
+    colors: true,
+    date: true,
+  },
 });
 
 /**
  * Logger class for consistent logging across Artemis
  */
 export class Logger {
-  private logger: pino.Logger;
+  private logger: ConsolaInstance;
 
   constructor(name: string) {
-    this.logger = baseLogger.child({ name });
+    this.logger = baseLogger.withTag(name);
   }
 
   debug(message: string, data?: Record<string, unknown>): void {
-    this.logger.debug(data, message);
+    if (data) {
+      this.logger.debug(message, data);
+    } else {
+      this.logger.debug(message);
+    }
   }
 
   info(message: string, data?: Record<string, unknown>): void {
-    this.logger.info(data, message);
+    if (data) {
+      this.logger.info(message, data);
+    } else {
+      this.logger.info(message);
+    }
   }
 
   warn(message: string, data?: Record<string, unknown>): void {
-    this.logger.warn(data, message);
+    if (data) {
+      this.logger.warn(message, data);
+    } else {
+      this.logger.warn(message);
+    }
   }
 
   error(message: string, error?: Error | unknown, data?: Record<string, unknown>): void {
     const errorData =
       error instanceof Error
         ? { error: { message: error.message, stack: error.stack, name: error.name } }
-        : { error };
-    this.logger.error({ ...data, ...errorData }, message);
+        : error
+          ? { error }
+          : undefined;
+
+    const mergedData = errorData || data ? { ...data, ...errorData } : undefined;
+
+    if (mergedData) {
+      this.logger.error(message, mergedData);
+    } else {
+      this.logger.error(message);
+    }
   }
 
   child(bindings: Record<string, unknown>): Logger {
     const childLogger = new Logger('');
-    childLogger.logger = this.logger.child(bindings);
+    const tag = bindings.name ? String(bindings.name) : '';
+    childLogger.logger = this.logger.withTag(tag);
     return childLogger;
   }
 }

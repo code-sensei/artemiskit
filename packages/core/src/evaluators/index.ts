@@ -7,6 +7,7 @@ import { ExactEvaluator } from './exact';
 import { FuzzyEvaluator } from './fuzzy';
 import { JsonSchemaEvaluator } from './json-schema';
 import { LLMGraderEvaluator } from './llm-grader';
+import { NotContainsEvaluator } from './not-contains';
 import { RegexEvaluator } from './regex';
 import type { Evaluator } from './types';
 
@@ -15,6 +16,7 @@ evaluators.set('exact', new ExactEvaluator());
 evaluators.set('regex', new RegexEvaluator());
 evaluators.set('fuzzy', new FuzzyEvaluator());
 evaluators.set('contains', new ContainsEvaluator());
+evaluators.set('not_contains', new NotContainsEvaluator());
 evaluators.set('json_schema', new JsonSchemaEvaluator());
 evaluators.set('llm_grader', new LLMGraderEvaluator());
 
@@ -49,5 +51,6 @@ export { ExactEvaluator } from './exact';
 export { RegexEvaluator } from './regex';
 export { FuzzyEvaluator } from './fuzzy';
 export { ContainsEvaluator } from './contains';
+export { NotContainsEvaluator } from './not-contains';
 export { JsonSchemaEvaluator } from './json-schema';
 export { LLMGraderEvaluator } from './llm-grader';

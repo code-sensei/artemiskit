@@ -162,7 +162,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 ## v0.2.0 - Enhanced Evaluation
 
-**Goal:** Richer evaluation capabilities and CI/CD integration.
+**Goal:** Richer evaluation capabilities, programmatic SDK, and improved developer experience.
 
 ### Enhanced Scenarios
 
@@ -174,18 +174,8 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | `similarity` expectation | 📋 | Semantic similarity matching |
 | Scenario tags | ✅ | Label and filter scenarios |
 | Combined matchers | 📋 | `and`/`or` logic between assertions |
-| `not_contains` expectation | 📋 | Negative containment check |
+| `not_contains` expectation | ✅ | Negative containment check |
 | Inline custom matchers | 📋 | Define matcher functions in YAML |
-
-### CI/CD Integration
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| GitHub Action | 📋 | Official `artemiskit-action` |
-| Exit codes | ✅ | 0=pass, 1=fail, 2=error |
-| Configurable threshold | 📋 | Fail on X% regression |
-| JUnit XML output | 📋 | Standard CI format |
-| GitHub annotations | 📋 | Inline PR comments |
 
 ### Programmatic SDK (TypeScript/JavaScript)
 
@@ -232,13 +222,15 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Confirmation dialogs | 📋 | Confirm destructive actions |
 | Interactive init wizard | 📋 | Guided configuration setup |
 
-### Metrics & Observability
+### Metrics & Observability (v0.2.x - Final Phase)
+
+> **Note:** This section will be implemented last in the v0.2.x series, after all other v0.2.0 features are complete. Implementation details and scope will be discussed and finalized before work begins.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Prometheus metrics | 📋 | Export metrics in Prometheus format |
-| OpenTelemetry spans | 📋 | Distributed tracing support |
-| Custom metrics hooks | 📋 | User-defined metric collectors |
+| Prometheus metrics | 💡 | Export metrics in Prometheus format |
+| OpenTelemetry spans | 💡 | Distributed tracing support |
+| Custom metrics hooks | 💡 | User-defined metric collectors |
 
 ---
 
@@ -298,6 +290,33 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Keyboard navigation | 💡 | Navigate results with arrow keys |
 | Interactive filtering | 💡 | Filter results in real-time |
 | Watch mode | 💡 | Re-run on file changes |
+
+---
+
+## v1.0.0 - Production Ready
+
+**Goal:** Full CI/CD integration, stable APIs, and production-grade tooling.
+
+### CI/CD Integration
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| GitHub Action | 📋 | Official `artemiskit-action` |
+| Exit codes | ✅ | 0=pass, 1=fail, 2=error |
+| Configurable threshold | 📋 | Fail on X% regression |
+| JUnit XML output | 📋 | Standard CI format |
+| GitHub annotations | 📋 | Inline PR comments |
+| GitLab CI template | 💡 | Official GitLab CI configuration |
+| Azure DevOps task | 💡 | Azure Pipelines integration |
+
+### Stability & Polish
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Stable public API | 📋 | No breaking changes guarantee |
+| Comprehensive docs | 📋 | Full API documentation |
+| Migration guides | 📋 | Upgrade guides from pre-1.0 |
+| Performance benchmarks | 💡 | Published performance baselines |
 
 ---
 

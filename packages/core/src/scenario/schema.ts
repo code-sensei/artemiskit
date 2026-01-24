@@ -85,6 +85,12 @@ export const ExpectedSchema = z.discriminatedUnion('type', [
   }),
 
   z.object({
+    type: z.literal('not_contains'),
+    values: z.array(z.string()),
+    mode: z.enum(['all', 'any']).default('all'),
+  }),
+
+  z.object({
     type: z.literal('json_schema'),
     schema: z.record(z.unknown()),
   }),

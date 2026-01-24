@@ -40,3 +40,21 @@ export type { ErrorContext } from './errors.js';
 // Live status tracking
 export { LiveTestStatus, Spinner, createSpinner } from './live-status.js';
 export type { TestStatus } from './live-status.js';
+
+// Interactive prompts
+export {
+  isInteractive,
+  promptProvider,
+  promptModel,
+  promptScenarios,
+  promptConfirm,
+  promptInput,
+  promptPassword,
+  promptSelect,
+  promptApiKeyIfNeeded,
+  getApiKeyEnvVar,
+  runInitWizard,
+  PROVIDER_CHOICES,
+  MODEL_CHOICES,
+} from './prompts.js';
+export type { InitWizardResult } from './prompts.js';

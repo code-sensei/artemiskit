@@ -218,11 +218,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Interactive prompts | 📋 | Inquirer-based user prompts |
-| Scenario selection | 📋 | Choose scenarios interactively |
-| Provider selection | 📋 | Select provider at runtime |
-| Confirmation dialogs | 📋 | Confirm destructive actions |
-| Interactive init wizard | 📋 | Guided configuration setup |
+| Interactive prompts | ✅ | Inquirer-based user prompts (`--interactive` flag) |
+| Scenario selection | ✅ | Choose scenarios interactively when no path given |
+| Provider selection | ✅ | Select provider/model at runtime in interactive mode |
+| Confirmation dialogs | ✅ | Confirm destructive actions |
+| Interactive init wizard | ✅ | Guided configuration setup (`artemiskit init -i`) |
 
 ### Metrics & Observability (v0.2.x - Final Phase)
 

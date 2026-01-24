@@ -20,8 +20,12 @@ import {
   formatDuration,
   getProviderErrorContext,
   icons,
+  isInteractive,
   isTTY,
   padText,
+  promptModel,
+  promptProvider,
+  promptScenarios,
   renderError,
   renderProgressBar,
   renderSummaryPanel,
@@ -47,6 +51,7 @@ interface RunOptions {
   redact?: boolean;
   redactPatterns?: string[];
   parallel?: number;
+  interactive?: boolean;
 }
 
 interface ScenarioRunResult {
@@ -348,7 +353,7 @@ export function runCommand(): Command {
       'Run test scenarios against an LLM. Accepts a file path, directory, or glob pattern.'
     )
     .argument(
-      '<scenario>',
+      '[scenario]',
       'Path to scenario file, directory, or glob pattern (e.g., scenarios/**/*.yaml)'
     )
     .option('-p, --provider <provider>', 'Provider to use (openai, azure-openai, vercel-ai)')
@@ -367,7 +372,8 @@ export function runCommand(): Command {
       '--redact-patterns <patterns...>',
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
-    .action(async (scenarioPath: string, options: RunOptions) => {
+    .option('-i, --interactive', 'Enable interactive mode for scenario/provider selection')
+    .action(async (scenarioPath: string | undefined, options: RunOptions) => {
       const spinner = createSpinner('Loading configuration...');
       spinner.start();
 
@@ -380,9 +386,90 @@ export function runCommand(): Command {
           spinner.info('No config file found, using defaults');
         }
 
+        // Determine if we should use interactive mode
+        const useInteractive = options.interactive || (!scenarioPath && isInteractive());
+
+        // Interactive provider/model selection if requested
+        if (useInteractive && !options.provider) {
+          spinner.stop();
+          console.log(chalk.cyan('\n  Interactive mode enabled\n'));
+
+          const provider = await promptProvider('Select a provider:');
+          options.provider = provider;
+
+          const model = await promptModel(provider, 'Select a model:');
+          options.model = model;
+
+          console.log(''); // spacing
+          spinner.start('Discovering scenarios...');
+        }
+
+        // If no scenario path provided, try to find scenarios or prompt
+        let resolvedScenarioPath = scenarioPath;
+        if (!resolvedScenarioPath) {
+          // Try default scenarios directory
+          const defaultPath = config?.scenariosDir || './scenarios';
+          spinner.start(`Looking for scenarios in ${defaultPath}...`);
+
+          try {
+            const defaultScenarios = await resolveScenarioPaths(defaultPath);
+            if (defaultScenarios.length > 0) {
+              spinner.stop();
+
+              if (useInteractive) {
+                // Let user select which scenarios to run
+                const scenarioChoices = await Promise.all(
+                  defaultScenarios.map(async (path) => {
+                    try {
+                      const scenario = await parseScenarioFile(path);
+                      return { path, name: scenario.name || basename(path) };
+                    } catch {
+                      return { path, name: basename(path) };
+                    }
+                  })
+                );
+
+                const selectedPaths = await promptScenarios(
+                  scenarioChoices,
+                  'Select scenarios to run:'
+                );
+
+                if (selectedPaths.length === 0) {
+                  console.log(chalk.yellow('\nNo scenarios selected. Exiting.'));
+                  process.exit(0);
+                }
+
+                // Use the first selected scenario or create a temp pattern
+                resolvedScenarioPath =
+                  selectedPaths.length === 1 ? selectedPaths[0] : `{${selectedPaths.join(',')}}`;
+
+                console.log(''); // spacing
+                spinner.start('Preparing scenarios...');
+              } else {
+                spinner.succeed(`Found ${defaultScenarios.length} scenarios in ${defaultPath}`);
+                resolvedScenarioPath = defaultPath;
+              }
+            } else {
+              spinner.fail(`No scenarios found in ${defaultPath}`);
+              console.log();
+              console.log(chalk.yellow('Please provide a scenario path:'));
+              console.log(chalk.dim('  artemiskit run <path-to-scenario.yaml>'));
+              console.log(chalk.dim('  artemiskit run scenarios/'));
+              console.log(chalk.dim('  artemiskit run "scenarios/**/*.yaml"'));
+              process.exit(1);
+            }
+          } catch {
+            spinner.fail('No scenario path provided');
+            console.log();
+            console.log(chalk.yellow('Usage: artemiskit run <scenario>'));
+            console.log(chalk.dim('  <scenario> can be a file, directory, or glob pattern'));
+            process.exit(1);
+          }
+        }
+
         // Resolve scenario paths (handles files, directories, and globs)
         spinner.start('Discovering scenarios...');
-        const scenarioPaths = await resolveScenarioPaths(scenarioPath);
+        const scenarioPaths = await resolveScenarioPaths(resolvedScenarioPath);
 
         if (scenarioPaths.length === 0) {
           spinner.fail('No scenario files found');

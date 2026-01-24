@@ -7,7 +7,13 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { createSpinner, icons } from '../ui/index.js';
+import {
+  createSpinner,
+  icons,
+  isInteractive,
+  runInitWizard,
+  type InitWizardResult,
+} from '../ui/index.js';
 import { checkForUpdateAndNotify, getCurrentVersion } from '../utils/update-checker.js';
 
 const DEFAULT_CONFIG = `# ArtemisKit Configuration
@@ -85,6 +91,67 @@ const ENV_KEYS = [
   'AZURE_OPENAI_API_VERSION=',
   'ANTHROPIC_API_KEY=',
 ];
+
+/**
+ * Generate config content from wizard results
+ */
+function generateConfigFromWizard(wizard: InitWizardResult): string {
+  const providerConfigs: Record<string, string> = {
+    openai: `  openai:
+    apiKey: \${OPENAI_API_KEY}
+    defaultModel: ${wizard.model}`,
+    'azure-openai': `  azure-openai:
+    apiKey: \${AZURE_OPENAI_API_KEY}
+    resourceName: \${AZURE_OPENAI_RESOURCE}
+    deploymentName: \${AZURE_OPENAI_DEPLOYMENT}
+    apiVersion: "2024-02-15-preview"`,
+    anthropic: `  anthropic:
+    apiKey: \${ANTHROPIC_API_KEY}
+    defaultModel: ${wizard.model}`,
+    google: `  google:
+    apiKey: \${GOOGLE_AI_API_KEY}
+    defaultModel: ${wizard.model}`,
+    mistral: `  mistral:
+    apiKey: \${MISTRAL_API_KEY}
+    defaultModel: ${wizard.model}`,
+    ollama: `  ollama:
+    baseUrl: http://localhost:11434
+    defaultModel: ${wizard.model}`,
+  };
+
+  const storageConfig =
+    wizard.storageType === 'supabase'
+      ? `storage:
+  type: supabase
+  supabaseUrl: \${SUPABASE_URL}
+  supabaseKey: \${SUPABASE_ANON_KEY}`
+      : `storage:
+  type: local
+  basePath: ./artemis-runs`;
+
+  return `# ArtemisKit Configuration
+project: ${wizard.projectName}
+
+# Default provider settings
+provider: ${wizard.provider}
+model: ${wizard.model}
+
+# Provider configurations
+providers:
+${providerConfigs[wizard.provider] || providerConfigs.openai}
+
+# Storage configuration
+${storageConfig}
+
+# Scenarios directory
+scenariosDir: ./scenarios
+
+# Output settings
+output:
+  format: json
+  dir: ./artemis-output
+`;
+}
 
 function renderWelcomeBanner(): string {
   // Brand color for "KIT" portion: #fb923c (orange)
@@ -230,82 +297,119 @@ export function initCommand(): Command {
     .description('Initialize ArtemisKit in the current directory')
     .option('-f, --force', 'Overwrite existing configuration')
     .option('--skip-env', 'Skip adding environment variables to .env')
-    .action(async (options: { force?: boolean; skipEnv?: boolean }) => {
-      const spinner = createSpinner();
+    .option('-i, --interactive', 'Run interactive setup wizard')
+    .option('-y, --yes', 'Use defaults without prompts (non-interactive)')
+    .action(
+      async (options: {
+        force?: boolean;
+        skipEnv?: boolean;
+        interactive?: boolean;
+        yes?: boolean;
+      }) => {
+        const spinner = createSpinner();
 
-      try {
-        const cwd = process.cwd();
+        try {
+          const cwd = process.cwd();
 
-        // Show welcome banner
-        console.log(renderWelcomeBanner());
+          // Show welcome banner
+          console.log(renderWelcomeBanner());
 
-        // Step 1: Create directories
-        spinner.start('Creating project structure...');
-        await mkdir(join(cwd, 'scenarios'), { recursive: true });
-        await mkdir(join(cwd, 'artemis-runs'), { recursive: true });
-        await mkdir(join(cwd, 'artemis-output'), { recursive: true });
-        spinner.succeed('Created project structure');
+          // Determine if we should run interactive wizard
+          const shouldRunWizard =
+            options.interactive || (isInteractive() && !options.yes && !options.force);
 
-        // Step 2: Write config file
-        const configPath = join(cwd, 'artemis.config.yaml');
-        const configExists = existsSync(configPath);
+          let configContent = DEFAULT_CONFIG;
+          let createExample = true;
 
-        if (configExists && !options.force) {
-          spinner.info('Config file already exists (use --force to overwrite)');
-        } else {
-          spinner.start('Writing configuration...');
-          await writeFile(configPath, DEFAULT_CONFIG);
-          spinner.succeed(
-            configExists ? 'Overwrote artemis.config.yaml' : 'Created artemis.config.yaml'
-          );
-        }
+          // Run interactive wizard if applicable
+          if (shouldRunWizard) {
+            try {
+              const wizardResult = await runInitWizard();
+              configContent = generateConfigFromWizard(wizardResult);
+              createExample = wizardResult.createExample;
+              console.log(''); // Add spacing after wizard
+            } catch (wizardError) {
+              // If wizard fails (e.g., user cancels), fall back to defaults
+              if ((wizardError as Error).message?.includes('closed')) {
+                console.log(chalk.yellow('\n  Setup cancelled. Using defaults.\n'));
+              } else {
+                throw wizardError;
+              }
+            }
+          }
 
-        // Step 3: Write example scenario
-        const scenarioPath = join(cwd, 'scenarios', 'example.yaml');
-        const scenarioExists = existsSync(scenarioPath);
+          // Step 1: Create directories
+          spinner.start('Creating project structure...');
+          await mkdir(join(cwd, 'scenarios'), { recursive: true });
+          await mkdir(join(cwd, 'artemis-runs'), { recursive: true });
+          await mkdir(join(cwd, 'artemis-output'), { recursive: true });
+          spinner.succeed('Created project structure');
 
-        if (scenarioExists && !options.force) {
-          spinner.info('Example scenario already exists (use --force to overwrite)');
-        } else {
-          spinner.start('Creating example scenario...');
-          await writeFile(scenarioPath, DEFAULT_SCENARIO);
-          spinner.succeed(
-            scenarioExists ? 'Overwrote scenarios/example.yaml' : 'Created scenarios/example.yaml'
-          );
-        }
+          // Step 2: Write config file
+          const configPath = join(cwd, 'artemis.config.yaml');
+          const configExists = existsSync(configPath);
 
-        // Step 4: Update .env file
-        if (!options.skipEnv) {
-          spinner.start('Updating .env file...');
-          const { added, skipped } = await appendEnvKeys(cwd);
+          if (configExists && !options.force) {
+            spinner.info('Config file already exists (use --force to overwrite)');
+          } else {
+            spinner.start('Writing configuration...');
+            await writeFile(configPath, configContent);
+            spinner.succeed(
+              configExists ? 'Overwrote artemis.config.yaml' : 'Created artemis.config.yaml'
+            );
+          }
 
-          if (added.length > 0) {
-            spinner.succeed(`Added ${added.length} environment variable(s) to .env`);
-            if (skipped.length > 0) {
-              console.log(
-                chalk.dim(
-                  `  ${icons.info} Skipped ${skipped.length} existing key(s): ${skipped.join(', ')}`
-                )
+          // Step 3: Write example scenario (if requested)
+          if (createExample) {
+            const scenarioPath = join(cwd, 'scenarios', 'example.yaml');
+            const scenarioExists = existsSync(scenarioPath);
+
+            if (scenarioExists && !options.force) {
+              spinner.info('Example scenario already exists (use --force to overwrite)');
+            } else {
+              spinner.start('Creating example scenario...');
+              await writeFile(scenarioPath, DEFAULT_SCENARIO);
+              spinner.succeed(
+                scenarioExists
+                  ? 'Overwrote scenarios/example.yaml'
+                  : 'Created scenarios/example.yaml'
               );
             }
-          } else if (skipped.length > 0) {
-            spinner.info('All environment variables already exist in .env');
-          } else {
-            spinner.succeed('Created .env with environment variables');
           }
+
+          // Step 4: Update .env file
+          if (!options.skipEnv) {
+            spinner.start('Updating .env file...');
+            const { added, skipped } = await appendEnvKeys(cwd);
+
+            if (added.length > 0) {
+              spinner.succeed(`Added ${added.length} environment variable(s) to .env`);
+              if (skipped.length > 0) {
+                console.log(
+                  chalk.dim(
+                    `  ${icons.info} Skipped ${skipped.length} existing key(s): ${skipped.join(', ')}`
+                  )
+                );
+              }
+            } else if (skipped.length > 0) {
+              spinner.info('All environment variables already exist in .env');
+            } else {
+              spinner.succeed('Created .env with environment variables');
+            }
+          }
+
+          // Show success panel
+          console.log(renderSuccessPanel());
+
+          // Non-blocking update check (fire and forget)
+          checkForUpdateAndNotify();
+        } catch (error) {
+          spinner.fail('Error');
+          console.error(chalk.red(`\n${icons.failed} ${(error as Error).message}`));
+          process.exit(1);
         }
-
-        // Show success panel
-        console.log(renderSuccessPanel());
-
-        // Non-blocking update check (fire and forget)
-        checkForUpdateAndNotify();
-      } catch (error) {
-        spinner.fail('Error');
-        console.error(chalk.red(`\n${icons.failed} ${(error as Error).message}`));
-        process.exit(1);
       }
-    });
+    );
 
   return cmd;
 }

@@ -322,6 +322,15 @@ export interface StressRequestResult {
   error?: string;
   /** Timestamp of the request */
   timestamp: number;
+  /** Token usage for this request */
+  tokens?: {
+    /** Prompt/input tokens */
+    prompt: number;
+    /** Completion/output tokens */
+    completion: number;
+    /** Total tokens */
+    total: number;
+  };
 }
 
 /**
@@ -352,6 +361,36 @@ export interface StressMetrics {
   p95_latency_ms: number;
   /** 99th percentile latency */
   p99_latency_ms: number;
+  /** Token usage metrics (optional - only if provider returns token counts) */
+  tokens?: {
+    /** Total prompt/input tokens across all requests */
+    total_prompt_tokens: number;
+    /** Total completion/output tokens across all requests */
+    total_completion_tokens: number;
+    /** Total tokens (prompt + completion) */
+    total_tokens: number;
+    /** Average tokens per request */
+    avg_tokens_per_request: number;
+  };
+  /** Estimated cost metrics (optional - only if cost estimation is available) */
+  cost?: {
+    /** Estimated total cost in USD */
+    estimated_total_usd: number;
+    /** Cost breakdown by token type */
+    breakdown: {
+      /** Cost for prompt/input tokens */
+      prompt_cost_usd: number;
+      /** Cost for completion/output tokens */
+      completion_cost_usd: number;
+    };
+    /** Model used for cost calculation */
+    model: string;
+    /** Pricing used (per 1K tokens) */
+    pricing: {
+      prompt_per_1k: number;
+      completion_per_1k: number;
+    };
+  };
 }
 
 /**

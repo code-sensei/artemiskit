@@ -26,6 +26,18 @@ export interface StressSummaryData {
   p95Latency: number;
   p99Latency: number;
   throughput: number;
+  /** Token usage (optional) */
+  tokens?: {
+    total: number;
+    prompt: number;
+    completion: number;
+    avgPerRequest: number;
+  };
+  /** Cost estimation (optional) */
+  cost?: {
+    totalUsd: number;
+    model: string;
+  };
 }
 
 export interface RedteamSummaryData {
@@ -77,13 +89,39 @@ export function renderSummaryPanel(data: SummaryData): string {
 }
 
 /**
+ * Format cost for display
+ */
+function formatCostDisplay(costUsd: number): string {
+  if (costUsd < 0.01) {
+    return `${(costUsd * 100).toFixed(4)}¢`;
+  }
+  if (costUsd < 1) {
+    return `$${costUsd.toFixed(4)}`;
+  }
+  return `$${costUsd.toFixed(2)}`;
+}
+
+/**
+ * Format token count with K/M suffix
+ */
+function formatTokenCount(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(2)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}K`;
+  }
+  return tokens.toString();
+}
+
+/**
  * Render a stress test summary panel
  */
 export function renderStressSummaryPanel(data: StressSummaryData): string {
   const width = 55;
 
   if (!isTTY) {
-    return [
+    const lines = [
       '=== STRESS TEST RESULTS ===',
       `Total Requests: ${data.totalRequests}`,
       `Successful: ${data.successfulRequests} (${data.successRate.toFixed(1)}%)`,
@@ -91,7 +129,16 @@ export function renderStressSummaryPanel(data: StressSummaryData): string {
       `Duration: ${formatDuration(data.duration)}`,
       `Throughput: ${data.throughput.toFixed(1)} req/s`,
       `Latency: avg=${data.avgLatency.toFixed(0)}ms p50=${data.p50Latency.toFixed(0)}ms p95=${data.p95Latency.toFixed(0)}ms p99=${data.p99Latency.toFixed(0)}ms`,
-    ].join('\n');
+    ];
+    if (data.tokens) {
+      lines.push(
+        `Tokens: ${formatTokenCount(data.tokens.total)} total (${formatTokenCount(data.tokens.avgPerRequest)}/req)`
+      );
+    }
+    if (data.cost) {
+      lines.push(`Estimated Cost: ${formatCostDisplay(data.cost.totalUsd)} (${data.cost.model})`);
+    }
+    return lines.join('\n');
   }
 
   const border = '═'.repeat(width - 2);
@@ -133,8 +180,54 @@ export function renderStressSummaryPanel(data: StressSummaryData): string {
         width - 2
       ) +
       chalk.cyan('║'),
-    chalk.cyan(`╚${border}╝`),
   ];
+
+  // Add token usage section if available
+  if (data.tokens) {
+    lines.push(chalk.cyan(`╠${border}╣`));
+    lines.push(chalk.cyan('║') + centerText(chalk.dim('Token Usage'), width - 2) + chalk.cyan('║'));
+    lines.push(chalk.cyan(`╠${border}╣`));
+    lines.push(
+      chalk.cyan('║') +
+        padText(`  Total: ${chalk.bold(formatTokenCount(data.tokens.total))} tokens`, width - 2) +
+        chalk.cyan('║')
+    );
+    lines.push(
+      chalk.cyan('║') +
+        padText(
+          `  Prompt: ${formatTokenCount(data.tokens.prompt)}  Completion: ${formatTokenCount(data.tokens.completion)}`,
+          width - 2
+        ) +
+        chalk.cyan('║')
+    );
+    lines.push(
+      chalk.cyan('║') +
+        padText(`  Avg/Request: ${data.tokens.avgPerRequest.toFixed(0)} tokens`, width - 2) +
+        chalk.cyan('║')
+    );
+  }
+
+  // Add cost estimation section if available
+  if (data.cost) {
+    lines.push(chalk.cyan(`╠${border}╣`));
+    lines.push(
+      chalk.cyan('║') + centerText(chalk.dim('Cost Estimation'), width - 2) + chalk.cyan('║')
+    );
+    lines.push(chalk.cyan(`╠${border}╣`));
+    lines.push(
+      chalk.cyan('║') +
+        padText(
+          `  Estimated Total: ${chalk.bold(chalk.yellow(formatCostDisplay(data.cost.totalUsd)))}`,
+          width - 2
+        ) +
+        chalk.cyan('║')
+    );
+    lines.push(
+      chalk.cyan('║') + padText(`  Model: ${data.cost.model}`, width - 2) + chalk.cyan('║')
+    );
+  }
+
+  lines.push(chalk.cyan(`╚${border}╝`));
 
   return lines.join('\n');
 }

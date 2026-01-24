@@ -208,9 +208,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Ramp-up testing | 📋 | Gradual load increase |
-| Token usage tracking | 📋 | Monitor token consumption |
-| Cost estimation | 📋 | Estimate API costs |
+| Ramp-up testing | ✅ | Gradual load increase (already present) |
+| Token usage tracking | ✅ | Monitor token consumption per request |
+| Cost estimation | ✅ | Estimate API costs with model pricing data |
 
 ### CLI Interactivity (Phase 1)
 

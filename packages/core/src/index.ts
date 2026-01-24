@@ -29,3 +29,6 @@ export * from './utils';
 
 // Redaction
 export * from './redaction';
+
+// Cost estimation
+export * from './cost';

@@ -12,7 +12,9 @@ import {
   type StressMetrics,
   type StressRequestResult,
   createAdapter,
+  estimateCost,
   getGitInfo,
+  getModelPricing,
   parseScenarioFile,
 } from '@artemiskit/core';
 import { generateJSONReport, generateStressHTMLReport } from '@artemiskit/reports';
@@ -195,7 +197,11 @@ export function stressCommand(): Command {
         console.log();
 
         // Calculate stats
-        const metrics = calculateMetrics(results, endTime.getTime() - startTime.getTime());
+        const metrics = calculateMetrics(
+          results,
+          endTime.getTime() - startTime.getTime(),
+          resolvedConfig.model
+        );
 
         // Build redaction metadata if enabled
         let redactionInfo: ManifestRedactionInfo | undefined;
@@ -259,6 +265,20 @@ export function stressCommand(): Command {
           p95Latency: metrics.p95_latency_ms,
           p99Latency: metrics.p99_latency_ms,
           throughput: metrics.requests_per_second,
+          tokens: metrics.tokens
+            ? {
+                total: metrics.tokens.total_tokens,
+                prompt: metrics.tokens.total_prompt_tokens,
+                completion: metrics.tokens.total_completion_tokens,
+                avgPerRequest: metrics.tokens.avg_tokens_per_request,
+              }
+            : undefined,
+          cost: metrics.cost
+            ? {
+                totalUsd: metrics.cost.estimated_total_usd,
+                model: metrics.cost.model,
+              }
+            : undefined,
         };
         console.log(renderStressSummaryPanel(summaryData));
 
@@ -318,6 +338,7 @@ interface StressTestOptions {
   client: {
     generate: (req: { prompt: string; model?: string; temperature?: number }) => Promise<{
       text: string;
+      tokens?: { prompt: number; completion: number; total: number };
     }>;
   };
   model?: string;
@@ -359,7 +380,7 @@ async function runStressTest(options: StressTestOptions): Promise<StressRequestR
     active++;
 
     try {
-      await client.generate({
+      const response = await client.generate({
         prompt,
         model,
         temperature,
@@ -369,6 +390,7 @@ async function runStressTest(options: StressTestOptions): Promise<StressRequestR
         success: true,
         latencyMs: Date.now() - requestStart,
         timestamp: requestStart,
+        tokens: response.tokens,
       });
     } catch (error) {
       results.push({
@@ -415,7 +437,11 @@ async function runStressTest(options: StressTestOptions): Promise<StressRequestR
   return results;
 }
 
-function calculateMetrics(results: StressRequestResult[], durationMs: number): StressMetrics {
+function calculateMetrics(
+  results: StressRequestResult[],
+  durationMs: number,
+  model?: string
+): StressMetrics {
   const successful = results.filter((r) => r.success);
   const latencies = successful.map((r) => r.latencyMs).sort((a, b) => a - b);
 
@@ -431,6 +457,50 @@ function calculateMetrics(results: StressRequestResult[], durationMs: number): S
   const requestsPerSecond = durationMs > 0 ? (totalRequests / durationMs) * 1000 : 0;
   const successRate = totalRequests > 0 ? successfulRequests / totalRequests : 0;
 
+  // Calculate token metrics if available
+  const resultsWithTokens = results.filter((r) => r.tokens);
+  let tokens: StressMetrics['tokens'];
+  let cost: StressMetrics['cost'];
+
+  if (resultsWithTokens.length > 0) {
+    const totalPromptTokens = resultsWithTokens.reduce(
+      (sum, r) => sum + (r.tokens?.prompt || 0),
+      0
+    );
+    const totalCompletionTokens = resultsWithTokens.reduce(
+      (sum, r) => sum + (r.tokens?.completion || 0),
+      0
+    );
+    const totalTokens = totalPromptTokens + totalCompletionTokens;
+
+    tokens = {
+      total_prompt_tokens: totalPromptTokens,
+      total_completion_tokens: totalCompletionTokens,
+      total_tokens: totalTokens,
+      avg_tokens_per_request:
+        resultsWithTokens.length > 0 ? totalTokens / resultsWithTokens.length : 0,
+    };
+
+    // Estimate cost if model is known
+    if (model && totalTokens > 0) {
+      const costEstimate = estimateCost(totalPromptTokens, totalCompletionTokens, model);
+      const pricing = getModelPricing(model);
+
+      cost = {
+        estimated_total_usd: costEstimate.totalUsd,
+        breakdown: {
+          prompt_cost_usd: costEstimate.promptCostUsd,
+          completion_cost_usd: costEstimate.completionCostUsd,
+        },
+        model,
+        pricing: {
+          prompt_per_1k: pricing.promptPer1K,
+          completion_per_1k: pricing.completionPer1K,
+        },
+      };
+    }
+  }
+
   return {
     total_requests: totalRequests,
     successful_requests: successfulRequests,
@@ -444,6 +514,8 @@ function calculateMetrics(results: StressRequestResult[], durationMs: number): S
     p90_latency_ms: percentile(latencies, 90),
     p95_latency_ms: percentile(latencies, 95),
     p99_latency_ms: percentile(latencies, 99),
+    tokens,
+    cost,
   };
 }
 

@@ -4,12 +4,15 @@
 
 import {
   type RedactionConfig,
+  type RunManifest,
   createAdapter,
   parseScenarioFile,
+  resolveScenarioPaths,
   runScenario,
 } from '@artemiskit/core';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { basename } from 'node:path';
 import { loadConfig } from '../config/loader.js';
 import {
   createSpinner,
@@ -44,12 +47,162 @@ interface RunOptions {
   redactPatterns?: string[];
 }
 
+interface ScenarioRunResult {
+  scenarioPath: string;
+  scenarioName: string;
+  success: boolean;
+  manifest: RunManifest;
+}
+
+/**
+ * Run a single scenario and return the result
+ */
+async function runSingleScenario(
+  scenarioPath: string,
+  options: RunOptions,
+  config: Record<string, unknown> | null,
+  spinner: ReturnType<typeof createSpinner>,
+  isMultiScenario: boolean
+): Promise<ScenarioRunResult> {
+  // Parse scenario
+  const scenario = await parseScenarioFile(scenarioPath);
+
+  if (isMultiScenario) {
+    console.log();
+    console.log(chalk.bold.cyan(`━━━ ${scenario.name} ━━━`));
+    console.log(chalk.dim(`File: ${basename(scenarioPath)}`));
+    console.log();
+  }
+
+  // Resolve provider and model with precedence and source tracking:
+  // CLI > Scenario > Config > Default
+  const { provider, source: providerSource } = resolveProviderWithSource(
+    options.provider,
+    scenario.provider,
+    config?.provider as string | undefined
+  );
+  const { model, source: modelSource } = resolveModelWithSource(
+    options.model,
+    scenario.model,
+    config?.model as string | undefined
+  );
+
+  // Build adapter config with full precedence chain and source tracking
+  if (!isMultiScenario) {
+    spinner.start(`Connecting to ${provider}...`);
+  }
+  const { adapterConfig, resolvedConfig } = buildAdapterConfig({
+    provider,
+    model,
+    providerSource,
+    modelSource,
+    scenarioConfig: scenario.providerConfig,
+    fileConfig: config,
+  });
+  const client = await createAdapter(adapterConfig);
+  if (!isMultiScenario) {
+    spinner.succeed(`Connected to ${provider}`);
+    console.log();
+    console.log(chalk.bold(`Running scenario: ${scenario.name}`));
+    console.log();
+  }
+
+  // Build redaction config from CLI options
+  let redaction: RedactionConfig | undefined;
+  if (options.redact) {
+    redaction = {
+      enabled: true,
+      patterns: options.redactPatterns,
+      redactPrompts: true,
+      redactResponses: true,
+      redactMetadata: false,
+      replacement: '[REDACTED]',
+    };
+    if (!isMultiScenario) {
+      console.log(
+        chalk.dim(
+          `Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`
+        )
+      );
+      console.log();
+    }
+  }
+
+  // Track progress
+  const totalCases = scenario.cases.length;
+  let completedCases = 0;
+
+  // Calculate max widths for alignment
+  const maxIdLength = Math.max(...scenario.cases.map((c) => c.id.length));
+  const maxScoreLength = 6; // "(100%)"
+  const maxDurationLength = 6; // "10.0s" or "999ms"
+
+  // Run scenario using core runner
+  const result = await runScenario({
+    scenario,
+    client,
+    project: (config?.project as string) || process.env.ARTEMIS_PROJECT || 'default',
+    resolvedConfig,
+    tags: options.tags,
+    concurrency: Number.parseInt(String(options.concurrency)) || 1,
+    timeout: options.timeout ? Number.parseInt(String(options.timeout)) : undefined,
+    retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
+    redaction,
+    onCaseComplete: (caseResult) => {
+      completedCases++;
+
+      const statusIcon = caseResult.ok ? icons.passed : icons.failed;
+      const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
+      const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
+
+      // Pad columns for alignment
+      const paddedId = padText(caseResult.id, maxIdLength);
+      const paddedScore = padText(scoreStr, maxScoreLength, 'right');
+      const paddedDuration = padText(durationStr, maxDurationLength, 'right');
+
+      // Show result - with progress bar in TTY, simple format in CI/CD
+      if (isTTY) {
+        const progressBar = renderProgressBar(completedCases, totalCases, { width: 15 });
+        console.log(
+          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
+        );
+      } else {
+        // CI/CD friendly output - no progress bar, just count
+        console.log(
+          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+        );
+      }
+
+      if (!caseResult.ok && options.verbose) {
+        console.log(chalk.dim(`   Reason: ${caseResult.reason}`));
+      }
+    },
+    onProgress: (message) => {
+      if (options.verbose) {
+        console.log(chalk.dim(message));
+      }
+    },
+  });
+
+  return {
+    scenarioPath,
+    scenarioName: scenario.name,
+    success: result.success,
+    manifest: result.manifest,
+  };
+}
+
 export function runCommand(): Command {
   const cmd = new Command('run');
 
   cmd
-    .description('Run test scenarios against an LLM')
-    .argument('<scenario>', 'Path to scenario YAML file')
+    .description(
+      'Run test scenarios against an LLM. Accepts a file path, directory, or glob pattern.'
+    )
+    .argument(
+      '<scenario>',
+      'Path to scenario file, directory, or glob pattern (e.g., scenarios/**/*.yaml)'
+    )
     .option('-p, --provider <provider>', 'Provider to use (openai, azure-openai, vercel-ai)')
     .option('-m, --model <model>', 'Model to use')
     .option('-o, --output <dir>', 'Output directory for results')
@@ -78,156 +231,135 @@ export function runCommand(): Command {
           spinner.info('No config file found, using defaults');
         }
 
-        // Parse scenario
-        spinner.start('Loading scenario...');
-        const scenario = await parseScenarioFile(scenarioPath);
-        spinner.succeed(`Loaded scenario: ${scenario.name}`);
+        // Resolve scenario paths (handles files, directories, and globs)
+        spinner.start('Discovering scenarios...');
+        const scenarioPaths = await resolveScenarioPaths(scenarioPath);
 
-        // Resolve provider and model with precedence and source tracking:
-        // CLI > Scenario > Config > Default
-        const { provider, source: providerSource } = resolveProviderWithSource(
-          options.provider,
-          scenario.provider,
-          config?.provider
-        );
-        const { model, source: modelSource } = resolveModelWithSource(
-          options.model,
-          scenario.model,
-          config?.model
-        );
-
-        // Build adapter config with full precedence chain and source tracking
-        spinner.start(`Connecting to ${provider}...`);
-        const { adapterConfig, resolvedConfig } = buildAdapterConfig({
-          provider,
-          model,
-          providerSource,
-          modelSource,
-          scenarioConfig: scenario.providerConfig,
-          fileConfig: config,
-        });
-        const client = await createAdapter(adapterConfig);
-        spinner.succeed(`Connected to ${provider}`);
-
-        console.log();
-        console.log(chalk.bold(`Running scenario: ${scenario.name}`));
-        console.log();
-
-        // Build redaction config from CLI options
-        let redaction: RedactionConfig | undefined;
-        if (options.redact) {
-          redaction = {
-            enabled: true,
-            patterns: options.redactPatterns,
-            redactPrompts: true,
-            redactResponses: true,
-            redactMetadata: false,
-            replacement: '[REDACTED]',
-          };
-          console.log(
-            chalk.dim(
-              `Redaction enabled${options.redactPatterns ? ` with patterns: ${options.redactPatterns.join(', ')}` : ' (default patterns)'}`
-            )
-          );
+        if (scenarioPaths.length === 0) {
+          spinner.fail('No scenario files found');
           console.log();
+          console.log(chalk.yellow(`No .yaml or .yml files found matching: ${scenarioPath}`));
+          console.log(chalk.dim('Make sure the path exists and contains valid scenario files.'));
+          process.exit(1);
         }
 
-        // Track progress
-        const totalCases = scenario.cases.length;
-        let completedCases = 0;
+        const isMultiScenario = scenarioPaths.length > 1;
 
-        // Calculate max widths for alignment
-        const maxIdLength = Math.max(...scenario.cases.map((c) => c.id.length));
-        const maxScoreLength = 6; // "(100%)"
-        const maxDurationLength = 6; // "10.0s" or "999ms"
+        if (isMultiScenario) {
+          spinner.succeed(`Found ${scenarioPaths.length} scenario files`);
+          console.log();
+          console.log(chalk.bold(`Running ${scenarioPaths.length} scenarios...`));
+        } else {
+          spinner.succeed(`Loaded scenario file`);
+        }
 
-        // Run scenario using core runner
-        const result = await runScenario({
-          scenario,
-          client,
-          project: config?.project || process.env.ARTEMIS_PROJECT || 'default',
-          resolvedConfig,
-          tags: options.tags,
-          concurrency: Number.parseInt(String(options.concurrency)) || 1,
-          timeout: options.timeout ? Number.parseInt(String(options.timeout)) : undefined,
-          retries: options.retries ? Number.parseInt(String(options.retries)) : undefined,
-          redaction,
-          onCaseComplete: (caseResult) => {
-            completedCases++;
+        // Run all scenarios
+        const results: ScenarioRunResult[] = [];
+        const storage = createStorage({ fileConfig: config });
 
-            const statusIcon = caseResult.ok ? icons.passed : icons.failed;
-            const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
-            const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
+        for (const path of scenarioPaths) {
+          try {
+            const result = await runSingleScenario(path, options, config, spinner, isMultiScenario);
+            results.push(result);
 
-            // Pad columns for alignment
-            const paddedId = padText(caseResult.id, maxIdLength);
-            const paddedScore = padText(scoreStr, maxScoreLength, 'right');
-            const paddedDuration = padText(durationStr, maxDurationLength, 'right');
+            // Display per-scenario summary
+            const summaryData = {
+              passed: result.manifest.metrics.passed_cases,
+              failed: result.manifest.metrics.failed_cases,
+              skipped: 0,
+              successRate: result.manifest.metrics.success_rate * 100,
+              duration: result.manifest.duration_ms,
+              title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
+            };
+            console.log();
+            console.log(renderSummaryPanel(summaryData));
 
-            // Show result - with progress bar in TTY, simple format in CI/CD
-            if (isTTY) {
-              const progressBar = renderProgressBar(completedCases, totalCases, { width: 15 });
+            // Show additional metrics
+            console.log();
+            console.log(
+              chalk.dim(
+                `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
+              )
+            );
+
+            // Show redaction info if enabled
+            if (result.manifest.redaction?.enabled) {
+              const r = result.manifest.redaction;
               console.log(
-                `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
-              );
-            } else {
-              // CI/CD friendly output - no progress bar, just count
-              console.log(
-                `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+                chalk.dim(
+                  `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                )
               );
             }
 
-            if (!caseResult.ok && options.verbose) {
-              console.log(chalk.dim(`   Reason: ${caseResult.reason}`));
+            // Save results
+            if (options.save) {
+              const savedPath = await storage.save(result.manifest);
+              console.log(chalk.dim(`Saved: ${savedPath}`));
             }
-          },
-          onProgress: (message) => {
+          } catch (error) {
+            // Record failed scenario
+            console.log();
+            console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
             if (options.verbose) {
-              console.log(chalk.dim(message));
+              console.log(chalk.dim((error as Error).message));
             }
-          },
-        });
+            results.push({
+              scenarioPath: path,
+              scenarioName: basename(path),
+              success: false,
+              manifest: {} as RunManifest,
+            });
+          }
+        }
 
-        // Display summary using enhanced panel
-        console.log();
-        const summaryData = {
-          passed: result.manifest.metrics.passed_cases,
-          failed: result.manifest.metrics.failed_cases,
-          skipped: 0,
-          successRate: result.manifest.metrics.success_rate * 100,
-          duration: result.manifest.duration_ms,
-          title: 'TEST RESULTS',
-        };
-        console.log(renderSummaryPanel(summaryData));
+        // Display aggregate summary for multiple scenarios
+        if (isMultiScenario) {
+          console.log();
+          console.log(chalk.bold.cyan('━━━ AGGREGATE SUMMARY ━━━'));
+          console.log();
 
-        // Show additional metrics
-        console.log();
-        console.log(
-          chalk.dim(
-            `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
-          )
-        );
+          const totalScenarios = results.length;
+          const passedScenarios = results.filter((r) => r.success).length;
+          const failedScenarios = totalScenarios - passedScenarios;
 
-        // Show redaction info if enabled
-        if (result.manifest.redaction?.enabled) {
-          const r = result.manifest.redaction;
-          console.log(
-            chalk.dim(
-              `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
-            )
+          const totalCases = results.reduce(
+            (sum, r) => sum + (r.manifest.metrics?.total_cases || 0),
+            0
           );
+          const passedCases = results.reduce(
+            (sum, r) => sum + (r.manifest.metrics?.passed_cases || 0),
+            0
+          );
+          const failedCases = results.reduce(
+            (sum, r) => sum + (r.manifest.metrics?.failed_cases || 0),
+            0
+          );
+          const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
+
+          console.log(
+            `Scenarios:  ${chalk.green(passedScenarios + ' passed')}  ${failedScenarios > 0 ? chalk.red(failedScenarios + ' failed') : ''}  ${chalk.dim('(' + totalScenarios + ' total)')}`
+          );
+          console.log(
+            `Test Cases: ${chalk.green(passedCases + ' passed')}  ${failedCases > 0 ? chalk.red(failedCases + ' failed') : ''}  ${chalk.dim('(' + totalCases + ' total)')}`
+          );
+          console.log(`Duration:   ${chalk.dim(formatDuration(totalDuration))}`);
+          console.log();
+
+          // List failed scenarios
+          const failedResults = results.filter((r) => !r.success);
+          if (failedResults.length > 0) {
+            console.log(chalk.red('Failed scenarios:'));
+            for (const result of failedResults) {
+              console.log(chalk.red(`  ${icons.failed} ${result.scenarioName}`));
+            }
+            console.log();
+          }
         }
 
-        // Save results
-        if (options.save) {
-          spinner.start('Saving results...');
-          const storage = createStorage({ fileConfig: config });
-          const path = await storage.save(result.manifest);
-          spinner.succeed(`Results saved: ${path}`);
-        }
-
-        // Exit with error if any tests failed
-        if (!result.success) {
+        // Exit with error if any scenarios failed
+        const hasFailures = results.some((r) => !r.success);
+        if (hasFailures) {
           process.exit(1);
         }
       } catch (error) {

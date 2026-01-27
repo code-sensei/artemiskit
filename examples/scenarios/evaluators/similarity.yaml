@@ -1,0 +1,200 @@
+name: Similarity Evaluator Examples
+description: |
+  Demonstrates the similarity evaluator for semantic matching using embeddings or LLM.
+
+  Modes:
+  - embedding: Uses vector embeddings for fast, cost-effective semantic comparison
+  - llm: Uses LLM to evaluate semantic similarity (slower but more nuanced)
+  - (default): Auto-selects based on availability (prefers embedding)
+
+  When using embedding mode, you can specify an embeddingModel.
+  When using llm mode, you can specify a model for comparison.
+provider: azure-openai
+model: gpt-5-mini
+
+cases:
+  # ========================================
+  # Embedding Mode Examples
+  # Uses vector embeddings for similarity
+  # ========================================
+
+  - id: embedding-paraphrase
+    name: Paraphrase detection (embedding)
+    description: Compare paraphrased text using embeddings
+    prompt: "Rephrase: 'Artificial intelligence is transforming modern industries.'"
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
+      value: "AI is revolutionizing various industries in the modern world."
+      threshold: 0.75
+
+  - id: embedding-translation
+    name: Translation similarity (embedding)
+    description: Verify translation preserves meaning
+    prompt: "Translate to English: 'La inteligencia artificial está cambiando el mundo.'"
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
+      value: "Artificial intelligence is changing the world."
+      threshold: 0.8
+
+  - id: embedding-summary
+    name: Summary accuracy (embedding)
+    description: Check if summary captures main points
+    prompt: |
+      Summarize in one sentence:
+      "Machine learning enables computers to learn patterns from data without explicit
+      programming. It powers recommendations, fraud detection, and autonomous systems."
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
+      value: "Machine learning allows computers to automatically learn from data and is used in recommendations and autonomous systems."
+      threshold: 0.7
+
+  - id: embedding-definition
+    name: Definition accuracy (embedding)
+    prompt: "Define 'neural network' in simple terms."
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
+      value: "A neural network is a computing system inspired by the brain that learns patterns through interconnected nodes."
+      threshold: 0.65
+
+  # ========================================
+  # LLM Mode Examples
+  # Uses LLM for nuanced semantic comparison
+  # ========================================
+
+  - id: llm-reasoning
+    name: Reasoning quality (LLM)
+    description: Verify reasoning quality using LLM judgment
+    prompt: "Explain why the sky is blue."
+    expected:
+      type: similarity
+      mode: llm
+      model: gpt-5-mini
+      value: "The sky appears blue because sunlight is scattered by molecules in the atmosphere. Blue light has a shorter wavelength and scatters more than other colors, making the sky look blue."
+      threshold: 0.7
+
+  - id: llm-explanation
+    name: Concept explanation (LLM)
+    description: Compare explanation quality
+    prompt: "Explain how a refrigerator works to a 10-year-old."
+    expected:
+      type: similarity
+      mode: llm
+      model: gpt-5-mini
+      value: "A refrigerator works by using a special liquid that absorbs heat from inside and releases it outside, keeping the inside cold. It's like a heat vacuum that sucks warmth out."
+      threshold: 0.6
+
+  - id: llm-creative
+    name: Creative response matching (LLM)
+    description: Compare creative writing for similar themes
+    prompt: "Write a one-sentence story about a robot learning to love."
+    expected:
+      type: similarity
+      mode: llm
+      model: gpt-5-mini
+      value: "A lonely robot discovered that love wasn't a program to install, but a connection to feel."
+      threshold: 0.5
+
+  - id: llm-technical
+    name: Technical accuracy (LLM)
+    description: Verify technical explanation accuracy
+    prompt: "Explain what an API is to a junior developer."
+    expected:
+      type: similarity
+      mode: llm
+      model: gpt-5-mini
+      value: "An API is like a waiter in a restaurant - it takes your request, tells the kitchen (server) what you want, and brings back what you ordered (response)."
+      threshold: 0.65
+
+  # ========================================
+  # Auto Mode Examples (Default)
+  # System chooses best available method
+  # ========================================
+
+  - id: auto-greeting
+    name: Greeting similarity (auto)
+    description: Flexible greeting matching
+    prompt: "Greet a customer who just signed up."
+    expected:
+      type: similarity
+      value: "Welcome! Thanks for signing up. We're excited to have you on board!"
+      threshold: 0.55
+
+  - id: auto-instruction
+    name: Instruction following (auto)
+    prompt: "List three benefits of exercise."
+    expected:
+      type: similarity
+      value: "Exercise improves cardiovascular health, boosts mental well-being, and helps maintain a healthy weight."
+      threshold: 0.6
+
+  - id: auto-product
+    name: Product description (auto)
+    prompt: "Write a one-sentence description for a smartwatch."
+    expected:
+      type: similarity
+      value: "A feature-rich smartwatch that tracks your fitness, monitors health, and keeps you connected on the go."
+      threshold: 0.5
+
+  # ========================================
+  # Threshold Variations
+  # ========================================
+
+  - id: strict-matching
+    name: Strict semantic matching
+    description: High threshold for near-exact semantic match
+    prompt: "What is 2 + 2?"
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
+      value: "The answer is 4."
+      threshold: 0.9
+
+  - id: loose-matching
+    name: Loose topic matching
+    description: Low threshold for topic relevance only
+    prompt: "Tell me something interesting about space."
+    expected:
+      type: similarity
+      value: "Space is full of fascinating objects like stars, planets, and black holes."
+      threshold: 0.35
+
+  # ========================================
+  # Practical Use Cases
+  # ========================================
+
+  - id: support-response
+    name: Customer support response quality
+    prompt: "A customer complains their order is late. Write a response."
+    expected:
+      type: similarity
+      mode: llm
+      model: gpt-5-mini
+      value: "I sincerely apologize for the delay with your order. Let me look into this immediately and provide you with an update on the expected delivery date."
+      threshold: 0.6
+
+  - id: code-explanation
+    name: Code explanation accuracy
+    prompt: "Explain what this Python code does: `[x**2 for x in range(5)]`"
+    expected:
+      type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-small
+      value: "This creates a list of squared numbers from 0 to 4, resulting in [0, 1, 4, 9, 16]."
+      threshold: 0.7
+
+  - id: error-message
+    name: Error message helpfulness
+    prompt: "Write an error message for invalid email format."
+    expected:
+      type: similarity
+      value: "Invalid email format. Please enter a valid email address (e.g., user@example.com)."
+      threshold: 0.55

@@ -171,20 +171,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Directory scanning | ✅ | Run all scenarios in a directory |
 | Glob pattern matching | ✅ | `akit run scenarios/**/*.yaml` |
 | Parallel execution | ✅ | Run scenarios concurrently (`--parallel` flag) |
-| `similarity` expectation | ✅ | Semantic similarity matching (embedding or LLM-based) |
+| `similarity` expectation | ✅ | Semantic similarity matching with `mode` (embedding/llm) and `embeddingModel` options |
 | Scenario tags | ✅ | Label and filter scenarios (`--tags` flag) |
 | Combined matchers | ✅ | `and`/`or` logic between assertions (`type: combined`) |
 | `not_contains` expectation | ✅ | Negative containment check |
 | Inline custom matchers | ✅ | Safe expression-based matchers in YAML (`type: inline`) |
-
-### Programmatic SDK (TypeScript/JavaScript)
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| `@artemiskit/sdk` | 📋 | Import and use programmatically |
-| Jest integration | 📋 | Use in Jest tests |
-| Vitest integration | 📋 | Use in Vitest tests |
-| Event emitters | 📋 | Progress callbacks |
 
 ### Enhanced Reports
 
@@ -236,9 +227,18 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 ---
 
-## v0.3.0 - Advanced Features
+## v0.3.0 - SDK & Advanced Features
 
-**Goal:** Local persistence, model comparison, and additional providers.
+**Goal:** Programmatic SDK, local persistence, model comparison, and additional providers.
+
+### Programmatic SDK (TypeScript/JavaScript)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `@artemiskit/sdk` | 📋 | Import and use programmatically |
+| Jest integration | 📋 | Use in Jest tests |
+| Vitest integration | 📋 | Use in Vitest tests |
+| Event emitters | 📋 | Progress callbacks |
 
 ### Local Storage
 

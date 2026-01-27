@@ -113,12 +113,16 @@ export class OpenAIAdapter implements ModelClient {
     }
   }
 
-  async embed(text: string): Promise<number[]> {
-    const model =
-      this.config.provider === 'azure-openai' ? 'text-embedding-ada-002' : 'text-embedding-3-small';
+  async embed(text: string, model?: string): Promise<number[]> {
+    // Use provided model, or fall back to provider defaults
+    const embeddingModel =
+      model ||
+      (this.config.provider === 'azure-openai'
+        ? 'text-embedding-3-large'
+        : 'text-embedding-3-small');
 
     const response = await this.client.embeddings.create({
-      model,
+      model: embeddingModel,
       input: text,
     });
     return response.data[0].embedding;

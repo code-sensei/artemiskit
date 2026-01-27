@@ -90,10 +90,20 @@ export const KNOWN_MODELS: Record<string, string[]> = {
     'claude-3-haiku-20240307',
   ],
   google: [
+    // Gemini 3.0 series (Latest)
+    'gemini-3.0-ultra',
+    'gemini-3.0-pro',
+    'gemini-3.0-flash',
+    // Gemini 2.5 series
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-preview-04-17',
     // Gemini 2.0 series
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-thinking-exp',
     'gemini-2.0-pro',
+    'gemini-2.0-pro-exp',
     // Gemini 1.5 series
     'gemini-1.5-pro',
     'gemini-1.5-pro-latest',
@@ -173,10 +183,12 @@ export const MODEL_CHOICES: Record<string, { name: string; value: string }[]> = 
     { name: 'Other (specify)', value: '__custom__' },
   ],
   google: [
-    { name: 'gemini-2.0-flash (Latest, fast)', value: 'gemini-2.0-flash' },
-    { name: 'gemini-2.0-pro (Most capable)', value: 'gemini-2.0-pro' },
+    { name: 'gemini-3.0-pro (Latest, most capable)', value: 'gemini-3.0-pro' },
+    { name: 'gemini-3.0-flash (Latest, fast)', value: 'gemini-3.0-flash' },
+    { name: 'gemini-2.5-pro (Previous gen, capable)', value: 'gemini-2.5-pro' },
+    { name: 'gemini-2.5-flash (Previous gen, fast)', value: 'gemini-2.5-flash' },
+    { name: 'gemini-2.0-flash (Fast multimodal)', value: 'gemini-2.0-flash' },
     { name: 'gemini-1.5-pro (Long context)', value: 'gemini-1.5-pro' },
-    { name: 'gemini-1.5-flash (Fast)', value: 'gemini-1.5-flash' },
     { name: 'Other (specify)', value: '__custom__' },
   ],
   mistral: [
@@ -213,6 +225,71 @@ export async function promptProvider(message = 'Select a provider:'): Promise<st
 }
 
 /**
+ * Vercel AI SDK provider detection patterns
+ * Maps model name prefixes to their underlying provider
+ * Based on Vercel AI SDK documentation (January 2026)
+ */
+const VERCEL_AI_PROVIDER_PATTERNS: { pattern: RegExp; provider: string; description: string }[] = [
+  // OpenAI patterns
+  { pattern: /^gpt-/i, provider: 'openai', description: 'OpenAI GPT models' },
+  { pattern: /^o[134]-/i, provider: 'openai', description: 'OpenAI o-series reasoning models' },
+  { pattern: /^chatgpt-/i, provider: 'openai', description: 'OpenAI ChatGPT models' },
+  { pattern: /^davinci/i, provider: 'openai', description: 'OpenAI Davinci models' },
+
+  // Anthropic patterns
+  { pattern: /^claude-/i, provider: 'anthropic', description: 'Anthropic Claude models' },
+
+  // Google patterns
+  { pattern: /^gemini-/i, provider: 'google', description: 'Google Gemini models' },
+  { pattern: /^models\/gemini/i, provider: 'google', description: 'Google Gemini (full path)' },
+
+  // Mistral patterns
+  { pattern: /^mistral-/i, provider: 'mistral', description: 'Mistral AI models' },
+  { pattern: /^pixtral-/i, provider: 'mistral', description: 'Mistral Pixtral vision models' },
+  { pattern: /^ministral-/i, provider: 'mistral', description: 'Mistral Ministral models' },
+  { pattern: /^magistral-/i, provider: 'mistral', description: 'Mistral Magistral models' },
+  { pattern: /^codestral/i, provider: 'mistral', description: 'Mistral Codestral models' },
+  { pattern: /^open-mistral-/i, provider: 'mistral', description: 'Mistral open models' },
+  { pattern: /^open-mixtral-/i, provider: 'mistral', description: 'Mistral Mixtral models' },
+
+  // xAI patterns
+  { pattern: /^grok-/i, provider: 'xai', description: 'xAI Grok models' },
+
+  // DeepSeek patterns
+  { pattern: /^deepseek-/i, provider: 'deepseek', description: 'DeepSeek models' },
+
+  // Cohere patterns
+  { pattern: /^command-/i, provider: 'cohere', description: 'Cohere Command models' },
+  { pattern: /^c4ai-/i, provider: 'cohere', description: 'Cohere C4AI models' },
+
+  // Meta/Llama patterns (could be Groq, Together, Fireworks, etc.)
+  { pattern: /^llama-/i, provider: 'meta', description: 'Meta Llama models (various providers)' },
+  { pattern: /^meta-llama/i, provider: 'meta', description: 'Meta Llama models (full name)' },
+
+  // Groq patterns
+  { pattern: /^groq\//i, provider: 'groq', description: 'Groq provider prefix' },
+
+  // Amazon Bedrock patterns
+  { pattern: /^amazon\./i, provider: 'amazon-bedrock', description: 'Amazon Bedrock models' },
+  { pattern: /^anthropic\./i, provider: 'amazon-bedrock', description: 'Anthropic via Bedrock' },
+
+  // Azure patterns
+  { pattern: /^azure\//i, provider: 'azure-openai', description: 'Azure OpenAI deployment' },
+];
+
+/**
+ * Detect the underlying provider for a Vercel AI SDK model
+ */
+function detectVercelAIProvider(model: string): { provider: string; description: string } | null {
+  for (const { pattern, provider, description } of VERCEL_AI_PROVIDER_PATTERNS) {
+    if (pattern.test(model)) {
+      return { provider, description };
+    }
+  }
+  return null;
+}
+
+/**
  * Check if a model is in the known models list for a provider
  */
 function isKnownModel(provider: string, model: string): boolean {
@@ -229,16 +306,101 @@ function isKnownModel(provider: string, model: string): boolean {
  * Implements hybrid validation: static check + optional API validation
  */
 async function validateCustomModel(provider: string, model: string): Promise<string | null> {
-  // Skip validation for providers that use deployment names or wrap other providers
-  if (provider === 'azure-openai' || provider === 'vercel-ai') {
+  // Handle Azure OpenAI - deployment names are user-defined
+  if (provider === 'azure-openai') {
+    console.log(chalk.yellow('\n  ⚠ Azure OpenAI uses deployment names, not model names.\n'));
     console.log(
       chalk.dim(
-        `\n  Using "${model}" as ${provider === 'azure-openai' ? 'deployment name' : 'model identifier'}.\n`
+        '  Ensure your deployment exists in your Azure OpenAI resource.\n' +
+          '  Common deployment names: gpt-4o, gpt-4-turbo, gpt-35-turbo\n'
       )
     );
+
+    const { azureAction } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'azureAction',
+        message: 'How would you like to proceed?',
+        choices: [
+          { name: `Continue with "${model}" (I know this deployment exists)`, value: 'continue' },
+          { name: 'Test the deployment with a quick API call', value: 'validate' },
+          { name: 'Enter a different deployment name', value: 'retry' },
+        ],
+      },
+    ]);
+
+    if (azureAction === 'continue') {
+      console.log(chalk.dim(`\n  Using deployment "${model}".\n`));
+      return model;
+    }
+
+    if (azureAction === 'retry') {
+      return null;
+    }
+
+    if (azureAction === 'validate') {
+      return await performApiValidation(provider, model);
+    }
+
     return model;
   }
 
+  // Handle Vercel AI SDK - detect underlying provider and validate
+  if (provider === 'vercel-ai') {
+    const detected = detectVercelAIProvider(model);
+
+    if (detected) {
+      console.log(chalk.cyan(`\n  ✓ Detected: ${detected.description} (${detected.provider})\n`));
+
+      // Check if the model is known for the underlying provider
+      if (isKnownModel(detected.provider, model)) {
+        console.log(chalk.dim(`  Model "${model}" is recognized.\n`));
+        return model;
+      }
+
+      // Model not known - offer validation
+      console.log(
+        chalk.yellow(`  ⚠ "${model}" is not in our known models list for ${detected.provider}.\n`)
+      );
+    } else {
+      console.log(
+        chalk.yellow(
+          `\n  ⚠ Could not detect provider for "${model}".\n` +
+            '  This might be a custom model or provider-specific format.\n'
+        )
+      );
+    }
+
+    const { vercelAction } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'vercelAction',
+        message: 'How would you like to proceed?',
+        choices: [
+          { name: `Continue with "${model}"`, value: 'continue' },
+          { name: 'Test the model with a quick API call', value: 'validate' },
+          { name: 'Enter a different model', value: 'retry' },
+        ],
+      },
+    ]);
+
+    if (vercelAction === 'continue') {
+      console.log(chalk.dim(`\n  Using model "${model}".\n`));
+      return model;
+    }
+
+    if (vercelAction === 'retry') {
+      return null;
+    }
+
+    if (vercelAction === 'validate') {
+      return await performApiValidation(provider, model);
+    }
+
+    return model;
+  }
+
+  // Standard provider validation
   // Check if model is in known list
   if (isKnownModel(provider, model)) {
     return model;
@@ -267,63 +429,68 @@ async function validateCustomModel(provider: string, model: string): Promise<str
   }
 
   if (action === 'retry') {
-    // Re-prompt for model selection
-    return null; // Signal to retry
+    return null;
   }
 
   if (action === 'validate') {
-    // Attempt API validation
-    const spinner = new Spinner();
-    spinner.start(`Validating model "${model}" with ${provider}...`);
-
-    try {
-      // Dynamic import to avoid circular dependencies
-      const { createAdapter } = await import('@artemiskit/core');
-
-      const client = await createAdapter({
-        provider: provider as 'openai' | 'anthropic' | 'azure-openai' | 'vercel-ai',
-        defaultModel: model,
-      });
-
-      // Make minimal API call using generate
-      await client.generate({
-        prompt: [{ role: 'user', content: 'hi' }],
-        maxTokens: 1,
-      });
-
-      spinner.succeed(`Model "${model}" validated successfully`);
-      return model;
-    } catch (error) {
-      spinner.fail(`Model validation failed: ${(error as Error).message}`);
-
-      const { retryAfterFail } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'retryAfterFail',
-          message: 'Would you like to enter a different model?',
-          default: true,
-        },
-      ]);
-
-      if (retryAfterFail) {
-        return null; // Signal to retry
-      }
-
-      // User wants to proceed anyway despite failure
-      const { forceUse } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'forceUse',
-          message: `Use "${model}" anyway? (API call failed but you might have different credentials at runtime)`,
-          default: false,
-        },
-      ]);
-
-      return forceUse ? model : null;
-    }
+    return await performApiValidation(provider, model);
   }
 
   return model;
+}
+
+/**
+ * Perform API validation for a model
+ */
+async function performApiValidation(provider: string, model: string): Promise<string | null> {
+  const spinner = new Spinner();
+  spinner.start(`Validating model "${model}" with ${provider}...`);
+
+  try {
+    // Dynamic import to avoid circular dependencies
+    const { createAdapter } = await import('@artemiskit/core');
+
+    const client = await createAdapter({
+      provider: provider as 'openai' | 'anthropic' | 'azure-openai' | 'vercel-ai',
+      defaultModel: model,
+    });
+
+    // Make minimal API call using generate
+    await client.generate({
+      prompt: [{ role: 'user', content: 'hi' }],
+      maxTokens: 1,
+    });
+
+    spinner.succeed(`Model "${model}" validated successfully`);
+    return model;
+  } catch (error) {
+    spinner.fail(`Model validation failed: ${(error as Error).message}`);
+
+    const { retryAfterFail } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'retryAfterFail',
+        message: 'Would you like to enter a different model?',
+        default: true,
+      },
+    ]);
+
+    if (retryAfterFail) {
+      return null;
+    }
+
+    // User wants to proceed anyway despite failure
+    const { forceUse } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'forceUse',
+        message: `Use "${model}" anyway? (API call failed but you might have different credentials at runtime)`,
+        default: false,
+      },
+    ]);
+
+    return forceUse ? model : null;
+  }
 }
 
 /**

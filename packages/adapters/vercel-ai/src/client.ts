@@ -150,6 +150,26 @@ export class VercelAIAdapter implements ModelClient {
     }
   }
 
+  async embed(text: string, model?: string): Promise<number[]> {
+    // Vercel AI SDK embedding support
+    // Note: Only available for providers that support embeddings (openai, azure)
+    const embeddingModel = model || 'text-embedding-3-large';
+
+    if (this.config.underlyingProvider === 'openai' || this.config.underlyingProvider === 'azure') {
+      // Use the AI SDK's embed function
+      const { embed } = await import('ai');
+      const result = await embed({
+        model: this.aiProvider.embedding(embeddingModel),
+        value: text,
+      });
+      return result.embedding;
+    }
+
+    throw new Error(
+      `Embeddings not supported for provider: ${this.config.underlyingProvider}. Use OpenAI or Azure for embeddings.`
+    );
+  }
+
   async capabilities(): Promise<ModelCapabilities> {
     const caps: Record<string, Partial<ModelCapabilities>> = {
       openai: {

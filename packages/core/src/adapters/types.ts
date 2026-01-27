@@ -105,7 +105,7 @@ export interface ModelClient {
 
   stream?(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string>;
 
-  embed?(text: string): Promise<number[]>;
+  embed?(text: string, model?: string): Promise<number[]>;
 
   capabilities(): Promise<ModelCapabilities>;
 

@@ -105,7 +105,12 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
     type: z.literal('similarity'),
     value: z.string(),
     threshold: z.number().min(0).max(1).default(0.75),
+    /** Mode for similarity evaluation: 'embedding' uses vector embeddings, 'llm' uses LLM-based comparison */
+    mode: z.enum(['embedding', 'llm']).optional(),
+    /** Model for LLM-based similarity comparison (required when mode is 'llm') */
     model: z.string().optional(),
+    /** Embedding model to use for vector similarity (required when mode is 'embedding') */
+    embeddingModel: z.string().optional(),
   }),
 
   z.object({

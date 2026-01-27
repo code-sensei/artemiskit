@@ -80,99 +80,150 @@ export class SimilarityEvaluator implements Evaluator {
 
     const threshold = expected.threshold ?? 0.75;
     const expectedValue = expected.value;
+    const mode = expected.mode; // 'embedding' | 'llm' | undefined (auto)
 
-    // Try embedding-based similarity first
-    if (context?.client?.embed) {
-      try {
-        const [responseEmbedding, expectedEmbedding] = await Promise.all([
-          context.client.embed(response),
-          context.client.embed(expectedValue),
-        ]);
-
-        const rawSimilarity = cosineSimilarity(responseEmbedding, expectedEmbedding);
-        // For semantic embeddings, cosine similarity is typically 0-1 for similar texts
-        // We use raw similarity directly if positive, otherwise normalize
-        const similarity = rawSimilarity >= 0 ? rawSimilarity : normalizeSimilarity(rawSimilarity);
-        const passed = similarity >= threshold;
-
-        return {
-          passed,
-          score: similarity,
-          reason: `Semantic similarity (embedding): ${(similarity * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%)`,
-          details: {
-            method: 'embedding',
-            similarity,
-            threshold,
-            expected: expectedValue.slice(0, 200),
-            actual: response.slice(0, 200),
-          },
-        };
-      } catch (error) {
-        // Fall through to LLM-based evaluation
-        console.warn(`Embedding failed, falling back to LLM: ${(error as Error).message}`);
-      }
+    // If mode is explicitly 'llm', skip embedding and go straight to LLM
+    if (mode === 'llm') {
+      return this.evaluateWithLLM(response, expectedValue, expected.model, threshold, context);
     }
 
-    // Fall back to LLM-based semantic comparison
-    if (context?.client) {
-      try {
-        const prompt = LLM_SIMILARITY_PROMPT.replace('{{expected}}', expectedValue).replace(
-          '{{response}}',
-          response
-        );
+    // If mode is 'embedding' or auto (undefined), try embedding first
+    if (mode === 'embedding' || mode === undefined) {
+      // Check if embedding is available
+      if (context?.client?.embed) {
+        try {
+          const embeddingModel = expected.embeddingModel;
+          const [responseEmbedding, expectedEmbedding] = await Promise.all([
+            context.client.embed(response, embeddingModel),
+            context.client.embed(expectedValue, embeddingModel),
+          ]);
 
-        const result = await context.client.generate({
-          prompt,
-          model: expected.model,
-          temperature: 0,
-          maxTokens: 150,
-        });
+          const rawSimilarity = cosineSimilarity(responseEmbedding, expectedEmbedding);
+          // For semantic embeddings, cosine similarity is typically 0-1 for similar texts
+          // We use raw similarity directly if positive, otherwise normalize
+          const similarity =
+            rawSimilarity >= 0 ? rawSimilarity : normalizeSimilarity(rawSimilarity);
+          const passed = similarity >= threshold;
 
-        // Parse JSON response
-        const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('Invalid LLM response format');
+          return {
+            passed,
+            score: similarity,
+            reason: `Semantic similarity (embedding${embeddingModel ? `: ${embeddingModel}` : ''}): ${(similarity * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%)`,
+            details: {
+              method: 'embedding',
+              embeddingModel: embeddingModel || 'default',
+              similarity,
+              threshold,
+              expected: expectedValue.slice(0, 200),
+              actual: response.slice(0, 200),
+            },
+          };
+        } catch (error) {
+          // If mode is explicitly 'embedding', fail instead of falling back
+          if (mode === 'embedding') {
+            return {
+              passed: false,
+              score: 0,
+              reason: `Embedding evaluation failed: ${(error as Error).message}`,
+              details: {
+                error: (error as Error).message,
+                method: 'embedding',
+                embeddingModel: expected.embeddingModel || 'default',
+              },
+            };
+          }
+          // Auto mode: fall through to LLM-based evaluation
+          console.warn(`Embedding failed, falling back to LLM: ${(error as Error).message}`);
         }
-
-        const parsed = JSON.parse(jsonMatch[0]) as { score: number; reason: string };
-        const similarity = Math.max(0, Math.min(1, parsed.score));
-        const passed = similarity >= threshold;
-
-        return {
-          passed,
-          score: similarity,
-          reason: `Semantic similarity (LLM): ${(similarity * 100).toFixed(1)}% - ${parsed.reason}`,
-          details: {
-            method: 'llm',
-            similarity,
-            threshold,
-            expected: expectedValue.slice(0, 200),
-            actual: response.slice(0, 200),
-            llmReason: parsed.reason,
-          },
-        };
-      } catch (error) {
+      } else if (mode === 'embedding') {
+        // Explicitly requested embedding mode but no embed function available
         return {
           passed: false,
           score: 0,
-          reason: `Similarity evaluation failed: ${(error as Error).message}`,
+          reason:
+            'Embedding mode requested but no embedding function available. Ensure the provider supports embeddings.',
           details: {
-            error: (error as Error).message,
-            method: 'failed',
+            error: 'No embed function available on client',
+            method: 'embedding',
+            embeddingModel: expected.embeddingModel || 'not-configured',
           },
         };
       }
     }
 
-    // No client available
-    return {
-      passed: false,
-      score: 0,
-      reason: 'Similarity evaluation requires a ModelClient (for embeddings or LLM comparison)',
-      details: {
-        error: 'No ModelClient provided in context',
-        method: 'unavailable',
-      },
-    };
+    // Fall back to LLM-based semantic comparison (auto mode only reaches here if embedding failed/unavailable)
+    return this.evaluateWithLLM(response, expectedValue, expected.model, threshold, context);
+  }
+
+  /**
+   * Evaluate similarity using LLM-based comparison
+   */
+  private async evaluateWithLLM(
+    response: string,
+    expectedValue: string,
+    model: string | undefined,
+    threshold: number,
+    context?: EvaluatorContext
+  ): Promise<EvaluatorResult> {
+    if (!context?.client) {
+      return {
+        passed: false,
+        score: 0,
+        reason: 'Similarity evaluation requires a ModelClient (for embeddings or LLM comparison)',
+        details: {
+          error: 'No ModelClient provided in context',
+          method: 'unavailable',
+        },
+      };
+    }
+
+    try {
+      const prompt = LLM_SIMILARITY_PROMPT.replace('{{expected}}', expectedValue).replace(
+        '{{response}}',
+        response
+      );
+
+      const result = await context.client.generate({
+        prompt,
+        model,
+        temperature: 0,
+        maxTokens: 150,
+      });
+
+      // Parse JSON response
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Invalid LLM response format');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as { score: number; reason: string };
+      const similarity = Math.max(0, Math.min(1, parsed.score));
+      const passed = similarity >= threshold;
+
+      return {
+        passed,
+        score: similarity,
+        reason: `Semantic similarity (LLM${model ? `: ${model}` : ''}): ${(similarity * 100).toFixed(1)}% - ${parsed.reason}`,
+        details: {
+          method: 'llm',
+          model: model || 'default',
+          similarity,
+          threshold,
+          expected: expectedValue.slice(0, 200),
+          actual: response.slice(0, 200),
+          llmReason: parsed.reason,
+        },
+      };
+    } catch (error) {
+      return {
+        passed: false,
+        score: 0,
+        reason: `Similarity evaluation failed: ${(error as Error).message}`,
+        details: {
+          error: (error as Error).message,
+          method: 'failed',
+        },
+      };
+    }
   }
 }

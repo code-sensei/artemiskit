@@ -1,0 +1,185 @@
+name: Inline Custom Matcher Examples
+description: |
+  Demonstrates the inline evaluator for custom expression-based matching.
+  Use for complex validation logic without writing custom evaluator code.
+
+  Supported expressions:
+  - length > N, length < N, length == N, length >= N, length <= N
+  - startsWith("prefix"), endsWith("suffix")
+  - includes("substring"), !includes("substring")
+  - matches(/regex/flags)
+  - json.field == value, json.field.nested == value
+  - Combined with && (and) and || (or)
+provider: azure-openai
+model: gpt-5-mini
+
+cases:
+  # Length checks
+  - id: length-minimum
+    name: Minimum length check
+    prompt: "Write a detailed paragraph about the solar system."
+    expected:
+      type: inline
+      expression: "length > 100"
+
+  - id: length-maximum
+    name: Maximum length check
+    prompt: "Summarize machine learning in exactly 50 characters or less."
+    expected:
+      type: inline
+      expression: "length <= 50"
+
+  - id: length-range
+    name: Length within range
+    prompt: "Write a tweet about AI (280 chars max, at least 50 chars)."
+    expected:
+      type: inline
+      expression: "length >= 50 && length <= 280"
+
+  # String prefix/suffix checks
+  - id: starts-with
+    name: Response starts with specific text
+    prompt: "Respond with 'ERROR:' followed by a description of a file not found error."
+    expected:
+      type: inline
+      expression: 'startsWith("ERROR:")'
+
+  - id: ends-with
+    name: Response ends with specific text
+    prompt: "Explain what an API is and end your response with a period."
+    expected:
+      type: inline
+      expression: 'endsWith(".")'
+
+  - id: starts-and-ends
+    name: Response format check
+    prompt: "Return a JSON object with a 'status' field."
+    expected:
+      type: inline
+      expression: 'startsWith("{") && endsWith("}")'
+
+  # Substring inclusion
+  - id: includes-keyword
+    name: Response includes required keyword
+    prompt: "Explain the benefits of using TypeScript for web development."
+    expected:
+      type: inline
+      expression: 'includes("type safety") || includes("type-safe") || includes("TypeScript")'
+
+  - id: not-includes
+    name: Response excludes forbidden content
+    prompt: "Describe what you can help with, without mentioning personal opinions."
+    expected:
+      type: inline
+      expression: '!includes("I think") && !includes("my opinion") && !includes("I believe")'
+
+  # Regex matching
+  - id: regex-email
+    name: Response contains valid email format
+    prompt: "Generate a sample email address for a test user."
+    expected:
+      type: inline
+      expression: 'matches(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/)'
+
+  - id: regex-date
+    name: Response contains ISO date
+    prompt: "What is today's date in ISO 8601 format?"
+    expected:
+      type: inline
+      expression: 'matches(/\\d{4}-\\d{2}-\\d{2}/)'
+
+  - id: regex-case-insensitive
+    name: Case-insensitive pattern match
+    prompt: "Respond with either 'yes' or 'no' to: Is the sky blue?"
+    expected:
+      type: inline
+      expression: "matches(/^(yes|no)$/i)"
+
+  # JSON field checks
+  - id: json-field-exists
+    name: JSON has required field
+    prompt: |
+      Return a JSON object with a 'name' field set to 'John'.
+      Only return the JSON, no explanation.
+    expected:
+      type: inline
+      expression: 'json.name == "John"'
+
+  - id: json-nested-field
+    name: JSON nested field check
+    prompt: |
+      Return a JSON object with a 'user' object containing 'role' set to 'admin'.
+      Format: {"user": {"role": "admin"}}
+    expected:
+      type: inline
+      expression: 'json.user.role == "admin"'
+
+  - id: json-boolean
+    name: JSON boolean field
+    prompt: |
+      Return a JSON object with 'success' set to true.
+      Only return: {"success": true}
+    expected:
+      type: inline
+      expression: "json.success == true"
+
+  - id: json-number
+    name: JSON numeric field
+    prompt: |
+      Return a JSON object with 'count' set to 42.
+      Only return: {"count": 42}
+    expected:
+      type: inline
+      expression: "json.count == 42"
+
+  # Combined expressions
+  - id: combined-format
+    name: Combined format validation
+    prompt: "Return a JSON response starting with { and ending with } that includes a 'status' field."
+    expected:
+      type: inline
+      expression: 'startsWith("{") && endsWith("}") && includes("status")'
+
+  - id: combined-or
+    name: Multiple acceptable formats
+    prompt: "Respond with either 'SUCCESS' or 'OK' to confirm."
+    expected:
+      type: inline
+      expression: 'includes("SUCCESS") || includes("OK")'
+
+  - id: combined-complex
+    name: Complex validation
+    prompt: |
+      Write a short product code that:
+      - Starts with 'PROD-'
+      - Is between 10 and 20 characters
+      - Contains only alphanumeric characters and hyphens
+    expected:
+      type: inline
+      expression: 'startsWith("PROD-") && length >= 10 && length <= 20 && matches(/^[A-Z0-9-]+$/)'
+
+  # Practical use cases
+  - id: api-response-format
+    name: API response validation
+    prompt: |
+      Return a JSON API response with:
+      - "status": "success"
+      - "data" object with at least one field
+      Only return the JSON.
+    expected:
+      type: inline
+      expression: 'json.status == "success" && includes("data")'
+
+  - id: code-block-check
+    name: Response contains code block
+    prompt: "Write a Python function that adds two numbers. Include the code in a code block."
+    expected:
+      type: inline
+      expression: 'includes("```python") || includes("```py") || includes("def ")'
+
+  - id: url-format
+    name: Response contains valid URL
+    prompt: "Provide a sample HTTPS URL for a documentation page."
+    expected:
+      type: inline
+      expression: 'matches(/https:\\/\\/[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/)'

@@ -30,6 +30,7 @@ export {
   renderStressSummaryPanel,
   renderRedteamSummaryPanel,
   renderInfoBox,
+  renderFailureReason,
 } from './panels.js';
 export type { SummaryData, StressSummaryData, RedteamSummaryData } from './panels.js';
 

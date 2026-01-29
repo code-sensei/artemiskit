@@ -16,6 +16,7 @@ import type { AzureOpenAIAdapterConfig, OpenAIAdapterConfig } from './types';
 
 export class OpenAIAdapter implements ModelClient {
   private client: OpenAI;
+  private embeddingClient: OpenAI | null = null;
   private config: OpenAIAdapterConfig | AzureOpenAIAdapterConfig;
   readonly provider: string;
 
@@ -34,6 +35,18 @@ export class OpenAIAdapter implements ModelClient {
         timeout: azureConfig.timeout ?? 60000,
         maxRetries: azureConfig.maxRetries ?? 2,
       });
+
+      // Create separate client for embeddings if a different deployment is specified
+      if (azureConfig.embeddingDeploymentName) {
+        this.embeddingClient = new OpenAI({
+          apiKey: azureConfig.apiKey,
+          baseURL: `https://${azureConfig.resourceName}.openai.azure.com/openai/deployments/${azureConfig.embeddingDeploymentName}`,
+          defaultQuery: { 'api-version': azureConfig.apiVersion },
+          defaultHeaders: { 'api-key': azureConfig.apiKey ?? '' },
+          timeout: azureConfig.timeout ?? 60000,
+          maxRetries: azureConfig.maxRetries ?? 2,
+        });
+      }
     } else {
       const openaiConfig = config as OpenAIAdapterConfig;
       this.provider = 'openai';
@@ -54,10 +67,20 @@ export class OpenAIAdapter implements ModelClient {
 
     const messages = this.normalizePrompt(options.prompt);
 
+    // Determine which token limit parameter to use
+    // Newer models (GPT-4o, GPT-5, o1, o3) use max_completion_tokens
+    // Older models use max_tokens
+    const useNewTokenParam = this.shouldUseMaxCompletionTokens(model);
+    const tokenParams = options.maxTokens
+      ? useNewTokenParam
+        ? { max_completion_tokens: options.maxTokens }
+        : { max_tokens: options.maxTokens }
+      : {};
+
     const response = await this.client.chat.completions.create({
       model,
       messages,
-      max_tokens: options.maxTokens,
+      ...tokenParams,
       temperature: options.temperature,
       top_p: options.topP,
       seed: options.seed,
@@ -121,7 +144,11 @@ export class OpenAIAdapter implements ModelClient {
         ? 'text-embedding-3-large'
         : 'text-embedding-3-small');
 
-    const response = await this.client.embeddings.create({
+    // For Azure, use the dedicated embedding client if available
+    // Otherwise fall back to main client (which may fail if deployment doesn't support embeddings)
+    const client = this.embeddingClient || this.client;
+
+    const response = await client.embeddings.create({
       model: embeddingModel,
       input: text,
     });
@@ -166,5 +193,16 @@ export class OpenAIAdapter implements ModelClient {
       default:
         return 'stop';
     }
+  }
+
+  /**
+   * Determine if model requires max_completion_tokens instead of max_tokens
+   * Newer models (GPT-4o, GPT-5, o1, o3) require the new parameter
+   */
+  private shouldUseMaxCompletionTokens(model: string): boolean {
+    const modelLower = model.toLowerCase();
+    // Models that require max_completion_tokens
+    const newParamModels = ['gpt-4o', 'gpt-4-turbo', 'gpt-5', 'o1', 'o3', 'chatgpt-4o'];
+    return newParamModels.some((m) => modelLower.includes(m));
   }
 }

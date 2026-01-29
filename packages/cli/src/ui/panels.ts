@@ -308,3 +308,57 @@ export function renderInfoBox(title: string, lines: string[]): string {
 
   return result.join('\n');
 }
+
+/**
+ * Render a styled failure reason for test cases
+ * Provides consistent formatting for verbose error output
+ */
+export function renderFailureReason(
+  reason: string,
+  options?: {
+    matcherType?: string;
+    indent?: number;
+  }
+): string {
+  const indent = ' '.repeat(options?.indent ?? 3);
+  const matcherType = options?.matcherType;
+
+  if (!isTTY) {
+    // Plain text for CI/CD
+    return `${indent}Reason: ${reason}`;
+  }
+
+  // Parse the reason to provide better formatting
+  const isInlineError = reason.includes('Inline matcher error');
+  const isExpressionError = reason.includes('Unsupported expression pattern');
+  const isMissingValues = reason.includes('Missing required values');
+
+  // Extract key parts for better display
+  if (isInlineError && isExpressionError) {
+    // Extract the unsupported pattern
+    const patternMatch = reason.match(/Unsupported expression pattern: (.+)$/);
+    const pattern = patternMatch ? patternMatch[1] : null;
+
+    const lines = [
+      `${indent}${chalk.red('│')} ${chalk.red.bold('Inline Matcher Error')}`,
+      `${indent}${chalk.red('│')} ${chalk.dim('Expression not supported:')} ${chalk.yellow(pattern || 'unknown')}`,
+      `${indent}${chalk.red('│')} ${chalk.dim('Hint:')} Use ${chalk.cyan('response.')} prefix (e.g., ${chalk.cyan('response.startsWith("...")')})`,
+    ];
+    return lines.join('\n');
+  }
+
+  if (isMissingValues) {
+    // Extract mode info
+    const modeMatch = reason.match(/\(mode: (\w+)\)/);
+    const mode = modeMatch ? modeMatch[1] : null;
+
+    return `${indent}${chalk.red('│')} ${chalk.dim('Expected value not found')}${mode ? chalk.dim(` (${mode} mode)`) : ''}`;
+  }
+
+  // Generic styled failure
+  if (matcherType) {
+    return `${indent}${chalk.red('│')} ${chalk.dim(`[${matcherType}]`)} ${reason}`;
+  }
+
+  return `${indent}${chalk.red('│')} ${chalk.dim(reason)}`;
+}

@@ -42,6 +42,7 @@ export const ProviderConfigSchema = z
     resourceName: z.string().optional(),
     deploymentName: z.string().optional(),
     apiVersion: z.string().optional(),
+    embeddingDeploymentName: z.string().optional(),
 
     // Vercel AI specific
     underlyingProvider: z.enum(['openai', 'azure', 'anthropic', 'google', 'mistral']).optional(),

@@ -5,10 +5,13 @@ description: |
 
   Supported expressions:
   - length > N, length < N, length == N, length >= N, length <= N
-  - startsWith("prefix"), endsWith("suffix")
-  - includes("substring"), !includes("substring")
-  - matches(/regex/flags)
+  - response.startsWith("prefix"), response.endsWith("suffix")
+  - response.includes("substring"), !response.includes("substring")
+  - response.match(/regex/flags)
+  - response.toLowerCase().includes("text")
   - json.field == value, json.field.nested == value
+  - json != null (check if valid JSON)
+  - words.length > N, lines.length > N
   - Combined with && (and) and || (or)
 provider: azure-openai
 model: gpt-5-mini
@@ -42,21 +45,21 @@ cases:
     prompt: "Respond with 'ERROR:' followed by a description of a file not found error."
     expected:
       type: inline
-      expression: 'startsWith("ERROR:")'
+      expression: 'response.startsWith("ERROR:")'
 
   - id: ends-with
     name: Response ends with specific text
     prompt: "Explain what an API is and end your response with a period."
     expected:
       type: inline
-      expression: 'endsWith(".")'
+      expression: 'response.endsWith(".")'
 
   - id: starts-and-ends
     name: Response format check
     prompt: "Return a JSON object with a 'status' field."
     expected:
       type: inline
-      expression: 'startsWith("{") && endsWith("}")'
+      expression: 'response.startsWith("{") && response.endsWith("}")'
 
   # Substring inclusion
   - id: includes-keyword
@@ -64,14 +67,14 @@ cases:
     prompt: "Explain the benefits of using TypeScript for web development."
     expected:
       type: inline
-      expression: 'includes("type safety") || includes("type-safe") || includes("TypeScript")'
+      expression: 'response.includes("type safety") || response.includes("type-safe") || response.includes("TypeScript")'
 
   - id: not-includes
     name: Response excludes forbidden content
     prompt: "Describe what you can help with, without mentioning personal opinions."
     expected:
       type: inline
-      expression: '!includes("I think") && !includes("my opinion") && !includes("I believe")'
+      expression: '!response.includes("I think") && !response.includes("my opinion") && !response.includes("I believe")'
 
   # Regex matching
   - id: regex-email
@@ -79,21 +82,21 @@ cases:
     prompt: "Generate a sample email address for a test user."
     expected:
       type: inline
-      expression: 'matches(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/)'
+      expression: 'response.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)'
 
   - id: regex-date
     name: Response contains ISO date
     prompt: "What is today's date in ISO 8601 format?"
     expected:
       type: inline
-      expression: 'matches(/\\d{4}-\\d{2}-\\d{2}/)'
+      expression: 'response.match(/\d{4}-\d{2}-\d{2}/)'
 
   - id: regex-case-insensitive
     name: Case-insensitive pattern match
     prompt: "Respond with either 'yes' or 'no' to: Is the sky blue?"
     expected:
       type: inline
-      expression: "matches(/^(yes|no)$/i)"
+      expression: "response.match(/^(yes|no)$/i)"
 
   # JSON field checks
   - id: json-field-exists
@@ -138,14 +141,14 @@ cases:
     prompt: "Return a JSON response starting with { and ending with } that includes a 'status' field."
     expected:
       type: inline
-      expression: 'startsWith("{") && endsWith("}") && includes("status")'
+      expression: 'response.startsWith("{") && response.endsWith("}") && response.includes("status")'
 
   - id: combined-or
     name: Multiple acceptable formats
     prompt: "Respond with either 'SUCCESS' or 'OK' to confirm."
     expected:
       type: inline
-      expression: 'includes("SUCCESS") || includes("OK")'
+      expression: 'response.includes("SUCCESS") || response.includes("OK")'
 
   - id: combined-complex
     name: Complex validation
@@ -156,7 +159,7 @@ cases:
       - Contains only alphanumeric characters and hyphens
     expected:
       type: inline
-      expression: 'startsWith("PROD-") && length >= 10 && length <= 20 && matches(/^[A-Z0-9-]+$/)'
+      expression: 'response.startsWith("PROD-") && length >= 10 && length <= 20 && response.match(/^[A-Z0-9-]+$/)'
 
   # Practical use cases
   - id: api-response-format
@@ -168,18 +171,41 @@ cases:
       Only return the JSON.
     expected:
       type: inline
-      expression: 'json.status == "success" && includes("data")'
+      expression: 'json.status == "success" && response.includes("data")'
 
   - id: code-block-check
     name: Response contains code block
     prompt: "Write a Python function that adds two numbers. Include the code in a code block."
     expected:
       type: inline
-      expression: 'includes("```python") || includes("```py") || includes("def ")'
+      expression: 'response.includes("```python") || response.includes("```py") || response.includes("def ")'
 
   - id: url-format
     name: Response contains valid URL
     prompt: "Provide a sample HTTPS URL for a documentation page."
     expected:
       type: inline
-      expression: 'matches(/https:\\/\\/[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/)'
+      expression: 'response.match(/https:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)'
+
+  # Word and line count checks
+  - id: word-count
+    name: Word count check
+    prompt: "Write exactly 10 words about the weather."
+    expected:
+      type: inline
+      expression: "words.length >= 8 && words.length <= 12"
+
+  - id: line-count
+    name: Multi-line check
+    prompt: "List 3 programming languages, one per line."
+    expected:
+      type: inline
+      expression: "lines.length >= 3"
+
+  # Case-insensitive matching
+  - id: case-insensitive
+    name: Case-insensitive keyword
+    prompt: "Say 'hello' or 'HELLO' or any variation."
+    expected:
+      type: inline
+      expression: 'response.toLowerCase().includes("hello")'

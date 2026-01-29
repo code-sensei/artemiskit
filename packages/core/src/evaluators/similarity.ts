@@ -183,20 +183,49 @@ export class SimilarityEvaluator implements Evaluator {
         response
       );
 
+      // Note: Some models (like o1, o3, reasoning models) only support temperature=1
+      // We omit temperature to let the API use its default
       const result = await context.client.generate({
         prompt,
         model,
-        temperature: 0,
         maxTokens: 150,
       });
 
-      // Parse JSON response
-      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('Invalid LLM response format');
+      // Parse JSON response - handle various formats including reasoning model outputs
+      // Try to find the JSON object containing score and reason
+      const jsonMatch = result.text.match(
+        /\{\s*"score"\s*:\s*[\d.]+\s*,\s*"reason"\s*:\s*"[^"]*"\s*\}/
+      );
+      const fallbackMatch = result.text.match(/\{[\s\S]*?"score"[\s\S]*?"reason"[\s\S]*?\}/);
+      const matchText = jsonMatch?.[0] || fallbackMatch?.[0];
+
+      if (!matchText) {
+        // Try to extract score from plain text as last resort
+        const scoreMatch = result.text.match(/(?:score|similarity)[:\s]*(\d*\.?\d+)/i);
+        if (scoreMatch) {
+          const extractedScore = parseFloat(scoreMatch[1]);
+          const normalizedScore = extractedScore > 1 ? extractedScore / 100 : extractedScore;
+          const passed = normalizedScore >= threshold;
+          return {
+            passed,
+            score: normalizedScore,
+            reason: `Semantic similarity (LLM${model ? `: ${model}` : ''}): ${(normalizedScore * 100).toFixed(1)}% (threshold: ${(threshold * 100).toFixed(1)}%)`,
+            details: {
+              method: 'llm',
+              model: model || 'default',
+              similarity: normalizedScore,
+              threshold,
+              expected: expectedValue.slice(0, 200),
+              actual: response.slice(0, 200),
+              llmReason: 'Extracted from plain text response',
+              rawResponse: result.text.slice(0, 500),
+            },
+          };
+        }
+        throw new Error('Invalid LLM response format - could not extract score');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as { score: number; reason: string };
+      const parsed = JSON.parse(matchText) as { score: number; reason: string };
       const similarity = Math.max(0, Math.min(1, parsed.score));
       const passed = similarity >= threshold;
 

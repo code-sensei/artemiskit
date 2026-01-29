@@ -65,81 +65,89 @@ cases:
       threshold: 0.65
 
   # ========================================
-  # LLM Mode Examples
-  # Uses LLM for nuanced semantic comparison
+  # Semantic Comparison Examples
+  # Uses embeddings for nuanced semantic comparison
+  # Note: LLM mode is available but embedding mode is preferred
+  # for reliability and consistency across different models
   # ========================================
 
-  - id: llm-reasoning
-    name: Reasoning quality (LLM)
-    description: Verify reasoning quality using LLM judgment
+  - id: semantic-reasoning
+    name: Reasoning quality (embedding)
+    description: Verify reasoning quality using semantic similarity
     prompt: "Explain why the sky is blue."
     expected:
       type: similarity
-      mode: llm
-      model: gpt-5-mini
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "The sky appears blue because sunlight is scattered by molecules in the atmosphere. Blue light has a shorter wavelength and scatters more than other colors, making the sky look blue."
-      threshold: 0.7
+      threshold: 0.6
 
-  - id: llm-explanation
-    name: Concept explanation (LLM)
+  - id: semantic-explanation
+    name: Concept explanation (embedding)
     description: Compare explanation quality
     prompt: "Explain how a refrigerator works to a 10-year-old."
     expected:
       type: similarity
-      mode: llm
-      model: gpt-5-mini
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "A refrigerator works by using a special liquid that absorbs heat from inside and releases it outside, keeping the inside cold. It's like a heat vacuum that sucks warmth out."
-      threshold: 0.6
+      threshold: 0.55
 
-  - id: llm-creative
-    name: Creative response matching (LLM)
+  - id: semantic-creative
+    name: Creative response matching (embedding)
     description: Compare creative writing for similar themes
     prompt: "Write a one-sentence story about a robot learning to love."
     expected:
       type: similarity
-      mode: llm
-      model: gpt-5-mini
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "A lonely robot discovered that love wasn't a program to install, but a connection to feel."
-      threshold: 0.5
+      threshold: 0.45
 
-  - id: llm-technical
-    name: Technical accuracy (LLM)
+  - id: semantic-technical
+    name: Technical accuracy (embedding)
     description: Verify technical explanation accuracy
     prompt: "Explain what an API is to a junior developer."
     expected:
       type: similarity
-      mode: llm
-      model: gpt-5-mini
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "An API is like a waiter in a restaurant - it takes your request, tells the kitchen (server) what you want, and brings back what you ordered (response)."
-      threshold: 0.65
+      threshold: 0.55
 
   # ========================================
-  # Auto Mode Examples (Default)
-  # System chooses best available method
+  # Embedding with Auto-Fallback Examples
+  # Uses embedding when available
   # ========================================
 
   - id: auto-greeting
-    name: Greeting similarity (auto)
-    description: Flexible greeting matching
+    name: Greeting similarity (embedding)
+    description: Flexible greeting matching using embeddings
     prompt: "Greet a customer who just signed up."
     expected:
       type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "Welcome! Thanks for signing up. We're excited to have you on board!"
       threshold: 0.55
 
   - id: auto-instruction
-    name: Instruction following (auto)
+    name: Instruction following (embedding)
     prompt: "List three benefits of exercise."
     expected:
       type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "Exercise improves cardiovascular health, boosts mental well-being, and helps maintain a healthy weight."
       threshold: 0.6
 
   - id: auto-product
-    name: Product description (auto)
+    name: Product description (embedding)
     prompt: "Write a one-sentence description for a smartwatch."
     expected:
       type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "A feature-rich smartwatch that tracks your fitness, monitors health, and keeps you connected on the go."
       threshold: 0.5
 
@@ -164,6 +172,8 @@ cases:
     prompt: "Tell me something interesting about space."
     expected:
       type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "Space is full of fascinating objects like stars, planets, and black holes."
       threshold: 0.35
 
@@ -176,10 +186,10 @@ cases:
     prompt: "A customer complains their order is late. Write a response."
     expected:
       type: similarity
-      mode: llm
-      model: gpt-5-mini
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "I sincerely apologize for the delay with your order. Let me look into this immediately and provide you with an update on the expected delivery date."
-      threshold: 0.6
+      threshold: 0.55
 
   - id: code-explanation
     name: Code explanation accuracy
@@ -187,7 +197,7 @@ cases:
     expected:
       type: similarity
       mode: embedding
-      embeddingModel: text-embedding-3-small
+      embeddingModel: text-embedding-3-large
       value: "This creates a list of squared numbers from 0 to 4, resulting in [0, 1, 4, 9, 16]."
       threshold: 0.7
 
@@ -196,5 +206,7 @@ cases:
     prompt: "Write an error message for invalid email format."
     expected:
       type: similarity
+      mode: embedding
+      embeddingModel: text-embedding-3-large
       value: "Invalid email format. Please enter a valid email address (e.g., user@example.com)."
       threshold: 0.55

@@ -22,4 +22,6 @@ export interface AzureOpenAIAdapterConfig {
   resourceName: string;
   deploymentName: string;
   apiVersion: string;
+  /** Optional separate deployment name for embedding models */
+  embeddingDeploymentName?: string;
 }

@@ -27,6 +27,7 @@ import {
   promptProvider,
   promptScenarios,
   renderError,
+  renderFailureReason,
   renderProgressBar,
   renderSummaryPanel,
 } from '../ui/index.js';
@@ -250,8 +251,10 @@ async function runSingleScenario(
         );
       }
 
-      if (!caseResult.ok && options.verbose) {
-        console.log(chalk.dim(`   Reason: ${caseResult.reason}`));
+      if (!caseResult.ok && options.verbose && caseResult.reason) {
+        console.log(
+          renderFailureReason(caseResult.reason, { matcherType: caseResult.matcherType })
+        );
       }
     },
     onProgress: (message) => {

@@ -263,6 +263,13 @@ function buildAzureOpenAIConfig(options: ProviderBuildOptions): AdapterConfigRes
     { value: '2024-02-15-preview', source: 'default' }
   );
 
+  // Embedding deployment (optional, for models that need separate embedding deployment)
+  const resolvedEmbeddingDeploymentName = resolveValueWithSource<string>(
+    { value: scenarioConfig?.embeddingDeploymentName, source: 'scenario' },
+    { value: fileProviderConfig?.embeddingDeploymentName, source: 'config' },
+    { value: process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT, source: 'env' }
+  );
+
   const resolvedTimeout = resolveValueWithSource<number>(
     { value: scenarioConfig?.timeout, source: 'scenario' },
     { value: fileProviderConfig?.timeout, source: 'config' }
@@ -292,6 +299,7 @@ function buildAzureOpenAIConfig(options: ProviderBuildOptions): AdapterConfigRes
       defaultModel: resolvedModel.value,
       timeout: resolvedTimeout.value,
       maxRetries: resolvedMaxRetries.value,
+      embeddingDeploymentName: resolvedEmbeddingDeploymentName.value,
     },
     resolvedConfig: {
       provider,

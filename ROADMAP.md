@@ -78,8 +78,10 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Provider | Status | Description |
 |----------|--------|-------------|
 | OpenAI | ✅ | Direct OpenAI API |
+| OpenAI-compatible | ✅ | Ollama, vLLM, LM Studio etc |
 | Azure OpenAI | ✅ | Azure-hosted OpenAI |
 | Anthropic | ✅ | Claude models |
+| Vercel AI SDK | ✅ | Multiple providers |
 | Google AI | coming soon | Gemini models |
 | Ollama | coming soon | Local model support |
 
@@ -214,6 +216,7 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Provider selection | ✅ | Select provider/model at runtime in interactive mode |
 | Confirmation dialogs | ✅ | Confirm destructive actions |
 | Interactive init wizard | ✅ | Guided configuration setup (`artemiskit init -i`) |
+| Baseline command | 📋 | CRUD for baseline runs and reports for comparison |
 
 ### Metrics & Observability (v0.2.x - Final Phase)
 
@@ -270,10 +273,15 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 | Feature | Status | Description |
 |---------|--------|-------------|
+| LLM Providers |
 | OpenRouter | 💡 | Multi-provider routing |
 | LiteLLM | 💡 | Unified model access |
 | Generic REST | 💡 | Custom endpoints |
 | AWS Bedrock | 💡 | Amazon models |
+| Agentic Frameworks & Systems - Initial impl |
+| LangChain Adapter | 📋 | Adapter for testing LangChain agents |
+| DeepAgents.js Adapter | 📋 | Adapter for testing DeepAgents agentic systems |
+| CrewAI Adapter | 📋 | Adapter for testing CrewAI agentic implementations/crews |
 
 ### Configuration
 

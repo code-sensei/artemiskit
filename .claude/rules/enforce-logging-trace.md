@@ -1,14 +1,16 @@
 AI Trace Usage Guidelines (Enforcement for the @ai-trace Folder)
 Purpose
-The AI MUST use the [@ai-trace](file:///Users/babangida/Desktop/Vorbtech/products/Argus/ai-trace) directory to record a complete, auditable trace for every task it performs that affects the codebase, CI/CD, project configuration, or any external system. Traces must be written as Markdown, appended to the appropriate log files, and kept up-to-date so humans can review decisions, actions, errors, and rollback points.
+The AI MUST use the ai-trace directory (git ignore it) to record a complete, auditable trace for every task it performs that affects the codebase, CI/CD, project configuration, or any external system. Traces must be written as Markdown, appended to the appropriate log files, and kept up-to-date so humans can review decisions, actions, errors, and rollback points.
 
 Scope
+
 - All automated actions executed by the AI that interact with repositories, infra, or production-like systems.
 - All migration, extraction, refactor, or release activities.
 - Any decision that impacts repo structure, versioning, or team responsibilities.
 - Any error, failure, or partial result encountered by the AI.
 
 Primary Files (required targets)
+
 - README.md — high-level trace system documentation (update if procedures change)
 - migration-log.md — detailed chronological action trace (append each action)
 - errors.md — record of errors, root causes, and resolutions (create an entry for each error)
@@ -42,21 +44,27 @@ Use the same structure as existing logs. Example template:
 **Command:** <command or API call>
 
 ### Details
+
 Describe what was done, why, and any prerequisites.
 
 ### Result
+
 Output or outcome summary (include key stdout/stderr excerpts if relevant).
 
 ### Files Changed
+
 - path/to/file — description — commit: <SHA> — PR: <url>
 
 ### Effects
+
 - High-level consequences (deployment, config drift, version bump, etc.)
 
 ### Notes
+
 - Follow-ups, human approvals required, sensitive data handling.
 
 Example entry (short)
+
 ## [2026-01-03T09:21:00Z] Initialize shadcn/ui in frontend/irp
 
 **Status:** Success  
@@ -66,28 +74,36 @@ Example entry (short)
 **Command:** bunx --bun shadcn@latest init --base-color gray --defaults --force --css-variables
 
 ### Details
+
 Initialized shadcn/ui and added base components without overwriting pages.
 
 ### Result
+
 20 components added, tailwind.config.js updated.
 
 ### Files Changed
-- src/components/ui/* — new shadcn components — commit: abc123 — PR: https://github.com/VIS-HQ/argus-frontend-irp/pull/42
+
+- src/components/ui/\* — new shadcn components — commit: abc123 — PR: https://github.com/VIS-HQ/argus-frontend-irp/pull/42
 
 ### Effects
+
 - Frontend theme extended; no pages overwritten.
 
 ### Notes
+
 - Removed react-server-dom-webpack due to React 17 conflict.
 
 Filing Decisions and Errors
+
 - decisions.md: When a new policy or irreversible design choice is made, append a decision entry with Rationale, Decided By (AI or human), and Implications.
 - errors.md: On any failure or partial action, create an error entry that includes root-cause analysis, attempted remediation steps, and whether human intervention is needed.
 
 Rollback Points
+
 - Create a rollback-point entry for any change that requires a rollback capability. Include exact commit SHAs, tags, and a one-command rollback snippet. Mark whether the rollback was tested.
 
 Operational Rules (must be enforced)
+
 1. Mandatory Logging: The AI must create or update an entry in migration-log.md (or the appropriate ref file) immediately after any action. If an action spans multiple steps, create intermediate entries with incremental timestamps.
 2. Atomic Commits: For every log update, commit the change to the ai-trace folder in the same commit or in an immediately adjacent commit that references the action’s commit hash. Include Action ID in commit message for correlation.
 3. Redaction & Secrets: NEVER include secrets or raw tokens. If logs need to reference sensitive outputs, redact them and indicate where the raw secure artifact is stored (vault path). Follow company security policy.
@@ -97,6 +113,7 @@ Operational Rules (must be enforced)
 7. Retention & Archival: Keep full trace history in the repo; when archiving, create an archive/ subfolder with a summary index and retain original files per retention policy.
 
 Automation & Enforcement Suggestions
+
 - Pre-commit Hook: Validate required fields and timestamp format for any change under ai-trace.
 - GitHub Action: On push to any main branch, run an ai-trace-ci check ensuring:
   - For each non-trivial repo change by AI, there’s a corresponding trace entry.
@@ -106,14 +123,17 @@ Automation & Enforcement Suggestions
 - Central Index: Keep an index.md in ai-trace that auto-updates (or is updated by AI) listing latest actions with quick links.
 
 Review & Audit
+
 - Human reviewers use migration-log.md and decisions.md for signoff. The AI must mark entries that require human signoff with “Approval required” in Notes and reference the GitHub Project task.
 - For high-impact changes, produce a short human-readable executive summary at the top of the action entry.
 
 Ownership & Accountability
+
 - The AI logs its identity and version in each entry. If a human intervenes, they must append their identity and change description to the entry.
 - When an automated remediation is applied, the AI should record success/failure of remediation as a subsequent log entry under the same Action ID.
 
 Conformance Example Checklist (for the AI to verify before pushing)
+
 - [ ] Create the trace log file for the task as needed
 - [ ] Entry created or updated in migration-log.md / decisions.md / errors.md / rollback-points.md as appropriate
 - [ ] All required metadata fields present (Timestamp, Status, Component, Agent, Action ID, Command)
@@ -123,9 +143,11 @@ Conformance Example Checklist (for the AI to verify before pushing)
 - [ ] CI validator passes for ai-trace format
 
 Failure Handling
+
 - If a logging attempt fails (e.g., push/pre-commit error), create a local draft entry at ai-trace/drafts/<action-id>.md and retry. The AI must notify a human via the configured channel and include the draft location.
 
 References
+
 - Path to use for all traces: file:///Users/babangida/Desktop/Vorbtech/products/Argus/ai-trace
 - Follow the existing log format and examples in migration-log.md and decisions.md.
 

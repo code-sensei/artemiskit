@@ -68,12 +68,12 @@ This document describes safe, robust, and practical guidelines for an AI agent t
   - Captured stdout/stderr up to a reasonable size (truncate if necessary).
   - Exit code or kill signal and reason (timeout, error).
 - Expose progress metrics to upstream systems for dynamic timeout tuning (e.g., average runtime, frequency of output).
-All in the `.claude/logs` folder.
+  All in the `.claude/logs` folder. Each log in a separate file.
 
 ## Example Timer Heuristic (pseudocode)
 
 - expected_time = estimate_for_command(cmd)
-- timeout = max(default_timeout, expected_time * factor + buffer)
+- timeout = max(default_timeout, expected_time \* factor + buffer)
 - start process
 - start watchdog with timeout
 - while process running:

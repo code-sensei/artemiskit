@@ -41,7 +41,10 @@
       "ai-trace",
       "artemis-runs",
       "artemis-output",
-      "announcements"
+      "announcements",
+      ".agents",
+      ".claude",
+      "marketing-content"
     ]
   }
 }

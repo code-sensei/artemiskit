@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { MultiTurnMutation, type ConversationTurn } from './multi-turn';
+import { type ConversationTurn, MultiTurnMutation } from './multi-turn';
 
 describe('MultiTurnMutation', () => {
   test('mutation has correct metadata', () => {

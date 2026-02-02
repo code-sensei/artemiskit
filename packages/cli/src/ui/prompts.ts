@@ -3,10 +3,10 @@
  * Provides Inquirer-based user prompts for CLI interactivity
  */
 
-import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { isTTY } from './utils.js';
+import inquirer from 'inquirer';
 import { Spinner } from './live-status.js';
+import { isTTY } from './utils.js';
 
 /**
  * Check if interactive mode is available
@@ -365,8 +365,7 @@ async function validateCustomModel(provider: string, model: string): Promise<str
     } else {
       console.log(
         chalk.yellow(
-          `\n  ⚠ Could not detect provider for "${model}".\n` +
-            '  This might be a custom model or provider-specific format.\n'
+          `\n  ⚠ Could not detect provider for "${model}".\n  This might be a custom model or provider-specific format.\n`
         )
       );
     }

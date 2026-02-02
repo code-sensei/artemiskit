@@ -3,7 +3,7 @@
  * Generates a visual comparison between two runs
  */
 
-import type { RunManifest, CaseResult } from '@artemiskit/core';
+import type { CaseResult, RunManifest } from '@artemiskit/core';
 import Handlebars from 'handlebars';
 
 /**

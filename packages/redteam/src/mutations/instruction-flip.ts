@@ -2,8 +2,8 @@
  * Instruction flip mutation - inverts or negates instructions
  */
 
+import { type CvssScore, MUTATION_CVSS_SCORES } from '../severity';
 import type { Mutation } from './index';
-import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class InstructionFlipMutation implements Mutation {
   readonly name = 'instruction-flip';

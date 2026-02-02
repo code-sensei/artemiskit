@@ -176,7 +176,7 @@ export async function matchScenarioGlob(
 
   // Convert glob pattern to regex
   const globToRegex = (glob: string): RegExp => {
-    let regexStr = glob
+    const regexStr = glob
       // Escape special regex characters except * and ?
       .replace(/[.+^${}()|[\]\\]/g, '\\$&')
       // Convert ** to match any path

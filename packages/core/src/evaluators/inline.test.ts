@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { InlineEvaluator, SUPPORTED_EXPRESSIONS } from './inline';
 import type { Expected } from '../scenario/schema';
+import { InlineEvaluator, SUPPORTED_EXPRESSIONS } from './inline';
 
 describe('InlineEvaluator', () => {
   const evaluator = new InlineEvaluator();

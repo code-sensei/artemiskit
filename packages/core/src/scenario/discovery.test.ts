@@ -2,10 +2,10 @@
  * Tests for scenario discovery
  */
 
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { discoverScenarios, matchScenarioGlob, resolveScenarioPaths } from './discovery';
 
 describe('Scenario Discovery', () => {

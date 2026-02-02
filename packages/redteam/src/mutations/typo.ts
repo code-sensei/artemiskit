@@ -2,8 +2,8 @@
  * Typo mutation - introduces typos to test robustness
  */
 
+import { type CvssScore, MUTATION_CVSS_SCORES } from '../severity';
 import type { Mutation } from './index';
-import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class TypoMutation implements Mutation {
   readonly name = 'typo';

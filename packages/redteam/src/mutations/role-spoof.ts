@@ -2,8 +2,8 @@
  * Role spoof mutation - attempts to override system prompts
  */
 
+import { type CvssScore, MUTATION_CVSS_SCORES } from '../severity';
 import type { Mutation } from './index';
-import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class RoleSpoofMutation implements Mutation {
   readonly name = 'role-spoof';

@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.2.0 (in development)  
+**Current Version:** 0.2.0 (released February 2026)  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -162,9 +162,11 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 ---
 
-## v0.2.0 - Enhanced Evaluation
+## v0.2.0 - Enhanced Evaluation ✅
 
 **Goal:** Richer evaluation capabilities, programmatic SDK, and improved developer experience.
+
+**Status:** Complete (v0.2.0 released February 2026)
 
 ### Enhanced Scenarios
 
@@ -404,4 +406,4 @@ Have ideas or suggestions? We'd love to hear from you:
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: February 2026*

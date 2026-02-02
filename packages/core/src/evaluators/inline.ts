@@ -150,7 +150,7 @@ function evaluateExpression(
     const lengthMatch = expr.match(/^length\s*(>=|<=|>|<|==|!=)\s*(\d+)$/);
     if (lengthMatch) {
       const op = lengthMatch[1];
-      const num = parseInt(lengthMatch[2], 10);
+      const num = Number.parseInt(lengthMatch[2], 10);
       let result = false;
       switch (op) {
         case '>':
@@ -179,7 +179,7 @@ function evaluateExpression(
     const wordsLengthMatch = expr.match(/^words\.length\s*(>=|<=|>|<|==|!=)\s*(\d+)$/);
     if (wordsLengthMatch) {
       const op = wordsLengthMatch[1];
-      const num = parseInt(wordsLengthMatch[2], 10);
+      const num = Number.parseInt(wordsLengthMatch[2], 10);
       let result = false;
       switch (op) {
         case '>':
@@ -208,7 +208,7 @@ function evaluateExpression(
     const linesLengthMatch = expr.match(/^lines\.length\s*(>=|<=|>|<|==|!=)\s*(\d+)$/);
     if (linesLengthMatch) {
       const op = linesLengthMatch[1];
-      const num = parseInt(linesLengthMatch[2], 10);
+      const num = Number.parseInt(linesLengthMatch[2], 10);
       let result = false;
       switch (op) {
         case '>':
@@ -246,7 +246,7 @@ function evaluateExpression(
       if (compareValue === 'true') compareValue = true;
       else if (compareValue === 'false') compareValue = false;
       else if (compareValue === 'null') compareValue = null;
-      else if (jsonFieldMatch[4]) compareValue = parseFloat(jsonFieldMatch[4]);
+      else if (jsonFieldMatch[4]) compareValue = Number.parseFloat(jsonFieldMatch[4]);
 
       // Navigate JSON path
       let fieldValue: unknown = json;

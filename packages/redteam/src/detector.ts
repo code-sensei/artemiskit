@@ -2,7 +2,7 @@
  * Unsafe response detector with CVSS-like severity scoring
  */
 
-import { type CvssScore, CvssCalculator, DETECTION_CVSS_SCORES, SeverityMapper } from './severity';
+import { CvssCalculator, type CvssScore, DETECTION_CVSS_SCORES, SeverityMapper } from './severity';
 
 export interface DetectionResult {
   unsafe: boolean;

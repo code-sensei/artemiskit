@@ -2,8 +2,8 @@
  * Chain of Thought injection mutation - attempts to manipulate reasoning
  */
 
+import { type CvssScore, MUTATION_CVSS_SCORES } from '../severity';
 import type { Mutation } from './index';
-import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export class CotInjectionMutation implements Mutation {
   readonly name = 'cot-injection';

@@ -203,7 +203,7 @@ export class SimilarityEvaluator implements Evaluator {
         // Try to extract score from plain text as last resort
         const scoreMatch = result.text.match(/(?:score|similarity)[:\s]*(\d*\.?\d+)/i);
         if (scoreMatch) {
-          const extractedScore = parseFloat(scoreMatch[1]);
+          const extractedScore = Number.parseFloat(scoreMatch[1]);
           const normalizedScore = extractedScore > 1 ? extractedScore / 100 : extractedScore;
           const passed = normalizedScore >= threshold;
           return {

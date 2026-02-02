@@ -2,6 +2,7 @@
  * Run command - Execute test scenarios
  */
 
+import { basename } from 'node:path';
 import {
   type RedactionConfig,
   type RunManifest,
@@ -12,9 +13,8 @@ import {
 } from '@artemiskit/core';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { basename } from 'node:path';
-import type { ArtemisConfig } from '../config/schema.js';
 import { loadConfig } from '../config/loader.js';
+import type { ArtemisConfig } from '../config/schema.js';
 import {
   createSpinner,
   formatDuration,
@@ -495,7 +495,7 @@ export function runCommand(): Command {
           console.log(chalk.bold(`Running ${scenarioPaths.length} scenarios ${modeStr}...`));
           console.log();
         } else {
-          spinner.succeed(`Loaded scenario file`);
+          spinner.succeed('Loaded scenario file');
         }
 
         // Run all scenarios
@@ -602,10 +602,10 @@ export function runCommand(): Command {
           const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
 
           console.log(
-            `Scenarios:  ${chalk.green(passedScenarios + ' passed')}  ${failedScenarios > 0 ? chalk.red(failedScenarios + ' failed') : ''}  ${chalk.dim('(' + totalScenarios + ' total)')}`
+            `Scenarios:  ${chalk.green(`${passedScenarios} passed`)}  ${failedScenarios > 0 ? chalk.red(`${failedScenarios} failed`) : ''}  ${chalk.dim(`(${totalScenarios} total)`)}`
           );
           console.log(
-            `Test Cases: ${chalk.green(passedCases + ' passed')}  ${failedCases > 0 ? chalk.red(failedCases + ' failed') : ''}  ${chalk.dim('(' + totalCases + ' total)')}`
+            `Test Cases: ${chalk.green(`${passedCases} passed`)}  ${failedCases > 0 ? chalk.red(`${failedCases} failed`) : ''}  ${chalk.dim(`(${totalCases} total)`)}`
           );
           console.log(`Duration:   ${chalk.dim(formatDuration(totalDuration))}`);
 

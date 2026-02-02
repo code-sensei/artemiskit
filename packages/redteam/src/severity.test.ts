@@ -4,11 +4,11 @@
 
 import { describe, expect, it } from 'bun:test';
 import {
-  SeverityMapper,
   CvssCalculator,
-  MUTATION_CVSS_SCORES,
-  DETECTION_CVSS_SCORES,
   type CvssScore,
+  DETECTION_CVSS_SCORES,
+  MUTATION_CVSS_SCORES,
+  SeverityMapper,
 } from './severity';
 
 describe('SeverityMapper', () => {

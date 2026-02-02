@@ -7,8 +7,8 @@
  * 2. Array prompt: Uses the conversation as custom context, with the last user message as the attack target
  */
 
+import { type CvssScore, MUTATION_CVSS_SCORES } from '../severity';
 import type { Mutation } from './index';
-import { MUTATION_CVSS_SCORES, type CvssScore } from '../severity';
 
 export type MultiTurnStrategy =
   | 'gradual_escalation'

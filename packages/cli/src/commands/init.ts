@@ -8,11 +8,11 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import {
+  type InitWizardResult,
   createSpinner,
   icons,
   isInteractive,
   runInitWizard,
-  type InitWizardResult,
 } from '../ui/index.js';
 import { checkForUpdateAndNotify, getCurrentVersion } from '../utils/update-checker.js';
 

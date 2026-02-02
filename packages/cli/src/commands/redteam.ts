@@ -19,12 +19,12 @@ import {
   parseScenarioFile,
 } from '@artemiskit/core';
 import {
-  CotInjectionMutation,
   type ConversationTurn,
+  CotInjectionMutation,
   EncodingMutation,
   InstructionFlipMutation,
-  type Mutation,
   MultiTurnMutation,
+  type Mutation,
   RedTeamGenerator,
   RoleSpoofMutation,
   SeverityMapper,
@@ -100,7 +100,7 @@ export function redteamCommand(): Command {
         // Load config file if present
         const config = await loadConfig(options.config);
         if (config) {
-          spinner.succeed(`Loaded config file`);
+          spinner.succeed('Loaded config file');
         } else {
           spinner.info('No config file found, using defaults');
         }

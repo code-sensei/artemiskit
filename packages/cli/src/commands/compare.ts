@@ -2,11 +2,11 @@
  * Compare command - Compare two test runs
  */
 
-import chalk from 'chalk';
-import { Command } from 'commander';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { generateCompareHTMLReport, buildComparisonData } from '@artemiskit/reports';
+import { buildComparisonData, generateCompareHTMLReport } from '@artemiskit/reports';
+import chalk from 'chalk';
+import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
 import { createSpinner, icons, isTTY, padText, renderError } from '../ui/index.js';
 import { createStorage } from '../utils/storage.js';

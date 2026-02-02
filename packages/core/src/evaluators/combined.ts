@@ -77,7 +77,7 @@ export class CombinedEvaluator implements Evaluator {
       const passedCount = results.filter((r) => r.passed).length;
       reason = passed
         ? `${passedCount}/${results.length} expectations passed (at least one required)`
-        : `No expectations passed (at least one required)`;
+        : 'No expectations passed (at least one required)';
     }
 
     return {

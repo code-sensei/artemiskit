@@ -2,6 +2,7 @@
 "@artemiskit/cli": minor
 "@artemiskit/core": minor
 "@artemiskit/redteam": minor
+"@artemiskit/reports": minor
 ---
 
 ## v0.2.0 - Enhanced Evaluation Features
@@ -31,6 +32,7 @@
   - Embedding-based: Uses vector embeddings for fast semantic comparison
   - LLM-based fallback: Uses LLM to evaluate semantic similarity when embeddings unavailable
   - Configurable threshold (default 0.75)
+- **`inline` expectation**: Safe expression-based custom matchers in YAML using JavaScript-like expressions (e.g., `response.length > 100`, `response.includes('hello')`)
 - **p90 latency metric**: Added p90 percentile to stress test latency metrics
 - **Token usage tracking**: Monitor token consumption per request in stress tests
 - **Cost estimation**: Estimate API costs with model pricing data

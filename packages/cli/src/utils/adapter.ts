@@ -270,6 +270,12 @@ function buildAzureOpenAIConfig(options: ProviderBuildOptions): AdapterConfigRes
     { value: process.env.AZURE_OPENAI_EMBEDDING_DEPLOYMENT, source: 'env' }
   );
 
+  // Model family for parameter detection (e.g., 'gpt-5-mini' when deployment is '5-mini')
+  const resolvedModelFamily = resolveValueWithSource<string>(
+    { value: scenarioConfig?.modelFamily, source: 'scenario' },
+    { value: fileProviderConfig?.modelFamily, source: 'config' }
+  );
+
   const resolvedTimeout = resolveValueWithSource<number>(
     { value: scenarioConfig?.timeout, source: 'scenario' },
     { value: fileProviderConfig?.timeout, source: 'config' }
@@ -300,6 +306,7 @@ function buildAzureOpenAIConfig(options: ProviderBuildOptions): AdapterConfigRes
       timeout: resolvedTimeout.value,
       maxRetries: resolvedMaxRetries.value,
       embeddingDeploymentName: resolvedEmbeddingDeploymentName.value,
+      modelFamily: resolvedModelFamily.value,
     },
     resolvedConfig: {
       provider,

@@ -12,6 +12,9 @@ providers:
     resourceName: ${AZURE_OPENAI_RESOURCE}
     deploymentName: ${AZURE_OPENAI_DEPLOYMENT}
     apiVersion: ${AZURE_OPENAI_API_VERSION}
+    # Model family for parameter detection (deployment name may differ from actual model)
+    # Used to determine API parameters like max_completion_tokens vs max_tokens
+    modelFamily: gpt-5-mini
 
 # Storage configuration
 storage:

@@ -5,22 +5,27 @@
 import type { Expected } from '../scenario/schema';
 import type { Evaluator, EvaluatorContext, EvaluatorResult } from './types';
 
-const GRADER_PROMPT = `You are an evaluator grading an AI response based on a rubric.
+const GRADER_PROMPT = `You are a strict JSON-only evaluator. You grade AI responses based on rubrics.
 
-## RUBRIC
+RUBRIC:
 {{rubric}}
 
-## RESPONSE TO EVALUATE
+RESPONSE TO EVALUATE:
 {{response}}
 
-## INSTRUCTIONS
-Score the response from 0.0 to 1.0 based on the rubric.
-Be objective and consistent in your scoring.
+TASK: Score the response from 0.0 to 1.0 based on the rubric above.
 
-Respond with ONLY a JSON object in this exact format:
-{"score": <number between 0 and 1>, "reason": "<brief explanation of score>"}
+OUTPUT FORMAT: You MUST respond with ONLY this exact JSON structure, nothing else:
+{"score":0.0,"reason":"explanation"}
 
-Do not include any other text, markdown, or formatting.`;
+RULES:
+- Output ONLY valid JSON, no markdown, no code blocks, no extra text
+- "score" must be a number between 0.0 and 1.0
+- "reason" must be a brief string explaining the score
+- Do NOT wrap in \`\`\`json or any formatting
+- Your entire response must be parseable by JSON.parse()
+
+JSON OUTPUT:`;
 
 export class LLMGraderEvaluator implements Evaluator {
   readonly type = 'llm_grader';
@@ -44,11 +49,13 @@ export class LLMGraderEvaluator implements Evaluator {
     );
 
     try {
+      // Note: Some models (like o1, o3, gpt-5-mini, reasoning models) only support temperature=1
+      // We omit temperature to let the API use its default for maximum compatibility
+      // Use higher maxTokens for reasoning models which use tokens for internal "thinking"
       const result = await context.client.generate({
         prompt,
         model: expected.model,
-        temperature: 0,
-        maxTokens: 200,
+        maxTokens: 1000,
       });
 
       const parsed = this.parseGraderResponse(result.text);
@@ -76,9 +83,25 @@ export class LLMGraderEvaluator implements Evaluator {
   }
 
   private parseGraderResponse(text: string): { score: number; reason?: string } {
-    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+    // Clean up the response - remove markdown code blocks if present
+    let cleanedText = text
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+
+    // Try to find JSON object in the response
+    const jsonMatch = cleanedText.match(/\{[\s\S]*?\}/);
+
     if (!jsonMatch) {
-      throw new Error('No JSON found in grader response');
+      // Fallback: try to extract score from plain text patterns like "Score: 0.8" or "0.85"
+      const scoreMatch = cleanedText.match(/(?:score[:\s]*)?(\d+\.?\d*)/i);
+      if (scoreMatch) {
+        const score = Number(scoreMatch[1]);
+        if (!Number.isNaN(score) && score >= 0 && score <= 1) {
+          return { score, reason: cleanedText };
+        }
+      }
+      throw new Error(`No JSON found in grader response: ${text.substring(0, 100)}...`);
     }
 
     try {
@@ -94,6 +117,15 @@ export class LLMGraderEvaluator implements Evaluator {
         reason: parsed.reason,
       };
     } catch (error) {
+      // If JSON parsing fails, try extracting score directly
+      const scoreMatch = jsonMatch[0].match(/"score"[:\s]*(\d+\.?\d*)/i);
+      if (scoreMatch) {
+        const score = Number(scoreMatch[1]);
+        if (!Number.isNaN(score) && score >= 0 && score <= 1) {
+          const reasonMatch = jsonMatch[0].match(/"reason"[:\s]*"([^"]+)"/i);
+          return { score, reason: reasonMatch?.[1] };
+        }
+      }
       throw new Error(`Failed to parse grader response: ${(error as Error).message}`);
     }
   }

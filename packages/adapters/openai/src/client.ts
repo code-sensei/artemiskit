@@ -198,9 +198,15 @@ export class OpenAIAdapter implements ModelClient {
   /**
    * Determine if model requires max_completion_tokens instead of max_tokens
    * Newer models (GPT-4o, GPT-5, o1, o3) require the new parameter
+   *
+   * @param model - The deployment name or model name used in the API call
    */
   private shouldUseMaxCompletionTokens(model: string): boolean {
-    const modelLower = model.toLowerCase();
+    // First check modelFamily from config (most reliable for Azure deployments)
+    const azureConfig = this.config as AzureOpenAIAdapterConfig;
+    const modelToCheck = azureConfig.modelFamily || model;
+
+    const modelLower = modelToCheck.toLowerCase();
     // Models that require max_completion_tokens
     const newParamModels = ['gpt-4o', 'gpt-4-turbo', 'gpt-5', 'o1', 'o3', 'chatgpt-4o'];
     return newParamModels.some((m) => modelLower.includes(m));

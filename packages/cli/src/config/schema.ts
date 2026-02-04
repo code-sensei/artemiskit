@@ -17,6 +17,9 @@ const ProviderConfigSchema = z.object({
   deploymentName: z.string().optional(),
   apiVersion: z.string().optional(),
   embeddingDeploymentName: z.string().optional(),
+  // Model family for parameter detection (e.g., 'gpt-5-mini' when deployment is '5-mini')
+  // Used by OpenAI/Azure to determine which API parameters to use (max_tokens vs max_completion_tokens)
+  modelFamily: z.string().optional(),
   // Vercel AI specific
   underlyingProvider: z.enum(['openai', 'azure', 'anthropic', 'google', 'mistral']).optional(),
 });

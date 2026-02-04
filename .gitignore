@@ -63,3 +63,6 @@ release-notes/
 
 # Marketing content (separate repo)
 marketing-content/
+
+# Demo files for client meetings
+demo/

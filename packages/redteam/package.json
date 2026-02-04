@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/redteam",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Red-team adversarial security testing for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",

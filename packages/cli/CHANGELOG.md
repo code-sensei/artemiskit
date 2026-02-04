@@ -1,5 +1,25 @@
 # @artemiskit/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- fix: improve LLM grader compatibility with reasoning models
+
+  - Remove temperature parameter from LLM grader (reasoning models like o1, o3, gpt-5-mini only support temperature=1)
+  - Increase maxTokens from 200 to 1000 to accommodate reasoning models that use tokens for internal thinking
+  - Improve grader prompt for stricter JSON-only output format
+  - Add fallback parsing for malformed JSON responses
+  - Add markdown code block stripping from grader responses
+  - Add `modelFamily` configuration option to Azure OpenAI provider for correct parameter detection when deployment names differ from model names
+
+- Updated dependencies
+  - @artemiskit/core@0.2.1
+  - @artemiskit/adapter-openai@0.1.8
+  - @artemiskit/adapter-vercel-ai@0.1.8
+  - @artemiskit/redteam@0.2.1
+  - @artemiskit/reports@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

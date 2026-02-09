@@ -1,5 +1,46 @@
 # @artemiskit/cli
 
+## 0.2.3
+
+### Patch Changes
+
+- 37403aa: ## v0.2.3 - Cost Tracking & Compliance Features
+
+  ### Cost Tracking
+
+  - **Automatic cost estimation**: Run results now include estimated API costs based on token usage and model pricing data
+  - **Cost display in output**: Summary output shows total tokens and estimated cost for each run
+  - **`--budget` flag**: Set a maximum budget in USD for `run`, `redteam`, and `stress` commands - the command fails (exit code 1) if the estimated cost exceeds the budget
+
+  ### History Enhancements
+
+  - **`--show-cost` flag**: Display cost column and total in `history` command output
+  - Cost data is stored with each run for historical tracking
+
+  ### Markdown Export
+
+  - **`--export markdown` flag**: Export run and redteam results to compliance-ready markdown format
+  - **`--export-output` flag**: Specify custom output directory for exports (default: `./artemis-exports`)
+  - Markdown reports include:
+    - Summary table with pass/fail rates, latency, token usage, and cost metrics
+    - Detailed results for failed test cases (run) or vulnerabilities found (redteam)
+    - Configuration used for the run
+    - Redaction summary (if enabled)
+    - Recommendations for remediation (redteam)
+
+  ### CI/CD Integration
+
+  - Budget enforcement in pipelines: `akit run scenarios/ --ci --budget 5.00`
+  - Cost tracking in CI summary output with `ARTEMISKIT_COST_USD` variable
+  - Automatic markdown report generation for compliance documentation
+
+- Updated dependencies [37403aa]
+  - @artemiskit/core@0.2.3
+  - @artemiskit/reports@0.2.3
+  - @artemiskit/adapter-openai@0.1.10
+  - @artemiskit/adapter-vercel-ai@0.1.10
+  - @artemiskit/redteam@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes

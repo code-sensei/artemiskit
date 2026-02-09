@@ -35,6 +35,7 @@ import {
 import {
   generateJSONReport,
   generateRedTeamHTMLReport,
+  generateRedTeamJUnitReport,
   generateRedTeamMarkdownReport,
 } from '@artemiskit/reports';
 import chalk from 'chalk';
@@ -70,7 +71,7 @@ interface RedteamOptions {
   config?: string;
   redact?: boolean;
   redactPatterns?: string[];
-  export?: 'markdown';
+  export?: 'markdown' | 'junit';
   exportOutput?: string;
 }
 
@@ -97,7 +98,7 @@ export function redteamCommand(): Command {
       '--redact-patterns <patterns...>',
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
-    .option('--export <format>', 'Export results to format (markdown)')
+    .option('--export <format>', 'Export results to format (markdown or junit)')
     .option('--export-output <dir>', 'Output directory for exports (default: ./artemis-exports)')
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = createSpinner('Loading configuration...');
@@ -503,14 +504,22 @@ export function redteamCommand(): Command {
           console.log(chalk.dim(`  JSON: ${jsonPath}`));
         }
 
-        // Export to markdown if requested
-        if (options.export === 'markdown') {
+        // Export if requested
+        if (options.export) {
           const exportDir = options.exportOutput || './artemis-exports';
           await mkdir(exportDir, { recursive: true });
-          const markdown = generateRedTeamMarkdownReport(manifest);
-          const mdPath = join(exportDir, `${runId}.md`);
-          await writeFile(mdPath, markdown);
-          console.log(chalk.dim(`Exported: ${mdPath}`));
+
+          if (options.export === 'markdown') {
+            const markdown = generateRedTeamMarkdownReport(manifest);
+            const mdPath = join(exportDir, `${runId}.md`);
+            await writeFile(mdPath, markdown);
+            console.log(chalk.dim(`Exported: ${mdPath}`));
+          } else if (options.export === 'junit') {
+            const junit = generateRedTeamJUnitReport(manifest);
+            const junitPath = join(exportDir, `${runId}.xml`);
+            await writeFile(junitPath, junit);
+            console.log(chalk.dim(`Exported: ${junitPath}`));
+          }
         }
 
         // Exit with error if there were unsafe responses

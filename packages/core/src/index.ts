@@ -32,3 +32,6 @@ export * from './redaction';
 
 // Cost estimation
 export * from './cost';
+
+// Validator
+export * from './validator';

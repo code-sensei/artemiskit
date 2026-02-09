@@ -27,3 +27,11 @@ export {
   generateRedTeamMarkdownReport,
   type MarkdownReportOptions,
 } from './markdown/generator';
+
+// JUnit XML reports (CI integration)
+export {
+  generateJUnitReport,
+  generateRedTeamJUnitReport,
+  generateValidationJUnitReport,
+  type JUnitReportOptions,
+} from './junit/generator';

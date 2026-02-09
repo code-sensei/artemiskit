@@ -12,6 +12,7 @@ import { redteamCommand } from './commands/redteam';
 import { reportCommand } from './commands/report';
 import { runCommand } from './commands/run';
 import { stressCommand } from './commands/stress';
+import { validateCommand } from './commands/validate';
 import { checkForUpdate, formatUpdateMessage, formatVersionDisplay } from './utils/update-checker';
 
 export function createCLI(): Command {
@@ -46,6 +47,7 @@ export function createCLI(): Command {
 
   program.addCommand(initCommand());
   program.addCommand(runCommand());
+  program.addCommand(validateCommand());
   program.addCommand(baselineCommand());
   program.addCommand(compareCommand());
   program.addCommand(historyCommand());

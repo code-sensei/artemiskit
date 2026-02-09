@@ -15,7 +15,7 @@ import {
   resolveScenarioPaths,
   runScenario,
 } from '@artemiskit/core';
-import { generateMarkdownReport } from '@artemiskit/reports';
+import { generateJUnitReport, generateMarkdownReport } from '@artemiskit/reports';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
@@ -68,8 +68,8 @@ interface RunOptions {
   threshold?: number;
   /** Budget limit in USD - fail if cost exceeds this */
   budget?: number;
-  /** Export format: markdown */
-  export?: 'markdown';
+  /** Export format: markdown or junit */
+  export?: 'markdown' | 'junit';
   /** Output directory for exports */
   exportOutput?: string;
 }
@@ -607,7 +607,7 @@ export function runCommand(): Command {
     .option('--baseline', 'Compare against baseline and detect regression')
     .option('--threshold <number>', 'Regression threshold (0-1), e.g., 0.05 for 5%', '0.05')
     .option('--budget <amount>', 'Maximum budget in USD - fail if estimated cost exceeds this')
-    .option('--export <format>', 'Export format: markdown')
+    .option('--export <format>', 'Export format: markdown or junit (for CI integration)')
     .option('--export-output <dir>', 'Output directory for exports (default: ./artemis-exports)')
     .action(async (scenarioPath: string | undefined, options: RunOptions) => {
       // Determine CI mode: explicit flag, environment variable, or summary format that implies CI
@@ -819,14 +819,22 @@ export function runCommand(): Command {
                 console.log(chalk.dim(`Saved: ${savedPath}`));
               }
 
-              // Export to markdown if requested
-              if (options.export === 'markdown') {
+              // Export if requested
+              if (options.export) {
                 const exportDir = options.exportOutput || './artemis-exports';
                 await mkdir(exportDir, { recursive: true });
-                const markdown = generateMarkdownReport(result.manifest);
-                const mdPath = join(exportDir, `${result.manifest.run_id}.md`);
-                await writeFile(mdPath, markdown);
-                console.log(chalk.dim(`Exported: ${mdPath}`));
+
+                if (options.export === 'markdown') {
+                  const markdown = generateMarkdownReport(result.manifest);
+                  const mdPath = join(exportDir, `${result.manifest.run_id}.md`);
+                  await writeFile(mdPath, markdown);
+                  console.log(chalk.dim(`Exported: ${mdPath}`));
+                } else if (options.export === 'junit') {
+                  const junit = generateJUnitReport(result.manifest);
+                  const junitPath = join(exportDir, `${result.manifest.run_id}.xml`);
+                  await writeFile(junitPath, junit);
+                  console.log(chalk.dim(`Exported: ${junitPath}`));
+                }
               }
             } catch (error) {
               // Record failed scenario

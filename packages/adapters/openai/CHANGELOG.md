@@ -1,5 +1,12 @@
 # @artemiskit/adapter-openai
 
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies [d5ca7c6]
+  - @artemiskit/core@0.2.2
+
 ## 0.1.8
 
 ### Patch Changes

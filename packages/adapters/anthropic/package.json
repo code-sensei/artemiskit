@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-anthropic",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Anthropic Claude adapter for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",

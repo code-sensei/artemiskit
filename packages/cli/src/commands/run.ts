@@ -1035,7 +1035,7 @@ export function runCommand(): Command {
                 // Budget info already in ciSummary, will be output above
               } else {
                 console.log(`ARTEMISKIT_BUDGET_LIMIT=${budgetLimit.toFixed(2)}`);
-                console.log(`ARTEMISKIT_BUDGET_EXCEEDED=true`);
+                console.log('ARTEMISKIT_BUDGET_EXCEEDED=true');
                 console.log(`ARTEMISKIT_BUDGET_OVER_BY=${overBy.toFixed(4)}`);
               }
             } else {

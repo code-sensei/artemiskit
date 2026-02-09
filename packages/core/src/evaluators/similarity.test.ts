@@ -15,7 +15,8 @@ describe('SimilarityEvaluator', () => {
 
   test('throws on invalid expected type', async () => {
     await expect(
-      evaluator.evaluate('response', { type: 'exact', value: 'test' } as any)
+      // @ts-expect-error Testing invalid type handling
+      evaluator.evaluate('response', { type: 'exact', value: 'test' })
     ).rejects.toThrow('Invalid expected type');
   });
 
@@ -288,8 +289,8 @@ describe('SimilarityEvaluator', () => {
       {
         type: 'similarity',
         value: 'Text B',
-        // No threshold specified, should use default 0.75
-      } as any,
+        threshold: undefined, // Testing default threshold (0.75)
+      },
       mockContext
     );
 

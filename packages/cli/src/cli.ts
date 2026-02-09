@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { version } from '../package.json';
+import { baselineCommand } from './commands/baseline';
 import { compareCommand } from './commands/compare';
 import { historyCommand } from './commands/history';
 import { initCommand } from './commands/init';
@@ -45,6 +46,7 @@ export function createCLI(): Command {
 
   program.addCommand(initCommand());
   program.addCommand(runCommand());
+  program.addCommand(baselineCommand());
   program.addCommand(compareCommand());
   program.addCommand(historyCommand());
   program.addCommand(reportCommand());

@@ -96,3 +96,76 @@ export interface StorageConfig {
   bucket?: string;
   basePath?: string;
 }
+
+/**
+ * Baseline metadata for regression comparison
+ */
+export interface BaselineMetadata {
+  /** Scenario name or identifier */
+  scenario: string;
+  /** Run ID of the baseline */
+  runId: string;
+  /** ISO timestamp when baseline was set */
+  createdAt: string;
+  /** Key metrics captured at baseline time */
+  metrics: {
+    successRate: number;
+    medianLatencyMs: number;
+    totalTokens: number;
+    passedCases: number;
+    failedCases: number;
+    totalCases: number;
+  };
+  /** Optional description or tag */
+  tag?: string;
+}
+
+/**
+ * Extended storage adapter with baseline support
+ */
+export interface BaselineStorageAdapter extends StorageAdapter {
+  /**
+   * Set a baseline for a scenario
+   */
+  setBaseline(scenario: string, runId: string, tag?: string): Promise<BaselineMetadata>;
+
+  /**
+   * Get the baseline by scenario name
+   */
+  getBaseline(scenario: string): Promise<BaselineMetadata | null>;
+
+  /**
+   * Get the baseline by run ID
+   */
+  getBaselineByRunId(runId: string): Promise<BaselineMetadata | null>;
+
+  /**
+   * List all baselines
+   */
+  listBaselines(): Promise<BaselineMetadata[]>;
+
+  /**
+   * Remove a baseline by scenario name
+   */
+  removeBaseline(scenario: string): Promise<boolean>;
+
+  /**
+   * Remove a baseline by run ID
+   */
+  removeBaselineByRunId(runId: string): Promise<boolean>;
+
+  /**
+   * Compare a run against its baseline (if exists)
+   * @param runId - The run ID to compare
+   * @param regressionThreshold - Threshold for regression detection (0-1), default 0.05
+   */
+  compareToBaseline?(
+    runId: string,
+    regressionThreshold?: number
+  ): Promise<{
+    baseline: BaselineMetadata;
+    comparison: ComparisonResult;
+    hasRegression: boolean;
+    regressionThreshold: number;
+  } | null>;
+}

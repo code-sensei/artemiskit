@@ -218,23 +218,91 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Provider selection | ✅ | Select provider/model at runtime in interactive mode |
 | Confirmation dialogs | ✅ | Confirm destructive actions |
 | Interactive init wizard | ✅ | Guided configuration setup (`artemiskit init -i`) |
-| Baseline command | 📋 | CRUD for baseline runs and reports for comparison |
 
-### Metrics & Observability (v0.2.x - Final Phase)
+### Metrics & Observability
 
-> **Note:** This section will be implemented last in the v0.2.x series, after all other v0.2.0 features are complete. Implementation details and scope will be discussed and finalized before work begins.
+> **Note:** Deferred to v1.0.0 for production-grade observability features.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Prometheus metrics | 💡 | Export metrics in Prometheus format |
-| OpenTelemetry spans | 💡 | Distributed tracing support |
-| Custom metrics hooks | 💡 | User-defined metric collectors |
+| Prometheus metrics | 💡 Deferred | Export metrics in Prometheus format (moved to v1.0.0) |
+| OpenTelemetry spans | 💡 Deferred | Distributed tracing support (moved to v1.0.0) |
+| Custom metrics hooks | 💡 Deferred | User-defined metric collectors (moved to v1.0.0) |
+
+---
+
+## v0.2.x - Patch Releases
+
+**Goal:** Incremental improvements for CI/CD integration, validation, and compliance documentation.
+
+**Specifications:** See [dev-docs/v0.2.x/](dev-docs/v0.2.x/) for detailed technical specifications.
+
+### v0.2.1 - Baseline & CI Essentials ✅
+
+**Focus:** Regression detection and CI-friendly output.
+
+**Status:** Complete (February 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `baseline` command | ✅ | CRUD for baseline runs (`set`, `list`, `get`, `remove`) |
+| `--ci` flag | ✅ | Machine-readable output for CI pipelines |
+| `--summary` flag | ✅ | Condensed output with format options (`json`, `text`, `security`) |
+| `--baseline` flag | ✅ | Auto-compare against baseline when set |
+| `--threshold` flag | ✅ | Configurable regression threshold (default 5%) |
+| Regression detection | ✅ | Detect score drops from baseline with exit code 1 |
+
+### v0.2.2 - Validation & Export
+
+**Focus:** Fail-fast validation and CI platform integration.
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `validate` command | 📋 | Validate scenarios without running them |
+| Multi-level validation | 📋 | YAML syntax → schema → semantic checks |
+| `--export junit` | 📋 | JUnit XML export for CI platforms |
+| GitHub Actions example | 📋 | Ready-to-use workflow template |
+| GitLab CI example | 📋 | Ready-to-use pipeline template |
+
+### v0.2.3 - Cost & Compliance
+
+**Focus:** Cost awareness and compliance documentation.
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Cost tracking | 📋 | Track API costs (visible by default in summaries) |
+| `--budget` flag | 📋 | Fail run if cost exceeds threshold |
+| `--show-cost` flag | 📋 | Show cost breakdown in history command |
+| `--export markdown` | 📋 | Markdown export for compliance documentation |
+| Model pricing data | 📋 | Built-in pricing for common models |
 
 ---
 
 ## v0.3.0 - SDK & Advanced Features
 
-**Goal:** Programmatic SDK, local persistence, model comparison, and additional providers.
+**Goal:** Programmatic SDK, OWASP LLM Top 10 compliance, local persistence, and advanced security testing.
+
+**Specifications:** See [dev-docs/v0.3.x/](dev-docs/v0.3.x/) for detailed technical specifications.
+
+### Enhanced Red Team Attack Vectors (OWASP LLM Top 10 2025)
+
+> **Priority:** High - Core security feature aligned with OWASP LLM Top 10 2025
+
+| Feature | Status | OWASP | Description |
+|---------|--------|-------|-------------|
+| `bad-likert-judge` mutation | 📋 | LLM01 | Exploit evaluation capability (60%+ success rate) |
+| `crescendo` mutation | 📋 | LLM01 | Multi-turn gradual escalation attack |
+| `deceptive-delight` mutation | 📋 | LLM01 | Positive framing bypass |
+| `many-shot` mutation | 💡 | LLM01 | Long context window exploitation |
+| `output-injection` mutation | 📋 | LLM05 | XSS, SQLi, command injection in output |
+| `excessive-agency` mutation | 📋 | LLM06 | Unauthorized action claim testing |
+| `system-extraction` mutation | 📋 | LLM07 | System prompt leakage techniques |
+| `hallucination-trap` mutation | 📋 | LLM09 | Confident fabrication triggers |
+| `rag-poisoning` mutation | 💡 | LLM08 | Context/retrieval manipulation |
+| `--owasp` flag | 📋 | All | Test by OWASP category (e.g., `--owasp LLM01,LLM05`) |
+| `--owasp-full` flag | 📋 | All | Full OWASP compliance scan |
+| `--min-severity` flag | 📋 | All | Filter attacks by severity level |
+| Attack configuration file | 📋 | All | YAML-based attack customization |
 
 ### Programmatic SDK (TypeScript/JavaScript)
 
@@ -281,9 +349,9 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | Generic REST | 💡 | Custom endpoints |
 | AWS Bedrock | 💡 | Amazon models |
 | Agentic Frameworks & Systems - Initial impl |
-| LangChain Adapter | 📋 | Adapter for testing LangChain agents |
+| LangChain Adapter | 📋 | Adapter for testing LangChain.js agents |
 | DeepAgents.js Adapter | 📋 | Adapter for testing DeepAgents agentic systems |
-| CrewAI Adapter | 📋 | Adapter for testing CrewAI agentic implementations/crews |
+| CrewAI Adapter | 💡 | Deferred to Python SDK release |
 
 ### Configuration
 
@@ -351,9 +419,10 @@ These features are under consideration for future releases:
 - Inline result visualization
 
 ### Advanced Security
-- OWASP LLM Top 10 compliance pack
+- ~~OWASP LLM Top 10 compliance pack~~ → Moved to v0.3.0 ✅
 - Continuous monitoring mode
 - Alert thresholds and notifications
+- Automated regression testing for security
 
 ### Community Features
 - Attack pattern library

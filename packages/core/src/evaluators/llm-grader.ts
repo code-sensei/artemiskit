@@ -84,7 +84,7 @@ export class LLMGraderEvaluator implements Evaluator {
 
   private parseGraderResponse(text: string): { score: number; reason?: string } {
     // Clean up the response - remove markdown code blocks if present
-    let cleanedText = text
+    const cleanedText = text
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
       .trim();

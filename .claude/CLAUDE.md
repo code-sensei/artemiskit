@@ -99,13 +99,27 @@ bun test --watch          # Watch mode
 bun test --coverage       # Coverage report
 ```
 
-### 5. Git: Authorization Required for Push
+### 5. Manual CLI Testing
+
+When testing CLI commands manually during development, use the CLI entry point directly:
+
+```bash
+# Run CLI commands via the entry point
+bun packages/cli/bin/artemis.ts run scenarios/example.yaml
+bun packages/cli/bin/artemis.ts redteam --prompt "You are a helpful assistant"
+bun packages/cli/bin/artemis.ts baseline set <run-id>
+bun packages/cli/bin/artemis.ts history --ci
+```
+
+This bypasses the need for a global install and tests the actual source code.
+
+### 6. Git: Authorization Required for Push
 
 Do NOT push to shared remotes without explicit user authorization.
 
 Reference: [.claude/rules/git-strategy.md](.claude/rules/git-strategy.md)
 
-### 6. Logging: Trace All Actions
+### 7. Logging: Trace All Actions
 
 Log significant actions to the ai-trace directory.
 

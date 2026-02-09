@@ -4,6 +4,7 @@
 
 import { basename } from 'node:path';
 import {
+  type BaselineStorageAdapter,
   type RedactionConfig,
   type RunManifest,
   createAdapter,
@@ -53,6 +54,14 @@ interface RunOptions {
   redactPatterns?: string[];
   parallel?: number;
   interactive?: boolean;
+  /** CI mode - machine-readable output, no colors/spinners */
+  ci?: boolean;
+  /** Summary format: json, text, or security */
+  summary?: 'json' | 'text' | 'security';
+  /** Compare against baseline and detect regression */
+  baseline?: boolean;
+  /** Regression threshold (0-1), default 0.05 (5%) */
+  threshold?: number;
 }
 
 interface ScenarioRunResult {
@@ -61,6 +70,169 @@ interface ScenarioRunResult {
   success: boolean;
   manifest: RunManifest;
   error?: string;
+}
+
+/**
+ * Minimal spinner interface for CI/non-TTY compatibility
+ */
+interface SpinnerLike {
+  start: (text?: string) => void;
+  stop: () => void;
+  succeed: (text?: string) => void;
+  fail: (text?: string) => void;
+  info: (text?: string) => void;
+}
+
+/**
+ * CI-friendly JSON summary output
+ */
+interface CISummary {
+  success: boolean;
+  scenarios: {
+    total: number;
+    passed: number;
+    failed: number;
+  };
+  cases: {
+    total: number;
+    passed: number;
+    failed: number;
+    successRate: number;
+  };
+  duration: {
+    totalMs: number;
+    formatted: string;
+  };
+  runs: Array<{
+    runId: string;
+    scenario: string;
+    success: boolean;
+    successRate: number;
+    passedCases: number;
+    failedCases: number;
+    totalCases: number;
+    durationMs: number;
+  }>;
+  baseline?: {
+    compared: boolean;
+    hasRegression: boolean;
+    threshold: number;
+    delta?: {
+      successRate: number;
+      latency: number;
+      tokens: number;
+    };
+  };
+}
+
+/**
+ * Security-focused summary for red team/security reporting
+ */
+interface SecuritySummary {
+  overallRisk: 'low' | 'medium' | 'high' | 'critical';
+  successRate: number;
+  vulnerabilities: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  recommendations: string[];
+}
+
+/**
+ * Check if storage adapter supports baselines
+ */
+function isBaselineStorage(storage: unknown): storage is BaselineStorageAdapter {
+  return (
+    typeof storage === 'object' &&
+    storage !== null &&
+    'setBaseline' in storage &&
+    'getBaseline' in storage &&
+    'listBaselines' in storage &&
+    'compareToBaseline' in storage
+  );
+}
+
+/**
+ * Build CI summary from results
+ */
+function buildCISummary(results: ScenarioRunResult[]): CISummary {
+  const totalScenarios = results.length;
+  const passedScenarios = results.filter((r) => r.success).length;
+  const failedScenarios = totalScenarios - passedScenarios;
+
+  const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
+  const failedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.failed_cases || 0), 0);
+  const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
+
+  return {
+    success: failedScenarios === 0,
+    scenarios: {
+      total: totalScenarios,
+      passed: passedScenarios,
+      failed: failedScenarios,
+    },
+    cases: {
+      total: totalCases,
+      passed: passedCases,
+      failed: failedCases,
+      successRate: totalCases > 0 ? passedCases / totalCases : 0,
+    },
+    duration: {
+      totalMs: totalDuration,
+      formatted: formatDuration(totalDuration),
+    },
+    runs: results.map((r) => ({
+      runId: r.manifest.run_id || '',
+      scenario: r.scenarioName,
+      success: r.success,
+      successRate: r.manifest.metrics?.success_rate || 0,
+      passedCases: r.manifest.metrics?.passed_cases || 0,
+      failedCases: r.manifest.metrics?.failed_cases || 0,
+      totalCases: r.manifest.metrics?.total_cases || 0,
+      durationMs: r.manifest.duration_ms || 0,
+    })),
+  };
+}
+
+/**
+ * Build security summary (for --summary security)
+ */
+function buildSecuritySummary(results: ScenarioRunResult[]): SecuritySummary {
+  const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
+  const successRate = totalCases > 0 ? passedCases / totalCases : 0;
+
+  // Categorize risk based on success rate (for standard runs, invert for security context)
+  let overallRisk: 'low' | 'medium' | 'high' | 'critical';
+  if (successRate >= 0.95) overallRisk = 'low';
+  else if (successRate >= 0.8) overallRisk = 'medium';
+  else if (successRate >= 0.5) overallRisk = 'high';
+  else overallRisk = 'critical';
+
+  // Count failures by severity (simplified - can be enhanced with actual severity data)
+  const failedCases = totalCases - passedCases;
+
+  return {
+    overallRisk,
+    successRate,
+    vulnerabilities: {
+      critical: overallRisk === 'critical' ? failedCases : 0,
+      high: overallRisk === 'high' ? failedCases : 0,
+      medium: overallRisk === 'medium' ? failedCases : 0,
+      low: overallRisk === 'low' ? failedCases : 0,
+    },
+    recommendations:
+      successRate < 1
+        ? [
+            'Review failed test cases for potential issues',
+            'Consider adding more comprehensive test coverage',
+            successRate < 0.8 ? 'Investigate root causes of failures before deployment' : '',
+          ].filter(Boolean)
+        : ['All tests passing - continue monitoring'],
+  };
 }
 
 /**
@@ -139,7 +311,7 @@ async function runSingleScenario(
   scenarioPath: string,
   options: RunOptions,
   config: ArtemisConfig | null,
-  spinner: ReturnType<typeof createSpinner>,
+  spinner: SpinnerLike,
   isMultiScenario: boolean
 ): Promise<ScenarioRunResult> {
   // Parse scenario
@@ -376,21 +548,51 @@ export function runCommand(): Command {
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
     .option('-i, --interactive', 'Enable interactive mode for scenario/provider selection')
+    .option('--ci', 'CI mode: machine-readable output, no colors/spinners, JSON summary')
+    .option(
+      '--summary <format>',
+      'Summary output format: json, text, or security (implies --ci for json/security)',
+      'text'
+    )
+    .option('--baseline', 'Compare against baseline and detect regression')
+    .option('--threshold <number>', 'Regression threshold (0-1), e.g., 0.05 for 5%', '0.05')
     .action(async (scenarioPath: string | undefined, options: RunOptions) => {
-      const spinner = createSpinner('Loading configuration...');
-      spinner.start();
+      // Determine CI mode: explicit flag, environment variable, or summary format that implies CI
+      const isCIMode =
+        options.ci ||
+        process.env.CI === 'true' ||
+        options.summary === 'json' ||
+        options.summary === 'security';
+
+      // In CI mode, use a no-op spinner
+      const spinner = isCIMode
+        ? {
+            start: () => {},
+            stop: () => {},
+            succeed: () => {},
+            fail: () => {},
+            info: () => {},
+          }
+        : createSpinner('Loading configuration...');
+
+      if (!isCIMode) {
+        spinner.start();
+      }
 
       try {
         // Load config file if present
         const config = await loadConfig(options.config);
-        if (config) {
-          spinner.succeed(`Loaded config from ${config._path}`);
-        } else {
-          spinner.info('No config file found, using defaults');
+        if (!isCIMode) {
+          if (config) {
+            spinner.succeed(`Loaded config from ${config._path}`);
+          } else {
+            spinner.info('No config file found, using defaults');
+          }
         }
 
-        // Determine if we should use interactive mode
-        const useInteractive = options.interactive || (!scenarioPath && isInteractive());
+        // Determine if we should use interactive mode (never in CI mode)
+        const useInteractive =
+          !isCIMode && (options.interactive || (!scenarioPath && isInteractive()));
 
         // Interactive provider/model selection if requested
         if (useInteractive && !options.provider) {
@@ -577,62 +779,177 @@ export function runCommand(): Command {
           }
         }
 
-        // Display aggregate summary for multiple scenarios
-        if (isMultiScenario) {
-          console.log();
-          console.log(chalk.bold.cyan('━━━ AGGREGATE SUMMARY ━━━'));
-          console.log();
+        // Build CI summary (used for CI mode output and baseline comparison)
+        const ciSummary = buildCISummary(results);
 
-          const totalScenarios = results.length;
-          const passedScenarios = results.filter((r) => r.success).length;
-          const failedScenarios = totalScenarios - passedScenarios;
+        // Baseline comparison (if enabled)
+        let baselineResult: {
+          hasRegression: boolean;
+          threshold: number;
+          delta?: { successRate: number; latency: number; tokens: number };
+        } | null = null;
 
-          const totalCases = results.reduce(
-            (sum, r) => sum + (r.manifest.metrics?.total_cases || 0),
-            0
-          );
-          const passedCases = results.reduce(
-            (sum, r) => sum + (r.manifest.metrics?.passed_cases || 0),
-            0
-          );
-          const failedCases = results.reduce(
-            (sum, r) => sum + (r.manifest.metrics?.failed_cases || 0),
-            0
-          );
-          const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
+        if (options.baseline && results.length > 0) {
+          const regressionThreshold = Number.parseFloat(String(options.threshold)) || 0.05;
 
-          console.log(
-            `Scenarios:  ${chalk.green(`${passedScenarios} passed`)}  ${failedScenarios > 0 ? chalk.red(`${failedScenarios} failed`) : ''}  ${chalk.dim(`(${totalScenarios} total)`)}`
-          );
-          console.log(
-            `Test Cases: ${chalk.green(`${passedCases} passed`)}  ${failedCases > 0 ? chalk.red(`${failedCases} failed`) : ''}  ${chalk.dim(`(${totalCases} total)`)}`
-          );
-          console.log(`Duration:   ${chalk.dim(formatDuration(totalDuration))}`);
+          // Check each scenario against its baseline
+          for (const result of results) {
+            if (!result.manifest.run_id) continue;
 
-          if (runInParallel) {
-            console.log(
-              `Mode:       ${chalk.cyan('parallel')} ${chalk.dim(`(${parallelLimit} concurrent)`)}`
-            );
-          }
-          console.log();
+            if (isBaselineStorage(storage) && storage.compareToBaseline) {
+              try {
+                const comparison = await storage.compareToBaseline(
+                  result.manifest.run_id,
+                  regressionThreshold
+                );
 
-          // List failed scenarios
-          const failedResults = results.filter((r) => !r.success);
-          if (failedResults.length > 0) {
-            console.log(chalk.red('Failed scenarios:'));
-            for (const result of failedResults) {
-              console.log(chalk.red(`  ${icons.failed} ${result.scenarioName}`));
-              if (result.error && options.verbose) {
-                console.log(chalk.dim(`      ${result.error}`));
+                if (comparison) {
+                  baselineResult = {
+                    hasRegression: comparison.hasRegression,
+                    threshold: comparison.regressionThreshold,
+                    delta: comparison.comparison.delta,
+                  };
+
+                  // Add baseline info to CI summary
+                  ciSummary.baseline = {
+                    compared: true,
+                    hasRegression: comparison.hasRegression,
+                    threshold: comparison.regressionThreshold,
+                    delta: comparison.comparison.delta,
+                  };
+
+                  if (!isCIMode && comparison.hasRegression) {
+                    console.log();
+                    console.log(
+                      `${icons.failed} ${chalk.red('Regression detected!')} for ${chalk.bold(result.scenarioName)}`
+                    );
+                    console.log(
+                      chalk.dim(
+                        `  Success rate dropped by ${Math.abs(comparison.comparison.delta.successRate * 100).toFixed(1)}% (threshold: ${regressionThreshold * 100}%)`
+                      )
+                    );
+                  }
+                }
+              } catch {
+                // Baseline comparison failed, continue without it
               }
             }
-            console.log();
           }
         }
 
-        // Exit with error if any scenarios failed
+        // Handle CI mode output
+        if (isCIMode) {
+          if (options.summary === 'json') {
+            console.log(JSON.stringify(ciSummary, null, 2));
+          } else if (options.summary === 'security') {
+            const securitySummary = buildSecuritySummary(results);
+            console.log(JSON.stringify(securitySummary, null, 2));
+          } else {
+            // Default CI text output (minimal)
+            const totalCases = ciSummary.cases.total;
+            const passedCases = ciSummary.cases.passed;
+            const failedCases = ciSummary.cases.failed;
+            const successRate = (ciSummary.cases.successRate * 100).toFixed(1);
+
+            console.log(`ARTEMISKIT_RESULT=${ciSummary.success ? 'PASS' : 'FAIL'}`);
+            console.log(`ARTEMISKIT_SCENARIOS_TOTAL=${ciSummary.scenarios.total}`);
+            console.log(`ARTEMISKIT_SCENARIOS_PASSED=${ciSummary.scenarios.passed}`);
+            console.log(`ARTEMISKIT_SCENARIOS_FAILED=${ciSummary.scenarios.failed}`);
+            console.log(`ARTEMISKIT_CASES_TOTAL=${totalCases}`);
+            console.log(`ARTEMISKIT_CASES_PASSED=${passedCases}`);
+            console.log(`ARTEMISKIT_CASES_FAILED=${failedCases}`);
+            console.log(`ARTEMISKIT_SUCCESS_RATE=${successRate}`);
+            console.log(`ARTEMISKIT_DURATION_MS=${ciSummary.duration.totalMs}`);
+
+            if (baselineResult) {
+              console.log(`ARTEMISKIT_BASELINE_COMPARED=true`);
+              console.log(
+                `ARTEMISKIT_REGRESSION=${baselineResult.hasRegression ? 'true' : 'false'}`
+              );
+              if (baselineResult.delta) {
+                console.log(
+                  `ARTEMISKIT_DELTA_SUCCESS_RATE=${(baselineResult.delta.successRate * 100).toFixed(2)}`
+                );
+              }
+            }
+
+            // Also print run IDs for reference
+            for (const run of ciSummary.runs) {
+              if (run.runId) {
+                console.log(
+                  `ARTEMISKIT_RUN_ID_${run.scenario.toUpperCase().replace(/[^A-Z0-9]/g, '_')}=${run.runId}`
+                );
+              }
+            }
+          }
+        } else {
+          // Display aggregate summary for multiple scenarios (non-CI mode)
+          if (isMultiScenario) {
+            console.log();
+            console.log(chalk.bold.cyan('━━━ AGGREGATE SUMMARY ━━━'));
+            console.log();
+
+            const totalScenarios = results.length;
+            const passedScenarios = results.filter((r) => r.success).length;
+            const failedScenarios = totalScenarios - passedScenarios;
+
+            const totalCases = results.reduce(
+              (sum, r) => sum + (r.manifest.metrics?.total_cases || 0),
+              0
+            );
+            const passedCases = results.reduce(
+              (sum, r) => sum + (r.manifest.metrics?.passed_cases || 0),
+              0
+            );
+            const failedCases = results.reduce(
+              (sum, r) => sum + (r.manifest.metrics?.failed_cases || 0),
+              0
+            );
+            const totalDuration = results.reduce(
+              (sum, r) => sum + (r.manifest.duration_ms || 0),
+              0
+            );
+
+            console.log(
+              `Scenarios:  ${chalk.green(`${passedScenarios} passed`)}  ${failedScenarios > 0 ? chalk.red(`${failedScenarios} failed`) : ''}  ${chalk.dim(`(${totalScenarios} total)`)}`
+            );
+            console.log(
+              `Test Cases: ${chalk.green(`${passedCases} passed`)}  ${failedCases > 0 ? chalk.red(`${failedCases} failed`) : ''}  ${chalk.dim(`(${totalCases} total)`)}`
+            );
+            console.log(`Duration:   ${chalk.dim(formatDuration(totalDuration))}`);
+
+            if (runInParallel) {
+              console.log(
+                `Mode:       ${chalk.cyan('parallel')} ${chalk.dim(`(${parallelLimit} concurrent)`)}`
+              );
+            }
+            console.log();
+
+            // List failed scenarios
+            const failedResults = results.filter((r) => !r.success);
+            if (failedResults.length > 0) {
+              console.log(chalk.red('Failed scenarios:'));
+              for (const result of failedResults) {
+                console.log(chalk.red(`  ${icons.failed} ${result.scenarioName}`));
+                if (result.error && options.verbose) {
+                  console.log(chalk.dim(`      ${result.error}`));
+                }
+              }
+              console.log();
+            }
+          }
+
+          // Show baseline comparison result in non-CI mode
+          if (baselineResult && !baselineResult.hasRegression) {
+            console.log(`${icons.passed} ${chalk.green('No regression detected')}`);
+          }
+        }
+
+        // Exit with error if any scenarios failed or regression detected
         const hasFailures = results.some((r) => !r.success);
-        if (hasFailures) {
+        const hasRegression = baselineResult?.hasRegression || false;
+
+        if (hasFailures || hasRegression) {
           process.exit(1);
         }
       } catch (error) {

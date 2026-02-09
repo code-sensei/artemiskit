@@ -5,7 +5,13 @@
 import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '../artifacts/types';
-import type { ComparisonResult, ListOptions, RunListItem, StorageAdapter } from './types';
+import type {
+  BaselineMetadata,
+  BaselineStorageAdapter,
+  ComparisonResult,
+  ListOptions,
+  RunListItem,
+} from './types';
 
 /**
  * Get manifest type from a manifest object
@@ -39,11 +45,21 @@ function getScenario(manifest: AnyManifest): string {
   return manifest.config.scenario;
 }
 
-export class LocalStorageAdapter implements StorageAdapter {
+/**
+ * Baselines file structure
+ */
+interface BaselinesFile {
+  version: string;
+  baselines: Record<string, BaselineMetadata>;
+}
+
+export class LocalStorageAdapter implements BaselineStorageAdapter {
   private basePath: string;
+  private baselinesPath: string;
 
   constructor(basePath = './artemis-runs') {
     this.basePath = resolve(basePath);
+    this.baselinesPath = join(this.basePath, '.artemis', 'baselines.json');
   }
 
   async save(manifest: AnyManifest): Promise<string> {
@@ -190,5 +206,149 @@ export class LocalStorageAdapter implements StorageAdapter {
     } catch {
       return [];
     }
+  }
+
+  // ==================== Baseline Methods ====================
+
+  /**
+   * Load baselines file
+   */
+  private async loadBaselinesFile(): Promise<BaselinesFile> {
+    try {
+      const content = await readFile(this.baselinesPath, 'utf-8');
+      return JSON.parse(content);
+    } catch {
+      return { version: '1.0', baselines: {} };
+    }
+  }
+
+  /**
+   * Save baselines file
+   */
+  private async saveBaselinesFile(data: BaselinesFile): Promise<void> {
+    const dir = join(this.basePath, '.artemis');
+    await mkdir(dir, { recursive: true });
+    await writeFile(this.baselinesPath, JSON.stringify(data, null, 2));
+  }
+
+  /**
+   * Set a baseline for a scenario
+   */
+  async setBaseline(scenario: string, runId: string, tag?: string): Promise<BaselineMetadata> {
+    // Load the run to extract metrics
+    const manifest = await this.loadRun(runId);
+    const scenarioName = scenario || getScenario(manifest);
+
+    const baseline: BaselineMetadata = {
+      scenario: scenarioName,
+      runId,
+      createdAt: new Date().toISOString(),
+      metrics: {
+        successRate: manifest.metrics.success_rate,
+        medianLatencyMs: manifest.metrics.median_latency_ms,
+        totalTokens: manifest.metrics.total_tokens,
+        passedCases: manifest.metrics.passed_cases,
+        failedCases: manifest.metrics.failed_cases,
+        totalCases: manifest.metrics.total_cases,
+      },
+      tag,
+    };
+
+    // Load existing baselines and add/update
+    const data = await this.loadBaselinesFile();
+    data.baselines[scenarioName] = baseline;
+    await this.saveBaselinesFile(data);
+
+    return baseline;
+  }
+
+  /**
+   * Get the baseline for a scenario
+   */
+  async getBaseline(scenario: string): Promise<BaselineMetadata | null> {
+    const data = await this.loadBaselinesFile();
+    return data.baselines[scenario] || null;
+  }
+
+  /**
+   * Get a baseline by run ID
+   */
+  async getBaselineByRunId(runId: string): Promise<BaselineMetadata | null> {
+    const data = await this.loadBaselinesFile();
+    const baselines = Object.values(data.baselines);
+    return baselines.find((b) => b.runId === runId) || null;
+  }
+
+  /**
+   * List all baselines
+   */
+  async listBaselines(): Promise<BaselineMetadata[]> {
+    const data = await this.loadBaselinesFile();
+    return Object.values(data.baselines).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  /**
+   * Remove a baseline by scenario name
+   */
+  async removeBaseline(scenario: string): Promise<boolean> {
+    const data = await this.loadBaselinesFile();
+    if (data.baselines[scenario]) {
+      delete data.baselines[scenario];
+      await this.saveBaselinesFile(data);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Remove a baseline by run ID
+   */
+  async removeBaselineByRunId(runId: string): Promise<boolean> {
+    const data = await this.loadBaselinesFile();
+    const entry = Object.entries(data.baselines).find(([_, b]) => b.runId === runId);
+    if (entry) {
+      delete data.baselines[entry[0]];
+      await this.saveBaselinesFile(data);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Compare a run against its baseline (if exists)
+   */
+  async compareToBaseline(
+    runId: string,
+    regressionThreshold = 0.05
+  ): Promise<{
+    baseline: BaselineMetadata;
+    comparison: ComparisonResult;
+    hasRegression: boolean;
+    regressionThreshold: number;
+  } | null> {
+    // Load the current run
+    const currentManifest = await this.loadRun(runId);
+    const scenario = getScenario(currentManifest);
+
+    // Get baseline for this scenario
+    const baseline = await this.getBaseline(scenario);
+    if (!baseline) {
+      return null;
+    }
+
+    // Load baseline manifest for full comparison
+    const comparison = await this.compare(baseline.runId, runId);
+
+    // Check for regression (negative delta in success rate)
+    const hasRegression = comparison.delta.successRate < -regressionThreshold;
+
+    return {
+      baseline,
+      comparison,
+      hasRegression,
+      regressionThreshold,
+    };
   }
 }

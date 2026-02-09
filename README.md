@@ -396,11 +396,13 @@ Variable precedence: **case-level > scenario-level**
 | Command | Description |
 |---------|-------------|
 | `artemiskit run <scenario>` | Run scenario-based evaluations |
+| `artemiskit validate <path>` | Validate scenarios without running them |
 | `artemiskit redteam <scenario>` | Run security red team tests |
 | `artemiskit stress <scenario>` | Run load/stress tests |
 | `artemiskit report <run-id>` | Regenerate report from saved run |
 | `artemiskit history` | View run history |
 | `artemiskit compare <id1> <id2>` | Compare two runs |
+| `artemiskit baseline` | Manage baselines for regression detection |
 | `artemiskit init` | Initialize configuration |
 
 Use `akit` as a shorter alias for `artemiskit`.
@@ -417,10 +419,57 @@ Options:
   -v, --verbose               Verbose output
   -t, --tags <tags...>        Filter test cases by tags
   -c, --concurrency <n>       Number of concurrent test cases (default: 1)
+  --parallel <n>              Number of scenarios to run in parallel
   --timeout <ms>              Timeout per test case in milliseconds
   --retries <n>               Number of retries per test case
   --config <path>             Path to config file
   --save                      Save results to storage (default: true)
+  --ci                        CI mode: machine-readable output
+  --baseline                  Compare against baseline for regression
+  --budget <amount>           Maximum budget in USD
+  --export <format>           Export format: markdown or junit
+```
+
+### Validate Command Options
+
+```bash
+artemiskit validate <path> [options]
+
+Options:
+  --json                      Output results as JSON
+  --strict                    Treat warnings as errors
+  -q, --quiet                 Only output errors
+  --export junit              Export to JUnit XML for CI
+```
+
+### CI/CD Integration
+
+ArtemisKit supports CI/CD pipelines with machine-readable output and JUnit exports:
+
+```bash
+# Machine-readable output for CI
+akit run scenarios/ --ci
+
+# Export to JUnit XML for CI platforms
+akit run scenarios/ --export junit --export-output ./test-results
+
+# Validate scenarios before running
+akit validate scenarios/ --strict --export junit
+```
+
+GitHub Actions example:
+```yaml
+- name: Validate scenarios
+  run: akit validate scenarios/ --strict
+
+- name: Run tests
+  run: akit run scenarios/ --export junit --export-output ./test-results
+
+- name: Publish Test Results
+  uses: EnricoMi/publish-unit-test-result-action@v2
+  if: always()
+  with:
+    files: test-results/*.xml
 ```
 
 ---

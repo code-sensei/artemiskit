@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.2.0 (released February 2026)  
+**Current Version:** 0.2.4 (February 2026)  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -252,29 +252,41 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 | `--threshold` flag | ✅ | Configurable regression threshold (default 5%) |
 | Regression detection | ✅ | Detect score drops from baseline with exit code 1 |
 
-### v0.2.2 - Validation & Export
+### v0.2.2 - Validation & Export ✅
 
 **Focus:** Fail-fast validation and CI platform integration.
 
+**Status:** Complete (February 2026) - Released as v0.2.4
+
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `validate` command | 📋 | Validate scenarios without running them |
-| Multi-level validation | 📋 | YAML syntax → schema → semantic checks |
-| `--export junit` | 📋 | JUnit XML export for CI platforms |
-| GitHub Actions example | 📋 | Ready-to-use workflow template |
-| GitLab CI example | 📋 | Ready-to-use pipeline template |
+| `validate` command | ✅ | Validate scenarios without running them |
+| Multi-level validation | ✅ | YAML syntax → schema → semantic checks |
+| `--export junit` | ✅ | JUnit XML export for CI platforms (run, redteam, validate) |
+| GitHub Actions example | ✅ | Ready-to-use workflow template in docs |
+| GitLab CI example | ✅ | Ready-to-use pipeline template in docs |
 
-### v0.2.3 - Cost & Compliance
+### v0.2.3 - Cost & Compliance ✅
 
 **Focus:** Cost awareness and compliance documentation.
 
+**Status:** Complete (February 2026)
+
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Cost tracking | 📋 | Track API costs (visible by default in summaries) |
-| `--budget` flag | 📋 | Fail run if cost exceeds threshold |
-| `--show-cost` flag | 📋 | Show cost breakdown in history command |
-| `--export markdown` | 📋 | Markdown export for compliance documentation |
-| Model pricing data | 📋 | Built-in pricing for common models |
+| Cost tracking | ✅ | Track API costs (visible by default in summaries) |
+| `--budget` flag | ✅ | Fail run if cost exceeds threshold |
+| `--show-cost` flag | ✅ | Show cost breakdown in history command |
+| `--export markdown` | ✅ | Markdown export for compliance documentation |
+| Model pricing data | ✅ | Built-in pricing for common models |
+
+### v0.2.4 - Combined Release ✅
+
+**Focus:** Combined release of v0.2.2 and v0.2.3 features.
+
+**Status:** Complete (February 2026)
+
+All features from v0.2.2 and v0.2.3 are included in this release.
 
 ---
 

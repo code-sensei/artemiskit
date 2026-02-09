@@ -862,7 +862,7 @@ export function runCommand(): Command {
             console.log(`ARTEMISKIT_DURATION_MS=${ciSummary.duration.totalMs}`);
 
             if (baselineResult) {
-              console.log(`ARTEMISKIT_BASELINE_COMPARED=true`);
+              console.log('ARTEMISKIT_BASELINE_COMPARED=true');
               console.log(
                 `ARTEMISKIT_REGRESSION=${baselineResult.hasRegression ? 'true' : 'false'}`
               );

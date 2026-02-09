@@ -326,10 +326,10 @@ export function getModelPricing(model: string): ModelPricing {
     return MODEL_PRICING['o3-mini'];
   }
   if (lowerModel.includes('o3')) {
-    return MODEL_PRICING['o3'];
+    return MODEL_PRICING.o3;
   }
   if (lowerModel.includes('o1')) {
-    return MODEL_PRICING['o1'];
+    return MODEL_PRICING.o1;
   }
 
   // Legacy GPT

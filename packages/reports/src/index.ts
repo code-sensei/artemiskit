@@ -20,3 +20,10 @@ export {
   type ComparisonData,
   type CaseComparison,
 } from './html/compare-generator';
+
+// Markdown reports
+export {
+  generateMarkdownReport,
+  generateRedTeamMarkdownReport,
+  type MarkdownReportOptions,
+} from './markdown/generator';

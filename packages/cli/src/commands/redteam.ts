@@ -32,7 +32,11 @@ import {
   UnsafeResponseDetector,
   loadCustomAttacks,
 } from '@artemiskit/redteam';
-import { generateJSONReport, generateRedTeamHTMLReport } from '@artemiskit/reports';
+import {
+  generateJSONReport,
+  generateRedTeamHTMLReport,
+  generateRedTeamMarkdownReport,
+} from '@artemiskit/reports';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { nanoid } from 'nanoid';
@@ -66,6 +70,8 @@ interface RedteamOptions {
   config?: string;
   redact?: boolean;
   redactPatterns?: string[];
+  export?: 'markdown';
+  exportOutput?: string;
 }
 
 export function redteamCommand(): Command {
@@ -91,6 +97,8 @@ export function redteamCommand(): Command {
       '--redact-patterns <patterns...>',
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
+    .option('--export <format>', 'Export results to format (markdown)')
+    .option('--export-output <dir>', 'Output directory for exports (default: ./artemis-exports)')
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = createSpinner('Loading configuration...');
       spinner.start();
@@ -493,6 +501,16 @@ export function redteamCommand(): Command {
           spinner.succeed(`Reports generated: ${options.output}`);
           console.log(chalk.dim(`  HTML: ${htmlPath}`));
           console.log(chalk.dim(`  JSON: ${jsonPath}`));
+        }
+
+        // Export to markdown if requested
+        if (options.export === 'markdown') {
+          const exportDir = options.exportOutput || './artemis-exports';
+          await mkdir(exportDir, { recursive: true });
+          const markdown = generateRedTeamMarkdownReport(manifest);
+          const mdPath = join(exportDir, `${runId}.md`);
+          await writeFile(mdPath, markdown);
+          console.log(chalk.dim(`Exported: ${mdPath}`));
         }
 
         // Exit with error if there were unsafe responses

@@ -474,10 +474,10 @@ bun run format                 # Format code
 bun run db:migrate             # Push schema changes
 bun run db:generate-types      # Generate TypeScript types
 
-# Release
+# Release (use `bun run release` to publish to npm)
 bun run changeset              # Create changeset
 bun run version                # Bump versions
-bun run release                # Publish packages
+bun run release                # Publish packages to npm (runs scripts/publish.sh)
 ```
 
 ---

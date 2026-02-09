@@ -68,6 +68,25 @@ export interface CaseResult {
 }
 
 /**
+ * Cost estimation details
+ */
+export interface CostEstimateInfo {
+  /** Estimated total cost in USD */
+  total_usd: number;
+  /** Cost for prompt/input tokens */
+  prompt_cost_usd: number;
+  /** Cost for completion/output tokens */
+  completion_cost_usd: number;
+  /** Model used for cost calculation */
+  model: string;
+  /** Pricing used (per 1K tokens) */
+  pricing: {
+    prompt_per_1k: number;
+    completion_per_1k: number;
+  };
+}
+
+/**
  * Run metrics
  */
 export interface RunMetrics {
@@ -80,6 +99,8 @@ export interface RunMetrics {
   total_tokens: number;
   total_prompt_tokens: number;
   total_completion_tokens: number;
+  /** Estimated cost information */
+  cost?: CostEstimateInfo;
 }
 
 /**

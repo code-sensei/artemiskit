@@ -2,6 +2,7 @@
  * History command - View run history
  */
 
+import { formatCost } from '@artemiskit/core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
@@ -13,6 +14,7 @@ interface HistoryOptions {
   scenario?: string;
   limit?: number;
   config?: string;
+  showCost?: boolean;
 }
 
 function renderHistoryTable(
@@ -21,16 +23,20 @@ function renderHistoryTable(
     scenario: string;
     successRate: number;
     createdAt: string;
-  }>
+    estimatedCostUsd?: number;
+  }>,
+  showCost = false
 ): string {
   // Column widths
   const runIdWidth = 16;
-  const scenarioWidth = 30;
+  const scenarioWidth = showCost ? 25 : 30;
   const rateWidth = 12;
   const dateWidth = 20;
+  const costWidth = 10;
 
-  // Total width = borders(4) + columns + spacing(3 spaces between 4 columns)
-  const width = 2 + runIdWidth + 1 + scenarioWidth + 1 + rateWidth + 1 + dateWidth + 2;
+  // Total width = borders(4) + columns + spacing
+  const baseWidth = 2 + runIdWidth + 1 + scenarioWidth + 1 + rateWidth + 1 + dateWidth + 2;
+  const width = showCost ? baseWidth + costWidth + 1 : baseWidth;
   const border = '═'.repeat(width - 2);
 
   const formatHeaderRow = () => {
@@ -38,6 +44,10 @@ function renderHistoryTable(
     const scenarioPad = padText('Scenario', scenarioWidth);
     const ratePad = padText('Success Rate', rateWidth, 'right');
     const datePad = padText('Date', dateWidth, 'right');
+    if (showCost) {
+      const costPad = padText('Cost', costWidth, 'right');
+      return `║ ${runIdPad} ${scenarioPad} ${ratePad} ${costPad} ${datePad} ║`;
+    }
     return `║ ${runIdPad} ${scenarioPad} ${ratePad} ${datePad} ║`;
   };
 
@@ -48,6 +58,8 @@ function renderHistoryTable(
     formatHeaderRow(),
     `╟${'─'.repeat(width - 2)}╢`,
   ];
+
+  let totalCost = 0;
 
   for (const run of runs) {
     const rateColor =
@@ -70,7 +82,25 @@ function renderHistoryTable(
     const dateStr = `${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     const datePad = padText(dateStr, dateWidth, 'right');
 
-    lines.push(`║ ${runIdPad} ${scenarioPad} ${rateColored} ${datePad} ║`);
+    if (showCost) {
+      const costValue = run.estimatedCostUsd !== undefined ? formatCost(run.estimatedCostUsd) : '-';
+      const costPad = padText(costValue, costWidth, 'right');
+      if (run.estimatedCostUsd !== undefined) {
+        totalCost += run.estimatedCostUsd;
+      }
+      lines.push(`║ ${runIdPad} ${scenarioPad} ${rateColored} ${chalk.dim(costPad)} ${datePad} ║`);
+    } else {
+      lines.push(`║ ${runIdPad} ${scenarioPad} ${rateColored} ${datePad} ║`);
+    }
+  }
+
+  // Add total cost row if showing costs
+  if (showCost) {
+    lines.push(`╟${'─'.repeat(width - 2)}╢`);
+    const totalLabel = padText('Total', runIdWidth + 1 + scenarioWidth + 1 + rateWidth, 'right');
+    const totalCostStr = padText(formatCost(totalCost), costWidth, 'right');
+    const emptyDate = padText('', dateWidth, 'right');
+    lines.push(`║ ${totalLabel} ${chalk.bold(totalCostStr)} ${emptyDate} ║`);
   }
 
   lines.push(`╚${border}╝`);
@@ -84,14 +114,31 @@ function renderPlainHistory(
     scenario: string;
     successRate: number;
     createdAt: string;
-  }>
+    estimatedCostUsd?: number;
+  }>,
+  showCost = false
 ): string {
   const lines = ['=== RUN HISTORY ===', ''];
+
+  let totalCost = 0;
 
   for (const run of runs) {
     const rate = `${(run.successRate * 100).toFixed(1)}%`;
     const date = new Date(run.createdAt).toLocaleString();
-    lines.push(`${run.runId}  ${run.scenario}  ${rate}  ${date}`);
+    if (showCost) {
+      const cost = run.estimatedCostUsd !== undefined ? formatCost(run.estimatedCostUsd) : '-';
+      if (run.estimatedCostUsd !== undefined) {
+        totalCost += run.estimatedCostUsd;
+      }
+      lines.push(`${run.runId}  ${run.scenario}  ${rate}  ${cost}  ${date}`);
+    } else {
+      lines.push(`${run.runId}  ${run.scenario}  ${rate}  ${date}`);
+    }
+  }
+
+  if (showCost) {
+    lines.push('');
+    lines.push(`Total: ${formatCost(totalCost)}`);
   }
 
   return lines.join('\n');
@@ -106,6 +153,7 @@ export function historyCommand(): Command {
     .option('-s, --scenario <scenario>', 'Filter by scenario')
     .option('-l, --limit <number>', 'Limit number of results', '20')
     .option('--config <path>', 'Path to config file')
+    .option('--show-cost', 'Show cost column and total')
     .action(async (options: HistoryOptions) => {
       const spinner = createSpinner('Loading history...');
       spinner.start();
@@ -119,6 +167,7 @@ export function historyCommand(): Command {
           project: options.project,
           scenario: options.scenario,
           limit,
+          includeCost: options.showCost,
         });
 
         spinner.succeed('Loaded history');
@@ -140,9 +189,9 @@ export function historyCommand(): Command {
 
         // Show history table
         if (isTTY) {
-          console.log(renderHistoryTable(runs));
+          console.log(renderHistoryTable(runs, options.showCost));
         } else {
-          console.log(renderPlainHistory(runs));
+          console.log(renderPlainHistory(runs, options.showCost));
         }
 
         console.log();

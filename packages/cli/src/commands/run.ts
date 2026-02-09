@@ -2,16 +2,20 @@
  * Run command - Execute test scenarios
  */
 
+import { mkdir, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { join } from 'node:path';
 import {
   type BaselineStorageAdapter,
   type RedactionConfig,
   type RunManifest,
   createAdapter,
+  formatCost,
   parseScenarioFile,
   resolveScenarioPaths,
   runScenario,
 } from '@artemiskit/core';
+import { generateMarkdownReport } from '@artemiskit/reports';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader.js';
@@ -62,6 +66,12 @@ interface RunOptions {
   baseline?: boolean;
   /** Regression threshold (0-1), default 0.05 (5%) */
   threshold?: number;
+  /** Budget limit in USD - fail if cost exceeds this */
+  budget?: number;
+  /** Export format: markdown */
+  export?: 'markdown';
+  /** Output directory for exports */
+  exportOutput?: string;
 }
 
 interface ScenarioRunResult {
@@ -103,6 +113,15 @@ interface CISummary {
     totalMs: number;
     formatted: string;
   };
+  tokens: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+  cost: {
+    estimatedUsd: number;
+    formatted: string;
+  };
   runs: Array<{
     runId: string;
     scenario: string;
@@ -112,6 +131,7 @@ interface CISummary {
     failedCases: number;
     totalCases: number;
     durationMs: number;
+    estimatedCostUsd?: number;
   }>;
   baseline?: {
     compared: boolean;
@@ -122,6 +142,11 @@ interface CISummary {
       latency: number;
       tokens: number;
     };
+  };
+  budget?: {
+    limit: number;
+    exceeded: boolean;
+    overBy: number;
   };
 }
 
@@ -167,6 +192,21 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
   const failedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.failed_cases || 0), 0);
   const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
 
+  // Aggregate token and cost metrics
+  const totalPromptTokens = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.total_prompt_tokens || 0),
+    0
+  );
+  const totalCompletionTokens = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.total_completion_tokens || 0),
+    0
+  );
+  const totalTokens = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_tokens || 0), 0);
+  const totalCostUsd = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.cost?.total_usd || 0),
+    0
+  );
+
   return {
     success: failedScenarios === 0,
     scenarios: {
@@ -184,6 +224,15 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       totalMs: totalDuration,
       formatted: formatDuration(totalDuration),
     },
+    tokens: {
+      prompt: totalPromptTokens,
+      completion: totalCompletionTokens,
+      total: totalTokens,
+    },
+    cost: {
+      estimatedUsd: totalCostUsd,
+      formatted: formatCost(totalCostUsd),
+    },
     runs: results.map((r) => ({
       runId: r.manifest.run_id || '',
       scenario: r.scenarioName,
@@ -193,6 +242,7 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       failedCases: r.manifest.metrics?.failed_cases || 0,
       totalCases: r.manifest.metrics?.total_cases || 0,
       durationMs: r.manifest.duration_ms || 0,
+      estimatedCostUsd: r.manifest.metrics?.cost?.total_usd,
     })),
   };
 }
@@ -556,6 +606,9 @@ export function runCommand(): Command {
     )
     .option('--baseline', 'Compare against baseline and detect regression')
     .option('--threshold <number>', 'Regression threshold (0-1), e.g., 0.05 for 5%', '0.05')
+    .option('--budget <amount>', 'Maximum budget in USD - fail if estimated cost exceeds this')
+    .option('--export <format>', 'Export format: markdown')
+    .option('--export-output <dir>', 'Output directory for exports (default: ./artemis-exports)')
     .action(async (scenarioPath: string | undefined, options: RunOptions) => {
       // Determine CI mode: explicit flag, environment variable, or summary format that implies CI
       const isCIMode =
@@ -741,9 +794,12 @@ export function runCommand(): Command {
 
               // Show additional metrics
               console.log();
+              const costInfo = result.manifest.metrics.cost
+                ? `  |  Est. Cost: ${formatCost(result.manifest.metrics.cost.total_usd)}`
+                : '';
               console.log(
                 chalk.dim(
-                  `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}`
+                  `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
                 )
               );
 
@@ -761,6 +817,16 @@ export function runCommand(): Command {
               if (options.save) {
                 const savedPath = await storage.save(result.manifest);
                 console.log(chalk.dim(`Saved: ${savedPath}`));
+              }
+
+              // Export to markdown if requested
+              if (options.export === 'markdown') {
+                const exportDir = options.exportOutput || './artemis-exports';
+                await mkdir(exportDir, { recursive: true });
+                const markdown = generateMarkdownReport(result.manifest);
+                const mdPath = join(exportDir, `${result.manifest.run_id}.md`);
+                await writeFile(mdPath, markdown);
+                console.log(chalk.dim(`Exported: ${mdPath}`));
               }
             } catch (error) {
               // Record failed scenario
@@ -860,6 +926,8 @@ export function runCommand(): Command {
             console.log(`ARTEMISKIT_CASES_FAILED=${failedCases}`);
             console.log(`ARTEMISKIT_SUCCESS_RATE=${successRate}`);
             console.log(`ARTEMISKIT_DURATION_MS=${ciSummary.duration.totalMs}`);
+            console.log(`ARTEMISKIT_TOKENS_TOTAL=${ciSummary.tokens.total}`);
+            console.log(`ARTEMISKIT_COST_USD=${ciSummary.cost.estimatedUsd.toFixed(4)}`);
 
             if (baselineResult) {
               console.log('ARTEMISKIT_BASELINE_COMPARED=true');
@@ -945,11 +1013,53 @@ export function runCommand(): Command {
           }
         }
 
-        // Exit with error if any scenarios failed or regression detected
+        // Check budget if specified
+        let budgetExceeded = false;
+        if (options.budget !== undefined) {
+          const budgetLimit = Number.parseFloat(String(options.budget));
+          const totalCost = ciSummary.cost.estimatedUsd;
+
+          if (totalCost > budgetLimit) {
+            budgetExceeded = true;
+            const overBy = totalCost - budgetLimit;
+
+            // Add budget info to CI summary
+            ciSummary.budget = {
+              limit: budgetLimit,
+              exceeded: true,
+              overBy,
+            };
+
+            if (isCIMode) {
+              if (options.summary === 'json') {
+                // Budget info already in ciSummary, will be output above
+              } else {
+                console.log(`ARTEMISKIT_BUDGET_LIMIT=${budgetLimit.toFixed(2)}`);
+                console.log(`ARTEMISKIT_BUDGET_EXCEEDED=true`);
+                console.log(`ARTEMISKIT_BUDGET_OVER_BY=${overBy.toFixed(4)}`);
+              }
+            } else {
+              console.log();
+              console.log(chalk.red(`${icons.failed} BUDGET EXCEEDED`));
+              console.log(
+                chalk.red(
+                  `   Budget: $${budgetLimit.toFixed(2)}  |  Actual: ${formatCost(totalCost)}  |  Over by: ${formatCost(overBy)}`
+                )
+              );
+              console.log();
+            }
+          } else if (!isCIMode) {
+            console.log(
+              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`($${budgetLimit.toFixed(2)} limit, ${formatCost(totalCost)} used)`)}`
+            );
+          }
+        }
+
+        // Exit with error if any scenarios failed, regression detected, or budget exceeded
         const hasFailures = results.some((r) => !r.success);
         const hasRegression = baselineResult?.hasRegression || false;
 
-        if (hasFailures || hasRegression) {
+        if (hasFailures || hasRegression || budgetExceeded) {
           process.exit(1);
         }
       } catch (error) {

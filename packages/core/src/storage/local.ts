@@ -39,6 +39,21 @@ function getSuccessRate(manifest: AnyManifest): number {
 }
 
 /**
+ * Get estimated cost from any manifest type
+ */
+function getEstimatedCost(manifest: AnyManifest): number | undefined {
+  const type = getManifestType(manifest);
+  if (type === 'stress') {
+    return (manifest as StressManifest).metrics.cost?.estimated_total_usd;
+  }
+  if (type === 'run') {
+    return (manifest as RunManifest).metrics.cost?.total_usd;
+  }
+  // Redteam doesn't have cost tracking yet
+  return undefined;
+}
+
+/**
  * Get scenario name from any manifest type
  */
 function getScenario(manifest: AnyManifest): string {
@@ -138,13 +153,20 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
             continue;
           }
 
-          results.push({
+          const item: RunListItem = {
             runId: manifest.run_id,
             scenario: getScenario(manifest),
             successRate: getSuccessRate(manifest),
             createdAt: manifest.start_time,
             type: manifestType,
-          });
+          };
+
+          // Include cost if requested
+          if (options?.includeCost) {
+            item.estimatedCostUsd = getEstimatedCost(manifest);
+          }
+
+          results.push(item);
         } catch {}
       }
     }

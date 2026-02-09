@@ -14,6 +14,8 @@ export interface RunListItem {
   createdAt: string;
   /** Type of manifest (run, redteam, stress) */
   type?: 'run' | 'redteam' | 'stress';
+  /** Estimated cost in USD (optional, included when --show-cost is used) */
+  estimatedCostUsd?: number;
 }
 
 /**
@@ -39,6 +41,8 @@ export interface ListOptions {
   offset?: number;
   /** Filter by manifest type */
   type?: 'run' | 'redteam' | 'stress';
+  /** Include cost information in results */
+  includeCost?: boolean;
 }
 
 /**

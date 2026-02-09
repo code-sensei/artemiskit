@@ -13,6 +13,7 @@ import {
   type StressRequestResult,
   createAdapter,
   estimateCost,
+  formatCost,
   getGitInfo,
   getModelPricing,
   parseScenarioFile,
@@ -26,6 +27,7 @@ import {
   colors,
   createSpinner,
   getProviderErrorContext,
+  icons,
   isTTY,
   renderError,
   renderInfoBox,
@@ -52,6 +54,8 @@ interface StressOptions {
   config?: string;
   redact?: boolean;
   redactPatterns?: string[];
+  /** Budget limit in USD - fail if cost exceeds this */
+  budget?: number;
 }
 
 export function stressCommand(): Command {
@@ -75,6 +79,7 @@ export function stressCommand(): Command {
       '--redact-patterns <patterns...>',
       'Custom redaction patterns (regex or built-in: email, phone, credit_card, ssn, api_key)'
     )
+    .option('--budget <amount>', 'Maximum budget in USD - fail if estimated cost exceeds this')
     .action(async (scenarioPath: string, options: StressOptions) => {
       const spinner = createSpinner('Loading configuration...');
       spinner.start();
@@ -318,6 +323,29 @@ export function stressCommand(): Command {
           spinner.succeed(`Reports generated: ${options.output}`);
           console.log(chalk.dim(`  HTML: ${htmlPath}`));
           console.log(chalk.dim(`  JSON: ${jsonPath}`));
+        }
+
+        // Check budget if specified
+        if (options.budget !== undefined && metrics.cost) {
+          const budgetLimit = Number.parseFloat(String(options.budget));
+          const totalCost = metrics.cost.estimated_total_usd;
+
+          if (totalCost > budgetLimit) {
+            const overBy = totalCost - budgetLimit;
+            console.log();
+            console.log(chalk.red(`${icons.failed} BUDGET EXCEEDED`));
+            console.log(
+              chalk.red(
+                `   Budget: $${budgetLimit.toFixed(2)}  |  Actual: ${formatCost(totalCost)}  |  Over by: ${formatCost(overBy)}`
+              )
+            );
+            process.exit(1);
+          } else {
+            console.log();
+            console.log(
+              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`($${budgetLimit.toFixed(2)} limit, ${formatCost(totalCost)} used)`)}`
+            );
+          }
         }
       } catch (error) {
         spinner.fail('Error');

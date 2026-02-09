@@ -3,10 +3,12 @@
  */
 
 import { nanoid } from 'nanoid';
+import { estimateCost, getModelPricing } from '../cost/pricing';
 import { getEnvironmentInfo } from '../provenance/environment';
 import { getGitInfo } from '../provenance/git';
 import type {
   CaseResult,
+  CostEstimateInfo,
   ManifestRedactionInfo,
   ResolvedConfig,
   RunConfig,
@@ -40,7 +42,9 @@ export function createRunManifest(options: {
     redaction,
   } = options;
 
-  const metrics = calculateMetrics(cases);
+  // Get model for cost calculation - prefer resolvedConfig, then config
+  const modelForCost = resolvedConfig?.model || config.model;
+  const metrics = calculateMetrics(cases, modelForCost);
   const git = getGitInfo();
   const environment = getEnvironmentInfo();
 
@@ -69,7 +73,7 @@ export function createRunManifest(options: {
 /**
  * Calculate metrics from case results
  */
-function calculateMetrics(cases: CaseResult[]): RunMetrics {
+function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
   const passedCases = cases.filter((c) => c.ok);
   const latencies = cases.map((c) => c.latencyMs).sort((a, b) => a - b);
 
@@ -81,6 +85,23 @@ function calculateMetrics(cases: CaseResult[]): RunMetrics {
   const totalPromptTokens = cases.reduce((sum, c) => sum + c.tokens.prompt, 0);
   const totalCompletionTokens = cases.reduce((sum, c) => sum + c.tokens.completion, 0);
 
+  // Calculate cost if model is provided
+  let cost: CostEstimateInfo | undefined;
+  if (model && (totalPromptTokens > 0 || totalCompletionTokens > 0)) {
+    const costEstimate = estimateCost(totalPromptTokens, totalCompletionTokens, model);
+    const pricing = getModelPricing(model);
+    cost = {
+      total_usd: costEstimate.totalUsd,
+      prompt_cost_usd: costEstimate.promptCostUsd,
+      completion_cost_usd: costEstimate.completionCostUsd,
+      model: costEstimate.model,
+      pricing: {
+        prompt_per_1k: pricing.promptPer1K,
+        completion_per_1k: pricing.completionPer1K,
+      },
+    };
+  }
+
   return {
     success_rate: cases.length > 0 ? passedCases.length / cases.length : 0,
     total_cases: cases.length,
@@ -91,6 +112,7 @@ function calculateMetrics(cases: CaseResult[]): RunMetrics {
     total_tokens: totalPromptTokens + totalCompletionTokens,
     total_prompt_tokens: totalPromptTokens,
     total_completion_tokens: totalCompletionTokens,
+    cost,
   };
 }
 

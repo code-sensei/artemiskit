@@ -3,9 +3,20 @@
  * Red-team testing module for Artemis Agent Reliability Toolkit
  */
 
+// ==========================================
+// Core Mutations & OWASP Mutations
+// ==========================================
 export * from './mutations';
+
+// ==========================================
+// Generator & Detector
+// ==========================================
 export { RedTeamGenerator, type GeneratedPrompt } from './generator';
 export { UnsafeResponseDetector, type DetectionResult } from './detector';
+
+// ==========================================
+// Severity & CVSS Scoring
+// ==========================================
 export {
   SeverityMapper,
   CvssCalculator,
@@ -15,6 +26,10 @@ export {
   type SeverityInfo,
   type CvssScore,
 } from './severity';
+
+// ==========================================
+// Custom Attacks
+// ==========================================
 export {
   CustomMutation,
   loadCustomAttacks,
@@ -23,3 +38,12 @@ export {
   type CustomAttackDefinition,
   type CustomAttacksFile,
 } from './custom-attacks';
+
+// ==========================================
+// OWASP Utilities
+// ==========================================
+export {
+  OWASP_CATEGORIES,
+  getMutationsForCategory,
+  getAllOwaspMutationNames,
+} from './mutations';

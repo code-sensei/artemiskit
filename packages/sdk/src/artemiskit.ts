@@ -513,6 +513,9 @@ export class ArtemisKit {
     let activeRequests = 0;
 
     // Get a sample prompt from scenario
+    if (scenario.cases.length === 0) {
+      throw new Error('Scenario must have at least one test case for stress testing');
+    }
     const sampleCase = scenario.cases[0];
     const prompt =
       typeof sampleCase.prompt === 'string'
@@ -560,15 +563,16 @@ export class ArtemisKit {
         }
 
         while (Date.now() < endTimeTarget) {
-          if (maxRequests && requestCount >= maxRequests) {
+          // Use atomic increment pattern to avoid race conditions
+          const currentRequest = requestCount++;
+          if (maxRequests && currentRequest >= maxRequests) {
             break;
           }
-
-          requestCount++;
           activeRequests++;
 
           const result = await makeRequest();
-          results.push(result);
+          // Use indexed assignment for thread-safe array population
+          results[currentRequest] = result;
           completedCount++;
           activeRequests--;
 
@@ -603,17 +607,20 @@ export class ArtemisKit {
     const endTime = new Date();
     const totalDurationMs = endTime.getTime() - startTime.getTime();
 
+    // Filter out undefined entries from sparse array (due to concurrent indexed writes)
+    const validResults = results.filter((r): r is StressRequestResult => r !== undefined);
+
     // Calculate metrics
-    const successfulResults = results.filter((r) => r.success);
-    const failedResults = results.filter((r) => !r.success);
+    const successfulResults = validResults.filter((r) => r.success);
+    const failedResults = validResults.filter((r) => !r.success);
     const latencies = successfulResults.map((r) => r.latencyMs).sort((a, b) => a - b);
 
     const metrics: StressMetrics = {
-      total_requests: results.length,
+      total_requests: validResults.length,
       successful_requests: successfulResults.length,
       failed_requests: failedResults.length,
-      success_rate: results.length > 0 ? successfulResults.length / results.length : 0,
-      requests_per_second: results.length / (totalDurationMs / 1000),
+      success_rate: validResults.length > 0 ? successfulResults.length / validResults.length : 0,
+      requests_per_second: validResults.length / (totalDurationMs / 1000),
       min_latency_ms: latencies.length > 0 ? latencies[0] : 0,
       max_latency_ms: latencies.length > 0 ? latencies[latencies.length - 1] : 0,
       avg_latency_ms:
@@ -679,7 +686,7 @@ export class ArtemisKit {
             }
           : undefined,
       },
-      sample_results: results.slice(0, 100), // Keep first 100 for reference
+      sample_results: validResults.slice(0, 100), // Keep first 100 for reference
       environment: {
         node_version: process.version,
         platform: process.platform,

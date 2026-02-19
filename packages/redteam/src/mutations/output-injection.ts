@@ -1,5 +1,5 @@
 /**
- * Output Injection Mutation - OWASP LLM05 (Insecure Output Handling)
+ * Output Injection Mutation - OWASP LLM02 (Insecure Output Handling)
  *
  * This mutation tests if the LLM can be tricked into generating outputs
  * that contain injection payloads (XSS, SQLi, command injection, etc.)
@@ -11,7 +11,7 @@
  * - Executed as commands (command injection)
  * - Parsed as structured data (JSON/XML injection)
  *
- * Reference: OWASP LLM Top 10 2025 - LLM05 Insecure Output Handling
+ * Reference: OWASP LLM Top 10 2025 - LLM02 Insecure Output Handling
  */
 
 import { CvssCalculator, type CvssScore } from '../severity';
@@ -169,7 +169,7 @@ export interface OutputInjectionOptions {
 export class OutputInjectionMutation implements Mutation {
   readonly name = 'output-injection';
   readonly description =
-    'Tests if LLM generates outputs with XSS, SQLi, command injection payloads (OWASP LLM05)';
+    'Tests if LLM generates outputs with XSS, SQLi, command injection payloads (OWASP LLM02)';
   readonly severity = 'high' as const;
   readonly cvssScore: CvssScore = CvssCalculator.calculate({
     attackVector: 'network',
@@ -182,7 +182,7 @@ export class OutputInjectionMutation implements Mutation {
     detectability: 'moderate',
   });
   /** OWASP category */
-  readonly owaspCategory = 'LLM05';
+  readonly owaspCategory = 'LLM02';
 
   private injectionType?: InjectionType;
   private requestExplanation: boolean;

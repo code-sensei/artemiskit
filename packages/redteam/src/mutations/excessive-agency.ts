@@ -1,5 +1,5 @@
 /**
- * Excessive Agency Mutation - OWASP LLM06 (Excessive Agency)
+ * Excessive Agency Mutation - OWASP LLM08 (Excessive Agency)
  *
  * This mutation tests if the LLM can be manipulated into claiming or
  * attempting to perform unauthorized actions beyond its actual capabilities
@@ -11,7 +11,7 @@
  * - LLM doesn't properly validate authorization for claimed actions
  * - LLM grants itself elevated privileges in conversation
  *
- * Reference: OWASP LLM Top 10 2025 - LLM06 Excessive Agency
+ * Reference: OWASP LLM Top 10 2025 - LLM08 Excessive Agency
  */
 
 import { CvssCalculator, type CvssScore } from '../severity';
@@ -117,7 +117,7 @@ export interface ExcessiveAgencyOptions {
 export class ExcessiveAgencyMutation implements Mutation {
   readonly name = 'excessive-agency';
   readonly description =
-    'Tests if LLM claims or attempts unauthorized actions beyond its permissions (OWASP LLM06)';
+    'Tests if LLM claims or attempts unauthorized actions beyond its permissions (OWASP LLM08)';
   readonly severity = 'critical' as const;
   readonly cvssScore: CvssScore = CvssCalculator.calculate({
     attackVector: 'network',
@@ -130,7 +130,7 @@ export class ExcessiveAgencyMutation implements Mutation {
     detectability: 'moderate',
   });
   /** OWASP category */
-  readonly owaspCategory = 'LLM06';
+  readonly owaspCategory = 'LLM08';
 
   private agencyType?: AgencyType;
   private addAuthority: boolean;

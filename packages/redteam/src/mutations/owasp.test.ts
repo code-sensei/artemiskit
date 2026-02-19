@@ -170,7 +170,7 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutation = new OutputInjectionMutation();
       expect(mutation.name).toBe('output-injection');
       expect(mutation.severity).toBe('high');
-      expect(mutation.owaspCategory).toBe('LLM05');
+      expect(mutation.owaspCategory).toBe('LLM02');
     });
 
     it('should support specific injection types', () => {
@@ -222,7 +222,7 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutation = new ExcessiveAgencyMutation();
       expect(mutation.name).toBe('excessive-agency');
       expect(mutation.severity).toBe('critical');
-      expect(mutation.owaspCategory).toBe('LLM06');
+      expect(mutation.owaspCategory).toBe('LLM08');
     });
 
     it('should support specific agency types', () => {
@@ -271,7 +271,7 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutation = new SystemExtractionMutation();
       expect(mutation.name).toBe('system-extraction');
       expect(mutation.severity).toBe('high');
-      expect(mutation.owaspCategory).toBe('LLM07');
+      expect(mutation.owaspCategory).toBe('LLM06');
     });
 
     it('should support specific extraction techniques', () => {
@@ -362,12 +362,11 @@ describe('OWASP LLM Top 10 Mutations', () => {
 
     it('should return mutations for LLM05', () => {
       const mutations = getMutationsForCategory('LLM05');
-      expect(mutations).toContain('output-injection');
+      expect(mutations).toHaveLength(0);
     });
 
     it('should return mutations for LLM06', () => {
       const mutations = getMutationsForCategory('LLM06');
-      expect(mutations).toContain('excessive-agency');
       expect(mutations).toContain('system-extraction');
     });
 

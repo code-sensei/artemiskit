@@ -513,11 +513,10 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
     if (options.tags && options.tags.length > 0) {
       query = query.overlaps('tags', options.tags);
     }
-    if (options.limit) {
+    if (options.offset && options.limit) {
+      query = query.range(options.offset, options.offset + options.limit - 1);
+    } else if (options.limit) {
       query = query.limit(options.limit);
-    }
-    if (options.offset) {
-      query = query.range(options.offset, options.offset + (options.limit || 10) - 1);
     }
 
     const { data, error } = await query;

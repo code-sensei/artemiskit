@@ -1,5 +1,10 @@
 /**
  * Redteam command - Run red-team adversarial tests
+ *
+ * Supports OWASP LLM Top 10 2025 security testing with new flags:
+ * --owasp: Test specific OWASP categories (e.g., --owasp LLM01,LLM05)
+ * --owasp-full: Full OWASP compliance scan
+ * --min-severity: Filter attacks by minimum severity level
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -19,17 +24,26 @@ import {
   parseScenarioFile,
 } from '@artemiskit/core';
 import {
+  BadLikertJudgeMutation,
   type ConversationTurn,
   CotInjectionMutation,
+  CrescendoMutation,
+  DeceptiveDelightMutation,
   EncodingMutation,
+  ExcessiveAgencyMutation,
+  HallucinationTrapMutation,
   InstructionFlipMutation,
   MultiTurnMutation,
   type Mutation,
+  OWASP_CATEGORIES,
+  OutputInjectionMutation,
   RedTeamGenerator,
   RoleSpoofMutation,
   SeverityMapper,
+  SystemExtractionMutation,
   TypoMutation,
   UnsafeResponseDetector,
+  getMutationsForCategory,
   loadCustomAttacks,
 } from '@artemiskit/redteam';
 import {
@@ -73,6 +87,10 @@ interface RedteamOptions {
   redactPatterns?: string[];
   export?: 'markdown' | 'junit';
   exportOutput?: string;
+  // OWASP options
+  owasp?: string[];
+  owaspFull?: boolean;
+  minSeverity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export function redteamCommand(): Command {
@@ -85,7 +103,7 @@ export function redteamCommand(): Command {
     .option('-m, --model <model>', 'Model to use')
     .option(
       '--mutations <mutations...>',
-      'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection, encoding, multi-turn)'
+      'Mutations to apply (typo, role-spoof, instruction-flip, cot-injection, encoding, multi-turn, bad-likert-judge, crescendo, deceptive-delight, output-injection, excessive-agency, system-extraction, hallucination-trap)'
     )
     .option('-c, --count <number>', 'Number of mutated prompts per case', '5')
     .option('--custom-attacks <path>', 'Path to custom attacks YAML file')
@@ -100,6 +118,16 @@ export function redteamCommand(): Command {
     )
     .option('--export <format>', 'Export results to format (markdown or junit)')
     .option('--export-output <dir>', 'Output directory for exports (default: ./artemis-exports)')
+    // OWASP options
+    .option(
+      '--owasp <categories...>',
+      'Test specific OWASP LLM Top 10 categories (e.g., LLM01, LLM05, LLM06)'
+    )
+    .option('--owasp-full', 'Run full OWASP LLM Top 10 compliance scan (all applicable categories)')
+    .option(
+      '--min-severity <level>',
+      'Minimum severity level for attacks (low, medium, high, critical)'
+    )
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = createSpinner('Loading configuration...');
       spinner.start();
@@ -145,8 +173,15 @@ export function redteamCommand(): Command {
         const client = await createAdapter(adapterConfig);
         spinner.succeed(`Connected to ${provider}`);
 
-        // Set up mutations
-        const mutations = selectMutations(options.mutations, options.customAttacks);
+        // Set up mutations - check for OWASP flags first
+        const mutations = selectMutations({
+          names: options.mutations,
+          customAttacksPath: options.customAttacks,
+          owaspCategories: options.owasp,
+          owaspFull: options.owaspFull,
+          minSeverity: options.minSeverity,
+        });
+
         const generator = new RedTeamGenerator(mutations);
         const detector = new UnsafeResponseDetector();
         const count = Number.parseInt(String(options.count)) || 5;
@@ -158,6 +193,14 @@ export function redteamCommand(): Command {
           `Prompts per case: ${count}`,
           `Total cases: ${scenario.cases.length}`,
         ];
+        if (options.owasp || options.owaspFull) {
+          configLines.push(
+            `OWASP Mode: ${options.owaspFull ? 'Full Compliance Scan' : options.owasp?.join(', ')}`
+          );
+        }
+        if (options.minSeverity) {
+          configLines.push(`Min Severity: ${options.minSeverity}`);
+        }
         if (options.redact) {
           configLines.push(
             `Redaction: enabled${options.redactPatterns ? ` (${options.redactPatterns.join(', ')})` : ''}`
@@ -417,6 +460,10 @@ export function redteamCommand(): Command {
             model: resolvedConfig.model,
             mutations: mutations.map((m) => m.name),
             count_per_case: count,
+            // Include OWASP info in config
+            ...(options.owaspFull && { owasp_mode: 'full' }),
+            ...(options.owasp && { owasp_categories: options.owasp }),
+            ...(options.minSeverity && { min_severity: options.minSeverity }),
           },
           resolved_config: resolvedConfig,
           metrics,
@@ -542,22 +589,123 @@ export function redteamCommand(): Command {
   return cmd;
 }
 
-function selectMutations(names?: string[], customAttacksPath?: string): Mutation[] {
-  const allMutations: Record<string, Mutation> = {
+/**
+ * All available mutations registry
+ */
+function getAllMutations(): Record<string, Mutation> {
+  return {
+    // Core mutations (v0.1.x - v0.2.x)
     typo: new TypoMutation(),
     'role-spoof': new RoleSpoofMutation(),
     'instruction-flip': new InstructionFlipMutation(),
     'cot-injection': new CotInjectionMutation(),
     encoding: new EncodingMutation(),
     'multi-turn': new MultiTurnMutation(),
+
+    // OWASP LLM Top 10 2025 mutations (v0.3.0)
+    // LLM01 - Prompt Injection
+    'bad-likert-judge': new BadLikertJudgeMutation(),
+    crescendo: new CrescendoMutation(),
+    'deceptive-delight': new DeceptiveDelightMutation(),
+
+    // LLM05 - Insecure Output Handling
+    'output-injection': new OutputInjectionMutation(),
+
+    // LLM06 - Excessive Agency
+    'excessive-agency': new ExcessiveAgencyMutation(),
+
+    // LLM07 - System Prompt Leakage
+    'system-extraction': new SystemExtractionMutation(),
+
+    // LLM09 - Misinformation
+    'hallucination-trap': new HallucinationTrapMutation(),
   };
+}
 
-  let mutations: Mutation[];
+/**
+ * Get OWASP mutations for specific categories
+ */
+function getOwaspMutations(categories: string[]): string[] {
+  const mutationNames = new Set<string>();
 
-  if (!names || names.length === 0) {
-    mutations = Object.values(allMutations);
+  for (const category of categories) {
+    const upperCategory = category.toUpperCase();
+    if (upperCategory in OWASP_CATEGORIES) {
+      const mutations = getMutationsForCategory(upperCategory as keyof typeof OWASP_CATEGORIES);
+      for (const mutation of mutations) {
+        mutationNames.add(mutation);
+      }
+    }
+  }
+
+  return Array.from(mutationNames);
+}
+
+/**
+ * Get all OWASP mutations
+ */
+function getAllOwaspMutations(): string[] {
+  return [
+    'bad-likert-judge',
+    'crescendo',
+    'deceptive-delight',
+    'output-injection',
+    'excessive-agency',
+    'system-extraction',
+    'hallucination-trap',
+  ];
+}
+
+interface SelectMutationsOptions {
+  names?: string[];
+  customAttacksPath?: string;
+  owaspCategories?: string[];
+  owaspFull?: boolean;
+  minSeverity?: 'low' | 'medium' | 'high' | 'critical';
+}
+
+function selectMutations(options: SelectMutationsOptions): Mutation[] {
+  const { names, customAttacksPath, owaspCategories, owaspFull, minSeverity } = options;
+
+  const allMutations = getAllMutations();
+  let selectedNames: string[] = [];
+
+  // Determine which mutations to use based on options
+  if (owaspFull) {
+    // Full OWASP scan - use all OWASP mutations
+    selectedNames = getAllOwaspMutations();
+  } else if (owaspCategories && owaspCategories.length > 0) {
+    // Specific OWASP categories
+    selectedNames = getOwaspMutations(owaspCategories);
+  } else if (names && names.length > 0) {
+    // Explicit mutation names
+    selectedNames = names;
   } else {
-    mutations = names.filter((name) => name in allMutations).map((name) => allMutations[name]);
+    // Default: use core mutations (not OWASP ones to maintain backward compatibility)
+    selectedNames = [
+      'typo',
+      'role-spoof',
+      'instruction-flip',
+      'cot-injection',
+      'encoding',
+      'multi-turn',
+    ];
+  }
+
+  // Filter to valid mutation names
+  let mutations = selectedNames
+    .filter((name) => name in allMutations)
+    .map((name) => allMutations[name]);
+
+  // Apply severity filter if specified
+  if (minSeverity) {
+    const severityOrder = ['low', 'medium', 'high', 'critical'];
+    const minIndex = severityOrder.indexOf(minSeverity);
+
+    mutations = mutations.filter((m) => {
+      const mutationIndex = severityOrder.indexOf(m.severity);
+      return mutationIndex >= minIndex;
+    });
   }
 
   // Load custom attacks if path provided

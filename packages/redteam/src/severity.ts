@@ -395,6 +395,92 @@ export const MUTATION_CVSS_SCORES: Record<string, CvssScore> = {
     evasionEffectiveness: 0.85,
     detectability: 'hard',
   }),
+
+  // ==========================================
+  // OWASP LLM Top 10 2025 Mutations
+  // ==========================================
+
+  // LLM01 - Prompt Injection
+  'bad-likert-judge': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'high',
+    integrityImpact: 'high',
+    availabilityImpact: 'none',
+    evasionEffectiveness: 0.85, // 60%+ success rate in research
+    detectability: 'hard',
+  }),
+
+  crescendo: CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: true,
+    confidentialityImpact: 'high',
+    integrityImpact: 'high',
+    availabilityImpact: 'low',
+    evasionEffectiveness: 0.9, // Very high success rate
+    detectability: 'hard',
+  }),
+
+  'deceptive-delight': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'high',
+    integrityImpact: 'high',
+    availabilityImpact: 'none',
+    evasionEffectiveness: 0.7,
+    detectability: 'moderate',
+  }),
+
+  // LLM05 - Insecure Output Handling
+  'output-injection': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'high',
+    integrityImpact: 'high',
+    availabilityImpact: 'high',
+    evasionEffectiveness: 0.65,
+    detectability: 'moderate',
+  }),
+
+  // LLM06 - Excessive Agency
+  'excessive-agency': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'high',
+    integrityImpact: 'high',
+    availabilityImpact: 'high',
+    evasionEffectiveness: 0.75,
+    detectability: 'moderate',
+  }),
+
+  // LLM07 - System Prompt Leakage
+  'system-extraction': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'high',
+    integrityImpact: 'low',
+    availabilityImpact: 'none',
+    evasionEffectiveness: 0.6,
+    detectability: 'moderate',
+  }),
+
+  // LLM09 - Misinformation
+  'hallucination-trap': CvssCalculator.calculate({
+    attackVector: 'network',
+    attackComplexity: 'low',
+    requiresContext: false,
+    confidentialityImpact: 'none',
+    integrityImpact: 'high',
+    availabilityImpact: 'none',
+    evasionEffectiveness: 0.8, // High success rate for hallucination
+    detectability: 'hard',
+  }),
 };
 
 /**

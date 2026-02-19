@@ -133,6 +133,44 @@ export async function registerBuiltInAdapters(): Promise<void> {
   });
 
   // ============================================
+  // AGENTIC FRAMEWORK ADAPTERS
+  // ============================================
+
+  // LangChain adapter - for testing LangChain chains and agents
+  // Note: Requires passing the runnable instance separately
+  adapterRegistry.register('langchain', async (config) => {
+    const mod = await tryImport<{
+      LangChainAdapter: new (c: AdapterConfig, runnable: unknown) => ModelClient;
+    }>('@artemiskit/adapter-langchain');
+    // LangChain adapter requires a runnable to be passed via config.metadata.runnable
+    const runnable = (config as { metadata?: { runnable?: unknown } }).metadata?.runnable;
+    if (!runnable) {
+      throw new Error(
+        'LangChain adapter requires a runnable instance. ' +
+          'Pass it via config.metadata.runnable or use createLangChainAdapter() directly.'
+      );
+    }
+    return new mod.LangChainAdapter(config, runnable);
+  });
+
+  // DeepAgents adapter - for testing DeepAgents multi-agent systems
+  // Note: Requires passing the system instance separately
+  adapterRegistry.register('deepagents', async (config) => {
+    const mod = await tryImport<{
+      DeepAgentsAdapter: new (c: AdapterConfig, system: unknown) => ModelClient;
+    }>('@artemiskit/adapter-deepagents');
+    // DeepAgents adapter requires a system to be passed via config.metadata.system
+    const system = (config as { metadata?: { system?: unknown } }).metadata?.system;
+    if (!system) {
+      throw new Error(
+        'DeepAgents adapter requires a system instance. ' +
+          'Pass it via config.metadata.system or use createDeepAgentsAdapter() directly.'
+      );
+    }
+    return new mod.DeepAgentsAdapter(config, system);
+  });
+
+  // ============================================
   // POST-MVP ADAPTERS - Not yet available
   // ============================================
   adapterRegistry.markUnavailable('google', 'Google adapter coming in v0.3.0');

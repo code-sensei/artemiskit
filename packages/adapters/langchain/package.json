@@ -1,0 +1,54 @@
+{
+  "name": "@artemiskit/adapter-langchain",
+  "version": "0.1.0",
+  "description": "LangChain.js adapter for ArtemisKit - Test LangChain chains and agents",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "code-sensei",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/code-sensei/artemiskit.git",
+    "directory": "packages/adapters/langchain"
+  },
+  "bugs": {
+    "url": "https://github.com/code-sensei/artemiskit/issues"
+  },
+  "homepage": "https://artemiskit.vercel.app",
+  "keywords": ["llm", "langchain", "agents", "chains", "adapter", "artemiskit", "testing"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@artemiskit/core": "workspace:*",
+    "nanoid": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.1.0",
+    "langchain": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    },
+    "langchain": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "^0.3.0",
+    "@types/bun": "^1.1.0",
+    "langchain": "^0.3.0",
+    "typescript": "^5.3.0"
+  }
+}

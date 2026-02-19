@@ -1,0 +1,331 @@
+name: LangChain Chain Evaluation
+description: |
+  Comprehensive test scenarios for LangChain LCEL chains.
+  Tests basic QA, reasoning, formatting, and edge cases.
+
+provider: langchain
+model: gpt-4o-mini
+
+setup:
+  systemPrompt: |
+    You are a helpful assistant that answers questions accurately and concisely.
+    Provide brief answers unless asked for detail.
+    If you don't know something, say so clearly.
+
+# ============================================
+# Basic Question Answering
+# ============================================
+
+cases:
+  # Simple factual questions
+  - id: factual-capital
+    name: Capital city lookup
+    prompt: "What is the capital of Australia?"
+    expected:
+      type: contains
+      values: ["Canberra"]
+    tags:
+      - factual
+      - geography
+
+  - id: factual-element
+    name: Chemistry fact
+    prompt: "What is the chemical symbol for gold?"
+    expected:
+      type: exact
+      value: "Au"
+      ignoreCase: true
+      normalize: true
+    tags:
+      - factual
+      - chemistry
+
+  - id: factual-math
+    name: Basic arithmetic
+    prompt: "What is 15 times 8?"
+    expected:
+      type: contains
+      values: ["120"]
+    tags:
+      - factual
+      - math
+
+  # Date and history questions
+  - id: historical-date
+    name: Historical event date
+    prompt: "In what year did humans first land on the moon?"
+    expected:
+      type: contains
+      values: ["1969"]
+    tags:
+      - factual
+      - history
+
+  # Multi-fact questions
+  - id: multi-fact
+    name: Multiple facts required
+    prompt: "What are the three primary colors?"
+    expected:
+      type: contains
+      values:
+        - "red"
+        - "blue"
+        - "yellow"
+      mode: all
+      ignoreCase: true
+    tags:
+      - factual
+      - multi-fact
+
+# ============================================
+# Reasoning and Logic
+# ============================================
+
+  - id: logical-deduction
+    name: Basic logical deduction
+    prompt: "If all dogs are mammals, and Buddy is a dog, what can we conclude about Buddy?"
+    expected:
+      type: contains
+      values: ["mammal"]
+      ignoreCase: true
+    tags:
+      - reasoning
+      - logic
+
+  - id: word-problem
+    name: Word problem solving
+    prompt: "A store has 50 apples. They sell 12 in the morning and 8 in the afternoon. How many apples are left?"
+    expected:
+      type: regex
+      pattern: "\\b30\\b"
+    tags:
+      - reasoning
+      - math
+
+  - id: comparison
+    name: Comparison reasoning
+    prompt: "Which is larger: a kilometer or a mile?"
+    expected:
+      type: contains
+      values: ["mile"]
+      ignoreCase: true
+    tags:
+      - reasoning
+      - comparison
+
+# ============================================
+# Output Formatting
+# ============================================
+
+  - id: list-format
+    name: List generation
+    prompt: "List three types of renewable energy sources, numbered 1-3."
+    expected:
+      type: regex
+      pattern: "1\\..+\\n.*2\\..+\\n.*3\\."
+    tags:
+      - formatting
+      - lists
+
+  - id: json-output
+    name: JSON formatting
+    prompt: "Create a JSON object with keys 'name' (value: 'Test'), 'count' (value: 5), and 'active' (value: true)."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: ["name", "count", "active"]
+        properties:
+          name:
+            type: string
+          count:
+            type: number
+          active:
+            type: boolean
+    tags:
+      - formatting
+      - json
+
+# ============================================
+# Edge Cases and Robustness
+# ============================================
+
+  - id: unknown-admission
+    name: Admitting uncertainty
+    prompt: "What will the weather be like on Mars in exactly 50 years?"
+    expected:
+      type: contains
+      values:
+        - "cannot"
+        - "don't know"
+        - "unable"
+        - "uncertain"
+        - "impossible"
+        - "cannot predict"
+      mode: any
+      ignoreCase: true
+    tags:
+      - edge-case
+      - uncertainty
+
+  - id: ambiguous-query
+    name: Handling ambiguity
+    prompt: "What is the meaning of 'bank'?"
+    expected:
+      type: llm_grader
+      rubric: |
+        The response should acknowledge that 'bank' has multiple meanings:
+        - Financial institution (bank account, banking)
+        - River bank (side of a river)
+        - Possibly others (blood bank, etc.)
+        Score based on whether multiple meanings are mentioned.
+      threshold: 0.7
+    tags:
+      - edge-case
+      - ambiguity
+
+  - id: empty-handling
+    name: Empty or minimal input
+    prompt: "?"
+    expected:
+      type: llm_grader
+      rubric: |
+        The response should ask for clarification or acknowledge
+        that the query is unclear. Should not hallucinate an answer.
+      threshold: 0.6
+    tags:
+      - edge-case
+      - validation
+
+# ============================================
+# Instruction Following
+# ============================================
+
+  - id: specific-format
+    name: Follow format instructions
+    prompt: "Name the first 5 planets from the sun, separated by commas."
+    expected:
+      type: regex
+      pattern: "Mercury.*,.*Venus.*,.*Earth.*,.*Mars.*,.*Jupiter"
+      flags: "i"
+    tags:
+      - instruction
+      - formatting
+
+  - id: word-limit
+    name: Respect word limits
+    prompt: "Explain photosynthesis in exactly one sentence."
+    expected:
+      type: llm_grader
+      rubric: |
+        The response should:
+        1. Be a single sentence (one period at the end, not multiple sentences)
+        2. Accurately describe photosynthesis
+        Score 1.0 if both criteria met, 0.5 if only one.
+      threshold: 0.7
+    tags:
+      - instruction
+      - constraints
+
+  - id: language-switch
+    name: Language handling
+    prompt: "Say 'hello' in French, Spanish, and German."
+    expected:
+      type: contains
+      values:
+        - "Bonjour"
+        - "Hola"
+        - "Hallo"
+      mode: all
+      ignoreCase: true
+    tags:
+      - instruction
+      - language
+
+# ============================================
+# Consistency Tests
+# ============================================
+
+  - id: consistent-math-1
+    name: Math consistency test 1
+    prompt: "What is 7 + 8?"
+    expected:
+      type: contains
+      values: ["15"]
+    tags:
+      - consistency
+      - math
+
+  - id: consistent-math-2
+    name: Math consistency test 2
+    prompt: "Calculate seven plus eight."
+    expected:
+      type: contains
+      values: ["15"]
+    tags:
+      - consistency
+      - math
+
+  - id: consistent-fact-1
+    name: Fact consistency test 1
+    prompt: "What is the boiling point of water in Celsius?"
+    expected:
+      type: contains
+      values: ["100"]
+    tags:
+      - consistency
+      - science
+
+  - id: consistent-fact-2
+    name: Fact consistency test 2
+    prompt: "At what temperature (Celsius) does water boil at sea level?"
+    expected:
+      type: contains
+      values: ["100"]
+    tags:
+      - consistency
+      - science
+
+# ============================================
+# Complex/Multi-step
+# ============================================
+
+  - id: multi-step-calc
+    name: Multi-step calculation
+    prompt: "If a car travels 60 miles per hour for 2.5 hours, and then 40 miles per hour for 1 hour, what is the total distance traveled?"
+    expected:
+      type: llm_grader
+      rubric: |
+        The correct answer is:
+        - 60 * 2.5 = 150 miles
+        - 40 * 1 = 40 miles
+        - Total = 190 miles
+        
+        Score based on:
+        - Correct final answer (190 miles): 1.0
+        - Close answer with minor arithmetic error: 0.5
+        - Wrong answer or approach: 0.0
+      threshold: 0.9
+    tags:
+      - complex
+      - multi-step
+      - math
+
+  - id: context-understanding
+    name: Context comprehension
+    prompt: |
+      The quick brown fox jumps over the lazy dog.
+      
+      Based on the sentence above:
+      1. What animal is described as quick?
+      2. What animal is described as lazy?
+    expected:
+      type: contains
+      values:
+        - "fox"
+        - "dog"
+      mode: all
+      ignoreCase: true
+    tags:
+      - complex
+      - comprehension

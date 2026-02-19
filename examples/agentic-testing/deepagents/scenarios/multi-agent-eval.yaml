@@ -1,0 +1,383 @@
+name: DeepAgents Multi-Agent System Evaluation
+description: |
+  Comprehensive test scenarios for DeepAgents multi-agent systems.
+  Tests collaboration, specialization, communication, and task completion.
+
+provider: deepagents
+model: content-team
+
+setup:
+  systemPrompt: |
+    You are a multi-agent content creation team consisting of:
+    - Researcher: Gathers and verifies information
+    - Writer: Creates clear, engaging content
+    - Editor: Reviews and polishes the final output
+    
+    Work together sequentially to produce high-quality results.
+
+# ============================================
+# Basic Task Completion
+# ============================================
+
+cases:
+  - id: simple-content
+    name: Basic content generation
+    prompt: "Write a short paragraph about renewable energy"
+    expected:
+      type: contains
+      values:
+        - "solar"
+        - "wind"
+        - "energy"
+      mode: any
+      ignoreCase: true
+    tags:
+      - basic
+      - content
+
+  - id: research-task
+    name: Research-focused task
+    prompt: "Provide three facts about the Amazon rainforest"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should include:
+        1. At least three distinct facts
+        2. Factual accuracy (size, biodiversity, location, etc.)
+        3. Evidence of research quality
+      threshold: 0.75
+    tags:
+      - research
+      - factual
+
+  - id: creative-task
+    name: Creative content generation
+    prompt: "Write a catchy tagline for an eco-friendly water bottle company"
+    expected:
+      type: llm_grader
+      rubric: |
+        Tagline should be:
+        - Short and memorable (under 10 words)
+        - Related to sustainability/eco-friendliness
+        - Creative and engaging
+      threshold: 0.7
+    tags:
+      - creative
+      - writing
+
+# ============================================
+# Agent Collaboration Quality
+# ============================================
+
+  - id: sequential-collaboration
+    name: Multi-agent sequential processing
+    prompt: "Research the benefits of meditation, then write a blog introduction about it"
+    expected:
+      type: llm_grader
+      rubric: |
+        Output should show evidence of multi-agent collaboration:
+        1. Research component (facts, statistics, studies)
+        2. Writing component (engaging introduction, clear structure)
+        3. Editing component (polished language, coherent flow)
+        
+        Score based on how well each agent's contribution is visible.
+      threshold: 0.8
+    tags:
+      - collaboration
+      - sequential
+
+  - id: handoff-quality
+    name: Quality preserved across handoffs
+    prompt: "Research quantum computing basics and explain them in simple terms"
+    expected:
+      type: llm_grader
+      rubric: |
+        The final output should:
+        1. Maintain accuracy from research phase
+        2. Be simplified without losing key concepts
+        3. Be well-structured and readable
+        
+        Information should flow logically from research → writing → editing.
+      threshold: 0.75
+    tags:
+      - collaboration
+      - quality
+
+# ============================================
+# Agent Specialization
+# ============================================
+
+  - id: research-specialization
+    name: Researcher agent expertise
+    prompt: "Compile statistics on global internet usage in 2024"
+    expected:
+      type: contains
+      values:
+        - "%"
+        - "billion"
+        - "users"
+      mode: any
+      ignoreCase: true
+    tags:
+      - specialization
+      - research
+
+  - id: writer-specialization
+    name: Writer agent creativity
+    prompt: "Create an opening hook for an article about space exploration"
+    expected:
+      type: llm_grader
+      rubric: |
+        The opening should:
+        1. Be attention-grabbing and engaging
+        2. Create curiosity or emotional connection
+        3. Be appropriate for an article format
+        
+        Score based on hook quality and engagement factor.
+      threshold: 0.7
+    tags:
+      - specialization
+      - writing
+
+  - id: editor-specialization
+    name: Editor agent polish
+    prompt: "Review and improve: 'AI is very important for many things and it helps alot of people with there work everyday.'"
+    expected:
+      type: llm_grader
+      rubric: |
+        Edited version should fix:
+        1. Grammar errors ("alot" → "a lot", "there" → "their")
+        2. Vague language ("many things" → specific examples)
+        3. Overall clarity and professionalism
+      threshold: 0.8
+    tags:
+      - specialization
+      - editing
+
+# ============================================
+# Complex Multi-Step Tasks
+# ============================================
+
+  - id: research-write-edit
+    name: Full content pipeline
+    prompt: |
+      Create a professional blog post about the benefits of remote work.
+      Include research-backed facts, engaging writing, and polished final output.
+    expected:
+      type: llm_grader
+      rubric: |
+        Evaluate the complete output for:
+        
+        Research Quality (30%):
+        - Includes specific statistics or facts
+        - References studies or expert opinions
+        - Information is accurate and relevant
+        
+        Writing Quality (40%):
+        - Clear structure (intro, body, conclusion)
+        - Engaging and readable prose
+        - Appropriate tone for a blog post
+        
+        Editing Quality (30%):
+        - No grammar or spelling errors
+        - Consistent style and formatting
+        - Smooth transitions and flow
+      threshold: 0.8
+    tags:
+      - complex
+      - full-pipeline
+
+  - id: multi-topic-synthesis
+    name: Multi-topic synthesis
+    prompt: "Compare and contrast remote work vs. office work, covering productivity, work-life balance, and collaboration"
+    expected:
+      type: contains
+      values:
+        - "productivity"
+        - "work-life"
+        - "collaboration"
+      mode: all
+      ignoreCase: true
+    tags:
+      - complex
+      - synthesis
+
+  - id: technical-explainer
+    name: Technical content simplified
+    prompt: "Explain blockchain technology to a non-technical audience, including how it works and its real-world applications"
+    expected:
+      type: llm_grader
+      rubric: |
+        The explanation should:
+        1. Avoid or clearly define technical jargon
+        2. Use analogies or simple examples
+        3. Cover both "how it works" and "applications"
+        4. Be understandable by someone with no tech background
+      threshold: 0.75
+    tags:
+      - complex
+      - technical
+
+# ============================================
+# Edge Cases and Robustness
+# ============================================
+
+  - id: ambiguous-task
+    name: Handle ambiguous requests
+    prompt: "Write something about change"
+    expected:
+      type: llm_grader
+      rubric: |
+        System should either:
+        1. Ask for clarification (what kind of change?)
+        2. Pick a reasonable interpretation and deliver content
+        
+        Should not produce nonsensical or off-topic output.
+      threshold: 0.6
+    tags:
+      - edge-case
+      - ambiguity
+
+  - id: incomplete-task
+    name: Handle incomplete instructions
+    prompt: "Research the..."
+    expected:
+      type: llm_grader
+      rubric: |
+        System should handle gracefully by:
+        1. Asking for complete instructions
+        2. Acknowledging the incomplete request
+        
+        Should not crash or produce garbage output.
+      threshold: 0.5
+    tags:
+      - edge-case
+      - incomplete
+
+  - id: conflicting-requirements
+    name: Handle conflicting requirements
+    prompt: "Write a detailed but very brief analysis of climate change"
+    expected:
+      type: llm_grader
+      rubric: |
+        System should recognize the conflict and:
+        1. Produce a concise but informative response
+        2. Prioritize one requirement (likely brevity)
+        3. Possibly acknowledge the tension
+      threshold: 0.6
+    tags:
+      - edge-case
+      - conflict
+
+# ============================================
+# Output Quality and Format
+# ============================================
+
+  - id: structured-output
+    name: Structured output generation
+    prompt: "Create an outline for a presentation on AI in healthcare with 3 main sections"
+    expected:
+      type: regex
+      pattern: "(1\\.|I\\.|Section 1|##).*(2\\.|II\\.|Section 2|##).*(3\\.|III\\.|Section 3|##)"
+      flags: "is"
+    tags:
+      - format
+      - structure
+
+  - id: list-generation
+    name: List format output
+    prompt: "List the top 5 programming languages for data science"
+    expected:
+      type: llm_grader
+      rubric: |
+        Output should:
+        1. Contain exactly 5 items
+        2. Be formatted as a list (numbered or bulleted)
+        3. Include appropriate languages (Python, R, SQL, etc.)
+      threshold: 0.8
+    tags:
+      - format
+      - list
+
+  - id: professional-tone
+    name: Maintain professional tone
+    prompt: "Write a brief company announcement about launching a new product"
+    expected:
+      type: llm_grader
+      rubric: |
+        Announcement should:
+        1. Use professional, corporate-appropriate language
+        2. Be enthusiastic but not overly casual
+        3. Include typical announcement elements (what, when, why it matters)
+      threshold: 0.75
+    tags:
+      - format
+      - tone
+
+# ============================================
+# Performance and Efficiency
+# ============================================
+
+  - id: concise-response
+    name: Avoid unnecessary verbosity
+    prompt: "In one sentence, define machine learning"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should be:
+        1. Exactly one sentence
+        2. Accurate definition of machine learning
+        3. Concise without sacrificing clarity
+      threshold: 0.8
+    tags:
+      - efficiency
+      - conciseness
+
+  - id: task-focus
+    name: Stay on task
+    prompt: "Summarize the main advantages of electric vehicles"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should:
+        1. Focus only on advantages (not disadvantages)
+        2. Be about electric vehicles specifically
+        3. Not include tangential information
+      threshold: 0.8
+    tags:
+      - efficiency
+      - focus
+
+# ============================================
+# Tool Usage (if applicable)
+# ============================================
+
+  - id: research-with-tools
+    name: Researcher uses appropriate tools
+    prompt: "Find the current population of Tokyo"
+    expected:
+      type: contains
+      values:
+        - "million"
+        - "37"
+        - "14"
+        - "13"
+      mode: any
+    tags:
+      - tools
+      - research
+
+  - id: fact-verification
+    name: Verify and cite information
+    prompt: "What is the speed of light and when was it first measured?"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should include:
+        1. The speed of light (~299,792 km/s or 186,000 mi/s)
+        2. Historical context (Rømer, 1676 or other early measurement)
+        3. Evidence of fact-checking/verification
+      threshold: 0.75
+    tags:
+      - tools
+      - verification

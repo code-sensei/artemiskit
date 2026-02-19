@@ -44,21 +44,21 @@ export {
   type DelightType,
 } from './deceptive-delight';
 
-// LLM05 - Insecure Output Handling
+// LLM02 - Insecure Output Handling
 export {
   OutputInjectionMutation,
   type OutputInjectionOptions,
   type InjectionType,
 } from './output-injection';
 
-// LLM06 - Excessive Agency
+// LLM08 - Excessive Agency
 export {
   ExcessiveAgencyMutation,
   type ExcessiveAgencyOptions,
   type AgencyType,
 } from './excessive-agency';
 
-// LLM07 - System Prompt Leakage
+// LLM06 - Sensitive Information Disclosure
 export {
   SystemExtractionMutation,
   type SystemExtractionOptions,
@@ -115,7 +115,7 @@ export const OWASP_CATEGORIES = {
   LLM02: {
     name: 'Insecure Output Handling',
     description: 'Neglecting to validate LLM outputs',
-    mutations: [], // No direct mutations, tested via output-injection
+    mutations: ['output-injection'],
   },
   LLM03: {
     name: 'Training Data Poisoning',
@@ -130,17 +130,17 @@ export const OWASP_CATEGORIES = {
   LLM05: {
     name: 'Supply Chain Vulnerabilities',
     description: 'Compromised dependencies, models, or data',
-    mutations: ['output-injection'],
+    mutations: [],
   },
   LLM06: {
     name: 'Sensitive Information Disclosure',
     description: 'Revealing private data through LLM outputs',
-    mutations: ['excessive-agency', 'system-extraction'],
+    mutations: ['system-extraction'],
   },
   LLM07: {
     name: 'Insecure Plugin Design',
     description: 'LLM plugins with inadequate access controls',
-    mutations: ['excessive-agency'],
+    mutations: [],
   },
   LLM08: {
     name: 'Excessive Agency',
@@ -155,7 +155,7 @@ export const OWASP_CATEGORIES = {
   LLM10: {
     name: 'Model Theft',
     description: 'Unauthorized access or copying of LLM models',
-    mutations: ['system-extraction'],
+    mutations: [],
   },
 } as const;
 

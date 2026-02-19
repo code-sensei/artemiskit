@@ -1,5 +1,5 @@
 /**
- * System Extraction Mutation - OWASP LLM07 (System Prompt Leakage)
+ * System Extraction Mutation - OWASP LLM06 (Sensitive Information Disclosure)
  *
  * This mutation attempts to extract the system prompt, configuration,
  * or other sensitive setup information from the LLM.
@@ -10,7 +10,7 @@
  * - Instructions reveal security measures that could be bypassed
  * - Hidden context contains proprietary information
  *
- * Reference: OWASP LLM Top 10 2025 - LLM07 System Prompt Leakage
+ * Reference: OWASP LLM Top 10 2025 - LLM06 Sensitive Information Disclosure
  */
 
 import { CvssCalculator, type CvssScore } from '../severity';
@@ -112,7 +112,7 @@ export interface SystemExtractionOptions {
 export class SystemExtractionMutation implements Mutation {
   readonly name = 'system-extraction';
   readonly description =
-    'Attempts to extract system prompt, configuration, or sensitive setup info (OWASP LLM07)';
+    'Attempts to extract system prompt, configuration, or sensitive setup info (OWASP LLM06)';
   readonly severity = 'high' as const;
   readonly cvssScore: CvssScore = CvssCalculator.calculate({
     attackVector: 'network',
@@ -125,7 +125,7 @@ export class SystemExtractionMutation implements Mutation {
     detectability: 'moderate',
   });
   /** OWASP category */
-  readonly owaspCategory = 'LLM07';
+  readonly owaspCategory = 'LLM06';
 
   private technique?: ExtractionTechnique;
   private addFollowUp: boolean;

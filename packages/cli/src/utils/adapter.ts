@@ -119,6 +119,30 @@ export function buildAdapterConfig(options: AdapterConfigOptions): AdapterConfig
         fileProviderConfig,
       });
 
+    case 'langchain':
+      return buildLangChainConfig({
+        provider,
+        providerSource,
+        model,
+        modelSource,
+        temperature,
+        maxTokens,
+        scenarioConfig,
+        fileProviderConfig,
+      });
+
+    case 'deepagents':
+      return buildDeepAgentsConfig({
+        provider,
+        providerSource,
+        model,
+        modelSource,
+        temperature,
+        maxTokens,
+        scenarioConfig,
+        fileProviderConfig,
+      });
+
     default:
       // Fallback for unknown providers - treat as OpenAI-compatible
       return buildOpenAIConfig({
@@ -471,6 +495,149 @@ function buildAnthropicConfig(options: ProviderBuildOptions): AdapterConfigResul
         base_url: resolvedBaseUrl.source,
         timeout: resolvedTimeout.source,
         max_retries: resolvedMaxRetries.source,
+        temperature: resolvedTemperature.source,
+        max_tokens: resolvedMaxTokens.source,
+      },
+    },
+  };
+}
+
+function buildLangChainConfig(options: ProviderBuildOptions): AdapterConfigResult {
+  const {
+    provider,
+    providerSource,
+    model,
+    modelSource,
+    temperature,
+    maxTokens,
+    scenarioConfig,
+    fileProviderConfig,
+  } = options;
+
+  const resolvedModel = resolveValueWithSource<string>(
+    { value: model, source: modelSource },
+    { value: scenarioConfig?.defaultModel, source: 'scenario' },
+    { value: fileProviderConfig?.defaultModel, source: 'config' }
+  );
+
+  const resolvedName = resolveValueWithSource<string>(
+    { value: scenarioConfig?.name, source: 'scenario' },
+    { value: fileProviderConfig?.name, source: 'config' }
+  );
+
+  const resolvedRunnableType = resolveValueWithSource<string>(
+    { value: scenarioConfig?.runnableType, source: 'scenario' },
+    { value: fileProviderConfig?.runnableType, source: 'config' }
+  );
+
+  const resolvedTimeout = resolveValueWithSource<number>(
+    { value: scenarioConfig?.timeout, source: 'scenario' },
+    { value: fileProviderConfig?.timeout, source: 'config' }
+  );
+
+  // Temperature and maxTokens only come from CLI options
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
+
+  return {
+    adapterConfig: {
+      provider: 'langchain',
+      name: resolvedName.value,
+      runnableType: resolvedRunnableType.value as 'chain' | 'agent' | 'llm' | 'runnable',
+      defaultModel: resolvedModel.value,
+      timeout: resolvedTimeout.value,
+    },
+    resolvedConfig: {
+      provider,
+      model: resolvedModel.value,
+      name: resolvedName.value,
+      runnable_type: resolvedRunnableType.value,
+      timeout: resolvedTimeout.value,
+      temperature: resolvedTemperature.value,
+      max_tokens: resolvedMaxTokens.value,
+      source: {
+        provider: providerSource,
+        model: resolvedModel.source,
+        name: resolvedName.source,
+        runnable_type: resolvedRunnableType.source,
+        timeout: resolvedTimeout.source,
+        temperature: resolvedTemperature.source,
+        max_tokens: resolvedMaxTokens.source,
+      },
+    },
+  };
+}
+
+function buildDeepAgentsConfig(options: ProviderBuildOptions): AdapterConfigResult {
+  const {
+    provider,
+    providerSource,
+    model,
+    modelSource,
+    temperature,
+    maxTokens,
+    scenarioConfig,
+    fileProviderConfig,
+  } = options;
+
+  const resolvedModel = resolveValueWithSource<string>(
+    { value: model, source: modelSource },
+    { value: scenarioConfig?.defaultModel, source: 'scenario' },
+    { value: fileProviderConfig?.defaultModel, source: 'config' }
+  );
+
+  const resolvedName = resolveValueWithSource<string>(
+    { value: scenarioConfig?.name, source: 'scenario' },
+    { value: fileProviderConfig?.name, source: 'config' }
+  );
+
+  const resolvedTimeout = resolveValueWithSource<number>(
+    { value: scenarioConfig?.timeout, source: 'scenario' },
+    { value: fileProviderConfig?.timeout, source: 'config' },
+    { value: 300000, source: 'default' } // 5 minute default for multi-agent systems
+  );
+
+  const resolvedCaptureTraces = resolveValueWithSource<boolean>(
+    { value: scenarioConfig?.captureTraces, source: 'scenario' },
+    { value: fileProviderConfig?.captureTraces, source: 'config' },
+    { value: true, source: 'default' }
+  );
+
+  const resolvedCaptureMessages = resolveValueWithSource<boolean>(
+    { value: scenarioConfig?.captureMessages, source: 'scenario' },
+    { value: fileProviderConfig?.captureMessages, source: 'config' },
+    { value: true, source: 'default' }
+  );
+
+  // Temperature and maxTokens only come from CLI options
+  const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
+  const resolvedMaxTokens = resolveValueWithSource<number>({ value: maxTokens, source: 'cli' });
+
+  return {
+    adapterConfig: {
+      provider: 'deepagents',
+      name: resolvedName.value,
+      defaultModel: resolvedModel.value,
+      timeout: resolvedTimeout.value,
+      captureTraces: resolvedCaptureTraces.value,
+      captureMessages: resolvedCaptureMessages.value,
+    },
+    resolvedConfig: {
+      provider,
+      model: resolvedModel.value,
+      name: resolvedName.value,
+      timeout: resolvedTimeout.value,
+      capture_traces: resolvedCaptureTraces.value,
+      capture_messages: resolvedCaptureMessages.value,
+      temperature: resolvedTemperature.value,
+      max_tokens: resolvedMaxTokens.value,
+      source: {
+        provider: providerSource,
+        model: resolvedModel.source,
+        name: resolvedName.source,
+        timeout: resolvedTimeout.source,
+        capture_traces: resolvedCaptureTraces.source,
+        capture_messages: resolvedCaptureMessages.source,
         temperature: resolvedTemperature.source,
         max_tokens: resolvedMaxTokens.source,
       },

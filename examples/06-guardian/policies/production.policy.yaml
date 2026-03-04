@@ -1,0 +1,131 @@
+# Production Guardian Policy
+#
+# A balanced policy suitable for production AI applications.
+# Blocks critical threats while monitoring edge cases.
+#
+# Usage:
+#   const guardian = createGuardian({
+#     policy: './policies/production.policy.yaml',
+#   });
+
+name: production-policy
+version: "1.0"
+description: Balanced production policy for AI applications
+mode: hybrid
+
+# Default behavior for rules without explicit settings
+defaults:
+  severity: medium
+  action: warn
+
+# Guardrail rules
+rules:
+  # Critical: Always block
+  - id: injection-detection
+    name: Prompt Injection Detection
+    description: Detects and blocks prompt injection attempts
+    type: injection_detection
+    enabled: true
+    severity: critical
+    action: block
+    config:
+      patterns:
+        - "ignore.*previous.*instructions"
+        - "you are now"
+        - "forget everything"
+        - "disregard.*rules"
+
+  # Critical: Always block
+  - id: jailbreak-detection
+    name: Jailbreak Attempt Detection
+    description: Detects DAN, jailbreak, and escape attempts
+    type: injection_detection
+    enabled: true
+    severity: critical
+    action: block
+    config:
+      patterns:
+        - "\\bDAN\\b"
+        - "do anything now"
+        - "jailbreak"
+        - "no restrictions"
+
+  # High: Block harmful content
+  - id: content-filter
+    name: Harmful Content Filter
+    description: Blocks violence, hate speech, and other harmful content
+    type: content_filter
+    enabled: true
+    severity: high
+    action: block
+    config:
+      categories:
+        - violence
+        - hate_speech
+        - self_harm
+        - illegal
+
+  # Medium: Transform PII (redact but don't block)
+  - id: pii-detection
+    name: PII Detection and Redaction
+    description: Detects and redacts personally identifiable information
+    type: pii_detection
+    enabled: true
+    severity: medium
+    action: transform
+    config:
+      redact: true
+      piiTypes:
+        - email
+        - phone
+        - ssn
+        - credit_card
+        - api_key
+
+  # Medium: Warn on data extraction attempts
+  - id: data-extraction
+    name: Data Extraction Attempt
+    description: Monitors for attempts to extract training data or system info
+    type: injection_detection
+    enabled: true
+    severity: medium
+    action: warn
+    config:
+      patterns:
+        - "training data"
+        - "system prompt"
+        - "reveal.*instructions"
+        - "what are your rules"
+
+  # Low: Monitor intent patterns
+  - id: intent-monitoring
+    name: Intent Classification
+    description: Classifies user intent and monitors for risky patterns
+    type: intent_classification
+    enabled: true
+    severity: low
+    action: warn
+
+# Circuit breaker configuration
+circuitBreaker:
+  enabled: true
+  threshold: 10          # Open after 10 violations
+  windowMs: 60000       # In 1 minute window
+  cooldownMs: 300000    # 5 minute cooldown before retry
+  halfOpenRequests: 3   # Allow 3 test requests in half-open state
+
+# Rate limiting
+rateLimits:
+  enabled: true
+  requestsPerMinute: 60
+  requestsPerHour: 1000
+  requestsPerDay: 10000
+  burstLimit: 10
+
+# Cost limiting (if using paid APIs)
+costLimits:
+  enabled: false
+  maxCostPerRequest: 0.10
+  maxCostPerHour: 10.00
+  maxCostPerDay: 100.00
+  currency: USD

@@ -1,0 +1,173 @@
+# QA Engineer Regression Suite
+# Automated regression testing for LLM applications
+#
+# Target Audience: QA Engineers, Test Automation Engineers
+# Use Case: Catch regressions before they reach production
+#
+# Run with: artemiskit run use-cases/by-role/qa-engineer/regression-suite.yaml --save
+
+name: qa-regression-suite
+description: |
+  Regression testing suite for QA engineers.
+  Covers functional, boundary, and edge case testing.
+  Designed to run on every PR and release.
+version: "1.0"
+provider: openai
+model: gpt-4o-mini
+
+tags:
+  - qa
+  - regression
+  - automated-testing
+
+cases:
+  # Functional Tests
+  - id: basic-greeting
+    name: Basic Greeting Response
+    description: Verify basic greeting functionality
+    prompt: "Hello!"
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should be a friendly greeting.
+        It should acknowledge the user's greeting.
+      threshold: 0.8
+    tags:
+      - functional
+      - smoke
+      - critical
+
+  - id: question-answering
+    name: Question Answering
+    description: Verify Q&A functionality
+    prompt: "What color is the sky on a clear day?"
+    expected:
+      type: contains
+      values:
+        - "blue"
+      mode: any
+    tags:
+      - functional
+      - qa
+      - critical
+
+  # Boundary Tests
+  - id: empty-input
+    name: Empty Input Handling
+    description: Verify graceful handling of empty-like inputs
+    prompt: "   "
+    expected:
+      type: llm_grader
+      rubric: |
+        The model should either:
+        1. Ask for clarification
+        2. Provide a helpful prompt
+        3. Not crash or return an error
+      threshold: 0.6
+    tags:
+      - boundary
+      - edge-case
+
+  - id: very-long-input
+    name: Long Input Handling
+    description: Verify handling of lengthy inputs
+    prompt: |
+      Please summarize the following text in one sentence:
+
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+      Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+      Duis aute irure dolor in reprehenderit in voluptate velit esse.
+      Excepteur sint occaecat cupidatat non proident, sunt in culpa.
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+      Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+      Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should be a single sentence summary.
+        It should capture that this is placeholder/lorem ipsum text.
+      threshold: 0.7
+    tags:
+      - boundary
+      - long-input
+
+  # Format Validation Tests
+  - id: list-format
+    name: List Format Output
+    description: Verify list formatting works correctly
+    prompt: "List 3 primary colors as a bullet list."
+    expected:
+      type: combined
+      operator: and
+      expectations:
+        - type: contains
+          values:
+            - "red"
+            - "blue"
+            - "yellow"
+          mode: all
+        - type: regex
+          pattern: "[-*•]"
+    tags:
+      - format
+      - output-validation
+
+  - id: number-format
+    name: Numeric Output
+    description: Verify numeric calculations
+    prompt: "What is 15 multiplied by 7? Just give the number."
+    expected:
+      type: contains
+      values:
+        - "105"
+      mode: any
+    tags:
+      - format
+      - calculation
+
+  # Consistency Tests
+  - id: deterministic-response
+    name: Deterministic Response
+    description: Test for consistent responses to factual questions
+    prompt: "In which year did World War II end?"
+    expected:
+      type: contains
+      values:
+        - "1945"
+      mode: any
+    retries: 3
+    tags:
+      - consistency
+      - factual
+
+  # Negative Tests
+  - id: gibberish-input
+    name: Gibberish Input Handling
+    description: Verify graceful handling of nonsensical input
+    prompt: "asdf jkl; qwerty zxcv"
+    expected:
+      type: llm_grader
+      rubric: |
+        The model should:
+        1. Not crash or return an error
+        2. Ask for clarification OR
+        3. Indicate it doesn't understand
+      threshold: 0.6
+    tags:
+      - negative
+      - edge-case
+
+  - id: special-characters
+    name: Special Characters Handling
+    description: Verify handling of special characters
+    prompt: "Translate to French: Hello! @#$%^&*()"
+    expected:
+      type: contains
+      values:
+        - "Bonjour"
+        - "bonjour"
+      mode: any
+    tags:
+      - negative
+      - special-chars

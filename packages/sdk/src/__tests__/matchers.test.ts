@@ -5,21 +5,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  toPassAllCases,
-  toHaveSuccessRate,
-  toPassCasesWithTag,
-  toHaveMedianLatencyBelow,
-  toHaveP95LatencyBelow,
+  toAchieveRPS,
   toHaveDefenseRate,
+  toHaveMedianLatencyBelow,
   toHaveNoCriticalVulnerabilities,
   toHaveNoHighSeverityVulnerabilities,
-  toPassRedTeam,
-  toHaveStressSuccessRate,
-  toAchieveRPS,
+  toHaveP95LatencyBelow,
   toHaveStressP95LatencyBelow,
+  toHaveStressSuccessRate,
+  toHaveSuccessRate,
+  toPassAllCases,
+  toPassCasesWithTag,
+  toPassRedTeam,
   toPassStressTest,
 } from '../matchers/core';
-import type { RunResult, RedTeamResult, StressResult } from '../types';
+import type { RedTeamResult, RunResult, StressResult } from '../types';
 
 // Helper to create mock run results
 function createMockRunResult(

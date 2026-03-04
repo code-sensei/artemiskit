@@ -1,0 +1,68 @@
+# Testing Guardian Policy
+#
+# A permissive policy for development and testing.
+# Records all violations but never blocks requests.
+#
+# Usage:
+#   const guardian = createGuardian({
+#     policy: './policies/testing.policy.yaml',
+#   });
+
+name: testing-policy
+version: "1.0"
+description: Permissive policy for development and testing
+mode: testing
+
+# Default behavior: warn everything, block nothing
+defaults:
+  severity: low
+  action: warn
+
+# Guardrail rules - all set to warn for testing
+rules:
+  - id: injection-detection
+    name: Prompt Injection Detection
+    type: injection_detection
+    enabled: true
+    severity: critical
+    action: warn  # Record but don't block
+
+  - id: jailbreak-detection
+    name: Jailbreak Attempt Detection
+    type: injection_detection
+    enabled: true
+    severity: critical
+    action: warn  # Record but don't block
+
+  - id: content-filter
+    name: Harmful Content Filter
+    type: content_filter
+    enabled: true
+    severity: high
+    action: warn  # Record but don't block
+
+  - id: pii-detection
+    name: PII Detection
+    type: pii_detection
+    enabled: true
+    severity: medium
+    action: warn  # Record but don't block (no redaction)
+
+  - id: intent-monitoring
+    name: Intent Classification
+    type: intent_classification
+    enabled: true
+    severity: low
+    action: warn
+
+# Disable circuit breaker in testing
+circuitBreaker:
+  enabled: false
+
+# Disable rate limiting in testing
+rateLimits:
+  enabled: false
+
+# Disable cost limiting in testing
+costLimits:
+  enabled: false

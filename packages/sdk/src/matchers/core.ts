@@ -4,7 +4,7 @@
  */
 
 import type { CaseResult, RunManifest } from '@artemiskit/core';
-import type { RunResult, RedTeamResult, StressResult } from '../types';
+import type { RedTeamResult, RunResult, StressResult } from '../types';
 
 /**
  * Matcher result interface compatible with Jest/Vitest

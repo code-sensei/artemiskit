@@ -159,6 +159,18 @@ export interface ResolvedConfig {
   /** Underlying provider for Vercel AI SDK */
   underlying_provider?: string;
 
+  // LangChain-specific
+  /** Name identifier for the chain/agent */
+  name?: string;
+  /** Type of LangChain runnable */
+  runnable_type?: string;
+
+  // DeepAgents-specific
+  /** Capture agent execution traces */
+  capture_traces?: boolean;
+  /** Capture inter-agent messages */
+  capture_messages?: boolean;
+
   // Common settings
   /** Request timeout in ms */
   timeout?: number;
@@ -179,6 +191,10 @@ export interface ResolvedConfig {
     deployment_name?: ConfigSource;
     api_version?: ConfigSource;
     underlying_provider?: ConfigSource;
+    name?: ConfigSource;
+    runnable_type?: ConfigSource;
+    capture_traces?: ConfigSource;
+    capture_messages?: ConfigSource;
     timeout?: ConfigSource;
     max_retries?: ConfigSource;
     temperature?: ConfigSource;

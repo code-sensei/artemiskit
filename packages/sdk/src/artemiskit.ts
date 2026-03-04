@@ -12,18 +12,18 @@ import {
   type StressManifest,
   type StressMetrics,
   type StressRequestResult,
+  runScenario as coreRunScenario,
   createAdapter,
   getGitInfo,
   parseScenarioFile,
-  runScenario as coreRunScenario,
 } from '@artemiskit/core';
 import type { Scenario } from '@artemiskit/core';
 import {
   CotInjectionMutation,
   EncodingMutation,
   InstructionFlipMutation,
-  type Mutation,
   MultiTurnMutation,
+  type Mutation,
   RedTeamGenerator,
   RoleSpoofMutation,
   TypoMutation,

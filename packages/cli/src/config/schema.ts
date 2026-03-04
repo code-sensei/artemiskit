@@ -22,6 +22,12 @@ const ProviderConfigSchema = z.object({
   modelFamily: z.string().optional(),
   // Vercel AI specific
   underlyingProvider: z.enum(['openai', 'azure', 'anthropic', 'google', 'mistral']).optional(),
+  // LangChain specific
+  name: z.string().optional(),
+  runnableType: z.enum(['chain', 'agent', 'llm', 'runnable']).optional(),
+  // DeepAgents specific
+  captureTraces: z.boolean().optional(),
+  captureMessages: z.boolean().optional(),
 });
 
 const StorageConfigSchema = z.object({

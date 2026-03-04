@@ -120,6 +120,8 @@ export type ProviderType =
   | 'azure-openai'
   | 'vercel-ai'
   | 'anthropic'
+  | 'langchain'
+  | 'deepagents'
   | 'google'
   | 'mistral'
   | 'cohere'

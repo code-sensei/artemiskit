@@ -18,6 +18,8 @@ export const ProviderSchema = z.enum([
   'cohere',
   'huggingface',
   'ollama',
+  'langchain',
+  'deepagents',
   'custom',
 ]);
 
@@ -50,6 +52,14 @@ export const ProviderConfigSchema = z
 
     // Vercel AI specific
     underlyingProvider: z.enum(['openai', 'azure', 'anthropic', 'google', 'mistral']).optional(),
+
+    // LangChain specific
+    name: z.string().optional(),
+    runnableType: z.enum(['chain', 'agent', 'llm', 'runnable']).optional(),
+
+    // DeepAgents specific
+    captureTraces: z.boolean().optional(),
+    captureMessages: z.boolean().optional(),
   })
   .optional();
 

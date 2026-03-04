@@ -67,3 +67,6 @@ pitch-deck/
 
 # Demo files for client meetings
 demo/
+
+# Guardian examples with real API keys (private)
+examples/guardian-demo/

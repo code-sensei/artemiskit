@@ -517,7 +517,7 @@ We welcome contributions! Here's how you can help:
 - Report enhancements
 
 ### How to Contribute
-1. Check the [Issues](https://github.com/artemiskit/artemiskit/issues) for open tasks
+1. Check the [Issues](https://github.com/code-sensei/artemiskit/issues) for open tasks
 2. Fork the repository
 3. Create a feature branch
 4. Submit a pull request
@@ -540,10 +540,10 @@ We use [Changesets](https://github.com/changesets/changesets) for version manage
 ## Feedback
 
 Have ideas or suggestions? We'd love to hear from you:
-- Open an [Issue](https://github.com/artemiskit/artemiskit/issues)
-- Start a [Discussion](https://github.com/artemiskit/artemiskit/discussions)
+- Open an [Issue](https://github.com/code-sensei/artemiskit/issues)
+- Start a [Discussion](https://github.com/code-sensei/artemiskit/discussions)
 - Join our community (coming soon)
 
 ---
 
-*Last Updated: February 2026*
+*Last Updated: March 2026*

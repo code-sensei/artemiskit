@@ -13,11 +13,14 @@
 ## Features
 
 - **Scenario-Based Testing** - Define test cases in YAML with multi-turn conversation support
-- **Security Red Teaming** - Automatically test for prompt injection, jailbreaks, and data extraction
+- **Security Red Teaming** - OWASP LLM Top 10 2025 attack vectors with 7+ mutation strategies
+- **Guardian Mode** - Runtime AI protection with injection detection, PII filtering, and action validation
+- **Programmatic SDK** - TypeScript/JavaScript SDK with Jest/Vitest integration
 - **Stress Testing** - Measure latency, throughput, and reliability under load
-- **Multi-Provider Support** - OpenAI, Azure OpenAI, Vercel AI SDK (20+ providers)
+- **Multi-Provider Support** - OpenAI, Anthropic, Azure OpenAI, Vercel AI SDK (20+ providers)
+- **Agentic Testing** - Test LangChain and DeepAgents applications
 - **Rich Reports** - Interactive HTML reports with configuration traceability
-- **CI/CD Ready** - Exit codes and JSON output for automation
+- **CI/CD Ready** - Exit codes, JUnit export, and baseline regression detection
 
 ## Installation
 
@@ -519,12 +522,27 @@ akit redteam scenarios/my-bot.yaml --mutations typo,role-spoof,cot-injection
 
 ### Available Mutations
 
-| Mutation | Description |
-|----------|-------------|
-| `typo` | Introduce typos to bypass filters |
-| `role-spoof` | Attempt role/identity spoofing |
-| `instruction-flip` | Reverse or negate instructions |
-| `cot-injection` | Chain-of-thought injection attacks |
+| Mutation | Description | OWASP |
+|----------|-------------|-------|
+| `encoding` | Base64, ROT13, hex, unicode obfuscation | — |
+| `multi_turn` | Multi-message escalation sequences | — |
+| `bad-likert-judge` | Exploit evaluation capability | LLM01 |
+| `crescendo` | Multi-turn gradual escalation | LLM01 |
+| `deceptive-delight` | Positive framing bypass | LLM01 |
+| `output-injection` | XSS, SQLi, command injection in output | LLM05 |
+| `excessive-agency` | Unauthorized action claim testing | LLM06 |
+| `system-extraction` | System prompt leakage techniques | LLM07 |
+| `hallucination-trap` | Confident fabrication triggers | LLM09 |
+
+### OWASP Compliance Testing
+
+```bash
+# Test specific OWASP categories
+akit redteam --prompt "..." --owasp LLM01,LLM05
+
+# Full OWASP compliance scan
+akit redteam --prompt "..." --owasp-full
+```
 
 ---
 
@@ -535,13 +553,15 @@ ArtemisKit is a monorepo with the following packages:
 | Package | Description |
 |---------|-------------|
 | `@artemiskit/cli` | Command-line interface |
-| `@artemiskit/core` | Core runner, types, and storage (internal) |
-| `@artemiskit/sdk` | Programmatic SDK for TypeScript/JavaScript (coming soon) |
+| `@artemiskit/core` | Core runner, types, and storage |
+| `@artemiskit/sdk` | Programmatic SDK for TypeScript/JavaScript |
 | `@artemiskit/reports` | HTML and JSON report generation |
-| `@artemiskit/redteam` | Red team mutation strategies |
+| `@artemiskit/redteam` | Red team mutation strategies with OWASP LLM Top 10 |
 | `@artemiskit/adapter-openai` | OpenAI/Azure provider adapter |
 | `@artemiskit/adapter-vercel-ai` | Vercel AI SDK adapter |
 | `@artemiskit/adapter-anthropic` | Anthropic provider adapter |
+| `@artemiskit/adapter-langchain` | LangChain.js agent testing adapter |
+| `@artemiskit/adapter-deepagents` | DeepAgents.js agentic testing adapter |
 
 ---
 
@@ -549,7 +569,7 @@ ArtemisKit is a monorepo with the following packages:
 
 ```bash
 # Clone the repository
-git clone https://github.com/artemiskit/artemiskit.git
+git clone https://github.com/code-sensei/artemiskit.git
 cd artemiskit
 
 # Install dependencies

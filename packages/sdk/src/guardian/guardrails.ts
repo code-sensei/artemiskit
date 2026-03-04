@@ -258,9 +258,9 @@ export function detectPII(text: string): PIIDetection {
   for (const { type, pattern, mask } of PII_PATTERNS) {
     // Reset regex state
     const regex = new RegExp(pattern.source, pattern.flags);
-    let match: RegExpExecArray | null;
+    let match = regex.exec(text);
 
-    while ((match = regex.exec(text)) !== null) {
+    while (match !== null) {
       locations.push({
         type,
         start: match.index,
@@ -268,6 +268,7 @@ export function detectPII(text: string): PIIDetection {
         value: match[0],
         masked: mask,
       });
+      match = regex.exec(text);
     }
 
     // Redact in content

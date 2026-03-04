@@ -8,13 +8,20 @@
  */
 
 import { SupabaseStorageAdapter } from '@artemiskit/core/storage';
-import type { CaseResultRecord, CaseResultQueryOptions } from '@artemiskit/core/storage';
+import type { CaseResultQueryOptions, CaseResultRecord } from '@artemiskit/core/storage';
 
 // Initialize the storage adapter
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+}
+
 const storage = new SupabaseStorageAdapter(
   {
-    url: process.env.SUPABASE_URL!,
-    anonKey: process.env.SUPABASE_ANON_KEY!,
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
     bucket: 'artemis-runs',
   },
   'my-project'
@@ -298,14 +305,14 @@ async function findFlakyTests() {
 
   // A test is considered flaky if it has mixed results (neither 0% nor 100%)
   if (passRate > 0 && passRate < 100) {
-    console.log(`  ⚠️  FLAKY: This test has inconsistent results`);
-    console.log(`  Consider investigating:`);
+    console.log('  ⚠️  FLAKY: This test has inconsistent results');
+    console.log('  Consider investigating:');
 
     // Show variance in latency
     const latencies = results.map((r) => r.latencyMs);
     const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
     const variance =
-      latencies.reduce((sum, l) => sum + Math.pow(l - avgLatency, 2), 0) / latencies.length;
+      latencies.reduce((sum, l) => sum + (l - avgLatency) ** 2, 0) / latencies.length;
     const stdDev = Math.sqrt(variance);
 
     console.log(

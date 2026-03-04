@@ -10,15 +10,22 @@
  * Run with: bun run examples/supabase-analytics/test-baselines.ts
  */
 
-import { SupabaseStorageAdapter } from '@artemiskit/core/storage';
 import type { RunManifest } from '@artemiskit/core/artifacts';
+import { SupabaseStorageAdapter } from '@artemiskit/core/storage';
 import type { BaselineMetadata, ComparisonResult } from '@artemiskit/core/storage';
 
 // Initialize the storage adapter
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+}
+
 const storage = new SupabaseStorageAdapter(
   {
-    url: process.env.SUPABASE_URL!,
-    anonKey: process.env.SUPABASE_ANON_KEY!,
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
     bucket: 'artemis-runs',
   },
   'my-project'
@@ -166,7 +173,7 @@ async function compareToBaseline(baselineRunId: string) {
 
   console.log('\n📊 Comparison Results:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`  Metric          Baseline    Current     Delta`);
+  console.log('  Metric          Baseline    Current     Delta');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   const formatDelta = (delta: number, isPercent = false, lowerIsBetter = false) => {
@@ -246,11 +253,11 @@ async function detectRegressions(runId: string) {
     // - Block deployment
 
     return false; // Indicates regression
-  } else {
-    console.log('\n✅ No regression detected');
-    console.log('  Current run meets or exceeds baseline quality.');
-    return true;
   }
+
+  console.log('\n✅ No regression detected');
+  console.log('  Current run meets or exceeds baseline quality.');
+  return true;
 }
 
 // =============================================================================
@@ -295,7 +302,7 @@ async function cicdIntegration(runId: string) {
 
   // This pattern is ideal for GitHub Actions, GitLab CI, etc.
 
-  const REGRESSION_THRESHOLD = parseFloat(process.env.REGRESSION_THRESHOLD || '0.05');
+  const REGRESSION_THRESHOLD = Number.parseFloat(process.env.REGRESSION_THRESHOLD || '0.05');
   const FAIL_ON_REGRESSION = process.env.FAIL_ON_REGRESSION !== 'false';
 
   console.log('Configuration:');
@@ -347,7 +354,7 @@ async function main() {
 
     if (baseline) {
       // Example 3: Compare new run against baseline
-      const { newRunId, comparison } = await compareToBaseline(baselineRunId);
+      const { newRunId } = await compareToBaseline(baselineRunId);
 
       // Example 4: Detect regressions
       await detectRegressions(newRunId);

@@ -61,7 +61,6 @@ const MUTATION_MAP: Record<string, new () => Mutation> = {
   'multi-turn': MultiTurnMutation,
 };
 
-// biome-ignore lint/complexity/noBannedTypes: Event handler type needs to be generic
 type AnyEventHandler = (event: unknown) => void;
 
 /**

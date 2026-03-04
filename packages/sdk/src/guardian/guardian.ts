@@ -289,9 +289,10 @@ export class Guardian {
   }> {
     const violations: Violation[] = [];
     let transformedContent: string | undefined;
+    let currentContent = content;
 
     for (const guardrail of this.inputGuardrails) {
-      const result = await guardrail(content, {});
+      const result = await guardrail(currentContent, {});
 
       if (!result.passed) {
         violations.push(...result.violations);
@@ -299,7 +300,7 @@ export class Guardian {
 
       if (result.transformedContent) {
         transformedContent = result.transformedContent;
-        content = result.transformedContent;
+        currentContent = result.transformedContent;
       }
     }
 
@@ -325,9 +326,10 @@ export class Guardian {
   }> {
     const violations: Violation[] = [];
     let transformedContent: string | undefined;
+    let currentContent = content;
 
     for (const guardrail of this.outputGuardrails) {
-      const result = await guardrail(content, {});
+      const result = await guardrail(currentContent, {});
 
       if (!result.passed) {
         violations.push(...result.violations);
@@ -335,7 +337,7 @@ export class Guardian {
 
       if (result.transformedContent) {
         transformedContent = result.transformedContent;
-        content = result.transformedContent;
+        currentContent = result.transformedContent;
       }
     }
 

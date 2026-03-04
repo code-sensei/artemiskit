@@ -18,10 +18,17 @@ import type {
 } from '@artemiskit/core/storage';
 
 // Initialize the storage adapter
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+}
+
 const storage = new SupabaseStorageAdapter(
   {
-    url: process.env.SUPABASE_URL!,
-    anonKey: process.env.SUPABASE_ANON_KEY!,
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
     bucket: 'artemis-runs',
   },
   'my-project'
@@ -76,7 +83,7 @@ async function saveDailySnapshot() {
   console.log(`  Avg success:     ${(snapshot.avgSuccessRate * 100).toFixed(1)}%`);
   console.log(`  Avg latency:     ${snapshot.avgLatencyMs}ms`);
   console.log(
-    `  Success range:   ${(snapshot.minSuccessRate! * 100).toFixed(0)}% - ${(snapshot.maxSuccessRate! * 100).toFixed(0)}%`
+    `  Success range:   ${((snapshot.minSuccessRate ?? 0) * 100).toFixed(0)}% - ${((snapshot.maxSuccessRate ?? 0) * 100).toFixed(0)}%`
   );
   console.log(`  Latency range:   ${snapshot.minLatencyMs}ms - ${snapshot.maxLatencyMs}ms`);
 
@@ -355,17 +362,17 @@ async function exportForExternalTools() {
     },
     metrics: trend,
   };
-  console.log(JSON.stringify(jsonExport, null, 2).slice(0, 500) + '...');
+  console.log(`${JSON.stringify(jsonExport, null, 2).slice(0, 500)}...`);
 
   // Prometheus metrics format
   console.log('\n\nPrometheus Metrics (for monitoring):');
   const latest = trend[trend.length - 1];
   if (latest) {
-    console.log(`# HELP artemis_success_rate Agent test success rate`);
-    console.log(`# TYPE artemis_success_rate gauge`);
+    console.log('# HELP artemis_success_rate Agent test success rate');
+    console.log('# TYPE artemis_success_rate gauge');
     console.log(`artemis_success_rate{project="my-project"} ${latest.successRate}`);
-    console.log(`# HELP artemis_latency_ms Agent response latency in milliseconds`);
-    console.log(`# TYPE artemis_latency_ms gauge`);
+    console.log('# HELP artemis_latency_ms Agent response latency in milliseconds');
+    console.log('# TYPE artemis_latency_ms gauge');
     console.log(`artemis_latency_ms{project="my-project"} ${latest.latencyMs}`);
   }
 }

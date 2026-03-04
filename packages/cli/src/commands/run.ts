@@ -554,7 +554,8 @@ async function runScenariosInParallel(
   while (queue.length > 0 || inProgress.size > 0) {
     // Start new tasks up to the limit
     while (queue.length > 0 && inProgress.size < parallelLimit) {
-      const path = queue.shift()!;
+      const path = queue.shift();
+      if (!path) break;
       const promise = processScenario(path).then(() => {
         inProgress.delete(promise);
       });

@@ -301,9 +301,10 @@ export class GuardianInterceptor implements ModelClient {
   ): Promise<GuardrailResult> {
     const allViolations: Violation[] = [];
     let transformedContent: string | undefined;
+    let currentContent = content;
 
     for (const guardrail of guardrails) {
-      const result = await guardrail(content, context);
+      const result = await guardrail(currentContent, context);
 
       if (!result.passed) {
         allViolations.push(...result.violations);
@@ -312,7 +313,7 @@ export class GuardianInterceptor implements ModelClient {
       // Apply transformation if provided
       if (result.transformedContent) {
         transformedContent = result.transformedContent;
-        content = result.transformedContent;
+        currentContent = result.transformedContent;
       }
     }
 

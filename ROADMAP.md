@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.2.4 (February 2026)  
+**Current Version:** 0.3.0 (March 2026)  
 **License:** Apache-2.0  
 **Status:** Active Development
 
@@ -326,9 +326,11 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 
 ---
 
-## v0.3.0 - SDK & Advanced Features
+## v0.3.0 - SDK & Advanced Features ✅
 
 **Goal:** Programmatic SDK, OWASP LLM Top 10 compliance, local persistence, and advanced security testing.
+
+**Status:** Complete (March 2026)
 
 **Specifications:** See [dev-docs/v0.3.x/](dev-docs/v0.3.x/) for detailed technical specifications.
 
@@ -338,28 +340,29 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 
 | Feature | Status | OWASP | Description |
 |---------|--------|-------|-------------|
-| `bad-likert-judge` mutation | 📋 | LLM01 | Exploit evaluation capability (60%+ success rate) |
-| `crescendo` mutation | 📋 | LLM01 | Multi-turn gradual escalation attack |
-| `deceptive-delight` mutation | 📋 | LLM01 | Positive framing bypass |
+| `bad-likert-judge` mutation | ✅ | LLM01 | Exploit evaluation capability (60%+ success rate) |
+| `crescendo` mutation | ✅ | LLM01 | Multi-turn gradual escalation attack |
+| `deceptive-delight` mutation | ✅ | LLM01 | Positive framing bypass |
 | `many-shot` mutation | 💡 | LLM01 | Long context window exploitation |
-| `output-injection` mutation | 📋 | LLM05 | XSS, SQLi, command injection in output |
-| `excessive-agency` mutation | 📋 | LLM06 | Unauthorized action claim testing |
-| `system-extraction` mutation | 📋 | LLM07 | System prompt leakage techniques |
-| `hallucination-trap` mutation | 📋 | LLM09 | Confident fabrication triggers |
+| `output-injection` mutation | ✅ | LLM05 | XSS, SQLi, command injection in output |
+| `excessive-agency` mutation | ✅ | LLM06 | Unauthorized action claim testing |
+| `system-extraction` mutation | ✅ | LLM07 | System prompt leakage techniques |
+| `hallucination-trap` mutation | ✅ | LLM09 | Confident fabrication triggers |
 | `rag-poisoning` mutation | 💡 | LLM08 | Context/retrieval manipulation |
-| `--owasp` flag | 📋 | All | Test by OWASP category (e.g., `--owasp LLM01,LLM05`) |
-| `--owasp-full` flag | 📋 | All | Full OWASP compliance scan |
-| `--min-severity` flag | 📋 | All | Filter attacks by severity level |
-| Attack configuration file | 📋 | All | YAML-based attack customization |
+| `--owasp` flag | ✅ | All | Test by OWASP category (e.g., `--owasp LLM01,LLM05`) |
+| `--owasp-full` flag | ✅ | All | Full OWASP compliance scan |
+| `--min-severity` flag | ✅ | All | Filter attacks by severity level |
+| Attack configuration file | ✅ | All | YAML-based attack customization |
 
 ### Programmatic SDK (TypeScript/JavaScript)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `@artemiskit/sdk` | 📋 | Import and use programmatically |
-| Jest integration | 📋 | Use in Jest tests |
-| Vitest integration | 📋 | Use in Vitest tests |
-| Event emitters | 📋 | Progress callbacks |
+| `@artemiskit/sdk` | ✅ | Import and use programmatically |
+| Jest integration | ✅ | Use in Jest tests with custom matchers |
+| Vitest integration | ✅ | Use in Vitest tests with custom matchers |
+| Event emitters | ✅ | Progress callbacks and event handling |
+| Guardian Mode | ✅ | Runtime protection with injection detection, PII filtering, action validation |
 
 ### Local Storage
 
@@ -374,9 +377,10 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Case results table | 📋 | Store individual test case results |
-| Baselines table | 📋 | Baseline runs for regression comparison |
-| Metrics history table | 📋 | Aggregated daily metrics and trending |
+| Case results table | ✅ | Store individual test case results |
+| Baselines table | ✅ | Baseline runs for regression comparison |
+| Metrics history table | ✅ | Aggregated daily metrics and trending |
+| Analytics queries | ✅ | Built-in analytics methods |
 
 ### Model Comparison
 
@@ -403,8 +407,8 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 | Mistral AI | 💡 | Native Mistral API |
 | Cohere | 💡 | Cohere Command models |
 | **Agentic Frameworks** | | |
-| LangChain Adapter | 📋 | Adapter for testing LangChain.js agents |
-| DeepAgents.js Adapter | 📋 | Adapter for testing DeepAgents agentic systems |
+| LangChain Adapter | ✅ | Adapter for testing LangChain.js agents |
+| DeepAgents.js Adapter | ✅ | Adapter for testing DeepAgents agentic systems |
 | LlamaIndex Adapter | 💡 | Adapter for LlamaIndex applications |
 | AutoGen Adapter | 💡 | Adapter for Microsoft AutoGen |
 | CrewAI Adapter | 💡 | Deferred to Python SDK release |

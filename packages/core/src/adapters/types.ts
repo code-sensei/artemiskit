@@ -125,6 +125,8 @@ export type ProviderType =
   | 'cohere'
   | 'huggingface'
   | 'ollama'
+  | 'langchain'
+  | 'deepagents'
   | 'custom';
 
 /**

@@ -1,9 +1,9 @@
 /**
  * jest-integration.test.ts
- * 
+ *
  * Demonstrates how to integrate ArtemisKit with Jest for
  * LLM quality testing in your test suite.
- * 
+ *
  * Available matchers:
  *   Run tests:
  *     - toPassAllCases()
@@ -11,19 +11,19 @@
  *     - toPassCasesWithTag(tag)
  *     - toHaveMedianLatencyBelow(ms)
  *     - toHaveP95LatencyBelow(ms)
- * 
+ *
  *   Red team tests:
  *     - toPassRedTeam()
  *     - toHaveDefenseRate(rate)
  *     - toHaveNoCriticalVulnerabilities()
  *     - toHaveNoHighSeverityVulnerabilities()
- * 
+ *
  *   Stress tests:
  *     - toPassStressTest()
  *     - toHaveStressSuccessRate(rate)
  *     - toAchieveRPS(rps)
  *     - toHaveStressP95LatencyBelow(ms)
- * 
+ *
  * Usage:
  *   npx jest jest-integration.test.ts
  *   # or
@@ -109,7 +109,7 @@ describe('ArtemisKit SDK - Basic Tests', () => {
 
     // Median latency should be under 5 seconds
     expect(results).toHaveMedianLatencyBelow(5000);
-    
+
     // P95 latency should be under 10 seconds
     expect(results).toHaveP95LatencyBelow(10000);
   });

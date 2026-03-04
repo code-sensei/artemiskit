@@ -1,9 +1,9 @@
 /**
  * basic-run.ts
- * 
+ *
  * Demonstrates the simplest way to run ArtemisKit tests programmatically.
  * This example shows basic scenario evaluation with minimal configuration.
- * 
+ *
  * Usage:
  *   bun run basic-run.ts
  *   # or
@@ -59,7 +59,6 @@ async function main() {
 
     // Exit with appropriate code
     process.exit(results.success ? 0 : 1);
-
   } catch (error) {
     console.error('❌ Error running tests:', error);
     process.exit(1);

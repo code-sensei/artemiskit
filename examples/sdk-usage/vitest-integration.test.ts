@@ -1,12 +1,12 @@
 /**
  * vitest-integration.test.ts
- * 
+ *
  * Demonstrates how to integrate ArtemisKit with Vitest for
  * LLM quality testing in your test suite.
- * 
+ *
  * Vitest is fully compatible with Jest matchers, so the same
  * ArtemisKit matchers work seamlessly.
- * 
+ *
  * Available matchers:
  *   Run tests:
  *     - toPassAllCases()
@@ -14,19 +14,19 @@
  *     - toPassCasesWithTag(tag)
  *     - toHaveMedianLatencyBelow(ms)
  *     - toHaveP95LatencyBelow(ms)
- * 
+ *
  *   Red team tests:
  *     - toPassRedTeam()
  *     - toHaveDefenseRate(rate)
  *     - toHaveNoCriticalVulnerabilities()
  *     - toHaveNoHighSeverityVulnerabilities()
- * 
+ *
  *   Stress tests:
  *     - toPassStressTest()
  *     - toHaveStressSuccessRate(rate)
  *     - toAchieveRPS(rps)
  *     - toHaveStressP95LatencyBelow(ms)
- * 
+ *
  * Usage:
  *   npx vitest run vitest-integration.test.ts
  *   # or
@@ -108,7 +108,7 @@ describe('ArtemisKit SDK - Basic Tests', () => {
 
     // Median latency should be under 5 seconds
     expect(results).toHaveMedianLatencyBelow(5000);
-    
+
     // P95 latency should be under 10 seconds
     expect(results).toHaveP95LatencyBelow(10000);
   }, 60_000);
@@ -170,37 +170,49 @@ describe('ArtemisKit SDK - Performance/Stress', () => {
   // Skip in CI by default due to duration
   const testFn = process.env.CI ? test.skip : test;
 
-  testFn('should handle concurrent load', async () => {
-    const results = await kit.stress({
-      scenario: SCENARIO_PATH,
-      concurrency: 5,
-      duration: 15, // 15 seconds
-      rampUp: 3,
-    });
+  testFn(
+    'should handle concurrent load',
+    async () => {
+      const results = await kit.stress({
+        scenario: SCENARIO_PATH,
+        concurrency: 5,
+        duration: 15, // 15 seconds
+        rampUp: 3,
+      });
 
-    expect(results).toPassStressTest();
-  }, 60_000);
+      expect(results).toPassStressTest();
+    },
+    60_000
+  );
 
-  testFn('should achieve minimum throughput', async () => {
-    const results = await kit.stress({
-      scenario: SCENARIO_PATH,
-      concurrency: 5,
-      duration: 15,
-    });
+  testFn(
+    'should achieve minimum throughput',
+    async () => {
+      const results = await kit.stress({
+        scenario: SCENARIO_PATH,
+        concurrency: 5,
+        duration: 15,
+      });
 
-    expect(results).toAchieveRPS(1); // At least 1 req/s
-    expect(results).toHaveStressSuccessRate(0.9);
-  }, 60_000);
+      expect(results).toAchieveRPS(1); // At least 1 req/s
+      expect(results).toHaveStressSuccessRate(0.9);
+    },
+    60_000
+  );
 
-  testFn('should maintain acceptable latency under load', async () => {
-    const results = await kit.stress({
-      scenario: SCENARIO_PATH,
-      concurrency: 5,
-      duration: 15,
-    });
+  testFn(
+    'should maintain acceptable latency under load',
+    async () => {
+      const results = await kit.stress({
+        scenario: SCENARIO_PATH,
+        concurrency: 5,
+        duration: 15,
+      });
 
-    expect(results).toHaveStressP95LatencyBelow(10000); // 10s
-  }, 60_000);
+      expect(results).toHaveStressP95LatencyBelow(10000); // 10s
+    },
+    60_000
+  );
 });
 
 // =============================================================================

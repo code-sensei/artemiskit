@@ -1,9 +1,9 @@
 /**
  * with-events.ts
- * 
+ *
  * Demonstrates using ArtemisKit's event emitter system for real-time
  * progress tracking and detailed monitoring of test execution.
- * 
+ *
  * Available events:
  *   - caseStart: Fired when a test case begins
  *   - caseComplete: Fired when a test case completes
@@ -11,7 +11,7 @@
  *   - redteamMutationStart: Fired when a red team mutation begins
  *   - redteamMutationComplete: Fired when a red team mutation completes
  *   - stressRequestComplete: Fired after each stress test request
- * 
+ *
  * Usage:
  *   bun run with-events.ts
  *   # or
@@ -19,11 +19,7 @@
  */
 
 import { ArtemisKit } from '@artemiskit/sdk';
-import type {
-  CaseStartEvent,
-  CaseCompleteEvent,
-  ProgressEvent,
-} from '@artemiskit/sdk';
+import type { CaseStartEvent, CaseCompleteEvent, ProgressEvent } from '@artemiskit/sdk';
 import { resolve } from 'path';
 
 // ANSI color codes for pretty output
@@ -71,8 +67,8 @@ async function main() {
     .onCaseStart((event: CaseStartEvent) => {
       console.log(
         `${colors.blue}▶ Starting${colors.reset} ` +
-        `${colors.cyan}${event.caseName ?? event.caseId}${colors.reset} ` +
-        `${colors.dim}(${event.index + 1}/${event.total})${colors.reset}`
+          `${colors.cyan}${event.caseName ?? event.caseId}${colors.reset} ` +
+          `${colors.dim}(${event.index + 1}/${event.total})${colors.reset}`
       );
     })
     .onCaseComplete((event: CaseCompleteEvent) => {
@@ -80,11 +76,11 @@ async function main() {
       const status = result.ok
         ? `${colors.green}✓ PASS${colors.reset}`
         : `${colors.red}✗ FAIL${colors.reset}`;
-      const latency = result.latencyMs ? ` ${colors.dim}(${formatTime(result.latencyMs)})${colors.reset}` : '';
-      
-      console.log(
-        `${status} ${result.name ?? result.id}${latency}`
-      );
+      const latency = result.latencyMs
+        ? ` ${colors.dim}(${formatTime(result.latencyMs)})${colors.reset}`
+        : '';
+
+      console.log(`${status} ${result.name ?? result.id}${latency}`);
 
       if (!result.ok && result.reason) {
         console.log(`  ${colors.dim}└─ ${result.reason}${colors.reset}`);
@@ -125,16 +121,23 @@ async function main() {
     // Output final summary
     console.log(`\n${colors.cyan}📊 Final Summary${colors.reset}`);
     console.log('─'.repeat(50));
-    console.log(`Status:     ${results.success ? `${colors.green}PASSED ✅${colors.reset}` : `${colors.red}FAILED ❌${colors.reset}`}`);
+    console.log(
+      `Status:     ${results.success ? `${colors.green}PASSED ✅${colors.reset}` : `${colors.red}FAILED ❌${colors.reset}`}`
+    );
     console.log(`Total:      ${results.manifest.metrics.total_cases} cases`);
-    console.log(`Passed:     ${colors.green}${results.manifest.metrics.passed_cases}${colors.reset}`);
-    console.log(`Failed:     ${results.manifest.metrics.failed_cases > 0 ? colors.red : ''}${results.manifest.metrics.failed_cases}${colors.reset}`);
+    console.log(
+      `Passed:     ${colors.green}${results.manifest.metrics.passed_cases}${colors.reset}`
+    );
+    console.log(
+      `Failed:     ${results.manifest.metrics.failed_cases > 0 ? colors.red : ''}${results.manifest.metrics.failed_cases}${colors.reset}`
+    );
     console.log(`Pass Rate:  ${(results.manifest.metrics.pass_rate * 100).toFixed(1)}%`);
     console.log(`Duration:   ${formatTime(totalDuration)}`);
-    console.log(`Avg/Case:   ${formatTime(Math.round(totalDuration / results.manifest.metrics.total_cases))}`);
+    console.log(
+      `Avg/Case:   ${formatTime(Math.round(totalDuration / results.manifest.metrics.total_cases))}`
+    );
 
     process.exit(results.success ? 0 : 1);
-
   } catch (error) {
     console.error(`\n${colors.red}❌ Error:${colors.reset}`, error);
     process.exit(1);

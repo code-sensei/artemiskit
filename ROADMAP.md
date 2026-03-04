@@ -288,6 +288,42 @@ This document outlines the development roadmap for ArtemisKit, the open-source L
 
 All features from v0.2.2 and v0.2.3 are included in this release.
 
+### v0.2.5 - Guardian Mode & SDK Enhancements ✅
+
+**Focus:** Runtime AI/LLM protection with Guardian Mode.
+
+**Status:** Complete (March 2026)
+
+#### Guardian Mode (Runtime Protection)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `createGuardian()` | ✅ | Factory function for Guardian instances |
+| Prompt injection detection | ✅ | Detect and block injection attempts |
+| Role hijack detection | ✅ | Detect jailbreak and role override attempts |
+| PII detection & redaction | ✅ | Detect and optionally redact PII (email, SSN, phone, API keys) |
+| Content filtering | ✅ | Filter harmful content by category (violence, hate speech, illegal, etc.) |
+| Action validation | ✅ | Validate agent tool/function calls before execution |
+| Intent classification | ✅ | Classify user intents with risk assessment |
+| Circuit breaker | ✅ | Automatic request blocking on repeated violations |
+| Rate limiting | ✅ | Configurable rate limits per minute/hour/day |
+| Cost limiting | ✅ | Track and limit API costs |
+| Policy-based rules | ✅ | YAML-based policy configuration |
+| Event handlers | ✅ | Subscribe to Guardian events (violations, blocks, etc.) |
+| Metrics collection | ✅ | Real-time metrics for monitoring |
+| `guardian.protect()` | ✅ | Wrap LLM clients with Guardian protection |
+| `guardian.validateInput()` | ✅ | Validate user inputs before sending to LLM |
+| `guardian.validateOutput()` | ✅ | Validate LLM outputs before returning |
+| `guardian.validateAction()` | ✅ | Validate agent actions/tool calls |
+| `guardian.classifyIntent()` | ✅ | Classify user intent with risk scoring |
+
+#### Guardian Examples
+
+| Example | Status | Description |
+|---------|--------|-------------|
+| `basic-guardian.ts` | ✅ | Basic Guardian usage with Azure OpenAI |
+| `agent-guardian.ts` | ✅ | Agent protection with tool call validation |
+
 ---
 
 ## v0.3.0 - SDK & Advanced Features
@@ -355,15 +391,34 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| LLM Providers |
-| OpenRouter | 💡 | Multi-provider routing |
+| **LLM Providers** | | |
+| Google AI (Gemini) | 📋 | Native Gemini API support |
+| OpenRouter | 📋 | Multi-provider routing |
 | LiteLLM | 💡 | Unified model access |
 | Generic REST | 💡 | Custom endpoints |
 | AWS Bedrock | 💡 | Amazon models |
-| Agentic Frameworks & Systems - Initial impl |
+| Groq | 💡 | High-speed inference |
+| Together AI | 💡 | Open model hosting |
+| Fireworks AI | 💡 | Fast open model inference |
+| Mistral AI | 💡 | Native Mistral API |
+| Cohere | 💡 | Cohere Command models |
+| **Agentic Frameworks** | | |
 | LangChain Adapter | 📋 | Adapter for testing LangChain.js agents |
 | DeepAgents.js Adapter | 📋 | Adapter for testing DeepAgents agentic systems |
+| LlamaIndex Adapter | 💡 | Adapter for LlamaIndex applications |
+| AutoGen Adapter | 💡 | Adapter for Microsoft AutoGen |
 | CrewAI Adapter | 💡 | Deferred to Python SDK release |
+
+### Guardian Mode Enhancements
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Hallucination detection | 📋 | LLM-based fact verification |
+| Custom guardrail functions | 📋 | User-defined validation functions |
+| Multi-provider Guardian | 📋 | Guardian support for all providers |
+| Policy templates | 📋 | Pre-built policies for common use cases |
+| Guardian CLI command | 💡 | `akit guardian` for standalone protection |
+| Guardian dashboard | 💡 | Real-time monitoring UI |
 
 ### Configuration
 

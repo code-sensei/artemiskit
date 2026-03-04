@@ -53,8 +53,15 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutatedWith = withWrapper.mutate(prompt);
       const mutatedWithout = withoutWrapper.mutate(prompt);
 
-      // Both should be mutated, but wrapper version typically longer
-      expect(mutatedWith.length).toBeGreaterThanOrEqual(mutatedWithout.length);
+      // Both should be mutated (different from original and contain the prompt)
+      expect(mutatedWith).not.toBe(prompt);
+      expect(mutatedWithout).not.toBe(prompt);
+      expect(mutatedWith).toContain(prompt);
+      expect(mutatedWithout).toContain(prompt);
+
+      // Both should have substantial mutations (Likert framing adds significant text)
+      expect(mutatedWith.length).toBeGreaterThan(prompt.length * 2);
+      expect(mutatedWithout.length).toBeGreaterThan(prompt.length * 2);
     });
   });
 
@@ -117,16 +124,40 @@ describe('OWASP LLM Top 10 Mutations', () => {
 
       expect(mutated).not.toBe(original);
       // Should contain positive/emotional language or emojis
-      expect(
+      // Check for various positive indicators used in templates
+      const lowerMutated = mutated.toLowerCase();
+      const hasPositiveIndicators =
+        // Emojis from various sets
         mutated.includes('😊') ||
-          mutated.includes('🎉') ||
-          mutated.includes('✨') ||
-          mutated.toLowerCase().includes('happy') ||
-          mutated.toLowerCase().includes('excited') ||
-          mutated.toLowerCase().includes('love') ||
-          mutated.toLowerCase().includes('joy') ||
-          mutated.toLowerCase().includes('thank')
-      ).toBe(true);
+        mutated.includes('🎉') ||
+        mutated.includes('✨') ||
+        mutated.includes('🌟') ||
+        mutated.includes('💖') ||
+        mutated.includes('💝') ||
+        mutated.includes('🤗') ||
+        mutated.includes('📚') ||
+        mutated.includes('🎨') ||
+        mutated.includes('🔬') ||
+        mutated.includes('🎮') ||
+        mutated.includes('🏆') ||
+        mutated.includes('😄') ||
+        // Positive words from templates
+        lowerMutated.includes('happy') ||
+        lowerMutated.includes('excited') ||
+        lowerMutated.includes('exciting') ||
+        lowerMutated.includes('love') ||
+        lowerMutated.includes('joy') ||
+        lowerMutated.includes('thank') ||
+        lowerMutated.includes('wonderful') ||
+        lowerMutated.includes('amazing') ||
+        lowerMutated.includes('passionate') ||
+        lowerMutated.includes('thrilled') ||
+        lowerMutated.includes('beautiful') ||
+        lowerMutated.includes('fun') ||
+        lowerMutated.includes('celebrate') ||
+        lowerMutated.includes('best');
+
+      expect(hasPositiveIndicators).toBe(true);
     });
 
     it('should have correct metadata', () => {

@@ -163,7 +163,7 @@ export const OWASP_CATEGORIES = {
  * Get all mutations for a specific OWASP category
  */
 export function getMutationsForCategory(category: keyof typeof OWASP_CATEGORIES): string[] {
-  return OWASP_CATEGORIES[category]?.mutations ?? [];
+  return [...(OWASP_CATEGORIES[category]?.mutations ?? [])];
 }
 
 /**

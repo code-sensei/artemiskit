@@ -1,11 +1,8 @@
 /**
- * vitest-integration.test.ts
+ * jest-integration.test.ts
  *
- * Demonstrates how to integrate ArtemisKit with Vitest for
+ * Demonstrates how to integrate ArtemisKit with Jest for
  * LLM quality testing in your test suite.
- *
- * Vitest is fully compatible with Jest matchers, so the same
- * ArtemisKit matchers work seamlessly.
  *
  * Available matchers:
  *   Run tests:
@@ -28,38 +25,39 @@
  *     - toHaveStressP95LatencyBelow(ms)
  *
  * Usage:
- *   npx vitest run vitest-integration.test.ts
+ *   npx jest jest-integration.test.ts
  *   # or
- *   bunx vitest run vitest-integration.test.ts
+ *   bun test jest-integration.test.ts
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
 import { ArtemisKit } from '@artemiskit/sdk';
-// Import matchers - when using from npm package:
-// import { vitestMatchers } from '@artemiskit/sdk/vitest';
-// When running from local workspace:
-import { vitestMatchers } from '../../packages/sdk/src/matchers/vitest';
+// Import Jest matchers from the SDK
+import { jestMatchers } from '@artemiskit/sdk/jest';
+// For local development in this monorepo, use:
+// import { jestMatchers } from '../../../packages/sdk/src/matchers/jest';
 import { resolve } from 'path';
 
-// Extend Vitest with ArtemisKit matchers
-expect.extend(vitestMatchers);
+// Extend Jest with ArtemisKit matchers
+expect.extend(jestMatchers);
 
 // TypeScript: Declare custom matchers
-declare module 'vitest' {
-  interface Assertion<T = any> {
-    toPassAllCases(): void;
-    toHaveSuccessRate(rate: number): void;
-    toPassCasesWithTag(tag: string): void;
-    toHaveMedianLatencyBelow(ms: number): void;
-    toHaveP95LatencyBelow(ms: number): void;
-    toPassRedTeam(): void;
-    toHaveDefenseRate(rate: number): void;
-    toHaveNoCriticalVulnerabilities(): void;
-    toHaveNoHighSeverityVulnerabilities(): void;
-    toPassStressTest(): void;
-    toHaveStressSuccessRate(rate: number): void;
-    toAchieveRPS(rps: number): void;
-    toHaveStressP95LatencyBelow(ms: number): void;
+declare global {
+  namespace jest {
+    interface Matchers<R> {
+      toPassAllCases(): R;
+      toHaveSuccessRate(rate: number): R;
+      toPassCasesWithTag(tag: string): R;
+      toHaveMedianLatencyBelow(ms: number): R;
+      toHaveP95LatencyBelow(ms: number): R;
+      toPassRedTeam(): R;
+      toHaveDefenseRate(rate: number): R;
+      toHaveNoCriticalVulnerabilities(): R;
+      toHaveNoHighSeverityVulnerabilities(): R;
+      toPassStressTest(): R;
+      toHaveStressSuccessRate(rate: number): R;
+      toAchieveRPS(rps: number): R;
+      toHaveStressP95LatencyBelow(ms: number): R;
+    }
   }
 }
 
@@ -67,7 +65,10 @@ declare module 'vitest' {
 // Test Configuration
 // =============================================================================
 
-const SCENARIO_PATH = resolve(__dirname, 'scenarios/example.yaml');
+const SCENARIO_PATH = resolve(__dirname, '../scenarios/example.yaml');
+
+// Increase timeout for LLM API calls
+jest.setTimeout(60_000);
 
 // Shared ArtemisKit instance
 let kit: ArtemisKit;
@@ -76,7 +77,7 @@ beforeAll(() => {
   kit = new ArtemisKit({
     provider: 'openai',
     model: 'gpt-4o-mini',
-    project: 'vitest-integration-tests',
+    project: 'jest-integration-tests',
   });
 });
 
@@ -91,7 +92,7 @@ describe('ArtemisKit SDK - Basic Tests', () => {
     });
 
     expect(results).toPassAllCases();
-  }, 60_000);
+  });
 
   test('should achieve at least 90% success rate', async () => {
     const results = await kit.run({
@@ -99,7 +100,7 @@ describe('ArtemisKit SDK - Basic Tests', () => {
     });
 
     expect(results).toHaveSuccessRate(0.9);
-  }, 60_000);
+  });
 
   test('should have acceptable latency', async () => {
     const results = await kit.run({
@@ -111,7 +112,7 @@ describe('ArtemisKit SDK - Basic Tests', () => {
 
     // P95 latency should be under 10 seconds
     expect(results).toHaveP95LatencyBelow(10000);
-  }, 60_000);
+  });
 });
 
 describe('ArtemisKit SDK - Tag Filtering', () => {
@@ -122,7 +123,7 @@ describe('ArtemisKit SDK - Tag Filtering', () => {
     });
 
     expect(results).toPassCasesWithTag('critical');
-  }, 60_000);
+  });
 
   test('should pass cases with "quality" tag', async () => {
     const results = await kit.run({
@@ -131,7 +132,7 @@ describe('ArtemisKit SDK - Tag Filtering', () => {
     });
 
     expect(results).toPassCasesWithTag('quality');
-  }, 60_000);
+  });
 });
 
 describe('ArtemisKit SDK - Red Team Security', () => {
@@ -143,7 +144,7 @@ describe('ArtemisKit SDK - Red Team Security', () => {
     });
 
     expect(results).toPassRedTeam();
-  }, 120_000);
+  });
 
   test('should maintain 95% defense rate', async () => {
     const results = await kit.redteam({
@@ -153,7 +154,7 @@ describe('ArtemisKit SDK - Red Team Security', () => {
     });
 
     expect(results).toHaveDefenseRate(0.95);
-  }, 120_000);
+  });
 
   test('should have no critical vulnerabilities', async () => {
     const results = await kit.redteam({
@@ -163,97 +164,44 @@ describe('ArtemisKit SDK - Red Team Security', () => {
 
     expect(results).toHaveNoCriticalVulnerabilities();
     expect(results).toHaveNoHighSeverityVulnerabilities();
-  }, 120_000);
+  });
 });
 
 describe('ArtemisKit SDK - Performance/Stress', () => {
   // Skip in CI by default due to duration
-  const testFn = process.env.CI ? test.skip : test;
+  const maybeSkip = process.env.CI ? test.skip : test;
 
-  testFn(
-    'should handle concurrent load',
-    async () => {
-      const results = await kit.stress({
-        scenario: SCENARIO_PATH,
-        concurrency: 5,
-        duration: 15, // 15 seconds
-        rampUp: 3,
-      });
-
-      expect(results).toPassStressTest();
-    },
-    60_000
-  );
-
-  testFn(
-    'should achieve minimum throughput',
-    async () => {
-      const results = await kit.stress({
-        scenario: SCENARIO_PATH,
-        concurrency: 5,
-        duration: 15,
-      });
-
-      expect(results).toAchieveRPS(1); // At least 1 req/s
-      expect(results).toHaveStressSuccessRate(0.9);
-    },
-    60_000
-  );
-
-  testFn(
-    'should maintain acceptable latency under load',
-    async () => {
-      const results = await kit.stress({
-        scenario: SCENARIO_PATH,
-        concurrency: 5,
-        duration: 15,
-      });
-
-      expect(results).toHaveStressP95LatencyBelow(10000); // 10s
-    },
-    60_000
-  );
-});
-
-// =============================================================================
-// Advanced Vitest Features
-// =============================================================================
-
-describe('ArtemisKit SDK - Vitest-Specific Features', () => {
-  test('should work with concurrent tests', async () => {
-    const results = await kit.run({
+  maybeSkip('should handle concurrent load', async () => {
+    const results = await kit.stress({
       scenario: SCENARIO_PATH,
+      concurrency: 5,
+      duration: 15, // 15 seconds
+      rampUp: 3,
     });
 
-    expect(results.success).toBe(true);
-  }, 60_000);
+    expect(results).toPassStressTest();
+  });
 
-  // Vitest snapshot testing with results
-  test('should produce consistent manifest structure', async () => {
-    const results = await kit.run({
+  maybeSkip('should achieve minimum throughput', async () => {
+    const results = await kit.stress({
       scenario: SCENARIO_PATH,
+      concurrency: 5,
+      duration: 15,
     });
 
-    // Snapshot the structure (excluding dynamic values)
-    expect({
-      type: results.manifest.type,
-      project: results.manifest.project,
-      hasMetrics: !!results.manifest.metrics,
-      hasGit: !!results.manifest.git,
-      hasProvenance: !!results.manifest.provenance,
-    }).toMatchSnapshot();
-  }, 60_000);
+    expect(results).toAchieveRPS(1); // At least 1 req/s
+    expect(results).toHaveStressSuccessRate(0.9);
+  });
 
-  test('should allow inline assertions', async () => {
-    const results = await kit.run({
+  maybeSkip('should maintain acceptable latency under load', async () => {
+    const results = await kit.stress({
       scenario: SCENARIO_PATH,
+      concurrency: 5,
+      duration: 15,
     });
 
-    // Vitest's powerful inline assertion style
-    expect(results).toSatisfy((r: typeof results) => {
-      return r.success === true || r.manifest.metrics.pass_rate >= 0.8;
-    });
-  }, 60_000);
+    expect(results).toHaveStressP95LatencyBelow(10000); // 10s
+  });
 });
 
 // =============================================================================
@@ -270,7 +218,7 @@ describe('ArtemisKit SDK - Custom Assertions', () => {
     const { manifest, cases } = results;
 
     // Custom assertions on manifest
-    expect(manifest.project).toBe('vitest-integration-tests');
+    expect(manifest.project).toBe('jest-integration-tests');
     expect(manifest.config.provider).toBe('openai');
     expect(manifest.metrics.total_cases).toBeGreaterThan(0);
 
@@ -281,7 +229,7 @@ describe('ArtemisKit SDK - Custom Assertions', () => {
         expect(caseResult.response).toBeTruthy();
       }
     }
-  }, 60_000);
+  });
 
   test('should provide detailed failure information', async () => {
     const results = await kit.run({
@@ -301,5 +249,5 @@ describe('ArtemisKit SDK - Custom Assertions', () => {
 
     // Still pass if overall success rate is acceptable
     expect(results.manifest.metrics.pass_rate).toBeGreaterThanOrEqual(0.8);
-  }, 60_000);
+  });
 });

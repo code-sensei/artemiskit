@@ -1,0 +1,34 @@
+# Basic Load Test Example
+# Tests your LLM's response quality under consistent load
+#
+# Run with:
+#   artemiskit stress 04-stress/basic-load.yaml --concurrency 5 --requests 100
+#
+# Options:
+#   -c, --concurrency <n>  Number of concurrent requests (default: 10)
+#   -n, --requests <n>     Total number of requests
+#   -d, --duration <sec>   Duration to run in seconds (default: 30)
+#   --ramp-up <sec>        Ramp-up time in seconds (default: 5)
+
+name: basic-load-test
+description: Simple load test with consistent concurrent requests
+provider: openai
+model: gpt-4o-mini
+
+cases:
+  - id: simple-question
+    prompt: "What is 2 + 2? Answer with just the number."
+    expected:
+      type: contains
+      values:
+        - "4"
+      mode: any
+
+  - id: greeting-response
+    prompt: "Say hello in a friendly way."
+    expected:
+      type: llm_grader
+      rubric: |
+        The response should be a friendly greeting.
+        It should be warm and welcoming.
+      threshold: 0.7

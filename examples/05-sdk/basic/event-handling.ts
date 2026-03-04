@@ -104,7 +104,7 @@ async function main() {
   });
 
   // Path to scenario
-  const scenarioPath = resolve(__dirname, 'scenarios/example.yaml');
+  const scenarioPath = resolve(__dirname, '../scenarios/example.yaml');
 
   console.log(`${colors.dim}Scenario: ${scenarioPath}${colors.reset}\n`);
 

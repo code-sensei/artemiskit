@@ -1,0 +1,136 @@
+// Jenkinsfile for ArtemisKit LLM Testing
+// Runs quality evaluation, security red-team, and performance stress tests
+
+pipeline {
+    agent any
+
+    environment {
+        OPENAI_API_KEY = credentials('openai-api-key')
+        // Or use other providers:
+        // ANTHROPIC_API_KEY = credentials('anthropic-api-key')
+        // AZURE_OPENAI_API_KEY = credentials('azure-openai-api-key')
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                sh '''
+                    # Install Bun if not present
+                    if ! command -v bun &> /dev/null; then
+                        curl -fsSL https://bun.sh/install | bash
+                        export PATH="$HOME/.bun/bin:$PATH"
+                    fi
+
+                    # Install ArtemisKit
+                    bun add -g @artemiskit/cli
+
+                    # Verify installation
+                    akit --version
+                '''
+            }
+        }
+
+        stage('Quality Evaluation') {
+            steps {
+                sh '''
+                    akit run scenarios/ \
+                        --provider openai \
+                        --model gpt-4o-mini \
+                        --parallel \
+                        --output json \
+                        --save
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'artemis-runs/**/*.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Red Team Security') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'release/*'
+                    changeRequest()
+                }
+            }
+            steps {
+                sh '''
+                    akit redteam \
+                        --scenario scenarios/security-critical.yaml \
+                        --mutations encoding,multi_turn \
+                        --output json \
+                        --save
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'artemis-runs/**/*redteam*.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Stress Test') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh '''
+                    akit stress \
+                        --prompt "You are a helpful assistant" \
+                        --iterations 50 \
+                        --concurrency 5 \
+                        --output json \
+                        --save
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'artemis-runs/**/*stress*.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Generate Report') {
+            steps {
+                sh '''
+                    akit report --latest --format html
+                '''
+            }
+            post {
+                always {
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'artemis-runs',
+                        reportFiles: '**/report.html',
+                        reportName: 'ArtemisKit Report'
+                    ])
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            // Send notification on failure
+            // slackSend(channel: '#llm-testing', message: "ArtemisKit tests failed: ${env.BUILD_URL}")
+            echo 'ArtemisKit tests failed!'
+        }
+        success {
+            echo 'All ArtemisKit tests passed!'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}

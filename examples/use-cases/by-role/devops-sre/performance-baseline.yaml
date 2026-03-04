@@ -1,0 +1,97 @@
+# DevOps/SRE Performance Baseline
+# Establish and monitor performance baselines for LLM services
+#
+# Target Audience: DevOps Engineers, SREs, Platform Engineers
+# Use Case: Performance monitoring and capacity planning
+#
+# Run with: artemiskit stress --scenario use-cases/by-role/devops-sre/performance-baseline.yaml
+
+name: performance-baseline
+description: |
+  Performance baseline testing for DevOps/SRE teams.
+  Measures latency percentiles, throughput, and error rates.
+  Use for capacity planning and SLA monitoring.
+version: "1.0"
+provider: openai
+model: gpt-4o-mini
+
+tags:
+  - performance
+  - baseline
+  - sre
+  - devops
+
+# Stress test configuration
+stress:
+  iterations: 500
+  concurrency: 20
+  timeout: 30000
+  rampUp: true
+  rampUpSteps: 5
+
+# Performance thresholds (for CI/CD gates)
+thresholds:
+  p50_latency_ms: 1000    # 50th percentile under 1s
+  p95_latency_ms: 3000    # 95th percentile under 3s
+  p99_latency_ms: 5000    # 99th percentile under 5s
+  error_rate: 0.01        # Less than 1% errors
+  min_throughput_rps: 5   # At least 5 requests per second
+
+cases:
+  # Light Load Test Case
+  - id: simple-query
+    name: Simple Query (Light)
+    description: Lightweight query for baseline latency
+    prompt: "What is 2+2?"
+    expected:
+      type: contains
+      values:
+        - "4"
+      mode: any
+    tags:
+      - light
+      - baseline
+
+  # Medium Load Test Case
+  - id: medium-query
+    name: Medium Complexity Query
+    description: Medium complexity for typical workload
+    prompt: |
+      Explain the concept of cloud computing in 2 sentences.
+    expected:
+      type: llm_grader
+      rubric: |
+        Response should be concise (2 sentences) and accurate.
+      threshold: 0.7
+    tags:
+      - medium
+      - typical
+
+  # Heavy Load Test Case
+  - id: heavy-query
+    name: Heavy Complexity Query
+    description: Complex query for worst-case latency
+    prompt: |
+      Analyze the following scenario and provide recommendations:
+
+      A startup is experiencing rapid growth. They currently have:
+      - 10,000 daily active users
+      - 50 API endpoints
+      - 3 microservices
+      - PostgreSQL database
+
+      They expect to grow 10x in the next year. What infrastructure
+      changes should they consider? List top 5 priorities.
+    expected:
+      type: combined
+      operator: and
+      expectations:
+        - type: regex
+          pattern: "\\d\\."
+        - type: llm_grader
+          rubric: |
+            Response should provide actionable infrastructure recommendations.
+          threshold: 0.7
+    tags:
+      - heavy
+      - worst-case

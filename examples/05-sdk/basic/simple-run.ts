@@ -23,8 +23,8 @@ async function main() {
     project: 'sdk-examples',
   });
 
-  // Path to scenario file
-  const scenarioPath = resolve(__dirname, 'scenarios/example.yaml');
+  // Path to scenario file (relative to examples/05-sdk/)
+  const scenarioPath = resolve(__dirname, '../scenarios/example.yaml');
 
   console.log(`📋 Running scenario: ${scenarioPath}\n`);
 

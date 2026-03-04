@@ -1,0 +1,61 @@
+# Ramp-Up Load Test Example
+# Gradually increases load to find breaking points
+#
+# Run with:
+#   artemiskit stress 04-stress/ramp-up-pattern.yaml \
+#     --concurrency 10 \
+#     --requests 200 \
+#     --ramp-up 10
+#
+# The --ramp-up flag specifies seconds to gradually increase concurrency
+# from 1 to the target concurrency level.
+
+name: ramp-up-load-test
+description: Gradually increase load to identify performance thresholds
+provider: openai
+model: gpt-4o-mini
+
+cases:
+  - id: complex-reasoning
+    prompt: |
+      Solve this step by step:
+      A train leaves Station A at 9:00 AM traveling at 60 mph.
+      Another train leaves Station B at 10:00 AM traveling at 80 mph.
+      If the stations are 280 miles apart, at what time do they meet?
+    expected:
+      type: contains
+      values:
+        - "11"
+        - "noon"
+        - "12"
+      mode: any
+    tags:
+      - reasoning
+      - complex
+
+  - id: json-generation
+    prompt: |
+      Generate a JSON object with the following fields:
+      - name: a random person's name
+      - age: a number between 20 and 60
+      - occupation: a job title
+
+      Return only valid JSON, no explanation.
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required:
+          - name
+          - age
+          - occupation
+        properties:
+          name:
+            type: string
+          age:
+            type: number
+          occupation:
+            type: string
+    tags:
+      - json
+      - structured

@@ -15,13 +15,13 @@ import type { ModelClient } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 import { ActionValidator, createDefaultActionValidator } from './action-validator';
 import { CircuitBreaker, MetricsCollector, RateLimiter } from './circuit-breaker';
-import { createGuardrails, type GuardrailsConfig } from './guardrails';
-import { IntentClassifier, createIntentClassifier } from './intent-classifier';
+import { type GuardrailsConfig, createGuardrails } from './guardrails';
+import { type IntentClassifier, createIntentClassifier } from './intent-classifier';
 import {
+  GuardianBlockedError,
   GuardianInterceptor,
   type GuardrailFn,
   type InterceptorConfig,
-  GuardianBlockedError,
 } from './interceptor';
 import { createDefaultPolicy, loadPolicy, parsePolicy } from './policy';
 import type {

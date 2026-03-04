@@ -16,9 +16,9 @@
  *   tsx stress-example.ts
  */
 
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
 import type { StressRequestCompleteEvent } from '@artemiskit/sdk';
-import { resolve } from 'path';
 
 // ANSI color codes
 const colors = {

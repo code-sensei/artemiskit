@@ -18,9 +18,9 @@
  *   tsx with-events.ts
  */
 
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
-import type { CaseStartEvent, CaseCompleteEvent, ProgressEvent } from '@artemiskit/sdk';
-import { resolve } from 'path';
+import type { CaseCompleteEvent, CaseStartEvent, ProgressEvent } from '@artemiskit/sdk';
 
 // ANSI color codes for pretty output
 const colors = {

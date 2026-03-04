@@ -11,12 +11,12 @@
  *   bun examples/agentic-testing/deepagents/test-multi-agent.ts
  */
 
-import { createDeepAgentsAdapter, DeepAgentsAdapter } from '@artemiskit/adapter-deepagents';
+import { DeepAgentsAdapter, createDeepAgentsAdapter } from '@artemiskit/adapter-deepagents';
 import type {
-  DeepAgentsSystem,
-  DeepAgentsInput,
   DeepAgentsConfig,
+  DeepAgentsInput,
   DeepAgentsOutput,
+  DeepAgentsSystem,
 } from '@artemiskit/adapter-deepagents';
 
 // ============================================
@@ -469,7 +469,7 @@ async function testErrorHandling() {
   }
 
   // Test with very long input
-  const longInput = 'Analyze this topic: ' + 'Lorem ipsum '.repeat(100);
+  const longInput = `Analyze this topic: ${'Lorem ipsum '.repeat(100)}`;
   try {
     const result = await contentAdapter.generate({
       prompt: longInput,

@@ -8,11 +8,11 @@
  *   bun examples/agentic-testing/langchain/test-chain.ts
  */
 
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { LangChainAdapter, createLangChainAdapter } from '@artemiskit/adapter-langchain';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableSequence } from '@langchain/core/runnables';
-import { createLangChainAdapter, LangChainAdapter } from '@artemiskit/adapter-langchain';
+import { ChatOpenAI } from '@langchain/openai';
 
 // ============================================
 // 1. Create your LangChain chain

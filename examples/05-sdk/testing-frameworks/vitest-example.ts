@@ -33,19 +33,20 @@
  *   bunx vitest run vitest-integration.test.ts
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
+// For local development in this monorepo, use:
+// import { vitestMatchers } from '../../../packages/sdk/src/matchers/vitest';
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
 // Import Vitest matchers from the SDK
 import { vitestMatchers } from '@artemiskit/sdk/vitest';
-// For local development in this monorepo, use:
-// import { vitestMatchers } from '../../../packages/sdk/src/matchers/vitest';
-import { resolve } from 'path';
+import { beforeAll, describe, expect, test } from 'vitest';
 
 // Extend Vitest with ArtemisKit matchers
 expect.extend(vitestMatchers);
 
 // TypeScript: Declare custom matchers
 declare module 'vitest' {
+  // biome-ignore lint/suspicious/noExplicitAny: Required by Vitest's type system for extending matchers
   interface Assertion<T = any> {
     toPassAllCases(): void;
     toHaveSuccessRate(rate: number): void;

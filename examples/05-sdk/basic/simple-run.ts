@@ -10,8 +10,8 @@
  *   tsx basic-run.ts
  */
 
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
-import { resolve } from 'path';
 
 async function main() {
   console.log('🏹 ArtemisKit SDK - Basic Run Example\n');

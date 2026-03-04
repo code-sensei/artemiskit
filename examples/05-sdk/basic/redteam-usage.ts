@@ -20,9 +20,9 @@
  *   tsx redteam-example.ts
  */
 
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
-import type { RedTeamMutationStartEvent, RedTeamMutationCompleteEvent } from '@artemiskit/sdk';
-import { resolve } from 'path';
+import type { RedTeamMutationCompleteEvent, RedTeamMutationStartEvent } from '@artemiskit/sdk';
 
 // ANSI color codes
 const colors = {

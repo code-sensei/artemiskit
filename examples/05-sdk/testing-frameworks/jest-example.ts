@@ -30,12 +30,12 @@
  *   bun test jest-integration.test.ts
  */
 
+// For local development in this monorepo, use:
+// import { jestMatchers } from '../../../packages/sdk/src/matchers/jest';
+import { resolve } from 'node:path';
 import { ArtemisKit } from '@artemiskit/sdk';
 // Import Jest matchers from the SDK
 import { jestMatchers } from '@artemiskit/sdk/jest';
-// For local development in this monorepo, use:
-// import { jestMatchers } from '../../../packages/sdk/src/matchers/jest';
-import { resolve } from 'path';
 
 // Extend Jest with ArtemisKit matchers
 expect.extend(jestMatchers);

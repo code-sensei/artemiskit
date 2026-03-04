@@ -8,12 +8,12 @@
  *   bun examples/agentic-testing/langchain/test-agent.ts
  */
 
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
-import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
 import { LangChainAdapter, createLangChainAdapter } from '@artemiskit/adapter-langchain';
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import { ChatOpenAI } from '@langchain/openai';
+import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
+import { z } from 'zod';
 
 // ============================================
 // 1. Define custom tools
@@ -317,8 +317,8 @@ async function main() {
   const results: Record<string, boolean> = {};
 
   try {
-    results['Calculator'] = await testCalculator();
-    results['Weather'] = await testWeather();
+    results.Calculator = await testCalculator();
+    results.Weather = await testWeather();
     results['Tool Selection'] = await testToolSelection();
     results['Multi-Step'] = await testMultiStepReasoning();
     results['Intermediate Steps'] = await testIntermediateSteps();

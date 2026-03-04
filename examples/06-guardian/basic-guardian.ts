@@ -10,7 +10,7 @@
 
 import { createAdapter } from '@artemiskit/core';
 // Import Guardian from the SDK
-import { createGuardian, type GuardianConfig, type Violation } from '@artemiskit/sdk';
+import { type GuardianConfig, type Violation, createGuardian } from '@artemiskit/sdk';
 // For local development in this monorepo, use:
 // import { createGuardian, type GuardianConfig, type Violation } from '../../packages/sdk/src/guardian';
 

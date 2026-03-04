@@ -5,7 +5,7 @@
  * Policies define the guardrails, rules, and configurations for the guardian.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import YAML from 'yaml';
 import { z } from 'zod';

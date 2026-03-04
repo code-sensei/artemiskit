@@ -119,10 +119,18 @@ export class OpenAIAdapter implements ModelClient {
     const model = options.model || this.config.defaultModel || 'gpt-4';
     const messages = this.normalizePrompt(options.prompt);
 
+    // Determine which token limit parameter to use (same logic as generate)
+    const useNewTokenParam = this.shouldUseMaxCompletionTokens(model);
+    const tokenParams = options.maxTokens
+      ? useNewTokenParam
+        ? { max_completion_tokens: options.maxTokens }
+        : { max_tokens: options.maxTokens }
+      : {};
+
     const stream = await this.client.chat.completions.create({
       model,
       messages,
-      max_tokens: options.maxTokens,
+      ...tokenParams,
       temperature: options.temperature,
       stream: true,
     });
@@ -197,18 +205,45 @@ export class OpenAIAdapter implements ModelClient {
 
   /**
    * Determine if model requires max_completion_tokens instead of max_tokens
-   * Newer models (GPT-4o, GPT-5, o1, o3) require the new parameter
+   * Newer models (GPT-4o, GPT-4.5, GPT-5, o1, o3, mini variants) require the new parameter
    *
    * @param model - The deployment name or model name used in the API call
    */
   private shouldUseMaxCompletionTokens(model: string): boolean {
-    // First check modelFamily from config (most reliable for Azure deployments)
     const azureConfig = this.config as AzureOpenAIAdapterConfig;
-    const modelToCheck = azureConfig.modelFamily || model;
 
-    const modelLower = modelToCheck.toLowerCase();
-    // Models that require max_completion_tokens
-    const newParamModels = ['gpt-4o', 'gpt-4-turbo', 'gpt-5', 'o1', 'o3', 'chatgpt-4o'];
-    return newParamModels.some((m) => modelLower.includes(m));
+    // For Azure, we have multiple sources to check:
+    // 1. modelFamily (explicit config) - most reliable
+    // 2. deploymentName - the actual Azure deployment
+    // 3. model parameter - what was passed to generate()
+    const modelsToCheck = [azureConfig.modelFamily, azureConfig.deploymentName, model].filter(
+      Boolean
+    ) as string[];
+
+    // Models that require max_completion_tokens:
+    // - GPT-4o and variants (gpt-4o, gpt-4o-mini, chatgpt-4o)
+    // - GPT-4.5 and variants
+    // - GPT-4-turbo
+    // - GPT-5 and variants (gpt-5, gpt-5-mini, 5-mini)
+    // - o1 and o3 reasoning models
+    // - Any "mini" model (these are all newer architecture)
+    const newParamPatterns = [
+      'gpt-4o',
+      'gpt-4.5',
+      'gpt-4-turbo',
+      'gpt-5',
+      '5-mini', // Azure deployment names like "5-mini"
+      'o1',
+      'o3',
+      'chatgpt-4o',
+      '-mini', // Catches any mini variant (gpt-4o-mini, gpt-5-mini, etc.)
+      'mini', // Standalone mini patterns
+    ];
+
+    // Check if ANY of the model identifiers match ANY of the patterns
+    return modelsToCheck.some((modelName) => {
+      const modelLower = modelName.toLowerCase();
+      return newParamPatterns.some((pattern) => modelLower.includes(pattern));
+    });
   }
 }

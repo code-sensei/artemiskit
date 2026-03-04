@@ -62,7 +62,8 @@ export class LangChainAdapter implements ModelClient {
    */
   private detectRunnableType(runnable: LangChainRunnable): LangChainRunnableType {
     // Check for agent-specific properties
-    const runnableAny = runnable as Record<string, unknown>;
+    // Cast through unknown first since LangChainRunnable is a specific interface
+    const runnableAny = runnable as unknown as Record<string, unknown>;
     if (
       runnableAny.agent ||
       runnableAny.agentExecutor ||

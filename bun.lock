@@ -1,10 +1,11 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "artemis",
       "devDependencies": {
-        "@artemiskit/cli": "0.1.8",
+        "@artemiskit/cli": "workspace:*",
         "@biomejs/biome": "^1.5.0",
         "@changesets/changelog-github": "0.5.2",
         "@changesets/cli": "2.29.8",
@@ -16,7 +17,7 @@
     },
     "packages/adapters/anthropic": {
       "name": "@artemiskit/adapter-anthropic",
-      "version": "0.1.6",
+      "version": "0.1.11",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.30.0",
         "@artemiskit/core": "workspace:*",
@@ -29,7 +30,7 @@
     },
     "packages/adapters/openai": {
       "name": "@artemiskit/adapter-openai",
-      "version": "0.1.6",
+      "version": "0.1.11",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -42,7 +43,7 @@
     },
     "packages/adapters/vercel-ai": {
       "name": "@artemiskit/adapter-vercel-ai",
-      "version": "0.1.6",
+      "version": "0.1.11",
       "dependencies": {
         "@ai-sdk/azure": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
@@ -57,7 +58,7 @@
     },
     "packages/cli": {
       "name": "@artemiskit/cli",
-      "version": "0.1.8",
+      "version": "0.2.4",
       "bin": {
         "artemis": "./bin/artemis.ts",
       },
@@ -83,7 +84,7 @@
     },
     "packages/core": {
       "name": "@artemiskit/core",
-      "version": "0.1.6",
+      "version": "0.2.4",
       "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
         "consola": "3.4.2",
@@ -100,7 +101,7 @@
     },
     "packages/redteam": {
       "name": "@artemiskit/redteam",
-      "version": "0.1.6",
+      "version": "0.2.4",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "yaml": "2.8.2",
@@ -112,7 +113,7 @@
     },
     "packages/reports": {
       "name": "@artemiskit/reports",
-      "version": "0.1.6",
+      "version": "0.2.4",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "handlebars": "^4.7.8",
@@ -121,6 +122,26 @@
         "@types/bun": "^1.1.0",
         "typescript": "^5.3.0",
       },
+    },
+    "packages/sdk": {
+      "name": "@artemiskit/sdk",
+      "version": "0.2.4",
+      "dependencies": {
+        "@artemiskit/core": "workspace:*",
+        "@artemiskit/redteam": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.1.0",
+        "typescript": "^5.3.0",
+      },
+      "peerDependencies": {
+        "@jest/expect": ">=29.0.0",
+        "vitest": ">=1.0.0",
+      },
+      "optionalPeers": [
+        "@jest/expect",
+        "vitest",
+      ],
     },
   },
   "packages": {
@@ -149,6 +170,8 @@
     "@artemiskit/redteam": ["@artemiskit/redteam@workspace:packages/redteam"],
 
     "@artemiskit/reports": ["@artemiskit/reports@workspace:packages/reports"],
+
+    "@artemiskit/sdk": ["@artemiskit/sdk@workspace:packages/sdk"],
 
     "@babel/runtime": ["@babel/runtime@7.28.4", "", {}, "sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ=="],
 

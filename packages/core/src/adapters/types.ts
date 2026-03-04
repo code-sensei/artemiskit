@@ -125,6 +125,8 @@ export type ProviderType =
   | 'cohere'
   | 'huggingface'
   | 'ollama'
+  | 'langchain'
+  | 'deepagents'
   | 'custom';
 
 /**
@@ -181,6 +183,38 @@ export interface AnthropicAdapterConfig extends BaseAdapterConfig {
 }
 
 /**
+ * LangChain adapter configuration
+ */
+export interface LangChainAdapterConfig extends BaseAdapterConfig {
+  provider: 'langchain';
+  /** Type of LangChain runnable */
+  runnableType?: 'chain' | 'agent' | 'llm' | 'runnable';
+  /** Name identifier for the chain/agent */
+  name?: string;
+  /** Capture intermediate steps from agents */
+  captureIntermediateSteps?: boolean;
+  /** Custom input key */
+  inputKey?: string;
+  /** Custom output key */
+  outputKey?: string;
+}
+
+/**
+ * DeepAgents adapter configuration
+ */
+export interface DeepAgentsAdapterConfig extends BaseAdapterConfig {
+  provider: 'deepagents';
+  /** Name identifier for the agent system */
+  name?: string;
+  /** Capture agent execution traces */
+  captureTraces?: boolean;
+  /** Capture inter-agent messages */
+  captureMessages?: boolean;
+  /** Maximum execution time in milliseconds */
+  executionTimeout?: number;
+}
+
+/**
  * Union type for all adapter configs
  */
 export type AdapterConfig =
@@ -188,4 +222,6 @@ export type AdapterConfig =
   | AzureOpenAIAdapterConfig
   | VercelAIAdapterConfig
   | AnthropicAdapterConfig
+  | LangChainAdapterConfig
+  | DeepAgentsAdapterConfig
   | BaseAdapterConfig;

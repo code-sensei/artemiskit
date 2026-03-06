@@ -81,9 +81,42 @@ const html = await generateStressHTMLReport(stressManifest);
 
 Features:
 - Requests per second
-- Latency percentiles (p50, p95, p99)
+- Latency percentiles (p50, p90, p95, p99)
 - Success/error rates
 - Concurrent request metrics
+- Token usage tracking
+- Cost estimation
+
+### Run Comparison Reports
+
+Generate visual diffs between two runs:
+
+```typescript
+import { generateComparisonHTMLReport } from '@artemiskit/reports';
+
+const html = await generateComparisonHTMLReport(baselineManifest, currentManifest);
+```
+
+Features:
+- Metrics overview with baseline vs current
+- Change summary (regressions, improvements, unchanged)
+- Case-by-case comparison with filtering
+- Side-by-side response comparison
+
+## Export Formats
+
+Beyond HTML, ArtemisKit supports additional export formats:
+
+- **JUnit XML** - CI/CD integration with Jenkins, GitHub Actions, GitLab CI
+- **Markdown** - Compliance-ready documentation
+
+```bash
+# JUnit XML export
+akit run scenarios/ --export junit
+
+# Markdown export
+akit run scenarios/ --export markdown
+```
 
 ## Regenerating Reports
 

@@ -24,7 +24,11 @@ import {
   parseScenarioFile,
 } from '@artemiskit/core';
 import {
+  // Agent mutations (v0.3.1)
+  AgentConfusionMutation,
+  type AgentDetectionMode,
   BadLikertJudgeMutation,
+  ChainManipulationMutation,
   type ConversationTurn,
   CotInjectionMutation,
   CrescendoMutation,
@@ -33,6 +37,7 @@ import {
   ExcessiveAgencyMutation,
   HallucinationTrapMutation,
   InstructionFlipMutation,
+  MemoryPoisoningMutation,
   MultiTurnMutation,
   type Mutation,
   OWASP_CATEGORIES,
@@ -41,11 +46,14 @@ import {
   RoleSpoofMutation,
   SeverityMapper,
   SystemExtractionMutation,
+  ToolAbuseMutation,
   TypoMutation,
   UnsafeResponseDetector,
   createMutationsFromConfig,
   filterMutationsBySeverity,
+  getAgentMutationNames,
   getMutationsForCategory,
+  isAgentMutation,
   loadAttackConfig,
   loadCustomAttacks,
 } from '@artemiskit/redteam';
@@ -95,6 +103,8 @@ interface RedteamOptions {
   owasp?: string[];
   owaspFull?: boolean;
   minSeverity?: 'low' | 'medium' | 'high' | 'critical';
+  // Agent-specific options (v0.3.1)
+  agentDetection?: 'trace' | 'response' | 'combined';
 }
 
 export function redteamCommand(): Command {
@@ -135,6 +145,11 @@ export function redteamCommand(): Command {
     .option(
       '--min-severity <level>',
       'Minimum severity level for attacks (low, medium, high, critical)'
+    )
+    // Agent-specific options (v0.3.1)
+    .option(
+      '--agent-detection <mode>',
+      'Detection mode for agent mutations: trace (analyze tool calls), response (analyze text), combined (both)'
     )
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = createSpinner('Loading configuration...');
@@ -189,6 +204,7 @@ export function redteamCommand(): Command {
           owaspCategories: options.owasp,
           owaspFull: options.owaspFull,
           minSeverity: options.minSeverity,
+          agentDetection: options.agentDetection as AgentDetectionMode | undefined,
         });
 
         const generator = new RedTeamGenerator(mutations);
@@ -212,6 +228,16 @@ export function redteamCommand(): Command {
         }
         if (options.minSeverity) {
           configLines.push(`Min Severity: ${options.minSeverity}`);
+        }
+        if (options.agentDetection) {
+          configLines.push(`Agent Detection: ${options.agentDetection}`);
+        }
+        // Check if any agent mutations are being used
+        const agentMutationCount = mutations.filter((m) => isAgentMutation(m.name)).length;
+        if (agentMutationCount > 0) {
+          configLines.push(
+            `Agent Mutations: ${agentMutationCount} (tool-abuse, agent-confusion, memory-poisoning, chain-manipulation)`
+          );
         }
         if (options.redact) {
           configLines.push(
@@ -606,7 +632,10 @@ export function redteamCommand(): Command {
 /**
  * All available mutations registry
  */
-function getAllMutations(): Record<string, Mutation> {
+function getAllMutations(agentDetection?: AgentDetectionMode): Record<string, Mutation> {
+  // Agent mutations with detection mode
+  const agentOpts = agentDetection ? { detectionMode: agentDetection } : {};
+
   return {
     // Core mutations (v0.1.x - v0.2.x)
     typo: new TypoMutation(),
@@ -622,17 +651,26 @@ function getAllMutations(): Record<string, Mutation> {
     crescendo: new CrescendoMutation(),
     'deceptive-delight': new DeceptiveDelightMutation(),
 
-    // LLM05 - Insecure Output Handling
+    // LLM02 - Insecure Output Handling
     'output-injection': new OutputInjectionMutation(),
 
     // LLM06 - Excessive Agency
     'excessive-agency': new ExcessiveAgencyMutation(),
 
-    // LLM07 - System Prompt Leakage
+    // LLM06 - Sensitive Information Disclosure
     'system-extraction': new SystemExtractionMutation(),
 
     // LLM09 - Misinformation
     'hallucination-trap': new HallucinationTrapMutation(),
+
+    // Agent-specific mutations (v0.3.1)
+    // LLM01 - Prompt Injection (agent context)
+    'agent-confusion': new AgentConfusionMutation(agentOpts),
+    'memory-poisoning': new MemoryPoisoningMutation(agentOpts),
+    'chain-manipulation': new ChainManipulationMutation(agentOpts),
+
+    // LLM08 - Excessive Agency (tool misuse)
+    'tool-abuse': new ToolAbuseMutation(agentOpts),
   };
 }
 
@@ -656,10 +694,11 @@ function getOwaspMutations(categories: string[]): string[] {
 }
 
 /**
- * Get all OWASP mutations
+ * Get all OWASP mutations (including agent mutations)
  */
 function getAllOwaspMutations(): string[] {
   return [
+    // Core OWASP mutations
     'bad-likert-judge',
     'crescendo',
     'deceptive-delight',
@@ -667,6 +706,8 @@ function getAllOwaspMutations(): string[] {
     'excessive-agency',
     'system-extraction',
     'hallucination-trap',
+    // Agent-specific OWASP mutations (v0.3.1)
+    ...getAgentMutationNames(),
   ];
 }
 
@@ -677,11 +718,19 @@ interface SelectMutationsOptions {
   owaspCategories?: string[];
   owaspFull?: boolean;
   minSeverity?: 'low' | 'medium' | 'high' | 'critical';
+  agentDetection?: AgentDetectionMode;
 }
 
 async function selectMutations(options: SelectMutationsOptions): Promise<Mutation[]> {
-  const { names, customAttacksPath, attackConfigPath, owaspCategories, owaspFull, minSeverity } =
-    options;
+  const {
+    names,
+    customAttacksPath,
+    attackConfigPath,
+    owaspCategories,
+    owaspFull,
+    minSeverity,
+    agentDetection,
+  } = options;
 
   // If attack config is provided, it takes highest precedence
   if (attackConfigPath) {
@@ -705,7 +754,7 @@ async function selectMutations(options: SelectMutationsOptions): Promise<Mutatio
     return mutations;
   }
 
-  const allMutations = getAllMutations();
+  const allMutations = getAllMutations(agentDetection);
   let selectedNames: string[] = [];
 
   // Determine which mutations to use based on options

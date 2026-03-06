@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-03-06
+
+### Highlights
+
+- **Agent-Specific Mutations** - 4 new mutations targeting agentic AI vulnerabilities (LLM01, LLM08)
+- **Dual Detection Modes** - Trace-based and response-based detection for agent attacks
+
+### Added
+
+#### Red Team Agent Mutations (`@artemiskit/redteam`)
+
+- `agent-confusion` - Tests if agents can be confused about their identity, role, or capabilities
+- `tool-abuse` - Tests if agents can be manipulated into misusing tools inappropriately
+- `memory-poisoning` - Tests if agent memory/context can be corrupted with malicious data
+- `chain-manipulation` - Tests if malicious instructions can propagate through agent chains
+- `--agent-detection` CLI flag - Choose detection mode (`trace` or `response`)
+- Dual detection strategies for trace-based and response-based analysis
+- OWASP LLM01 (Prompt Injection) and LLM08 (Excessive Agency) coverage
+- 110 new unit tests for agent mutations
+
+### Changed
+
+- Enhanced `AgentMutationDetector` with unified detection interface
+- Red team results now include agent-specific vulnerability metrics
+
+---
+
 ## [0.3.0] - 2026-03-05
 
 ### Highlights
@@ -196,6 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.3.1]: https://github.com/code-sensei/artemiskit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/code-sensei/artemiskit/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/code-sensei/artemiskit/compare/v0.2.1...v0.2.4
 [0.2.1]: https://github.com/code-sensei/artemiskit/compare/v0.2.0...v0.2.1

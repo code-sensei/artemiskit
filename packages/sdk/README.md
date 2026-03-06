@@ -7,7 +7,8 @@ Programmatic SDK for [ArtemisKit](https://github.com/code-sensei/artemiskit) - i
 - 🚀 **Simple API** - Run tests, red team evaluations, and stress tests programmatically
 - 📊 **Event Emitters** - Real-time progress tracking with `onCaseStart`, `onCaseComplete`, `onProgress`
 - 🧪 **Test Framework Integration** - Custom matchers for Jest and Vitest
-- 🔴 **Red Team Testing** - Adversarial security testing built-in
+- 🔴 **Red Team Testing** - Adversarial security testing with OWASP LLM Top 10 coverage
+- 🛡️ **Guardian Mode** - Runtime AI protection with injection detection and PII filtering
 - ⚡ **Stress Testing** - Load testing with configurable concurrency
 - 📝 **TypeScript First** - Full type definitions included
 
@@ -167,6 +168,48 @@ describe('LLM Tests', () => {
 - `toHaveStressSuccessRate(rate)`
 - `toAchieveRPS(rps)`
 - `toHaveStressP95LatencyBelow(ms)`
+
+## Guardian Mode
+
+Protect your LLM applications at runtime:
+
+```typescript
+import { createGuardian } from '@artemiskit/sdk/guardian';
+
+const guardian = createGuardian({
+  mode: 'guardian',
+  blockOnFailure: true,
+});
+
+// Wrap your LLM client
+const protectedClient = guardian.protect(myLLMClient);
+
+// Validate inputs before sending to LLM
+const inputResult = await guardian.validateInput(userMessage);
+if (!inputResult.safe) {
+  console.error('Blocked:', inputResult.reason);
+}
+
+// Validate outputs before returning to user
+const outputResult = await guardian.validateOutput(llmResponse);
+```
+
+### Guardian Features
+
+- **Prompt Injection Detection** - Pattern matching for injection attempts
+- **PII Detection & Redaction** - Email, phone, SSN, API keys
+- **Action Validation** - Validate agent tool/function calls
+- **Intent Classification** - Risk scoring for user intents
+- **Circuit Breaker** - Auto-block on repeated violations
+- **Rate & Cost Limiting** - Control usage
+
+### Guardian Modes
+
+| Mode | Description |
+|------|-------------|
+| `testing` | Log violations but don't block |
+| `guardian` | Block violations and log |
+| `hybrid` | Block critical, log others |
 
 ## License
 

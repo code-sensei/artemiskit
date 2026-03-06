@@ -45,15 +45,33 @@ Options:
 
 ### `artemiskit redteam <scenario>`
 
-Run adversarial security tests including prompt injection, jailbreak attempts, and data extraction probes.
+Run adversarial security tests including prompt injection, jailbreak attempts, data extraction probes, and agent-specific attacks.
 
 ```bash
+# Basic red team testing
 artemiskit redteam tests/chatbot.yaml --count 5
+
+# OWASP LLM Top 10 testing
+artemiskit redteam tests/chatbot.yaml --owasp LLM01,LLM05
+artemiskit redteam tests/chatbot.yaml --owasp-full
+
+# Agent-specific testing
+artemiskit redteam tests/agent.yaml --mutations agent-confusion,tool-abuse --agent-detection trace
 ```
 
 Options:
 - `-c, --count <n>` - Number of mutated prompts per case (default: 5)
-- `--mutations <types...>` - Mutations to apply (typo, role-spoof, instruction-flip, cot-injection)
+- `--mutations <types...>` - Mutations to apply:
+  - Basic: `typo`, `role-spoof`, `instruction-flip`, `cot-injection`
+  - Encoding: `encoding` (base64, ROT13, hex, unicode)
+  - Multi-turn: `multi_turn` (gradual escalation, context switching)
+  - Agent: `agent-confusion`, `tool-abuse`, `memory-poisoning`, `chain-manipulation`
+  - OWASP: `bad-likert-judge`, `crescendo`, `deceptive-delight`, `output-injection`, `excessive-agency`, `system-extraction`, `hallucination-trap`
+- `--owasp <categories>` - Test by OWASP LLM category (e.g., `LLM01,LLM05`)
+- `--owasp-full` - Full OWASP LLM Top 10 compliance scan
+- `--agent-detection <mode>` - Detection mode for agent mutations (`trace` or `response`)
+- `--min-severity <level>` - Filter attacks by severity (low, medium, high, critical)
+- `--custom-attacks <path>` - Load custom attack patterns from YAML
 - `--redact` - Enable PII/sensitive data redaction
 
 ### `artemiskit stress <scenario>`

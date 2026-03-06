@@ -9,6 +9,32 @@
 export * from './mutations';
 
 // ==========================================
+// Attack Configuration
+// ==========================================
+export {
+  parseAttackConfig,
+  loadAttackConfig,
+  createMutationsFromConfig,
+  getEnabledMutationNames,
+  getConfigDefaults,
+  filterMutationsBySeverity,
+  applyOwaspFilters,
+  generateExampleAttackConfig,
+  AttackConfigSchema,
+  type AttackConfig,
+  type AttackConfigDefaults,
+  type BadLikertJudgeConfig,
+  type CrescendoConfig,
+  type DeceptiveDelightConfig,
+  type OutputInjectionConfig,
+  type ExcessiveAgencyConfig,
+  type SystemExtractionConfig,
+  type HallucinationTrapConfig,
+  type EncodingConfig,
+  type MultiTurnConfig,
+} from './attack-config';
+
+// ==========================================
 // Generator & Detector
 // ==========================================
 export { RedTeamGenerator, type GeneratedPrompt } from './generator';

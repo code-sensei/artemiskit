@@ -1,5 +1,17 @@
 # @artemiskit/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- 29e29d6: Fix npm install error caused by unresolved workspace:\* dependencies
+
+  The published package contained workspace:\* protocol references for @artemiskit/adapter-deepagents and @artemiskit/adapter-langchain, which npm doesn't support. These are now properly resolved to version numbers during publish.
+
+  Fix npm install error caused by unresolved workspace:\* dependencies
+
+  The published package contained workspace:\* protocol references for @artemiskit/adapter-deepagents and @artemiskit/adapter-langchain, which npm doesn't support. These are now properly resolved to version numbers during publish.
+
 ## 0.3.0
 
 ### Minor Changes

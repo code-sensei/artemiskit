@@ -459,7 +459,7 @@ export function filterMutationsBySeverity(
  */
 export function generateExampleAttackConfig(): string {
   return `# Attack Configuration File
-# See: https://artemiskit.vercel.app/cli/redteam/attack-config
+# See: https://artemiskit.vercel.app/docs/cli/commands/redteam#attack-configuration-file
 version: "1.0"
 
 # Global defaults

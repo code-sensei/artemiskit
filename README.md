@@ -520,6 +520,45 @@ Test your LLM for vulnerabilities:
 akit redteam scenarios/my-bot.yaml --mutations typo,role-spoof,cot-injection
 ```
 
+### Attack Configuration File
+
+Fine-tune your red team testing with a YAML configuration file:
+
+```bash
+akit redteam scenarios/my-bot.yaml --attack-config attacks.yaml
+```
+
+Example `attacks.yaml`:
+
+```yaml
+version: "1.0"
+
+defaults:
+  severity: medium
+
+mutations:
+  bad-likert-judge:
+    enabled: true
+    scaleType: effectiveness
+  crescendo:
+    enabled: true
+    steps: 5
+  encoding:
+    enabled: true
+    types:
+      - base64
+      - rot13
+
+owasp:
+  LLM01:
+    enabled: true
+    minSeverity: medium
+  LLM05:
+    enabled: false  # Disable this category
+```
+
+Mutations must be **explicitly listed** in the config to be included. OWASP category settings can disable entire categories or set minimum severity thresholds.
+
 ### Available Mutations
 
 | Mutation | Description | OWASP |

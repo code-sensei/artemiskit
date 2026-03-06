@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--owasp` flag - Test by OWASP category (e.g., `--owasp LLM01,LLM05`)
 - `--owasp-full` flag - Full OWASP compliance scan
 - `--min-severity` flag - Filter attacks by severity level
+- `--attack-config` flag - YAML-based attack configuration with fine-grained mutation control and OWASP category overrides
 
 #### Agentic Framework Adapters
 

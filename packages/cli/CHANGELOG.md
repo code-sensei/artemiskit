@@ -1,5 +1,13 @@
 # @artemiskit/cli
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [45a5bd3]
+  - @artemiskit/adapter-deepagents@0.2.1
+  - @artemiskit/adapter-langchain@0.2.1
+
 ## 0.3.1
 
 ### Patch Changes

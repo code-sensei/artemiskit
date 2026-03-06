@@ -1,5 +1,11 @@
 # @artemiskit/adapter-deepagents
 
+## 0.2.1
+
+### Patch Changes
+
+- 45a5bd3: Fix npm install error caused by unresolved workspace:\* dependency on @artemiskit/core
+
 ## 0.2.0
 
 ### Minor Changes

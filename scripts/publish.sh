@@ -208,7 +208,21 @@ echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
 
 # Replace workspace:* with actual version numbers for npm compatibility
 ./scripts/fix-workspace-deps.sh
-echo -e "${GREEN}✓ Workspace dependencies fixed${NC}"
+
+# Validate no workspace:* remains (prevents publishing broken packages)
+echo ""
+echo "Validating workspace:* dependencies are fully resolved..."
+REMAINING_WORKSPACE=$(grep -r '"workspace:\*"' packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true)
+if [ -n "$REMAINING_WORKSPACE" ]; then
+  echo -e "${RED}ERROR: Found unfixed workspace:* dependencies:${NC}"
+  echo "$REMAINING_WORKSPACE"
+  echo ""
+  echo -e "${RED}Please update scripts/fix-workspace-deps.sh to include all packages.${NC}"
+  # Restore before exiting
+  ./scripts/fix-workspace-deps.sh --restore
+  exit 1
+fi
+echo -e "${GREEN}✓ Workspace dependencies fixed and validated${NC}"
 
 # Step 9: Publish
 echo ""

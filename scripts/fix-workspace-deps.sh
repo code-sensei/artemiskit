@@ -28,8 +28,11 @@ PACKAGES=(
   "packages/adapters/openai"
   "packages/adapters/anthropic"
   "packages/adapters/vercel-ai"
+  "packages/adapters/deepagents"
+  "packages/adapters/langchain"
   "packages/redteam"
   "packages/reports"
+  "packages/sdk"
   "packages/cli"
 )
 

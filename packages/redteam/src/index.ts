@@ -18,6 +18,7 @@ export {
   getEnabledMutationNames,
   getConfigDefaults,
   filterMutationsBySeverity,
+  applyOwaspFilters,
   generateExampleAttackConfig,
   AttackConfigSchema,
   type AttackConfig,

@@ -233,11 +233,65 @@ export async function loadAttackConfig(filePath: string): Promise<AttackConfig> 
 }
 
 // ============================================================================
+// OWASP Category Mapping
+// ============================================================================
+
+/**
+ * Map mutation names to their OWASP categories
+ */
+const MUTATION_OWASP_CATEGORIES: Record<string, string> = {
+  'bad-likert-judge': 'LLM01',
+  crescendo: 'LLM01',
+  'deceptive-delight': 'LLM01',
+  'output-injection': 'LLM02',
+  'excessive-agency': 'LLM08',
+  'system-extraction': 'LLM06',
+  'hallucination-trap': 'LLM09',
+  encoding: 'LLM01', // Encoding is a technique for prompt injection
+  'multi-turn': 'LLM01', // Multi-turn is a technique for prompt injection
+};
+
+// ============================================================================
 // Mutation Factory
 // ============================================================================
 
 /**
+ * Check if a mutation is enabled based on config and OWASP settings
+ */
+function isMutationEnabled(
+  mutationName: string,
+  mutationConfig: { enabled?: boolean } | undefined,
+  owaspConfig: AttackConfig['owasp']
+): boolean {
+  // Mutation must be explicitly mentioned in config to be included
+  if (!mutationConfig) {
+    return false;
+  }
+
+  // Check if mutation is explicitly disabled
+  if (mutationConfig.enabled === false) {
+    return false;
+  }
+
+  // Check OWASP category settings
+  if (owaspConfig) {
+    const owaspCategory = MUTATION_OWASP_CATEGORIES[mutationName];
+    if (owaspCategory && owaspConfig[owaspCategory]) {
+      const categoryConfig = owaspConfig[owaspCategory];
+      if (categoryConfig.enabled === false) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
  * Create mutations from attack config
+ *
+ * Only mutations explicitly listed in the config are included.
+ * OWASP category settings can disable entire categories.
  */
 export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
   const mutations: Mutation[] = [];
@@ -248,7 +302,7 @@ export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
 
   // Bad Likert Judge
   const badLikertConfig = config.mutations['bad-likert-judge'];
-  if (badLikertConfig?.enabled !== false) {
+  if (isMutationEnabled('bad-likert-judge', badLikertConfig, config.owasp)) {
     mutations.push(
       new BadLikertJudgeMutation({
         scaleType: badLikertConfig?.scaleType,
@@ -259,49 +313,49 @@ export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
 
   // Crescendo
   const crescendoConfig = config.mutations.crescendo;
-  if (crescendoConfig?.enabled !== false) {
+  if (isMutationEnabled('crescendo', crescendoConfig, config.owasp)) {
     mutations.push(new CrescendoMutation());
   }
 
   // Deceptive Delight
   const deceptiveDelightConfig = config.mutations['deceptive-delight'];
-  if (deceptiveDelightConfig?.enabled !== false) {
+  if (isMutationEnabled('deceptive-delight', deceptiveDelightConfig, config.owasp)) {
     mutations.push(new DeceptiveDelightMutation());
   }
 
   // Output Injection
   const outputInjectionConfig = config.mutations['output-injection'];
-  if (outputInjectionConfig?.enabled !== false) {
+  if (isMutationEnabled('output-injection', outputInjectionConfig, config.owasp)) {
     mutations.push(new OutputInjectionMutation());
   }
 
   // Excessive Agency
   const excessiveAgencyConfig = config.mutations['excessive-agency'];
-  if (excessiveAgencyConfig?.enabled !== false) {
+  if (isMutationEnabled('excessive-agency', excessiveAgencyConfig, config.owasp)) {
     mutations.push(new ExcessiveAgencyMutation());
   }
 
   // System Extraction
   const systemExtractionConfig = config.mutations['system-extraction'];
-  if (systemExtractionConfig?.enabled !== false) {
+  if (isMutationEnabled('system-extraction', systemExtractionConfig, config.owasp)) {
     mutations.push(new SystemExtractionMutation());
   }
 
   // Hallucination Trap
   const hallucinationTrapConfig = config.mutations['hallucination-trap'];
-  if (hallucinationTrapConfig?.enabled !== false) {
+  if (isMutationEnabled('hallucination-trap', hallucinationTrapConfig, config.owasp)) {
     mutations.push(new HallucinationTrapMutation());
   }
 
   // Encoding
   const encodingConfig = config.mutations.encoding;
-  if (encodingConfig?.enabled !== false) {
+  if (isMutationEnabled('encoding', encodingConfig, config.owasp)) {
     mutations.push(new EncodingMutation());
   }
 
   // Multi-turn
   const multiTurnConfig = config.mutations['multi-turn'];
-  if (multiTurnConfig?.enabled !== false) {
+  if (isMutationEnabled('multi-turn', multiTurnConfig, config.owasp)) {
     mutations.push(new MultiTurnMutation());
   }
 
@@ -309,7 +363,50 @@ export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
 }
 
 /**
+ * Apply OWASP category filters to mutations
+ *
+ * Filters mutations based on OWASP category enabled status and minSeverity.
+ */
+export function applyOwaspFilters(
+  mutations: Mutation[],
+  owaspConfig: AttackConfig['owasp']
+): Mutation[] {
+  if (!owaspConfig) {
+    return mutations;
+  }
+
+  const severityOrder = ['low', 'medium', 'high', 'critical'];
+
+  return mutations.filter((mutation) => {
+    const category = mutation.owaspCategory;
+    if (!category || !owaspConfig[category]) {
+      return true; // No config for this category, include by default
+    }
+
+    const categoryConfig = owaspConfig[category];
+
+    // Check if category is disabled
+    if (categoryConfig.enabled === false) {
+      return false;
+    }
+
+    // Check minSeverity
+    if (categoryConfig.minSeverity) {
+      const minIndex = severityOrder.indexOf(categoryConfig.minSeverity);
+      const mutationIndex = severityOrder.indexOf(mutation.severity);
+      if (mutationIndex < minIndex) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+/**
  * Get enabled mutation names from config
+ *
+ * Only returns mutations that are explicitly mentioned and not disabled.
  */
 export function getEnabledMutationNames(config: AttackConfig): string[] {
   const names: string[] = [];
@@ -321,7 +418,8 @@ export function getEnabledMutationNames(config: AttackConfig): string[] {
   const mutationEntries = Object.entries(config.mutations) as [string, { enabled?: boolean }][];
 
   for (const [name, mutation] of mutationEntries) {
-    if (mutation?.enabled !== false) {
+    // Only include if mutation is defined and not explicitly disabled
+    if (mutation && mutation.enabled !== false) {
       names.push(name);
     }
   }
@@ -366,10 +464,10 @@ version: "1.0"
 
 # Global defaults
 defaults:
-  severity: medium          # low | medium | high | critical
-  iterations: 3             # Number of iterations per mutation
-  timeout: 30000            # Timeout per attack in ms
-  stopOnFirstFailure: false # Stop attack on first vulnerability found
+  severity: medium          # Minimum severity filter: low | medium | high | critical
+  # iterations: 3           # (Reserved for future use) Number of iterations per mutation
+  # timeout: 30000          # (Reserved for future use) Timeout per attack in ms
+  # stopOnFirstFailure: false # (Reserved for future use) Stop on first vulnerability
 
 # Mutation-specific configuration
 mutations:

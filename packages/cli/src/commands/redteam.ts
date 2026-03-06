@@ -43,7 +43,10 @@ import {
   SystemExtractionMutation,
   TypoMutation,
   UnsafeResponseDetector,
+  createMutationsFromConfig,
+  filterMutationsBySeverity,
   getMutationsForCategory,
+  loadAttackConfig,
   loadCustomAttacks,
 } from '@artemiskit/redteam';
 import {
@@ -79,6 +82,7 @@ interface RedteamOptions {
   mutations?: string[];
   count?: number;
   customAttacks?: string;
+  attackConfig?: string;
   save?: boolean;
   output?: string;
   verbose?: boolean;
@@ -107,6 +111,10 @@ export function redteamCommand(): Command {
     )
     .option('-c, --count <number>', 'Number of mutated prompts per case', '5')
     .option('--custom-attacks <path>', 'Path to custom attacks YAML file')
+    .option(
+      '--attack-config <path>',
+      'Path to attack configuration YAML file for fine-grained mutation control'
+    )
     .option('--save', 'Save results to storage')
     .option('-o, --output <dir>', 'Output directory for reports')
     .option('-v, --verbose', 'Verbose output')
@@ -173,10 +181,11 @@ export function redteamCommand(): Command {
         const client = await createAdapter(adapterConfig);
         spinner.succeed(`Connected to ${provider}`);
 
-        // Set up mutations - check for OWASP flags first
-        const mutations = selectMutations({
+        // Set up mutations - check for attack config, then OWASP flags
+        const mutations = await selectMutations({
           names: options.mutations,
           customAttacksPath: options.customAttacks,
+          attackConfigPath: options.attackConfig,
           owaspCategories: options.owasp,
           owaspFull: options.owaspFull,
           minSeverity: options.minSeverity,
@@ -193,6 +202,9 @@ export function redteamCommand(): Command {
           `Prompts per case: ${count}`,
           `Total cases: ${scenario.cases.length}`,
         ];
+        if (options.attackConfig) {
+          configLines.push(`Attack Config: ${options.attackConfig}`);
+        }
         if (options.owasp || options.owaspFull) {
           configLines.push(
             `OWASP Mode: ${options.owaspFull ? 'Full Compliance Scan' : options.owasp?.join(', ')}`
@@ -460,6 +472,8 @@ export function redteamCommand(): Command {
             model: resolvedConfig.model,
             mutations: mutations.map((m) => m.name),
             count_per_case: count,
+            // Include attack config info
+            ...(options.attackConfig && { attack_config: options.attackConfig }),
             // Include OWASP info in config
             ...(options.owaspFull && { owasp_mode: 'full' }),
             ...(options.owasp && { owasp_categories: options.owasp }),
@@ -659,13 +673,37 @@ function getAllOwaspMutations(): string[] {
 interface SelectMutationsOptions {
   names?: string[];
   customAttacksPath?: string;
+  attackConfigPath?: string;
   owaspCategories?: string[];
   owaspFull?: boolean;
   minSeverity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-function selectMutations(options: SelectMutationsOptions): Mutation[] {
-  const { names, customAttacksPath, owaspCategories, owaspFull, minSeverity } = options;
+async function selectMutations(options: SelectMutationsOptions): Promise<Mutation[]> {
+  const { names, customAttacksPath, attackConfigPath, owaspCategories, owaspFull, minSeverity } =
+    options;
+
+  // If attack config is provided, it takes highest precedence
+  if (attackConfigPath) {
+    const attackConfig = await loadAttackConfig(attackConfigPath);
+    let mutations = createMutationsFromConfig(attackConfig);
+
+    // Apply severity filter from config defaults or CLI option
+    const configMinSeverity = attackConfig.defaults?.severity;
+    const effectiveSeverity = minSeverity || configMinSeverity;
+
+    if (effectiveSeverity) {
+      mutations = filterMutationsBySeverity(mutations, effectiveSeverity);
+    }
+
+    // Load custom attacks if path also provided
+    if (customAttacksPath) {
+      const customMutations = loadCustomAttacks(customAttacksPath);
+      mutations.push(...customMutations);
+    }
+
+    return mutations;
+  }
 
   const allMutations = getAllMutations();
   let selectedNames: string[] = [];

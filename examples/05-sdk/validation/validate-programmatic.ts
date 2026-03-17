@@ -13,19 +13,19 @@
  *   bun run examples/05-sdk/validation/validate-programmatic.ts
  */
 
-import { writeFile, rm } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   ArtemisKit,
-  // Builder functions
-  scenario,
-  testCase,
+  type Scenario,
   // Expectation helpers
   contains,
   exact,
   jsonSchema,
   llmGrade,
-  type Scenario,
+  // Builder functions
+  scenario,
+  testCase,
 } from '@artemiskit/sdk';
 
 async function main() {
@@ -104,7 +104,7 @@ async function main() {
   // ========================================
   // Build a scenario with intentional errors
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Validating a scenario with errors');
   console.log('─'.repeat(60));
 
@@ -142,7 +142,7 @@ cases:
   // ========================================
   // Validate scenario with invalid expectation type
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Validating scenario with invalid expectation type');
   console.log('─'.repeat(60));
 
@@ -175,7 +175,7 @@ cases:
   // ========================================
   // Validate scenario missing required fields
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Validating scenario missing required fields');
   console.log('─'.repeat(60));
 
@@ -205,7 +205,7 @@ cases:
   await rm(invalidTypePath, { force: true });
   await rm(missingFieldsPath, { force: true });
 
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('✅ All validation examples completed');
   console.log('─'.repeat(60));
 }

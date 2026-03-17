@@ -215,28 +215,62 @@ export interface AgentDetectionResult {
 
 /**
  * Agent execution step
+ *
+ * Represents a single step in an agent's execution trace.
+ * Only `type` and `content` are required; other fields are metadata.
  */
 export interface AgentStep {
+  /** Step type: thought, action, observation, or response */
   type: 'thought' | 'action' | 'observation' | 'response';
+
+  /** Content of the step (e.g., reasoning text, action description) */
   content: string;
+
+  /** Tool name if this is an action step */
   tool?: string;
+
+  /** Input passed to the tool */
   toolInput?: unknown;
+
+  /** Output returned by the tool */
   toolOutput?: unknown;
+
+  /** Agent name if in a multi-agent setup */
   agent?: string;
-  timestamp: Date;
-  latencyMs: number;
+
+  /** When this step occurred (optional metadata) */
+  timestamp?: Date;
+
+  /** Latency of this step in milliseconds (optional metadata) */
+  latencyMs?: number;
+
+  /** Token count for this step (optional metadata) */
   tokens?: number;
 }
 
 /**
  * Agent execution trace
+ *
+ * Contains the full execution trace of an agent's run.
+ * Only `steps` is required; timing and token metadata are optional.
  */
 export interface AgentTrace {
+  /** Sequence of execution steps */
   steps: AgentStep[];
-  startTime: Date;
-  endTime: Date;
-  totalTokens: number;
+
+  /** When the trace started (optional metadata) */
+  startTime?: Date;
+
+  /** When the trace ended (optional metadata) */
+  endTime?: Date;
+
+  /** Total tokens used (optional metadata) */
+  totalTokens?: number;
+
+  /** List of tools used during execution */
   toolsUsed?: string[];
+
+  /** List of agents involved (for multi-agent traces) */
   agentsInvolved?: string[];
 }
 

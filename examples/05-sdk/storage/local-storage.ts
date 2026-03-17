@@ -15,13 +15,13 @@
  *   bun run examples/05-sdk/storage/local-storage.ts
  */
 
-import { resolve } from 'node:path';
 import { mkdir, rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import {
   ArtemisKit,
-  type StorageConfig,
-  type RunManifest,
   type RunListItem,
+  type RunManifest,
+  type StorageConfig,
 } from '@artemiskit/sdk';
 
 // Demo storage path
@@ -60,7 +60,7 @@ async function main() {
   // ========================================
   // Example 2: Run and save results
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 2: Run and Save Results');
   console.log('─'.repeat(60));
 
@@ -224,7 +224,7 @@ Common operations with run history:
   // Clean up
   await rm(STORAGE_PATH, { recursive: true, force: true });
 
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('✅ Storage examples completed');
   console.log('─'.repeat(60));
 }

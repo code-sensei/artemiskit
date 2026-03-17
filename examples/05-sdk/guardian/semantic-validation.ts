@@ -18,12 +18,12 @@
  */
 
 import {
+  type ContentValidationConfig,
+  type GuardianConfig,
+  type SemanticValidationResult,
+  SemanticValidator,
   createGuardian,
   createSemanticValidator,
-  SemanticValidator,
-  type ContentValidationConfig,
-  type SemanticValidationResult,
-  type GuardianConfig,
 } from '@artemiskit/sdk';
 
 async function main() {
@@ -87,7 +87,7 @@ Available strategies:
   // ========================================
   // Example 3: Hybrid validation (semantic + pattern)
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 3: Hybrid Validation (Semantic + Pattern)');
   console.log('─'.repeat(60));
 
@@ -120,13 +120,13 @@ Available strategies:
   console.log('Guardian created with hybrid validation:');
   console.log(`  Strategy: ${hybridConfig.strategy}`);
   console.log(`  Semantic threshold: ${hybridConfig.semanticThreshold}`);
-  console.log(`  Pattern matching: enabled`);
+  console.log('  Pattern matching: enabled');
   console.log(`  Custom patterns: ${hybridConfig.patterns?.customPatterns?.length}`);
 
   // ========================================
   // Example 4: Creating a standalone SemanticValidator
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 4: Standalone SemanticValidator');
   console.log('─'.repeat(60));
 
@@ -228,7 +228,7 @@ Usage:
   // ========================================
   // Example 7: Recommended configurations by use case
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 7: Recommended Configurations');
   console.log('─'.repeat(60));
 

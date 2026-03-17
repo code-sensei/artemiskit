@@ -149,7 +149,17 @@ export function redteamCommand(): Command {
     // Agent-specific options (v0.3.1)
     .option(
       '--agent-detection <mode>',
-      'Detection mode for agent mutations: trace (analyze tool calls), response (analyze text), combined (both)'
+      'Detection mode for agent mutations: trace (analyze tool calls), response (analyze text), combined (both)',
+      (value: string) => {
+        const validModes = ['trace', 'response', 'combined'];
+        if (!validModes.includes(value)) {
+          throw new Error(
+            `Invalid --agent-detection mode: "${value}". ` +
+              `Valid modes are: ${validModes.join(', ')}`
+          );
+        }
+        return value as 'trace' | 'response' | 'combined';
+      }
     )
     .action(async (scenarioPath: string, options: RedteamOptions) => {
       const spinner = createSpinner('Loading configuration...');
@@ -232,12 +242,11 @@ export function redteamCommand(): Command {
         if (options.agentDetection) {
           configLines.push(`Agent Detection: ${options.agentDetection}`);
         }
-        // Check if any agent mutations are being used
-        const agentMutationCount = mutations.filter((m) => isAgentMutation(m.name)).length;
-        if (agentMutationCount > 0) {
-          configLines.push(
-            `Agent Mutations: ${agentMutationCount} (tool-abuse, agent-confusion, memory-poisoning, chain-manipulation)`
-          );
+        // Check if any agent mutations are being used - display only the ones actually selected
+        const agentMutationsUsed = mutations.filter((m) => isAgentMutation(m.name));
+        if (agentMutationsUsed.length > 0) {
+          const agentMutationNames = agentMutationsUsed.map((m) => m.name).join(', ');
+          configLines.push(`Agent Mutations: ${agentMutationsUsed.length} (${agentMutationNames})`);
         }
         if (options.redact) {
           configLines.push(
@@ -735,7 +744,7 @@ async function selectMutations(options: SelectMutationsOptions): Promise<Mutatio
   // If attack config is provided, it takes highest precedence
   if (attackConfigPath) {
     const attackConfig = await loadAttackConfig(attackConfigPath);
-    let mutations = createMutationsFromConfig(attackConfig);
+    let mutations = createMutationsFromConfig(attackConfig, { agentDetection });
 
     // Apply severity filter from config defaults or CLI option
     const configMinSeverity = attackConfig.defaults?.severity;

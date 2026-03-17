@@ -15,12 +15,12 @@
  *   bun run examples/05-sdk/comparison/compare-runs.ts
  */
 
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   ArtemisKit,
-  type CompareResult,
   type CompareOptions,
+  type CompareResult,
   type RunManifest,
 } from '@artemiskit/sdk';
 
@@ -62,7 +62,7 @@ async function main() {
   // ========================================
   // Example 2: Larger threshold - no regression flagged
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 2: Larger Threshold (No Regression Flagged)');
   console.log('─'.repeat(60));
 
@@ -79,7 +79,7 @@ async function main() {
   // ========================================
   // Example 3: Improvement scenario
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 3: Improvement Scenario');
   console.log('─'.repeat(60));
 
@@ -98,7 +98,7 @@ async function main() {
   // ========================================
   // Example 4: Detailed case-level analysis
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 4: Case-Level Analysis');
   console.log('─'.repeat(60));
 
@@ -124,7 +124,7 @@ async function main() {
   // ========================================
   // Example 5: CI/CD Integration Pattern
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 5: CI/CD Quality Gate Pattern');
   console.log('─'.repeat(60));
 
@@ -151,14 +151,14 @@ async function main() {
   } else {
     console.log('✅ QUALITY GATE PASSED');
     console.log(`   Success rate: ${(ciResult.current.successRate * 100).toFixed(1)}%`);
-    console.log(`   No regressions detected`);
+    console.log('   No regressions detected');
     // In CI/CD, you would: process.exit(0);
   }
 
   // Clean up
   await rm(TEST_STORAGE, { recursive: true, force: true });
 
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('✅ All comparison examples completed');
   console.log('─'.repeat(60));
 }

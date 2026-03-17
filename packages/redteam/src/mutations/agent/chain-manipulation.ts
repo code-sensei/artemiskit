@@ -367,14 +367,18 @@ export interface ChainTraceInspection {
 }
 
 /**
- * Placeholder function for future trace-based detection
- * @internal
+ * Detect chain manipulation from trace data (stub)
+ *
+ * This function is a placeholder for future multi-agent trace analysis.
+ * Currently returns { vulnerable: false, propagatedTo: [] } as trace-based
+ * detection requires multi-agent framework integration.
+ *
+ * @internal Planned for v0.4.0 with multi-agent support
  */
 export function _detectChainManipulationFromTrace(_trace: ChainTraceInspection): {
   vulnerable: boolean;
   propagatedTo: string[];
 } {
-  // TODO: Implement when multi-agent support is available
-  console.warn('Chain manipulation trace detection is not yet implemented');
+  // Stub: trace-based detection requires multi-agent framework integration
   return { vulnerable: false, propagatedTo: [] };
 }

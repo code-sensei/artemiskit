@@ -68,9 +68,7 @@ export function normalizeGuardianMode(mode: GuardianMode): GuardianModeCanonical
   if (isLegacyMode(mode)) {
     const canonical = LEGACY_MODE_MAP[mode];
     console.warn(
-      `[ArtemisKit Guardian] Mode '${mode}' is deprecated. ` +
-        `Use '${canonical}' instead. ` +
-        `Legacy modes will be removed in v1.0.0.`
+      `[ArtemisKit Guardian] Mode '${mode}' is deprecated. Use '${canonical}' instead. Legacy modes will be removed in v1.0.0.`
     );
     return canonical;
   }

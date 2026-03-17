@@ -9,9 +9,9 @@ import type {
   ModelClient,
   RedTeamManifest,
   RunManifest,
+  StorageConfig,
   StressManifest,
   StressRequestResult,
-  StorageConfig,
 } from '@artemiskit/core';
 import type { RedactionConfig } from '@artemiskit/core';
 import type { Scenario } from '@artemiskit/core';

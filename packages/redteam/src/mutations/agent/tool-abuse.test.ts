@@ -3,7 +3,6 @@
  */
 
 import { describe, expect, it } from 'bun:test';
-import type { AgentTrace } from './types';
 import {
   TOOL_ABUSE_RESISTANCE_PATTERNS,
   TOOL_ABUSE_SUCCESS_PATTERNS,
@@ -11,6 +10,7 @@ import {
   detectToolAbuseFromResponse,
   detectToolAbuseFromTrace,
 } from './tool-abuse';
+import type { AgentTrace } from './types';
 
 describe('ToolAbuseMutation', () => {
   describe('constructor', () => {

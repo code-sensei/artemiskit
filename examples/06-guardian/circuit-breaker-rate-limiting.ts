@@ -16,9 +16,9 @@
 
 import {
   CircuitBreaker,
-  RateLimiter,
-  MetricsCollector,
   type CircuitBreakerEvent,
+  MetricsCollector,
+  RateLimiter,
 } from '@artemiskit/sdk';
 
 // Helper to simulate a violation
@@ -133,7 +133,7 @@ The circuit breaker protects against cascading failures:
   // ==========================================================================
   // PART 2: Rate Limiting
   // ==========================================================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('PART 2: Rate Limiting (Token Bucket)');
   console.log('─'.repeat(60));
   console.log(`
@@ -177,7 +177,7 @@ Rate limiting prevents abuse and resource exhaustion:
   // ==========================================================================
   // PART 3: Metrics Collection
   // ==========================================================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('PART 3: Metrics Collection');
   console.log('─'.repeat(60));
   console.log(`
@@ -269,7 +269,7 @@ Metrics provide visibility into Guardian operations:
   // ==========================================================================
   // PART 4: Combined Usage Pattern
   // ==========================================================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('PART 4: Production Integration Pattern');
   console.log('─'.repeat(60));
 
@@ -305,7 +305,7 @@ Example flow:
   async function processRequest(input: string, isAttack: boolean) {
     const startTime = Date.now();
     let blocked = false;
-    let warned = false;
+    const warned = false;
     const violations: ReturnType<typeof createViolation>[] = [];
 
     // Step 1: Rate limit check
@@ -364,7 +364,7 @@ Example flow:
   // ==========================================================================
   // Summary
   // ==========================================================================
-  console.log('\n' + '═'.repeat(60));
+  console.log(`\n${'═'.repeat(60)}`);
   console.log('Summary');
   console.log('═'.repeat(60));
   console.log(`

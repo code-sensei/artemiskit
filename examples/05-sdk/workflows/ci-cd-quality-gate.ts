@@ -22,9 +22,9 @@
 import { resolve } from 'node:path';
 import {
   ArtemisKit,
-  type ValidationResult,
   type CompareResult,
   type RunResult,
+  type ValidationResult,
 } from '@artemiskit/sdk';
 
 // Configuration
@@ -323,7 +323,7 @@ async function checkRegression(kit: ArtemisKit, currentRunId: string): Promise<Q
  * Print all results in a formatted table
  */
 function printResults(results: QualityGateResult[]) {
-  console.log('\n' + '═'.repeat(60));
+  console.log(`\n${'═'.repeat(60)}`);
   console.log('Quality Gate Results');
   console.log('═'.repeat(60));
 

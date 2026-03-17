@@ -16,7 +16,7 @@
  */
 
 import { resolve } from 'node:path';
-import { ArtemisKit, type ValidationResult, type ValidationError } from '@artemiskit/sdk';
+import { ArtemisKit, type ValidationError, type ValidationResult } from '@artemiskit/sdk';
 
 async function main() {
   console.log('🏹 ArtemisKit SDK - Scenario Validation Example\n');
@@ -45,7 +45,7 @@ async function main() {
   // ========================================
   // Example 2: Validate with strict mode
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 2: Validate with strict mode (warnings become errors)');
   console.log('─'.repeat(60));
 
@@ -61,7 +61,7 @@ async function main() {
   // ========================================
   // Example 3: Validate multiple scenarios with glob pattern
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 3: Validate directory with glob pattern');
   console.log('─'.repeat(60));
 
@@ -97,7 +97,7 @@ async function main() {
   // ========================================
   // Example 4: Programmatic error handling
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 4: Programmatic error handling');
   console.log('─'.repeat(60));
 
@@ -122,7 +122,7 @@ async function main() {
   // ========================================
   // CI/CD Usage Pattern
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('CI/CD Integration Pattern');
   console.log('─'.repeat(60));
 

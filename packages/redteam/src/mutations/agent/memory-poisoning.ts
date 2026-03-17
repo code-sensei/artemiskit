@@ -115,8 +115,8 @@ export interface MemoryPoisonSequence {
   /** Verification prompts to test if poisoning worked */
   verification: string[];
 
-  /** Category of the poison */
-  category: 'permission' | 'context' | 'instruction' | 'identity';
+  /** Category of the poison ('mixed' when using templates from all categories) */
+  category: 'permission' | 'context' | 'instruction' | 'identity' | 'mixed';
 }
 
 export class MemoryPoisoningMutation implements Mutation {
@@ -196,7 +196,7 @@ export class MemoryPoisoningMutation implements Mutation {
     return {
       poison,
       verification,
-      category: category ?? 'permission',
+      category: category ?? 'mixed',
     };
   }
 

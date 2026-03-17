@@ -16,31 +16,31 @@
  */
 
 import {
+  type Scenario,
   // Builder classes for advanced usage
   ScenarioBuilder,
   TestCaseBuilder,
-  // Factory functions (recommended)
-  scenario,
-  testCase,
-  // Quick helper functions for common patterns
-  containsCase,
-  exactCase,
-  regexCase,
-  jsonCase,
-  gradedCase,
-  // Expectation builder functions
-  exact,
-  contains,
-  notContains,
-  regex,
-  fuzzy,
-  jsonSchema,
-  llmGrade,
-  similarity,
-  inline,
   allOf,
   anyOf,
-  type Scenario,
+  contains,
+  // Quick helper functions for common patterns
+  containsCase,
+  // Expectation builder functions
+  exact,
+  exactCase,
+  fuzzy,
+  gradedCase,
+  inline,
+  jsonCase,
+  jsonSchema,
+  llmGrade,
+  notContains,
+  regex,
+  regexCase,
+  // Factory functions (recommended)
+  scenario,
+  similarity,
+  testCase,
 } from '@artemiskit/sdk';
 
 async function main() {
@@ -79,7 +79,7 @@ async function main() {
   // ========================================
   // Example 2: Using quick helper functions
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 2: Quick Helper Functions');
   console.log('─'.repeat(60));
 
@@ -111,7 +111,7 @@ async function main() {
   // ========================================
   // Example 3: Complex expectations with combinators
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 3: Complex Expectations with Combinators');
   console.log('─'.repeat(60));
 
@@ -150,7 +150,7 @@ async function main() {
     .build();
 
   console.log(`Scenario: ${complexScenario.name}`);
-  console.log(`Cases with complex expectations:`);
+  console.log('Cases with complex expectations:');
   for (const c of complexScenario.cases) {
     console.log(`  - ${c.id}: ${c.expected.type}`);
   }
@@ -158,7 +158,7 @@ async function main() {
   // ========================================
   // Example 4: All expectation types
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 4: All Expectation Types');
   console.log('─'.repeat(60));
 
@@ -255,7 +255,7 @@ async function main() {
     )
     .build();
 
-  console.log(`Scenario with all expectation types:`);
+  console.log('Scenario with all expectation types:');
   for (const c of allExpectationsScenario.cases) {
     console.log(`  - ${c.id}: ${c.expected.type}`);
   }
@@ -263,7 +263,7 @@ async function main() {
   // ========================================
   // Example 5: Dynamic scenario generation
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 5: Dynamic Scenario Generation');
   console.log('─'.repeat(60));
 
@@ -308,7 +308,7 @@ async function main() {
   // ========================================
   // Example 6: Scenario with variables
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 6: Scenario with Variables');
   console.log('─'.repeat(60));
 
@@ -334,14 +334,14 @@ async function main() {
     )
     .build();
 
-  console.log(`Scenario with variables:`);
+  console.log('Scenario with variables:');
   console.log(`  Variables: ${JSON.stringify(variableScenario.variables)}`);
   console.log(`  Cases: ${variableScenario.cases.length}`);
 
   // ========================================
   // Example 7: Test case with metadata
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 7: Test Cases with Full Metadata');
   console.log('─'.repeat(60));
 
@@ -361,14 +361,14 @@ async function main() {
     .build();
 
   const c = metadataScenario.cases[0];
-  console.log(`Test case with metadata:`);
+  console.log('Test case with metadata:');
   console.log(`  ID: ${c.id}`);
   console.log(`  Name: ${c.name}`);
   console.log(`  Tags: ${c.tags?.join(', ')}`);
   console.log(`  Timeout: ${c.timeout}ms`);
   console.log(`  Retries: ${c.retries}`);
 
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('✅ All builder examples completed');
   console.log('─'.repeat(60));
 }

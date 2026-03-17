@@ -23,12 +23,12 @@
  */
 
 import {
-  createGuardian,
-  normalizeGuardianMode,
+  type GuardianConfig,
+  type GuardianModeAll,
   type GuardianModeCanonical,
   type GuardianModeLegacy,
-  type GuardianModeAll,
-  type GuardianConfig,
+  createGuardian,
+  normalizeGuardianMode,
 } from '@artemiskit/sdk';
 
 async function main() {
@@ -80,7 +80,7 @@ async function main() {
   // ========================================
   // Example 2: Creating Guardian with canonical modes
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 2: Creating Guardian with Canonical Modes');
   console.log('─'.repeat(60));
 
@@ -139,7 +139,7 @@ async function main() {
   // ========================================
   // Example 3: Mode behavior comparison
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 3: Mode Behavior Comparison');
   console.log('─'.repeat(60));
 
@@ -187,7 +187,7 @@ async function main() {
   // ========================================
   // Example 4: Migration from legacy modes
   // ========================================
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('Example 4: Migration from Legacy Modes');
   console.log('─'.repeat(60));
 
@@ -246,7 +246,7 @@ Update your code to use canonical names for future compatibility.
   console.log('    Accepts both canonical and legacy modes');
   console.log('    Normalizes legacy to canonical internally');
 
-  console.log('\n' + '─'.repeat(60));
+  console.log(`\n${'─'.repeat(60)}`);
   console.log('✅ Mode normalization examples completed');
   console.log('─'.repeat(60));
 }

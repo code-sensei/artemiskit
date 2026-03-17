@@ -16,11 +16,11 @@ import type {
   GuardrailResult,
   InjectionDetection,
   InjectionType,
-  PatternCategory,
-  PatternConfig,
   PIIDetection,
   PIILocation,
   PIIType,
+  PatternCategory,
+  PatternConfig,
   Violation,
   ViolationSeverity,
 } from './types';
@@ -62,7 +62,7 @@ export function matchPattern(
 
   // For RegExp patterns, apply if case insensitivity is requested and not already set
   if (caseInsensitive && !pattern.flags.includes('i')) {
-    const newRegex = new RegExp(pattern.source, pattern.flags + 'i');
+    const newRegex = new RegExp(pattern.source, `${pattern.flags}i`);
     const match = content.match(newRegex);
     return { matched: !!match, match: match ?? undefined };
   }

@@ -26,39 +26,121 @@ import {
 import { createDefaultPolicy, loadPolicy, parsePolicy } from './policy';
 import type {
   ActionDefinition,
+  ContentValidationConfig,
   GuardianEvent,
   GuardianEventHandler,
   GuardianMetrics,
   GuardianMode,
+  GuardianModeCanonical,
+  GuardianModeLegacy,
   GuardianPolicy,
   InterceptedToolCall,
+  MultiTurnConfig,
   Violation,
 } from './types';
+
+// =============================================================================
+// Mode Normalization
+// =============================================================================
+
+/**
+ * Legacy to canonical mode mapping
+ */
+const LEGACY_MODE_MAP: Record<GuardianModeLegacy, GuardianModeCanonical> = {
+  testing: 'observe',
+  guardian: 'strict',
+  hybrid: 'selective',
+};
+
+/**
+ * Check if a mode is a legacy mode
+ */
+function isLegacyMode(mode: GuardianMode): mode is GuardianModeLegacy {
+  return mode in LEGACY_MODE_MAP;
+}
+
+/**
+ * Normalize Guardian mode to canonical form with deprecation warning
+ * @param mode - The mode to normalize
+ * @returns The canonical mode
+ */
+export function normalizeGuardianMode(mode: GuardianMode): GuardianModeCanonical {
+  if (isLegacyMode(mode)) {
+    const canonical = LEGACY_MODE_MAP[mode];
+    console.warn(
+      `[ArtemisKit Guardian] Mode '${mode}' is deprecated. ` +
+        `Use '${canonical}' instead. ` +
+        `Legacy modes will be removed in v1.0.0.`
+    );
+    return canonical;
+  }
+  return mode as GuardianModeCanonical;
+}
 
 /**
  * Guardian configuration options
  */
 export interface GuardianConfig {
-  /** Operating mode */
+  /**
+   * Operating mode
+   *
+   * Canonical modes (recommended):
+   * - 'observe': Log only, never block (for monitoring)
+   * - 'selective': Block high-confidence threats (threshold-based)
+   * - 'strict': Block all detected violations (maximum protection)
+   *
+   * Legacy modes (deprecated):
+   * - 'testing' → 'observe'
+   * - 'guardian' → 'strict'
+   * - 'hybrid' → 'selective'
+   */
   mode?: GuardianMode;
+
   /** Policy file path or policy object */
   policy?: string | GuardianPolicy;
-  /** LLM client for intent classification */
+
+  /** LLM client for semantic validation and intent classification */
   llmClient?: ModelClient;
+
   /** Enable input validation */
   validateInput?: boolean;
+
   /** Enable output validation */
   validateOutput?: boolean;
+
   /** Block on validation failure */
   blockOnFailure?: boolean;
-  /** Custom guardrails configuration */
+
+  /**
+   * Content validation strategy configuration
+   *
+   * @default { strategy: 'semantic', semanticThreshold: 0.9 }
+   */
+  contentValidation?: ContentValidationConfig;
+
+  /** Custom guardrails configuration (pattern-based) */
   guardrails?: GuardrailsConfig;
+
+  /**
+   * Multi-turn detection configuration
+   *
+   * Enable to detect attacks that span multiple messages:
+   * - Trust-building before sensitive requests
+   * - Escalating risk patterns
+   * - Context manipulation claims
+   * - Split payload attacks
+   */
+  multiTurn?: MultiTurnConfig;
+
   /** Custom action definitions */
   allowedActions?: ActionDefinition[];
+
   /** Event handler */
   onEvent?: GuardianEventHandler;
+
   /** Enable metrics collection */
   collectMetrics?: boolean;
+
   /** Enable logging */
   enableLogging?: boolean;
 }
@@ -78,14 +160,28 @@ export class Guardian {
   private outputGuardrails: GuardrailFn[];
   private eventHandlers: GuardianEventHandler[] = [];
 
+  /** The normalized (canonical) mode after processing legacy modes */
+  private normalizedMode: GuardianModeCanonical;
+
   constructor(config: GuardianConfig = {}) {
+    // Normalize mode with deprecation warning for legacy modes
+    const inputMode = config.mode ?? 'strict';
+    this.normalizedMode = normalizeGuardianMode(inputMode);
+
     this.config = {
-      mode: 'guardian',
+      mode: inputMode, // Keep original for backwards compatibility
       validateInput: true,
       validateOutput: true,
       blockOnFailure: true,
       collectMetrics: true,
       enableLogging: true,
+      // Default content validation strategy: semantic
+      contentValidation: {
+        strategy: 'semantic',
+        semanticThreshold: 0.9,
+        categories: ['prompt_injection', 'jailbreak', 'pii_disclosure'],
+        patterns: { enabled: true, caseInsensitive: true },
+      },
       ...config,
     };
 
@@ -387,6 +483,48 @@ export class Guardian {
    */
   getPolicy(): GuardianPolicy {
     return this.policy;
+  }
+
+  /**
+   * Get the normalized (canonical) operating mode
+   *
+   * This returns the canonical mode even if a legacy mode was configured.
+   */
+  getMode(): GuardianModeCanonical {
+    return this.normalizedMode;
+  }
+
+  /**
+   * Check if Guardian should block based on mode and violation severity
+   *
+   * - observe: Never blocks
+   * - selective: Blocks high-confidence/high-severity only
+   * - strict: Blocks all violations
+   */
+  shouldBlock(violation: Violation): boolean {
+    switch (this.normalizedMode) {
+      case 'observe':
+        return false;
+      case 'selective':
+        // Block only critical or high severity violations
+        return violation.severity === 'critical' || violation.severity === 'high';
+      case 'strict':
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Get the content validation configuration
+   */
+  getContentValidationConfig(): ContentValidationConfig {
+    return (
+      this.config.contentValidation ?? {
+        strategy: 'semantic',
+        semanticThreshold: 0.9,
+      }
+    );
   }
 
   /**

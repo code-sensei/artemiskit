@@ -1,12 +1,25 @@
 /**
- * @artemiskit/sdk
- * Programmatic SDK for ArtemisKit LLM evaluation toolkit
+ * @artemiskit/sdk/types
+ * Types-only exports for consumers who only need type definitions
+ *
+ * Use this export when you only need types for type-checking
+ * without importing any runtime code.
+ *
+ * @example
+ * ```typescript
+ * import type {
+ *   Scenario,
+ *   TestCase,
+ *   RunResult,
+ *   ArtemisKitConfig
+ * } from '@artemiskit/sdk/types'
+ * ```
  */
 
-// Main class
-export { ArtemisKit } from './artemiskit';
+// ============================================================================
+// SDK Types
+// ============================================================================
 
-// Types
 export type {
   // Configuration
   ArtemisKitConfig,
@@ -34,17 +47,6 @@ export type {
   // Event emitter
   ArtemisKitEvents,
   ArtemisKitEventName,
-  // Validation types (v0.3.2+)
-  ValidateOptions,
-  ValidationResult,
-  ValidationError,
-  ValidationWarning,
-  ScenarioValidation,
-  // Comparison types (v0.3.2+)
-  CompareOptions,
-  CompareResult,
-  RunSummary,
-  ComparisonDetails,
 } from './types';
 
 // ============================================================================
@@ -160,169 +162,15 @@ export type {
 export type { RedactionConfig } from '@artemiskit/core';
 
 // ============================================================================
-// Core Functions - Type Guards (from core)
-// ============================================================================
-
-export { isRunManifest, isRedTeamManifest, isStressManifest } from '@artemiskit/core';
-
-// ============================================================================
 // Redteam Types
 // ============================================================================
 
 export type { Severity, SeverityInfo, CvssScore } from '@artemiskit/redteam';
 
 // ============================================================================
-// Matchers
+// Guardian Types
 // ============================================================================
 
-export { artemiskitMatchers, type ArtemisKitMatchers, type MatcherResult } from './matchers';
-
-// ============================================================================
-// Utility Types & Functions
-// ============================================================================
-
-export {
-  // Type guards for results
-  isRunResult,
-  isRedTeamResult,
-  isStressResult,
-  isRunManifestType,
-  isRedTeamManifestType,
-  isStressManifestType,
-  // Assertion helpers
-  assertDefined,
-  assert,
-  // Result analysis helpers
-  getFailedCases,
-  getPassedCases,
-  getCasesByTag,
-  calculateSuccessRate,
-} from './utils';
-
-export type {
-  // Provider/Expectation types
-  ProviderName,
-  ExpectationType,
-  // Result types
-  AnyResult,
-  ExtractRunCases,
-  ExtractRedTeamCases,
-  ExtractStressResults,
-  ExtractManifest,
-  // Partial types
-  DeepPartial,
-  PartialScenario,
-  RequireFields,
-  OptionalFields,
-  StrictAdapterConfig,
-} from './utils';
-
-// ============================================================================
-// Contracts for Custom Implementations
-// ============================================================================
-
-export {
-  // Adapter contract
-  defineAdapter,
-  // Evaluator contract
-  defineEvaluator,
-  // Storage contract
-  defineStorage,
-  // Plugin system
-  definePlugin,
-} from './contracts';
-
-export type {
-  AdapterContract,
-  EvaluatorContract,
-  StorageContract,
-  AdapterFactory,
-  EvaluatorFactory,
-  StorageFactory,
-  ArtemisKitPlugin,
-} from './contracts';
-
-// ============================================================================
-// Builders for Programmatic Scenario Construction
-// ============================================================================
-
-export {
-  // Builder classes
-  ScenarioBuilder,
-  TestCaseBuilder,
-  // Factory functions
-  scenario,
-  testCase,
-  // Quick helpers
-  containsCase,
-  exactCase,
-  regexCase,
-  jsonCase,
-  gradedCase,
-  // Expectation helpers
-  exact,
-  contains,
-  notContains,
-  regex,
-  fuzzy,
-  jsonSchema,
-  llmGrade,
-  similarity,
-  inline,
-  allOf,
-  anyOf,
-} from './builders';
-
-// ============================================================================
-// Guardian Module - Runtime Protection
-// ============================================================================
-
-export {
-  // Main Guardian class
-  Guardian,
-  createGuardian,
-  // Mode normalization (v0.3.2+)
-  normalizeGuardianMode,
-  // Semantic Validator (v0.3.2+)
-  SemanticValidator,
-  createSemanticValidator,
-  // Interceptor
-  GuardianInterceptor,
-  GuardianBlockedError,
-  createInterceptor,
-  // Action Validator
-  ActionValidator,
-  createDefaultActionValidator,
-  // Intent Classifier
-  IntentClassifier,
-  createIntentClassifier,
-  // Guardrails
-  detectInjection,
-  createInjectionGuardrail,
-  detectPII,
-  createPIIGuardrail,
-  filterContent,
-  createContentFilterGuardrail,
-  createGuardrails,
-  // Pattern matching utilities (v0.3.2+)
-  matchPattern,
-  createCustomPatternGuardrail,
-  // Policy
-  loadPolicy,
-  parsePolicy,
-  validatePolicy,
-  createDefaultPolicy,
-  mergePolicies,
-  generatePolicyTemplate,
-  PolicyLoadError,
-  PolicyValidationError,
-  // Circuit Breaker and Metrics
-  CircuitBreaker,
-  MetricsCollector,
-  RateLimiter,
-} from './guardian';
-
-// Export guardian types
 export type {
   // Config types
   GuardianConfig,
@@ -331,7 +179,6 @@ export type {
   IntentClassifierConfig,
   GuardrailsConfig,
   RateLimiterConfig,
-  CustomPatternOptions,
   // Core types
   GuardianMode,
   ViolationSeverity,
@@ -378,31 +225,52 @@ export type {
   // Framework types
   FrameworkType,
   FrameworkIntegrationConfig,
-  // Mode types (v0.3.2+)
-  GuardianModeCanonical,
-  GuardianModeLegacy,
-  GuardianModeAll,
-  // Content validation types (v0.3.2+)
-  ContentValidationConfig,
-  PatternConfig,
-  ValidationCategory,
-  PatternCategory,
-  SemanticValidationResult,
-  // Multi-turn detection types (v0.3.3+)
-  SessionStorageType,
-  SessionStorageConfig,
-  SessionMessage,
-  SessionMetrics,
-  ConversationSession,
-  TrustBuildingHeuristicConfig,
-  EscalationHeuristicConfig,
-  ContextManipulationHeuristicConfig,
-  SplitPayloadHeuristicConfig,
-  MultiTurnHeuristics,
-  MultiTurnSemanticConfig,
-  MultiTurnConfig,
-  HeuristicResult,
-  HeuristicResults,
-  MultiTurnValidationResult,
-  ValidateMessageOptions,
 } from './guardian';
+
+// ============================================================================
+// Matcher Types
+// ============================================================================
+
+export type { ArtemisKitMatchers, MatcherResult } from './matchers';
+
+// ============================================================================
+// Utility Types
+// ============================================================================
+
+export type {
+  // Provider/Expectation types
+  ProviderName,
+  ExpectationType,
+  // Result types
+  AnyResult,
+  ExtractRunCases,
+  ExtractRedTeamCases,
+  ExtractStressResults,
+  ExtractManifest,
+  // Partial types
+  DeepPartial,
+  PartialScenario,
+  RequireFields,
+  OptionalFields,
+  StrictAdapterConfig,
+} from './utils';
+
+// ============================================================================
+// Contract Types
+// ============================================================================
+
+export type {
+  AdapterContract,
+  EvaluatorContract,
+  StorageContract,
+  AdapterFactory,
+  EvaluatorFactory,
+  StorageFactory,
+  ArtemisKitPlugin,
+} from './contracts';
+
+// ============================================================================
+// Builder Types
+// ============================================================================
+
+export type { ScenarioBuilder, TestCaseBuilder } from './builders';

@@ -46,10 +46,25 @@
     "./jest": {
       "import": "./dist/matchers/jest.js",
       "types": "./dist/matchers/jest.d.ts"
+    },
+    "./builders": {
+      "import": "./dist/builders/index.js",
+      "types": "./dist/builders/index.d.ts"
+    },
+    "./contracts": {
+      "import": "./dist/contracts/index.js",
+      "types": "./dist/contracts/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.js",
+      "types": "./dist/utils/index.d.ts"
+    },
+    "./types": {
+      "types": "./dist/types-only.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc --emitDeclarationOnly && bun build ./src/index.ts ./src/matchers/index.ts ./src/matchers/vitest.ts ./src/matchers/jest.ts --outdir ./dist --target bun",
+    "build": "tsc --emitDeclarationOnly && bun build ./src/index.ts ./src/matchers/index.ts ./src/matchers/vitest.ts ./src/matchers/jest.ts ./src/builders/index.ts ./src/contracts/index.ts ./src/utils/index.ts ./src/types-only.ts --outdir ./dist --target bun",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "bun test",

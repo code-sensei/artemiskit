@@ -219,6 +219,12 @@ export class SemanticValidator {
       }
 
       if (!jsonToParse) {
+        // Log parse failure for audit trail - this could indicate a successful prompt injection
+        // that caused the LLM to return unparseable output
+        console.warn(
+          '[SemanticValidator] Could not extract valid JSON from response, defaulting to allow:',
+          responseText.slice(0, 200)
+        );
         return {
           valid: true,
           confidence: 0,
@@ -247,7 +253,14 @@ export class SemanticValidator {
         shouldBlock,
         rawResponse: responseText,
       };
-    } catch {
+    } catch (error) {
+      // Log parse failure for audit trail - this could indicate a successful prompt injection
+      // that caused the LLM to return malformed JSON
+      console.warn(
+        '[SemanticValidator] JSON parse error, defaulting to allow:',
+        error instanceof Error ? error.message : error,
+        responseText.slice(0, 200)
+      );
       return {
         valid: true,
         confidence: 0,

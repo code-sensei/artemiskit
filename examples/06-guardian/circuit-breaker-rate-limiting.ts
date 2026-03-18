@@ -23,11 +23,15 @@ import {
 
 // Helper to simulate a violation
 function createViolation(type: string, severity: 'low' | 'medium' | 'high' | 'critical') {
+  const blocked = severity === 'critical' || severity === 'high';
   return {
+    id: `viol-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     type: type as 'injection_detection',
     severity,
     message: `Simulated ${type} violation`,
-    blocked: severity === 'critical' || severity === 'high',
+    details: {},
+    blocked,
+    action: blocked ? ('block' as const) : ('warn' as const),
     timestamp: new Date(),
   };
 }

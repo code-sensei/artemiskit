@@ -271,12 +271,17 @@ export class Guardian {
    * Wrap a model client with guardian protection
    */
   protect(client: ModelClient): GuardianInterceptor {
+    // Derive blockOnFailure from normalizedMode to respect observe/selective/strict semantics
+    // In observe mode, never block (log only). In selective/strict, use config setting (default true).
+    const shouldBlockOnFailure =
+      this.normalizedMode !== 'observe' && (this.config.blockOnFailure ?? true);
+
     const interceptorConfig: InterceptorConfig = {
       validateInput: this.config.validateInput,
       validateOutput: this.config.validateOutput,
       inputGuardrails: this.inputGuardrails,
       outputGuardrails: this.outputGuardrails,
-      blockOnFailure: this.config.blockOnFailure,
+      blockOnFailure: shouldBlockOnFailure,
       logViolations: this.config.enableLogging,
       onEvent: (event) => {
         // Record metrics

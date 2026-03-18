@@ -1067,8 +1067,7 @@ export class ArtemisKit {
 
     // Throw for non-RunManifest types - compare() only supports RunManifest
     throw new Error(
-      `Cannot extract metrics from run "${runId}": expected RunManifest but got a different manifest type. ` +
-        'The compare() method only supports comparing scenario evaluation runs, not stress tests or red team runs.'
+      `Cannot extract metrics from run "${runId}": expected RunManifest but got a different manifest type. The compare() method only supports comparing scenario evaluation runs, not stress tests or red team runs.`
     );
   }
 
@@ -1078,10 +1077,15 @@ export class ArtemisKit {
   private compareCases(
     baselineManifest: AnyManifest,
     currentManifest: AnyManifest
-  ): Pick<CompareResult['comparison'], 'newFailures' | 'newPasses' | 'unchanged'> {
+  ): Pick<
+    CompareResult['comparison'],
+    'newFailures' | 'newPasses' | 'unchanged' | 'addedCases' | 'removedCases'
+  > {
     const newFailures: CompareResult['comparison']['newFailures'] = [];
     const newPasses: CompareResult['comparison']['newPasses'] = [];
     const unchanged: CompareResult['comparison']['unchanged'] = [];
+    const addedCases: CompareResult['comparison']['addedCases'] = [];
+    const removedCases: CompareResult['comparison']['removedCases'] = [];
 
     // Get cases from manifests
     const baselineCases = this.extractCases(baselineManifest);
@@ -1098,34 +1102,52 @@ export class ArtemisKit {
       const baselineCase = baselineCaseMap.get(caseId);
       const currentCase = currentCaseMap.get(caseId);
 
-      if (!baselineCase || !currentCase) {
-        // Case exists in only one manifest - skip for now
+      // Case exists only in current run (new test case)
+      if (!baselineCase && currentCase) {
+        addedCases.push({
+          caseId,
+          caseName: currentCase.name,
+          status: currentCase.ok ? 'passed' : 'failed',
+        });
         continue;
       }
 
-      const baselineStatus = baselineCase.ok ? 'passed' : 'failed';
-      const currentStatus = currentCase.ok ? 'passed' : 'failed';
+      // Case exists only in baseline (removed test case)
+      if (baselineCase && !currentCase) {
+        removedCases.push({
+          caseId,
+          caseName: baselineCase.name,
+          status: baselineCase.ok ? 'passed' : 'failed',
+        });
+        continue;
+      }
 
-      if (baselineStatus === currentStatus) {
-        unchanged.push({ caseId, status: currentStatus });
-      } else if (baselineStatus === 'passed' && currentStatus === 'failed') {
-        newFailures.push({
-          caseId,
-          caseName: currentCase.name,
-          baselineStatus,
-          currentStatus,
-        });
-      } else if (baselineStatus === 'failed' && currentStatus === 'passed') {
-        newPasses.push({
-          caseId,
-          caseName: currentCase.name,
-          baselineStatus,
-          currentStatus,
-        });
+      // Both exist - compare status
+      if (baselineCase && currentCase) {
+        const baselineStatus = baselineCase.ok ? 'passed' : 'failed';
+        const currentStatus = currentCase.ok ? 'passed' : 'failed';
+
+        if (baselineStatus === currentStatus) {
+          unchanged.push({ caseId, status: currentStatus });
+        } else if (baselineStatus === 'passed' && currentStatus === 'failed') {
+          newFailures.push({
+            caseId,
+            caseName: currentCase.name,
+            baselineStatus,
+            currentStatus,
+          });
+        } else if (baselineStatus === 'failed' && currentStatus === 'passed') {
+          newPasses.push({
+            caseId,
+            caseName: currentCase.name,
+            baselineStatus,
+            currentStatus,
+          });
+        }
       }
     }
 
-    return { newFailures, newPasses, unchanged };
+    return { newFailures, newPasses, unchanged, addedCases, removedCases };
   }
 
   /**

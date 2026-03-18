@@ -411,6 +411,18 @@ export interface ComparisonDetails {
     caseId: string;
     status: string;
   }>;
+  /** Cases that exist in current run but not in baseline (new test cases) */
+  addedCases: Array<{
+    caseId: string;
+    caseName?: string;
+    status: string;
+  }>;
+  /** Cases that exist in baseline but not in current run (removed test cases) */
+  removedCases: Array<{
+    caseId: string;
+    caseName?: string;
+    status: string;
+  }>;
 }
 
 /**

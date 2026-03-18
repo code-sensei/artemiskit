@@ -1065,14 +1065,11 @@ export class ArtemisKit {
       };
     }
 
-    // Fallback for unknown manifest types
-    return {
-      runId,
-      successRate: 0,
-      totalCases: 0,
-      passedCases: 0,
-      failedCases: 0,
-    };
+    // Throw for non-RunManifest types - compare() only supports RunManifest
+    throw new Error(
+      `Cannot extract metrics from run "${runId}": expected RunManifest but got a different manifest type. ` +
+        'The compare() method only supports comparing scenario evaluation runs, not stress tests or red team runs.'
+    );
   }
 
   /**

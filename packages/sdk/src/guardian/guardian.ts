@@ -24,6 +24,7 @@ import {
   type InterceptorConfig,
 } from './interceptor';
 import { createDefaultPolicy, loadPolicy, parsePolicy } from './policy';
+import { SemanticValidator, createSemanticValidator } from './semantic-validator';
 import type {
   ActionDefinition,
   ContentValidationConfig,
@@ -154,6 +155,7 @@ export class Guardian {
   private metricsCollector: MetricsCollector;
   private actionValidator: ActionValidator;
   private intentClassifier: IntentClassifier;
+  private semanticValidator?: SemanticValidator;
   private inputGuardrails: GuardrailFn[];
   private outputGuardrails: GuardrailFn[];
   private eventHandlers: GuardianEventHandler[] = [];
@@ -223,6 +225,24 @@ export class Guardian {
 
     // Add intent classifier as guardrail
     this.inputGuardrails.push(this.intentClassifier.asGuardrail());
+
+    // Initialize semantic validator if strategy is 'semantic' or 'hybrid' and LLM client is provided
+    const validationStrategy = this.config.contentValidation?.strategy ?? 'semantic';
+    const shouldUseSemanticValidation =
+      (validationStrategy === 'semantic' || validationStrategy === 'hybrid') && config.llmClient;
+
+    if (shouldUseSemanticValidation && config.llmClient) {
+      this.semanticValidator = createSemanticValidator(
+        config.llmClient,
+        this.config.contentValidation
+      );
+
+      // Add semantic validator as input guardrail
+      this.inputGuardrails.push(this.semanticValidator.asGuardrail('input'));
+
+      // Add semantic validator as output guardrail
+      this.outputGuardrails.push(this.semanticValidator.asGuardrail('output'));
+    }
 
     // Register event handler
     if (config.onEvent) {
@@ -403,8 +423,11 @@ export class Guardian {
       this.circuitBreaker.recordViolation(violation);
     }
 
+    // Apply mode-aware blocking logic
+    const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+
     return {
-      valid: violations.length === 0 || !violations.some((v) => v.blocked),
+      valid: violations.length === 0 || !shouldBlockAny,
       violations,
       transformedContent,
     };
@@ -440,8 +463,11 @@ export class Guardian {
       this.circuitBreaker.recordViolation(violation);
     }
 
+    // Apply mode-aware blocking logic
+    const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+
     return {
-      valid: violations.length === 0 || !violations.some((v) => v.blocked),
+      valid: violations.length === 0 || !shouldBlockAny,
       violations,
       transformedContent,
     };

@@ -283,7 +283,13 @@ export class TestCaseBuilder {
       );
     }
 
-    if (!this._prompt || (typeof this._prompt === 'string' && this._prompt.length === 0)) {
+    // Check for empty prompt: empty string or empty array
+    const hasEmptyPrompt =
+      !this._prompt ||
+      (typeof this._prompt === 'string' && this._prompt.length === 0) ||
+      (Array.isArray(this._prompt) && this._prompt.length === 0);
+
+    if (hasEmptyPrompt) {
       throw new Error(`TestCase "${this._id}" must have a prompt.`);
     }
 

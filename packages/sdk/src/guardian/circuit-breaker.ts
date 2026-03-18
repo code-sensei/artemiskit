@@ -629,7 +629,8 @@ export class RateLimiter {
 
     if (tokensToAdd > 0) {
       this.burstTokens = Math.min(this.config.burstLimit, this.burstTokens + tokensToAdd);
-      this.lastBurstRefill = now;
+      // Preserve sub-second precision to avoid refill rate drift
+      this.lastBurstRefill += tokensToAdd * 1000;
     }
   }
 

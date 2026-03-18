@@ -292,8 +292,20 @@ export class Guardian {
 
   /**
    * Wrap a model client with guardian protection
+   *
+   * Note: Checks circuit breaker before allowing LLM requests, consistent with validateAction().
+   * When the circuit is open due to detected attack patterns, all LLM requests are blocked.
    */
   protect(client: ModelClient): GuardianInterceptor {
+    // Check circuit breaker before allowing any LLM request
+    // This ensures consistency with validateAction() which also checks the circuit breaker
+    if (this.circuitBreaker.isOpen()) {
+      throw new GuardianBlockedError(
+        'Circuit breaker is open - too many violations detected. LLM requests are temporarily blocked.',
+        []
+      );
+    }
+
     // Derive blockOnFailure from normalizedMode to respect observe/selective/strict semantics
     // In observe mode, never block (log only). In selective/strict, use config setting (default true).
     const shouldBlockOnFailure =

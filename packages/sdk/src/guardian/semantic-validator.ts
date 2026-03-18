@@ -187,9 +187,38 @@ export class SemanticValidator {
    */
   private parseResponse(responseText: string): SemanticValidationResult {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      // Extract JSON from the response by finding valid JSON blocks
+      // Try to find JSON that starts with the expected "valid" field first
+      const jsonMatch = responseText.match(/\{"valid"\s*:/);
+      let jsonToParse: string | null = null;
+
+      if (jsonMatch && jsonMatch.index !== undefined) {
+        // Found a JSON block starting with "valid", extract the complete object
+        const startIndex = jsonMatch.index;
+        jsonToParse = this.extractJsonObject(responseText, startIndex);
+      }
+
+      // Fallback: try to find any JSON object and parse progressively
+      if (!jsonToParse) {
+        const allJsonStarts = [...responseText.matchAll(/\{/g)];
+        for (const match of allJsonStarts) {
+          if (match.index === undefined) continue;
+          const candidate = this.extractJsonObject(responseText, match.index);
+          if (candidate) {
+            try {
+              const parsed = JSON.parse(candidate);
+              if (typeof parsed.valid === 'boolean') {
+                jsonToParse = candidate;
+                break;
+              }
+            } catch {
+              // Not valid JSON, try next
+            }
+          }
+        }
+      }
+
+      if (!jsonToParse) {
         return {
           valid: true,
           confidence: 0,
@@ -199,7 +228,7 @@ export class SemanticValidator {
         };
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as {
+      const parsed = JSON.parse(jsonToParse) as {
         valid: boolean;
         confidence: number;
         category?: string;
@@ -227,6 +256,49 @@ export class SemanticValidator {
         rawResponse: responseText,
       };
     }
+  }
+
+  /**
+   * Extract a complete JSON object from a string starting at the given index
+   * Uses brace counting to handle nested objects correctly
+   */
+  private extractJsonObject(text: string, startIndex: number): string | null {
+    if (text[startIndex] !== '{') return null;
+
+    let depth = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = startIndex; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\' && inString) {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"' && !escapeNext) {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{') depth++;
+        else if (char === '}') {
+          depth--;
+          if (depth === 0) {
+            return text.slice(startIndex, i + 1);
+          }
+        }
+      }
+    }
+
+    return null; // Unbalanced braces
   }
 
   /**

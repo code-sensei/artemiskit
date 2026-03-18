@@ -229,7 +229,8 @@ describe('Utils - Assertion Helpers', () => {
   describe('assert', () => {
     it('should not throw for true condition', () => {
       expect(() => assert(true)).not.toThrow();
-      expect(() => assert(1 === 1)).not.toThrow();
+      const truthyValue = 1;
+      expect(() => assert(truthyValue === 1)).not.toThrow();
     });
 
     it('should throw for false condition', () => {

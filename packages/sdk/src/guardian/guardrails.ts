@@ -646,19 +646,18 @@ export function createGuardrails(
 
   // Add custom patterns guardrail if patterns are provided
   if (config.customPatterns && config.customPatterns.length > 0) {
-    // Determine category: single category uses that, multiple categories uses 'custom',
-    // no categories defaults to 'injection'
+    // Determine category: single category uses that, no categories defaults to 'injection'
+    // Multiple categories are not supported - use createCustomPatternGuardrail directly
+    // for per-category pattern guardrails
     const categories = config.patternConfig?.categories ?? [];
-    let category: PatternCategory;
-    if (categories.length === 0) {
-      category = 'injection';
-    } else if (categories.length === 1) {
-      category = categories[0];
-    } else {
-      // Multiple categories specified - use 'custom' since we can't assign
-      // per-pattern categories with the current flat pattern array API
-      category = 'custom';
+
+    if (categories.length > 1) {
+      throw new Error(
+        `Cannot assign multiple categories (${categories.join(', ')}) to a flat pattern array. Custom patterns can only have a single category. To create patterns with different categories, use createCustomPatternGuardrail() multiple times with different options, or add them via the config.custom array.`
+      );
     }
+
+    const category: PatternCategory = categories[0] ?? 'injection';
 
     const patternOptions: CustomPatternOptions = {
       caseInsensitive: config.patternConfig?.caseInsensitive ?? true,

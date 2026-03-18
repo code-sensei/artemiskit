@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/sdk",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Programmatic SDK for ArtemisKit LLM evaluation toolkit - integrate into your Node.js apps",
   "type": "module",
   "license": "Apache-2.0",

@@ -417,15 +417,34 @@ export class MetricsCollector {
 
   /**
    * Get cost per minute (actual rate based on elapsed time)
+   *
+   * To avoid extreme extrapolated values immediately after window rotation,
+   * we require a minimum duration of data before extrapolating. If insufficient
+   * data is available in the current window, we fall back to historical data.
    */
   private getCostPerMinute(): number {
     const now = Date.now();
     const windowElapsed = now - this.currentWindow.startTime;
-    // Use current window elapsed time if less than a minute, otherwise full minute
-    const effectiveDuration = Math.min(windowElapsed, 60000);
-    if (effectiveDuration <= 0) return 0;
-    // Extrapolate current window cost to a full minute
-    return (this.currentWindow.costSum * 60000) / effectiveDuration;
+    // Require at least 5 seconds of data before extrapolating
+    const minDurationMs = 5000;
+
+    if (windowElapsed >= minDurationMs) {
+      // Sufficient data in current window - extrapolate to a full minute
+      const effectiveDuration = Math.min(windowElapsed, 60000);
+      return (this.currentWindow.costSum * 60000) / effectiveDuration;
+    }
+
+    // Not enough data in current window - use historical data if available
+    if (this.history.length > 0) {
+      const lastWindow = this.history[this.history.length - 1];
+      if (lastWindow.costSum > 0) {
+        // Use the last complete window's rate
+        return (lastWindow.costSum * 60000) / this.windowDurationMs;
+      }
+    }
+
+    // No historical data either - return 0 to avoid misleading extrapolation
+    return 0;
   }
 
   /**

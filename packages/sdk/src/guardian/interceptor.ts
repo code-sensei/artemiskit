@@ -42,6 +42,11 @@ export interface InterceptorConfig {
   onEvent?: GuardianEventHandler;
   /** Log violations */
   logViolations?: boolean;
+  /**
+   * Callback to check if requests should be allowed (e.g., circuit breaker check).
+   * Called before each LLM request. Return false to block the request.
+   */
+  shouldAllow?: () => { allowed: boolean; reason?: string };
 }
 
 /**
@@ -94,6 +99,31 @@ export class GuardianInterceptor implements ModelClient {
     const requestId = nanoid();
     const startTime = Date.now();
     this.stats.totalRequests++;
+
+    // Check if requests are allowed (e.g., circuit breaker)
+    if (this.config.shouldAllow) {
+      const allowResult = this.config.shouldAllow();
+      if (!allowResult.allowed) {
+        this.stats.blockedRequests++;
+        const violation: Violation = {
+          id: nanoid(),
+          type: 'circuit_breaker',
+          severity: 'high',
+          message: allowResult.reason ?? 'Request blocked by circuit breaker',
+          timestamp: new Date(),
+          action: 'block',
+          blocked: true,
+        };
+        this.emitEvent({
+          type: 'request_blocked',
+          timestamp: new Date(),
+          data: { requestId, phase: 'pre-request', violations: [violation] },
+        });
+        throw new GuardianBlockedError(allowResult.reason ?? 'Request blocked by circuit breaker', [
+          violation,
+        ]);
+      }
+    }
 
     // Extract prompt text
     const promptText = this.extractPromptText(options.prompt);

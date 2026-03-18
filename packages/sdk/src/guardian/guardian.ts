@@ -293,12 +293,11 @@ export class Guardian {
   /**
    * Wrap a model client with guardian protection
    *
-   * Note: Checks circuit breaker before allowing LLM requests, consistent with validateAction().
+   * Note: Checks circuit breaker on each LLM request via the shouldAllow callback.
    * When the circuit is open due to detected attack patterns, all LLM requests are blocked.
    */
   protect(client: ModelClient): GuardianInterceptor {
-    // Check circuit breaker before allowing any LLM request
-    // This ensures consistency with validateAction() which also checks the circuit breaker
+    // Check circuit breaker at creation time for immediate feedback
     if (this.circuitBreaker.isOpen()) {
       throw new GuardianBlockedError(
         'Circuit breaker is open - too many violations detected. LLM requests are temporarily blocked.',
@@ -311,6 +310,9 @@ export class Guardian {
     const shouldBlockOnFailure =
       this.normalizedMode !== 'observe' && (this.config.blockOnFailure ?? true);
 
+    // Track violations per request for metrics (keyed by requestId)
+    const pendingViolations = new Map<string, Violation[]>();
+
     const interceptorConfig: InterceptorConfig = {
       validateInput: this.config.validateInput,
       validateOutput: this.config.validateOutput,
@@ -318,20 +320,51 @@ export class Guardian {
       outputGuardrails: this.outputGuardrails,
       blockOnFailure: shouldBlockOnFailure,
       logViolations: this.config.enableLogging,
+      // Per-request circuit breaker check
+      shouldAllow: () => {
+        if (this.circuitBreaker.isOpen()) {
+          return {
+            allowed: false,
+            reason: 'Circuit breaker is open - too many violations detected',
+          };
+        }
+        return { allowed: true };
+      },
       onEvent: (event) => {
-        // Record metrics
-        if (event.type === 'request_complete') {
-          const latencyMs = event.data.latencyMs as number;
-          this.metricsCollector.recordRequest({
-            blocked: false,
-            warned: false,
-            latencyMs,
-            violations: [],
-          });
-          this.circuitBreaker.recordSuccess();
-        } else if (event.type === 'violation_detected') {
+        const requestId = event.data.requestId as string | undefined;
+
+        if (event.type === 'violation_detected') {
           const violation = event.data.violation as Violation;
           this.circuitBreaker.recordViolation(violation);
+
+          // Track violations for this request
+          if (requestId) {
+            const existing = pendingViolations.get(requestId) ?? [];
+            existing.push(violation);
+            pendingViolations.set(requestId, existing);
+          }
+        } else if (event.type === 'request_complete') {
+          const latencyMs = event.data.latencyMs as number;
+          // Retrieve any violations that were detected but not blocked (warn path)
+          const violations = requestId ? (pendingViolations.get(requestId) ?? []) : [];
+          const warned = violations.length > 0;
+
+          this.metricsCollector.recordRequest({
+            blocked: false,
+            warned,
+            latencyMs,
+            violations,
+          });
+
+          // Record success only if no violations occurred
+          if (violations.length === 0) {
+            this.circuitBreaker.recordSuccess();
+          }
+
+          // Clean up
+          if (requestId) {
+            pendingViolations.delete(requestId);
+          }
         } else if (event.type === 'request_blocked') {
           const violations = event.data.violations as Violation[];
           const latencyMs = (event.data.latencyMs as number) ?? 0;
@@ -341,6 +374,11 @@ export class Guardian {
             latencyMs,
             violations,
           });
+
+          // Clean up
+          if (requestId) {
+            pendingViolations.delete(requestId);
+          }
         }
 
         // Forward to guardian event handlers

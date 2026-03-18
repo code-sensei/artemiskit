@@ -77,23 +77,11 @@ export class CircuitBreaker {
 
   /**
    * Check if the circuit allows requests
+   * @deprecated Use isOpen() instead - this method duplicates functionality.
+   * Guardian uses isOpen() exclusively for circuit breaker checks.
    */
   allowRequest(): boolean {
-    if (!this.config.enabled) {
-      return true;
-    }
-
-    if (this.state === 'open') {
-      // Check if cooldown has passed
-      const now = Date.now();
-      if (now - this.lastOpenTime >= this.config.cooldownMs) {
-        this.transition('half-open');
-        return true;
-      }
-      return false;
-    }
-
-    return true;
+    return !this.isOpen();
   }
 
   /**
@@ -165,9 +153,14 @@ export class CircuitBreaker {
   }
 
   /**
-   * Force the circuit to a specific state
+   * Force the circuit to a specific state.
+   * When forcing to 'open', also updates lastOpenTime so the cooldown
+   * period starts from now (matching trip() behavior).
    */
   forceState(state: CircuitBreakerState): void {
+    if (state === 'open') {
+      this.lastOpenTime = Date.now();
+    }
     this.transition(state);
   }
 
@@ -371,11 +364,13 @@ export class MetricsCollector {
     const rps = totalTimeMs > 0 ? (totalRequests * 1000) / totalTimeMs : 0;
 
     // Calculate cost tracking
+    // costPerMinute is computed as an actual rate (cost per 60s) based on recent activity
+    const costPerMinute = this.getCostPerMinute();
     const costTracking: CostTracking | undefined =
       totalCost > 0
         ? {
             totalCost,
-            costPerMinute: this.currentWindow.costSum,
+            costPerMinute,
             costPerHour: this.getHourlyCost(),
             costPerDay: this.getDailyCost(),
             currency: this.currency,
@@ -418,6 +413,38 @@ export class MetricsCollector {
   reset(): void {
     this.history = [];
     this.currentWindow = this.createWindow();
+  }
+
+  /**
+   * Get cost per minute (actual rate based on elapsed time)
+   *
+   * To avoid extreme extrapolated values immediately after window rotation,
+   * we require a minimum duration of data before extrapolating. If insufficient
+   * data is available in the current window, we fall back to historical data.
+   */
+  private getCostPerMinute(): number {
+    const now = Date.now();
+    const windowElapsed = now - this.currentWindow.startTime;
+    // Require at least 5 seconds of data before extrapolating
+    const minDurationMs = 5000;
+
+    if (windowElapsed >= minDurationMs) {
+      // Sufficient data in current window - extrapolate to a full minute
+      const effectiveDuration = Math.min(windowElapsed, 60000);
+      return (this.currentWindow.costSum * 60000) / effectiveDuration;
+    }
+
+    // Not enough data in current window - use historical data if available
+    if (this.history.length > 0) {
+      const lastWindow = this.history[this.history.length - 1];
+      if (lastWindow.costSum > 0) {
+        // Use the last complete window's rate
+        return (lastWindow.costSum * 60000) / this.windowDurationMs;
+      }
+    }
+
+    // No historical data either - return 0 to avoid misleading extrapolation
+    return 0;
   }
 
   /**
@@ -629,27 +656,46 @@ export class RateLimiter {
 
     if (tokensToAdd > 0) {
       this.burstTokens = Math.min(this.config.burstLimit, this.burstTokens + tokensToAdd);
-      this.lastBurstRefill = now;
+      // Preserve sub-second precision to avoid refill rate drift
+      this.lastBurstRefill += tokensToAdd * 1000;
     }
   }
 
   /**
-   * Rotate time windows
+   * Rotate time windows using sliding window approximation.
+   *
+   * To prevent the fixed-window burst vulnerability (allowing 2× the limit at
+   * window boundaries), we use a sliding window approximation: when a window
+   * rotates, we carry over a proportional count from the previous window based
+   * on how much of the new window overlaps with the old one.
    */
   private rotateWindows(now: number): void {
-    // Rotate minute window
-    if (now - this.minuteWindow.startTime >= 60000) {
-      this.minuteWindow = { count: 0, startTime: now };
+    // Rotate minute window with sliding approximation
+    const minuteElapsed = now - this.minuteWindow.startTime;
+    if (minuteElapsed >= 60000) {
+      // Calculate overlap ratio: how much of the previous window is still relevant
+      const overlapMs = Math.max(0, 120000 - minuteElapsed); // 2 windows - elapsed
+      const overlapRatio = Math.min(1, overlapMs / 60000);
+      const carryOver = Math.floor(this.minuteWindow.count * overlapRatio);
+      this.minuteWindow = { count: carryOver, startTime: now - (minuteElapsed % 60000) };
     }
 
-    // Rotate hour window
-    if (now - this.hourWindow.startTime >= 3600000) {
-      this.hourWindow = { count: 0, startTime: now };
+    // Rotate hour window with sliding approximation
+    const hourElapsed = now - this.hourWindow.startTime;
+    if (hourElapsed >= 3600000) {
+      const overlapMs = Math.max(0, 7200000 - hourElapsed);
+      const overlapRatio = Math.min(1, overlapMs / 3600000);
+      const carryOver = Math.floor(this.hourWindow.count * overlapRatio);
+      this.hourWindow = { count: carryOver, startTime: now - (hourElapsed % 3600000) };
     }
 
-    // Rotate day window
-    if (now - this.dayWindow.startTime >= 86400000) {
-      this.dayWindow = { count: 0, startTime: now };
+    // Rotate day window with sliding approximation
+    const dayElapsed = now - this.dayWindow.startTime;
+    if (dayElapsed >= 86400000) {
+      const overlapMs = Math.max(0, 172800000 - dayElapsed);
+      const overlapRatio = Math.min(1, overlapMs / 86400000);
+      const carryOver = Math.floor(this.dayWindow.count * overlapRatio);
+      this.dayWindow = { count: carryOver, startTime: now - (dayElapsed % 86400000) };
     }
   }
 }

@@ -42,6 +42,7 @@ artemis-output/
 
 # AI trace logs
 ai-trace/
+notes.txt
 
 # Dev Docs
 dev-docs/

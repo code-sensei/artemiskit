@@ -25,7 +25,10 @@
  */
 
 // Main Guardian class
-export { Guardian, createGuardian, type GuardianConfig } from './guardian';
+export { Guardian, createGuardian, normalizeGuardianMode, type GuardianConfig } from './guardian';
+
+// Semantic Validator (v0.3.2+)
+export { SemanticValidator, createSemanticValidator } from './semantic-validator';
 
 // Interceptor
 export {
@@ -62,7 +65,11 @@ export {
   filterContent,
   createContentFilterGuardrail,
   createGuardrails,
+  // Pattern matching utilities (v0.3.2+)
+  matchPattern,
+  createCustomPatternGuardrail,
   type GuardrailsConfig,
+  type CustomPatternOptions,
 } from './guardrails';
 
 // Policy
@@ -139,4 +146,31 @@ export type {
   // Framework types
   FrameworkType,
   FrameworkIntegrationConfig,
+  // Mode types (v0.3.2+)
+  GuardianModeCanonical,
+  GuardianModeLegacy,
+  GuardianModeAll,
+  // Content validation types (v0.3.2+)
+  ContentValidationConfig,
+  PatternConfig,
+  ValidationCategory,
+  PatternCategory,
+  SemanticValidationResult,
+  // Multi-turn detection types (v0.3.3+)
+  SessionStorageType,
+  SessionStorageConfig,
+  SessionMessage,
+  SessionMetrics,
+  ConversationSession,
+  TrustBuildingHeuristicConfig,
+  EscalationHeuristicConfig,
+  ContextManipulationHeuristicConfig,
+  SplitPayloadHeuristicConfig,
+  MultiTurnHeuristics,
+  MultiTurnSemanticConfig,
+  MultiTurnConfig,
+  HeuristicResult,
+  HeuristicResults,
+  MultiTurnValidationResult,
+  ValidateMessageOptions,
 } from './types';

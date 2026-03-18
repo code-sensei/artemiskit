@@ -19,9 +19,99 @@ import type {
   PIIDetection,
   PIILocation,
   PIIType,
+  PatternCategory,
+  PatternConfig,
   Violation,
   ViolationSeverity,
 } from './types';
+
+// =============================================================================
+// Pattern Matching Utilities
+// =============================================================================
+
+/**
+ * Options for custom pattern matching
+ */
+export interface CustomPatternOptions {
+  /** Case-insensitive matching (default: true) */
+  caseInsensitive?: boolean;
+  /** Pattern category for categorization */
+  category?: PatternCategory;
+  /** Severity level for matches */
+  severity?: ViolationSeverity;
+}
+
+/**
+ * Match a pattern against content with options
+ */
+export function matchPattern(
+  content: string,
+  pattern: string | RegExp,
+  options: CustomPatternOptions = {}
+): { matched: boolean; match?: RegExpMatchArray } {
+  const { caseInsensitive = true } = options;
+
+  if (typeof pattern === 'string') {
+    // For string patterns, convert to regex with optional case insensitivity
+    const flags = caseInsensitive ? 'gi' : 'g';
+    const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedPattern, flags);
+    const match = content.match(regex);
+    return { matched: !!match, match: match ?? undefined };
+  }
+
+  // For RegExp patterns, apply if case insensitivity is requested and not already set
+  if (caseInsensitive && !pattern.flags.includes('i')) {
+    const newRegex = new RegExp(pattern.source, `${pattern.flags}i`);
+    const match = content.match(newRegex);
+    return { matched: !!match, match: match ?? undefined };
+  }
+
+  const match = content.match(pattern);
+  return { matched: !!match, match: match ?? undefined };
+}
+
+/**
+ * Create a custom pattern guardrail
+ */
+export function createCustomPatternGuardrail(
+  patterns: Array<string | RegExp>,
+  options: CustomPatternOptions = {}
+): (content: string, context?: Record<string, unknown>) => Promise<GuardrailResult> {
+  const { caseInsensitive = true, category = 'injection', severity = 'high' } = options;
+
+  return async (content: string) => {
+    const violations: Violation[] = [];
+
+    for (const pattern of patterns) {
+      const result = matchPattern(content, pattern, { caseInsensitive });
+
+      if (result.matched && result.match) {
+        violations.push({
+          id: nanoid(),
+          type: 'injection_detection',
+          severity,
+          message: `Custom pattern match detected: ${category}`,
+          details: {
+            pattern: typeof pattern === 'string' ? pattern : pattern.source,
+            category,
+            matchedText: result.match[0],
+          },
+          timestamp: new Date(),
+          action: 'block',
+          blocked: true,
+        });
+        break; // One match is enough
+      }
+    }
+
+    if (violations.length > 0) {
+      return { passed: false, violations };
+    }
+
+    return { passed: true, violations: [] };
+  };
+}
 
 // =============================================================================
 // Injection Detection
@@ -141,6 +231,7 @@ export function detectInjection(text: string): InjectionDetection {
         return {
           detected: true,
           type,
+          severity, // Include actual severity from pattern definition
           confidence: severity === 'critical' ? 0.95 : severity === 'high' ? 0.85 : 0.7,
           pattern: pattern.source,
           location:
@@ -175,7 +266,8 @@ export function createInjectionGuardrail(): (
           {
             id: nanoid(),
             type: 'injection_detection',
-            severity: 'critical',
+            // Use detected severity from pattern definition, fallback to critical for safety
+            severity: detection.severity ?? 'critical',
             message: `Detected ${detection.type?.replace(/_/g, ' ')} attempt`,
             details: {
               type: detection.type,
@@ -487,21 +579,44 @@ export function createContentFilterGuardrail(
 export interface GuardrailsConfig {
   /** Enable injection detection */
   injectionDetection?: boolean;
+
   /** Enable PII detection */
   piiDetection?: boolean;
+
   /** PII detection options */
   piiOptions?: {
     redact?: boolean;
     block?: boolean;
     allowedTypes?: PIIType[];
   };
+
   /** Enable content filtering */
   contentFilter?: boolean;
+
   /** Content filter options */
   contentFilterOptions?: {
     blockedCategories?: ContentCategory[];
     warnCategories?: ContentCategory[];
   };
+
+  /**
+   * Pattern matching configuration
+   * Controls how custom patterns are matched
+   */
+  patternConfig?: PatternConfig;
+
+  /**
+   * Custom patterns to add to injection detection
+   * These are checked in addition to built-in patterns
+   */
+  customPatterns?: Array<string | RegExp>;
+
+  /**
+   * Pattern categories to enable (default: all)
+   * Use this to selectively enable pattern categories
+   */
+  enabledPatternCategories?: PatternCategory[];
+
   /** Custom guardrails */
   custom?: Array<(content: string, context?: Record<string, unknown>) => Promise<GuardrailResult>>;
 }
@@ -516,18 +631,45 @@ export function createGuardrails(
     (content: string, context?: Record<string, unknown>) => Promise<GuardrailResult>
   > = [];
 
+  // Add injection detection if enabled
   if (config.injectionDetection !== false) {
     guardrails.push(createInjectionGuardrail());
   }
 
+  // Add PII detection if enabled
   if (config.piiDetection !== false) {
     guardrails.push(createPIIGuardrail(config.piiOptions));
   }
 
+  // Add content filtering if enabled
   if (config.contentFilter !== false) {
     guardrails.push(createContentFilterGuardrail(config.contentFilterOptions));
   }
 
+  // Add custom patterns guardrail if patterns are provided
+  if (config.customPatterns && config.customPatterns.length > 0) {
+    // Determine category: single category uses that, no categories defaults to 'injection'
+    // Multiple categories are not supported - use createCustomPatternGuardrail directly
+    // for per-category pattern guardrails
+    const categories = config.patternConfig?.categories ?? [];
+
+    if (categories.length > 1) {
+      throw new Error(
+        `Cannot assign multiple categories (${categories.join(', ')}) to a flat pattern array. Custom patterns can only have a single category. To create patterns with different categories, use createCustomPatternGuardrail() multiple times with different options, or add them via the config.custom array.`
+      );
+    }
+
+    const category: PatternCategory = categories[0] ?? 'injection';
+
+    const patternOptions: CustomPatternOptions = {
+      caseInsensitive: config.patternConfig?.caseInsensitive ?? true,
+      category,
+      severity: 'high',
+    };
+    guardrails.push(createCustomPatternGuardrail(config.customPatterns, patternOptions));
+  }
+
+  // Add custom guardrails
   if (config.custom) {
     guardrails.push(...config.custom);
   }

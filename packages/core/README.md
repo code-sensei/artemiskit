@@ -72,11 +72,15 @@ Built-in expectation types:
 | Type | Description |
 |------|-------------|
 | `contains` | Check if response contains text |
+| `not_contains` | Check if response does NOT contain text |
 | `exact` | Exact string match |
 | `regex` | Regular expression match |
 | `fuzzy` | Fuzzy string similarity (Levenshtein) |
+| `similarity` | Semantic similarity matching (embedding or LLM-based) |
 | `llm_grader` | LLM-based response grading |
 | `json_schema` | Validate JSON structure |
+| `combined` | AND/OR logic between multiple assertions |
+| `inline` | Safe expression-based custom matchers |
 
 ## Redaction
 

@@ -9,6 +9,7 @@ import type {
   ModelClient,
   RedTeamManifest,
   RunManifest,
+  StorageConfig,
   StressManifest,
   StressRequestResult,
 } from '@artemiskit/core';
@@ -114,6 +115,12 @@ export interface ArtemisKitConfig {
   retries?: number;
   /** Default concurrency for parallel execution */
   concurrency?: number;
+  /**
+   * Storage configuration for persisting and loading run manifests
+   * Required for compare() method to load historical runs
+   * @since 0.3.2
+   */
+  storage?: StorageConfig;
 }
 
 /**
@@ -257,3 +264,179 @@ export interface ArtemisKitEvents {
 }
 
 export type ArtemisKitEventName = keyof ArtemisKitEvents;
+
+// ============================================================================
+// Validation Types (v0.3.2+)
+// ============================================================================
+
+/**
+ * Options for validating scenario files
+ */
+export interface ValidateOptions {
+  /**
+   * Scenario file path(s) or glob pattern
+   * Can be a single path, array of paths, or glob pattern
+   */
+  scenario: string | string[];
+
+  /**
+   * Strict mode - fail on warnings as well as errors
+   * @default false
+   */
+  strict?: boolean;
+}
+
+/**
+ * Validation error details
+ */
+export interface ValidationError {
+  /** File path where error occurred */
+  file: string;
+  /** Error message */
+  message: string;
+  /** Line number if available */
+  line?: number;
+  /** Column number if available */
+  column?: number;
+}
+
+/**
+ * Validation warning details
+ */
+export interface ValidationWarning {
+  /** File path where warning occurred */
+  file: string;
+  /** Warning message */
+  message: string;
+  /** Line number if available */
+  line?: number;
+  /** Column number if available */
+  column?: number;
+}
+
+/**
+ * Per-scenario validation result
+ */
+export interface ScenarioValidation {
+  /** File path */
+  file: string;
+  /** Scenario name */
+  name: string;
+  /** Number of test cases */
+  caseCount: number;
+  /** Whether this scenario is valid */
+  valid: boolean;
+}
+
+/**
+ * Result from validate() method
+ */
+export interface ValidationResult {
+  /** Overall validation passed */
+  valid: boolean;
+  /** Individual scenario validation results */
+  scenarios: ScenarioValidation[];
+  /** Validation errors */
+  errors: ValidationError[];
+  /** Validation warnings (informational) */
+  warnings: ValidationWarning[];
+}
+
+// ============================================================================
+// Comparison Types (v0.3.2+)
+// ============================================================================
+
+/**
+ * Options for comparing test runs
+ */
+export interface CompareOptions {
+  /**
+   * Baseline run identifier
+   * Can be a run ID, 'latest', or a named baseline
+   */
+  baseline: string;
+
+  /**
+   * Current run identifier
+   * Can be a run ID
+   */
+  current: string;
+
+  /**
+   * Regression threshold (0-1)
+   * A regression is detected if success rate drops by more than this amount
+   * @default 0.05 (5%)
+   */
+  threshold?: number;
+}
+
+/**
+ * Summary of a run for comparison
+ */
+export interface RunSummary {
+  /** Run identifier */
+  runId: string;
+  /** Success rate (0-1) */
+  successRate: number;
+  /** Total number of test cases */
+  totalCases: number;
+  /** Number of passed cases */
+  passedCases: number;
+  /** Number of failed cases */
+  failedCases: number;
+}
+
+/**
+ * Comparison details between two runs
+ */
+export interface ComparisonDetails {
+  /** Change in success rate (current - baseline) */
+  successRateDelta: number;
+  /** Cases that passed in baseline but failed in current */
+  newFailures: Array<{
+    caseId: string;
+    caseName?: string;
+    baselineStatus: string;
+    currentStatus: string;
+  }>;
+  /** Cases that failed in baseline but passed in current */
+  newPasses: Array<{
+    caseId: string;
+    caseName?: string;
+    baselineStatus: string;
+    currentStatus: string;
+  }>;
+  /** Cases with unchanged status */
+  unchanged: Array<{
+    caseId: string;
+    status: string;
+  }>;
+  /** Cases that exist in current run but not in baseline (new test cases) */
+  addedCases: Array<{
+    caseId: string;
+    caseName?: string;
+    status: string;
+  }>;
+  /** Cases that exist in baseline but not in current run (removed test cases) */
+  removedCases: Array<{
+    caseId: string;
+    caseName?: string;
+    status: string;
+  }>;
+}
+
+/**
+ * Result from compare() method
+ */
+export interface CompareResult {
+  /** Baseline run summary */
+  baseline: RunSummary;
+  /** Current run summary */
+  current: RunSummary;
+  /** Detailed comparison */
+  comparison: ComparisonDetails;
+  /** Whether a regression was detected */
+  hasRegression: boolean;
+  /** Threshold used for regression detection */
+  threshold: number;
+}

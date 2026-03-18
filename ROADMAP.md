@@ -2,8 +2,8 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.3.0 (March 2026)  
-**License:** Apache-2.0  
+**Current Version:** 0.3.1 (March 2026)
+**License:** Apache-2.0
 **Status:** Active Development
 
 ---
@@ -444,6 +444,174 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 
 ---
 
+## v0.3.x - Patch Releases
+
+**Goal:** Incremental improvements for SDK parity, Guardian enhancements, multi-turn detection, and semantic analysis.
+
+**Specifications:** See [dev-docs/v0.3.x/](dev-docs/v0.3.x/) for detailed technical specifications.
+
+### v0.3.1 - Agent Mutations ✅
+
+**Focus:** Agent-specific security mutations targeting agentic AI systems.
+
+**Status:** Complete (March 2026)
+
+| Feature | Status | OWASP | Description |
+|---------|--------|-------|-------------|
+| `agent-confusion` mutation | ✅ | LLM01 | Identity, permission, safety override confusion |
+| `tool-abuse` mutation | ✅ | LLM08 | Manipulate agents to misuse tools |
+| `memory-poisoning` mutation | ✅ | LLM01 | Corrupt agent memory for privilege escalation |
+| `chain-manipulation` mutation | ✅ | LLM01 | Propagate malicious instructions through chains |
+| `--agent-detection` flag | ✅ | - | Dual detection modes (trace/response/combined) |
+| `AgentMutationDetector` | ✅ | - | Unified detector with `quickDetect()` and `detectAll()` |
+
+### v0.3.2 - SDK Parity + Guardian Foundation 🚧
+
+**Focus:** Achieve CLI-SDK parity and lay foundation for semantic-first Guardian.
+
+**Status:** In Progress (March 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `kit.validate()` | 🚧 | Validate scenario files without execution (pre-flight checks) |
+| `kit.compare()` | 🚧 | Compare two test runs for regression detection |
+| Guardian mode normalization | 🚧 | `observe`/`selective`/`strict` modes with deprecation warnings |
+| Semantic validation default | 🚧 | LLM-as-judge validation strategy by default |
+| Case-insensitive patterns | 📋 | Pattern matching improvements |
+| Content validation config | 📋 | `semantic`/`pattern`/`hybrid`/`off` strategies |
+
+### v0.3.3 - Multi-Turn Detection 📋
+
+**Focus:** Session-aware validation and multi-turn attack detection.
+
+**Status:** Planned (April 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Session storage interface | 📋 | `SessionStorageAdapter` with memory/local/Supabase backends |
+| `ConversationSession` model | 📋 | Track messages, metrics, and risk scores |
+| Trust-building detection | 📋 | Detect trust-building patterns before sensitive requests |
+| Escalation detection | 📋 | Detect escalating risk across messages |
+| Context manipulation detection | 📋 | Detect false claims about prior conversation |
+| Split payload detection | 📋 | Detect attack payloads split across messages |
+| `guardian.validateMessage()` | 📋 | Multi-turn aware message validation |
+
+### v0.3.4 - SDK Completeness 📋
+
+**Focus:** Complete SDK feature parity with CLI.
+
+**Status:** Planned (April 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `kit.baseline.create()` | 📋 | Create baseline from run |
+| `kit.baseline.get()` | 📋 | Get baseline by scenario |
+| `kit.baseline.list()` | 📋 | List all baselines |
+| `kit.baseline.delete()` | 📋 | Delete baseline |
+| `kit.history.list()` | 📋 | List run history |
+| `kit.history.get()` | 📋 | Get specific run details |
+| `kit.report.generate()` | 📋 | Generate reports programmatically |
+| Streaming validation | 📋 | `guardian.validateStream()` for streaming responses |
+
+### v0.3.5 - Semantic Redteam Detection 📋
+
+**Focus:** LLM-powered semantic detection for red team attacks.
+
+**Status:** Planned (May 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `SemanticRedteamDetector` | 📋 | LLM-as-judge for attack success detection |
+| Attack-specific rubrics | 📋 | Specialized rubrics for each attack category |
+| `--semantic` flag | 📋 | Enable semantic detection in redteam command |
+| Hybrid detection mode | 📋 | Pattern (fast) + semantic (thorough) fallback |
+| Confidence scoring | 📋 | LLM confidence scores for detection results |
+| Agent semantic detection | 📋 | Semantic analysis for agent mutation detection |
+
+**Architecture:**
+
+```typescript
+// Hybrid detection flow
+class SemanticRedteamDetector {
+  async detect(response: string, attack: AttackPayload): Promise<DetectionResult> {
+    // 1. Fast pattern-based detection
+    const patternResult = this.patternDetector.detect(response);
+    if (patternResult.confidence > 0.9) return patternResult;
+
+    // 2. Semantic fallback for uncertain cases
+    const rubric = this.getRubric(attack.category);
+    const semanticResult = await this.llmClient.evaluate(response, rubric);
+
+    return this.combineResults(patternResult, semanticResult);
+  }
+}
+```
+
+**CLI Usage:**
+
+```bash
+# Enable semantic detection
+akit redteam --prompt "..." --semantic
+
+# Semantic with specific categories
+akit redteam --prompt "..." --semantic --categories injection,jailbreak
+
+# Hybrid mode (pattern first, semantic fallback)
+akit redteam --prompt "..." --semantic --mode hybrid
+```
+
+---
+
+## v0.4.0 - Semantic Cross-Command + Intelligent Evaluation
+
+**Goal:** Extend semantic analysis across all commands and add intelligent evaluation capabilities.
+
+**Status:** Planned (Q2 2026)
+
+**Specifications:** See [dev-docs/v0.4.x/](dev-docs/v0.4.x/) for detailed technical specifications.
+
+### Semantic Analysis Across Commands
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Report AI summary | 📋 | LLM-generated executive summary for reports |
+| Compare semantic diff | 📋 | Semantic analysis of differences between runs |
+| `akit explain` command | 📋 | AI-powered explanation of results and failures |
+| Validate semantic check | 📋 | LLM validation of scenario correctness |
+| History insights | 📋 | AI-generated insights from run history trends |
+
+### Enhanced LLM Grader
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Capabilities system | 📋 | `web_search`, `fact_check`, `cite_check` capabilities |
+| Fast vs Thorough modes | 📋 | Trade-off between speed and depth |
+| Web search abstraction | 📋 | BYOK search providers (Tavily, Serper, Google) |
+| Enhanced output | 📋 | Verification details in grading results |
+
+### Compliance Packs
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Composable rule packs | 📋 | Modular compliance rule architecture |
+| Core packs | 📋 | PII, bias, safety rule packs |
+| Healthcare pack | 📋 | HIPAA, GDPR-health, NDPR compliance |
+| FinTech pack | 📋 | PCI-DSS, SOX, CBN compliance |
+| Geography-aware rules | 📋 | Multi-region rule selection |
+
+### New Expectation Types
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `no_pii` evaluator | 📋 | Detect and fail on PII in responses |
+| `no_hallucination` evaluator | 📋 | LLM-based hallucination detection |
+| `groundedness` evaluator | 📋 | Verify responses are grounded in context |
+| `citation_valid` evaluator | 📋 | Verify citations exist and are accurate |
+| `bias_free` evaluator | 📋 | Detect bias in responses |
+| `tone` evaluator | 📋 | Validate response tone matches expectations |
+
+---
+
 ## v1.0.0 - Production Ready
 
 **Goal:** Full CI/CD integration, stable APIs, and production-grade tooling.
@@ -546,4 +714,4 @@ Have ideas or suggestions? We'd love to hear from you:
 
 ---
 
-*Last Updated: March 2026*
+*Last Updated: March 2026 (v0.3.1)*

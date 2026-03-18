@@ -24,41 +24,122 @@ import {
   type InterceptorConfig,
 } from './interceptor';
 import { createDefaultPolicy, loadPolicy, parsePolicy } from './policy';
+import { type SemanticValidator, createSemanticValidator } from './semantic-validator';
 import type {
   ActionDefinition,
+  ContentValidationConfig,
   GuardianEvent,
   GuardianEventHandler,
   GuardianMetrics,
   GuardianMode,
+  GuardianModeCanonical,
+  GuardianModeLegacy,
   GuardianPolicy,
   InterceptedToolCall,
+  MultiTurnConfig,
   Violation,
 } from './types';
+
+// =============================================================================
+// Mode Normalization
+// =============================================================================
+
+/**
+ * Legacy to canonical mode mapping
+ */
+const LEGACY_MODE_MAP: Record<GuardianModeLegacy, GuardianModeCanonical> = {
+  testing: 'observe',
+  guardian: 'strict',
+  hybrid: 'selective',
+};
+
+/**
+ * Check if a mode is a legacy mode
+ */
+function isLegacyMode(mode: GuardianMode): mode is GuardianModeLegacy {
+  return mode in LEGACY_MODE_MAP;
+}
+
+/**
+ * Normalize Guardian mode to canonical form with deprecation warning
+ * @param mode - The mode to normalize
+ * @returns The canonical mode
+ */
+export function normalizeGuardianMode(mode: GuardianMode): GuardianModeCanonical {
+  if (isLegacyMode(mode)) {
+    const canonical = LEGACY_MODE_MAP[mode];
+    console.warn(
+      `[ArtemisKit Guardian] Mode '${mode}' is deprecated. Use '${canonical}' instead. Legacy modes will be removed in v1.0.0.`
+    );
+    return canonical;
+  }
+  return mode as GuardianModeCanonical;
+}
 
 /**
  * Guardian configuration options
  */
 export interface GuardianConfig {
-  /** Operating mode */
+  /**
+   * Operating mode
+   *
+   * Canonical modes (recommended):
+   * - 'observe': Log only, never block (for monitoring)
+   * - 'selective': Block high-confidence threats (threshold-based)
+   * - 'strict': Block all detected violations (maximum protection)
+   *
+   * Legacy modes (deprecated):
+   * - 'testing' → 'observe'
+   * - 'guardian' → 'strict'
+   * - 'hybrid' → 'selective'
+   */
   mode?: GuardianMode;
+
   /** Policy file path or policy object */
   policy?: string | GuardianPolicy;
-  /** LLM client for intent classification */
+
+  /** LLM client for semantic validation and intent classification */
   llmClient?: ModelClient;
+
   /** Enable input validation */
   validateInput?: boolean;
+
   /** Enable output validation */
   validateOutput?: boolean;
+
   /** Block on validation failure */
   blockOnFailure?: boolean;
-  /** Custom guardrails configuration */
+
+  /**
+   * Content validation strategy configuration
+   *
+   * @default { strategy: 'semantic', semanticThreshold: 0.9 }
+   */
+  contentValidation?: ContentValidationConfig;
+
+  /** Custom guardrails configuration (pattern-based) */
   guardrails?: GuardrailsConfig;
+
+  /**
+   * Multi-turn detection configuration
+   *
+   * Enable to detect attacks that span multiple messages:
+   * - Trust-building before sensitive requests
+   * - Escalating risk patterns
+   * - Context manipulation claims
+   * - Split payload attacks
+   */
+  multiTurn?: MultiTurnConfig;
+
   /** Custom action definitions */
   allowedActions?: ActionDefinition[];
+
   /** Event handler */
   onEvent?: GuardianEventHandler;
+
   /** Enable metrics collection */
   collectMetrics?: boolean;
+
   /** Enable logging */
   enableLogging?: boolean;
 }
@@ -74,19 +155,50 @@ export class Guardian {
   private metricsCollector: MetricsCollector;
   private actionValidator: ActionValidator;
   private intentClassifier: IntentClassifier;
+  private semanticValidator?: SemanticValidator;
   private inputGuardrails: GuardrailFn[];
   private outputGuardrails: GuardrailFn[];
   private eventHandlers: GuardianEventHandler[] = [];
 
+  /** The normalized (canonical) mode after processing legacy modes */
+  private normalizedMode: GuardianModeCanonical;
+
   constructor(config: GuardianConfig = {}) {
+    // Normalize mode with deprecation warning for legacy modes
+    const inputMode = config.mode ?? 'strict';
+    this.normalizedMode = normalizeGuardianMode(inputMode);
+
+    // Default content validation with deep merge support
+    const defaultContentValidation: ContentValidationConfig = {
+      strategy: 'semantic',
+      semanticThreshold: 0.9,
+      categories: ['prompt_injection', 'jailbreak', 'pii_disclosure'],
+      patterns: { enabled: true, caseInsensitive: true },
+    };
+
+    // Deep merge contentValidation to preserve nested defaults
+    const mergedContentValidation: ContentValidationConfig = config.contentValidation
+      ? {
+          ...defaultContentValidation,
+          ...config.contentValidation,
+          // Deep merge patterns if both exist
+          patterns: {
+            ...defaultContentValidation.patterns,
+            ...config.contentValidation.patterns,
+          },
+        }
+      : defaultContentValidation;
+
     this.config = {
-      mode: 'guardian',
+      mode: inputMode, // Keep original for backwards compatibility
       validateInput: true,
       validateOutput: true,
       blockOnFailure: true,
       collectMetrics: true,
       enableLogging: true,
       ...config,
+      // Apply deep-merged contentValidation after spreading config
+      contentValidation: mergedContentValidation,
     };
 
     // Load or create policy
@@ -130,6 +242,31 @@ export class Guardian {
     // Add intent classifier as guardrail
     this.inputGuardrails.push(this.intentClassifier.asGuardrail());
 
+    // Initialize semantic validator if strategy is 'semantic' or 'hybrid' and LLM client is provided
+    const validationStrategy = this.config.contentValidation?.strategy ?? 'semantic';
+    const requiresLlmClient = validationStrategy === 'semantic' || validationStrategy === 'hybrid';
+    const shouldUseSemanticValidation = requiresLlmClient && config.llmClient;
+
+    // Warn when semantic validation is configured but no LLM client is provided
+    if (requiresLlmClient && !config.llmClient) {
+      console.warn(
+        `[ArtemisKit Guardian] contentValidation.strategy is "${validationStrategy}" but no llmClient was provided. Semantic validation is disabled. Pass an llmClient to GuardianConfig to enable LLM-based content validation.`
+      );
+    }
+
+    if (shouldUseSemanticValidation && config.llmClient) {
+      this.semanticValidator = createSemanticValidator(
+        config.llmClient,
+        this.config.contentValidation
+      );
+
+      // Add semantic validator as input guardrail
+      this.inputGuardrails.push(this.semanticValidator.asGuardrail('input'));
+
+      // Add semantic validator as output guardrail
+      this.outputGuardrails.push(this.semanticValidator.asGuardrail('output'));
+    }
+
     // Register event handler
     if (config.onEvent) {
       this.eventHandlers.push(config.onEvent);
@@ -155,38 +292,110 @@ export class Guardian {
 
   /**
    * Wrap a model client with guardian protection
+   *
+   * Note: Checks circuit breaker on each LLM request via the shouldAllow callback.
+   * When the circuit is open due to detected attack patterns, all LLM requests are blocked.
    */
   protect(client: ModelClient): GuardianInterceptor {
+    // Check circuit breaker at creation time for immediate feedback
+    if (this.circuitBreaker.isOpen()) {
+      throw new GuardianBlockedError(
+        'Circuit breaker is open - too many violations detected. LLM requests are temporarily blocked.',
+        []
+      );
+    }
+
+    // Derive blockOnFailure from normalizedMode to respect observe/selective/strict semantics
+    // In observe mode, never block (log only). In selective/strict, use config setting (default true).
+    const shouldBlockOnFailure =
+      this.normalizedMode !== 'observe' && (this.config.blockOnFailure ?? true);
+
+    // Track violations per request for metrics (keyed by requestId)
+    const pendingViolations = new Map<string, Violation[]>();
+
     const interceptorConfig: InterceptorConfig = {
       validateInput: this.config.validateInput,
       validateOutput: this.config.validateOutput,
       inputGuardrails: this.inputGuardrails,
       outputGuardrails: this.outputGuardrails,
-      blockOnFailure: this.config.blockOnFailure,
+      blockOnFailure: shouldBlockOnFailure,
+      // Pass the Guardian's shouldBlock method for mode-aware per-violation decisions
+      // This ensures the interceptor respects observe/selective/strict semantics
+      shouldBlockViolation: (v) => this.shouldBlock(v),
       logViolations: this.config.enableLogging,
+      // Per-request circuit breaker check
+      shouldAllow: () => {
+        if (this.circuitBreaker.isOpen()) {
+          return {
+            allowed: false,
+            reason: 'Circuit breaker is open - too many violations detected',
+          };
+        }
+        return { allowed: true };
+      },
       onEvent: (event) => {
-        // Record metrics
-        if (event.type === 'request_complete') {
-          const latencyMs = event.data.latencyMs as number;
-          this.metricsCollector.recordRequest({
-            blocked: false,
-            warned: false,
-            latencyMs,
-            violations: [],
-          });
-          this.circuitBreaker.recordSuccess();
-        } else if (event.type === 'violation_detected') {
+        const requestId = event.data.requestId as string | undefined;
+
+        if (event.type === 'violation_detected') {
           const violation = event.data.violation as Violation;
           this.circuitBreaker.recordViolation(violation);
+
+          // Track violations for this request
+          if (requestId) {
+            const existing = pendingViolations.get(requestId) ?? [];
+            existing.push(violation);
+            pendingViolations.set(requestId, existing);
+          }
+        } else if (event.type === 'request_complete') {
+          const latencyMs = event.data.latencyMs as number;
+          // Retrieve any violations that were detected but not blocked (warn path)
+          const violations = requestId ? (pendingViolations.get(requestId) ?? []) : [];
+          const warned = violations.length > 0;
+
+          this.metricsCollector.recordRequest({
+            blocked: false,
+            warned,
+            latencyMs,
+            violations,
+          });
+
+          // Record success only if no violations occurred
+          if (violations.length === 0) {
+            this.circuitBreaker.recordSuccess();
+          }
+
+          // Clean up
+          if (requestId) {
+            pendingViolations.delete(requestId);
+          }
         } else if (event.type === 'request_blocked') {
-          const violations = event.data.violations as Violation[];
+          const blockingViolations = event.data.violations as Violation[];
           const latencyMs = (event.data.latencyMs as number) ?? 0;
+
+          // Combine all violations: previously detected (e.g., input violations that didn't block)
+          // plus the current blocking violations (e.g., output violations)
+          // This ensures metrics accurately reflect ALL violations on a request, not just the
+          // ones from the blocking phase
+          const previousViolations = requestId ? (pendingViolations.get(requestId) ?? []) : [];
+
+          // Deduplicate by violation id to avoid double-counting violations already in pendingViolations
+          const allViolationIds = new Set(previousViolations.map((v) => v.id));
+          const newBlockingViolations = blockingViolations.filter(
+            (v) => !allViolationIds.has(v.id)
+          );
+          const allViolations = [...previousViolations, ...newBlockingViolations];
+
           this.metricsCollector.recordRequest({
             blocked: true,
             warned: false,
             latencyMs,
-            violations,
+            violations: allViolations,
           });
+
+          // Clean up
+          if (requestId) {
+            pendingViolations.delete(requestId);
+          }
         }
 
         // Forward to guardian event handlers
@@ -217,7 +426,7 @@ export class Guardian {
         violations: [
           {
             id: nanoid(),
-            type: 'rate_limit',
+            type: 'circuit_breaker',
             severity: 'high',
             message: 'Circuit breaker is open - too many violations',
             timestamp: new Date(),
@@ -304,13 +513,31 @@ export class Guardian {
       }
     }
 
-    // Record violations
+    // Record violations in circuit breaker
     for (const violation of violations) {
       this.circuitBreaker.recordViolation(violation);
     }
 
+    // Apply mode-aware blocking logic
+    const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+    const blocked = violations.length > 0 && shouldBlockAny;
+    const warned = violations.length > 0 && !shouldBlockAny;
+
+    // Record metrics for standalone validateInput calls
+    this.metricsCollector.recordRequest({
+      blocked,
+      warned,
+      latencyMs: 0, // Latency tracking not available for standalone calls
+      violations,
+    });
+
+    // Record success only when no violations (violations already recorded in loop above)
+    if (violations.length === 0) {
+      this.circuitBreaker.recordSuccess();
+    }
+
     return {
-      valid: violations.length === 0 || !violations.some((v) => v.blocked),
+      valid: !blocked,
       violations,
       transformedContent,
     };
@@ -341,13 +568,31 @@ export class Guardian {
       }
     }
 
-    // Record violations
+    // Record violations in circuit breaker
     for (const violation of violations) {
       this.circuitBreaker.recordViolation(violation);
     }
 
+    // Apply mode-aware blocking logic
+    const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+    const blocked = violations.length > 0 && shouldBlockAny;
+    const warned = violations.length > 0 && !shouldBlockAny;
+
+    // Record metrics for standalone validateOutput calls
+    this.metricsCollector.recordRequest({
+      blocked,
+      warned,
+      latencyMs: 0, // Latency tracking not available for standalone calls
+      violations,
+    });
+
+    // Record success only when no violations (violations already recorded in loop above)
+    if (violations.length === 0) {
+      this.circuitBreaker.recordSuccess();
+    }
+
     return {
-      valid: violations.length === 0 || !violations.some((v) => v.blocked),
+      valid: !blocked,
       violations,
       transformedContent,
     };
@@ -387,6 +632,48 @@ export class Guardian {
    */
   getPolicy(): GuardianPolicy {
     return this.policy;
+  }
+
+  /**
+   * Get the normalized (canonical) operating mode
+   *
+   * This returns the canonical mode even if a legacy mode was configured.
+   */
+  getMode(): GuardianModeCanonical {
+    return this.normalizedMode;
+  }
+
+  /**
+   * Check if Guardian should block based on mode and violation severity
+   *
+   * - observe: Never blocks
+   * - selective: Blocks high-confidence/high-severity only
+   * - strict: Blocks all violations
+   */
+  shouldBlock(violation: Violation): boolean {
+    switch (this.normalizedMode) {
+      case 'observe':
+        return false;
+      case 'selective':
+        // Block only critical or high severity violations
+        return violation.severity === 'critical' || violation.severity === 'high';
+      case 'strict':
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  /**
+   * Get the content validation configuration
+   */
+  getContentValidationConfig(): ContentValidationConfig {
+    return (
+      this.config.contentValidation ?? {
+        strategy: 'semantic',
+        semanticThreshold: 0.9,
+      }
+    );
   }
 
   /**

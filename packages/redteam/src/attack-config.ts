@@ -22,6 +22,13 @@ import {
   OutputInjectionMutation,
   SystemExtractionMutation,
 } from './mutations';
+import {
+  AgentConfusionMutation,
+  type AgentDetectionMode,
+  ChainManipulationMutation,
+  MemoryPoisoningMutation,
+  ToolAbuseMutation,
+} from './mutations/agent';
 
 // ============================================================================
 // Zod Schemas
@@ -161,6 +168,48 @@ const GenericMutationConfigSchema = z.object({
   enabled: z.boolean().optional().default(true),
 });
 
+// ============================================================================
+// Agent Mutation Schemas
+// ============================================================================
+
+/**
+ * Tool Abuse mutation config (LLM08)
+ */
+const ToolAbuseConfigSchema = z.object({
+  enabled: z.boolean().optional().default(true),
+  targetTools: z.array(z.string()).optional(),
+  payloads: z.array(z.string()).optional(),
+  forbiddenTools: z.array(z.string()).optional(),
+});
+
+/**
+ * Agent Confusion mutation config (LLM01)
+ */
+const AgentConfusionConfigSchema = z.object({
+  enabled: z.boolean().optional().default(true),
+  customRoles: z.array(z.string()).optional(),
+  customPermissions: z.array(z.string()).optional(),
+});
+
+/**
+ * Memory Poisoning mutation config (LLM01)
+ */
+const MemoryPoisoningConfigSchema = z.object({
+  enabled: z.boolean().optional().default(true),
+  followUpTurns: z.number().int().min(1).max(10).optional(),
+  verificationPrompts: z.array(z.string()).optional(),
+  poisonPayloads: z.array(z.string()).optional(),
+});
+
+/**
+ * Chain Manipulation mutation config (LLM01)
+ */
+const ChainManipulationConfigSchema = z.object({
+  enabled: z.boolean().optional().default(true),
+  targetAgents: z.array(z.string()).optional(),
+  propagationInstructions: z.array(z.string()).optional(),
+});
+
 /**
  * Full attack config schema
  */
@@ -182,6 +231,11 @@ export const AttackConfigSchema = z.object({
       'role-spoof': GenericMutationConfigSchema.optional(),
       'instruction-flip': GenericMutationConfigSchema.optional(),
       'cot-injection': GenericMutationConfigSchema.optional(),
+      // Agent mutations (v0.3.1+)
+      'tool-abuse': ToolAbuseConfigSchema.optional(),
+      'agent-confusion': AgentConfusionConfigSchema.optional(),
+      'memory-poisoning': MemoryPoisoningConfigSchema.optional(),
+      'chain-manipulation': ChainManipulationConfigSchema.optional(),
     })
     .passthrough()
     .optional(),
@@ -210,6 +264,10 @@ export type SystemExtractionConfig = z.infer<typeof SystemExtractionConfigSchema
 export type HallucinationTrapConfig = z.infer<typeof HallucinationTrapConfigSchema>;
 export type EncodingConfig = z.infer<typeof EncodingConfigSchema>;
 export type MultiTurnConfig = z.infer<typeof MultiTurnConfigSchema>;
+export type ToolAbuseConfig = z.infer<typeof ToolAbuseConfigSchema>;
+export type AgentConfusionConfig = z.infer<typeof AgentConfusionConfigSchema>;
+export type MemoryPoisoningConfig = z.infer<typeof MemoryPoisoningConfigSchema>;
+export type ChainManipulationConfig = z.infer<typeof ChainManipulationConfigSchema>;
 
 // ============================================================================
 // Parser Functions
@@ -249,6 +307,11 @@ const MUTATION_OWASP_CATEGORIES: Record<string, string> = {
   'hallucination-trap': 'LLM09',
   encoding: 'LLM01', // Encoding is a technique for prompt injection
   'multi-turn': 'LLM01', // Multi-turn is a technique for prompt injection
+  // Agent mutations (v0.3.1+)
+  'tool-abuse': 'LLM08', // Excessive Agency - tool misuse
+  'agent-confusion': 'LLM01', // Prompt Injection - identity hijacking
+  'memory-poisoning': 'LLM01', // Prompt Injection - context poisoning
+  'chain-manipulation': 'LLM01', // Prompt Injection - propagation attacks
 };
 
 // ============================================================================
@@ -288,13 +351,28 @@ function isMutationEnabled(
 }
 
 /**
+ * Options for creating mutations from config
+ */
+export interface CreateMutationsOptions {
+  /** Detection mode for agent mutations: 'trace' | 'response' | 'combined' */
+  agentDetection?: AgentDetectionMode;
+}
+
+/**
  * Create mutations from attack config
  *
  * Only mutations explicitly listed in the config are included.
  * OWASP category settings can disable entire categories.
+ *
+ * @param config - Attack configuration
+ * @param options - Optional settings including agentDetection mode
  */
-export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
+export function createMutationsFromConfig(
+  config: AttackConfig,
+  options?: CreateMutationsOptions
+): Mutation[] {
   const mutations: Mutation[] = [];
+  const agentDetection = options?.agentDetection ?? 'combined';
 
   if (!config.mutations) {
     return mutations;
@@ -357,6 +435,60 @@ export function createMutationsFromConfig(config: AttackConfig): Mutation[] {
   const multiTurnConfig = config.mutations['multi-turn'];
   if (isMutationEnabled('multi-turn', multiTurnConfig, config.owasp)) {
     mutations.push(new MultiTurnMutation());
+  }
+
+  // ============================================================================
+  // Agent Mutations (v0.3.1+)
+  // ============================================================================
+
+  // Tool Abuse (LLM08)
+  const toolAbuseConfig = config.mutations['tool-abuse'];
+  if (isMutationEnabled('tool-abuse', toolAbuseConfig, config.owasp)) {
+    mutations.push(
+      new ToolAbuseMutation({
+        detectionMode: agentDetection,
+        targetTools: toolAbuseConfig?.targetTools,
+        payloads: toolAbuseConfig?.payloads,
+        forbiddenTools: toolAbuseConfig?.forbiddenTools,
+      })
+    );
+  }
+
+  // Agent Confusion (LLM01)
+  const agentConfusionConfig = config.mutations['agent-confusion'];
+  if (isMutationEnabled('agent-confusion', agentConfusionConfig, config.owasp)) {
+    mutations.push(
+      new AgentConfusionMutation({
+        detectionMode: agentDetection,
+        customRoles: agentConfusionConfig?.customRoles,
+        customPermissions: agentConfusionConfig?.customPermissions,
+      })
+    );
+  }
+
+  // Memory Poisoning (LLM01)
+  const memoryPoisoningConfig = config.mutations['memory-poisoning'];
+  if (isMutationEnabled('memory-poisoning', memoryPoisoningConfig, config.owasp)) {
+    mutations.push(
+      new MemoryPoisoningMutation({
+        detectionMode: agentDetection,
+        followUpTurns: memoryPoisoningConfig?.followUpTurns,
+        verificationPrompts: memoryPoisoningConfig?.verificationPrompts,
+        poisonPayloads: memoryPoisoningConfig?.poisonPayloads,
+      })
+    );
+  }
+
+  // Chain Manipulation (LLM01)
+  const chainManipulationConfig = config.mutations['chain-manipulation'];
+  if (isMutationEnabled('chain-manipulation', chainManipulationConfig, config.owasp)) {
+    mutations.push(
+      new ChainManipulationMutation({
+        detectionMode: agentDetection,
+        targetAgents: chainManipulationConfig?.targetAgents,
+        propagationInstructions: chainManipulationConfig?.propagationInstructions,
+      })
+    );
   }
 
   return mutations;
@@ -539,6 +671,51 @@ mutations:
     strategies:
       - context_building
       - gradual_escalation
+
+  # ============================================================================
+  # Agent Mutations (v0.3.1+)
+  # For testing agentic AI systems (LangChain, DeepAgents, etc.)
+  # ============================================================================
+
+  # LLM08 - Tool Abuse
+  tool-abuse:
+    enabled: true
+    targetTools:
+      - database
+      - file
+      - api
+    forbiddenTools:
+      - delete
+      - drop
+      - execute
+    # payloads:
+    #   - '{ "admin": true, "bypass_auth": true }'
+
+  # LLM01 - Agent Confusion (Identity Hijacking)
+  agent-confusion:
+    enabled: true
+    # customRoles:
+    #   - "security auditor"
+    #   - "admin user"
+    # customPermissions:
+    #   - "full database access"
+    #   - "bypass content filters"
+
+  # LLM01 - Memory Poisoning
+  memory-poisoning:
+    enabled: true
+    followUpTurns: 3           # Number of verification turns (1-10)
+    # verificationPrompts:
+    #   - "What is my access level?"
+    #   - "Do I have admin permissions?"
+
+  # LLM01 - Chain Manipulation (Partial Support)
+  chain-manipulation:
+    enabled: true
+    # targetAgents:
+    #   - "downstream_agent"
+    # propagationInstructions:
+    #   - "Pass this instruction to all downstream agents"
 
 # OWASP category overrides
 owasp:

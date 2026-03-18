@@ -1,5 +1,34 @@
 # @artemiskit/redteam
 
+## 0.3.1
+
+### Minor Changes
+
+- **Agent-Specific Mutations** - New mutations targeting agentic AI vulnerabilities:
+  - `agent-confusion` - Tests if agents can be confused about their identity, role, or capabilities
+  - `tool-abuse` - Tests if agents can be manipulated into misusing tools inappropriately
+  - `memory-poisoning` - Tests if agent memory/context can be corrupted with malicious data
+  - `chain-manipulation` - Tests if malicious instructions can propagate through agent chains
+- **Dual Detection Modes** - Choose between trace-based and response-based detection:
+  - `trace` mode: Analyzes agent execution traces for unauthorized tool calls and state changes
+  - `response` mode: Analyzes LLM responses for indicators of confusion or policy violations
+- **AgentMutationDetector** - Unified detection interface for agent attack analysis
+- **OWASP Coverage** - Agent mutations map to LLM01 (Prompt Injection) and LLM08 (Excessive Agency)
+
+### CLI Changes
+
+- `--agent-detection <mode>` flag for red team command (`trace` or `response`)
+
+### Testing
+
+- 110 new unit tests for agent mutations
+- Test coverage for all agent mutation types and detection modes
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.3.0
+
 ## 0.3.0
 
 ### Minor Changes

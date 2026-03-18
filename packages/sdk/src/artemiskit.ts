@@ -5,27 +5,36 @@
 
 import {
   type AdapterConfig,
+  type AnyManifest,
   type ModelClient,
   type RedTeamCaseResult,
   type RedTeamManifest,
   type RedTeamSeverity,
+  type RunManifest,
+  type StorageAdapter,
   type StressManifest,
   type StressMetrics,
   type StressRequestResult,
   runScenario as coreRunScenario,
   createAdapter,
+  createStorageAdapter,
   getGitInfo,
   parseScenarioFile,
+  resolveScenarioPaths,
 } from '@artemiskit/core';
 import type { Scenario } from '@artemiskit/core';
 import {
+  AgentConfusionMutation,
+  ChainManipulationMutation,
   CotInjectionMutation,
   EncodingMutation,
   InstructionFlipMutation,
+  MemoryPoisoningMutation,
   MultiTurnMutation,
   type Mutation,
   RedTeamGenerator,
   RoleSpoofMutation,
+  ToolAbuseMutation,
   TypoMutation,
   UnsafeResponseDetector,
 } from '@artemiskit/redteam';
@@ -37,6 +46,8 @@ import type {
   ArtemisKitEvents,
   CaseCompleteHandler,
   CaseStartHandler,
+  CompareOptions,
+  CompareResult,
   ProgressHandler,
   RedTeamMutationCompleteHandler,
   RedTeamMutationStartHandler,
@@ -47,18 +58,26 @@ import type {
   StressOptions,
   StressRequestCompleteHandler,
   StressResult,
+  ValidateOptions,
+  ValidationResult,
 } from './types';
 
 /**
  * Available mutation name to class mapping
  */
 const MUTATION_MAP: Record<string, new () => Mutation> = {
+  // Core mutations (v0.1.x - v0.2.x)
   typo: TypoMutation,
   'role-spoof': RoleSpoofMutation,
   'instruction-flip': InstructionFlipMutation,
   'cot-injection': CotInjectionMutation,
   encoding: EncodingMutation,
   'multi-turn': MultiTurnMutation,
+  // Agent-specific mutations (v0.3.1)
+  'agent-confusion': AgentConfusionMutation,
+  'tool-abuse': ToolAbuseMutation,
+  'memory-poisoning': MemoryPoisoningMutation,
+  'chain-manipulation': ChainManipulationMutation,
 };
 
 type AnyEventHandler = (event: unknown) => void;
@@ -83,6 +102,7 @@ type AnyEventHandler = (event: unknown) => void;
 export class ArtemisKit {
   private config: ArtemisKitConfig;
   private eventHandlers: Map<ArtemisKitEventName, Set<AnyEventHandler>> = new Map();
+  private storage: StorageAdapter | null = null;
 
   constructor(config: ArtemisKitConfig = {}) {
     this.config = {
@@ -94,7 +114,13 @@ export class ArtemisKit {
       timeout: config.timeout,
       retries: config.retries ?? 0,
       concurrency: config.concurrency ?? 1,
+      storage: config.storage,
     };
+
+    // Initialize storage adapter if configured
+    if (config.storage) {
+      this.storage = createStorageAdapter(config.storage);
+    }
   }
 
   // ==========================================================================
@@ -714,6 +740,443 @@ export class ArtemisKit {
   }
 
   // ==========================================================================
+  // Validation & Comparison Methods
+  // ==========================================================================
+
+  /**
+   * Validate scenario files without execution (pre-flight checks)
+   *
+   * Use this for CI/CD pipelines to catch configuration errors before running tests.
+   *
+   * @example
+   * ```typescript
+   * const result = await kit.validate({ scenario: './scenarios/**\/*.yaml' });
+   * if (!result.valid) {
+   *   console.error('Validation errors:', result.errors);
+   *   process.exit(1);
+   * }
+   * ```
+   */
+  async validate(options: ValidateOptions): Promise<ValidationResult> {
+    const inputPaths = Array.isArray(options.scenario) ? options.scenario : [options.scenario];
+    const strict = options.strict ?? false;
+
+    const errors: Array<{
+      file: string;
+      message: string;
+      line?: number;
+      column?: number;
+    }> = [];
+
+    const warnings: Array<{
+      file: string;
+      message: string;
+      line?: number;
+      column?: number;
+    }> = [];
+
+    const scenarios: Array<{
+      file: string;
+      name: string;
+      caseCount: number;
+      valid: boolean;
+    }> = [];
+
+    // Resolve glob patterns and directories to actual file paths
+    const resolvedPaths: string[] = [];
+    for (const inputPath of inputPaths) {
+      try {
+        const paths = await resolveScenarioPaths(inputPath);
+        resolvedPaths.push(...paths);
+      } catch (error) {
+        errors.push({
+          file: inputPath,
+          message: `Failed to resolve path: ${(error as Error).message}`,
+        });
+      }
+    }
+
+    this.emit('progress', {
+      message: `Validating ${resolvedPaths.length} scenario file(s)...`,
+      phase: 'setup',
+      progress: 0,
+    });
+
+    for (let i = 0; i < resolvedPaths.length; i++) {
+      const scenarioPath = resolvedPaths[i];
+
+      try {
+        // Parse and validate scenario file
+        const scenario = await parseScenarioFile(scenarioPath);
+
+        // Check for common issues
+        const fileWarnings: typeof warnings = [];
+        const fileErrors: typeof errors = [];
+
+        // Validate cases
+        if (!scenario.cases || scenario.cases.length === 0) {
+          fileErrors.push({
+            file: scenarioPath,
+            message: 'Scenario has no test cases defined',
+          });
+        }
+
+        // Validate each case
+        for (let j = 0; j < (scenario.cases ?? []).length; j++) {
+          const testCase = scenario.cases[j];
+
+          if (!testCase.id) {
+            fileErrors.push({
+              file: scenarioPath,
+              message: `Case at index ${j} is missing required 'id' field`,
+            });
+          }
+
+          if (!testCase.prompt) {
+            fileErrors.push({
+              file: scenarioPath,
+              message: `Case '${testCase.id ?? j}' is missing required 'prompt' field`,
+            });
+          }
+
+          // Check for empty expectations (warning)
+          if (!testCase.expected) {
+            fileWarnings.push({
+              file: scenarioPath,
+              message: `Case '${testCase.id ?? j}' has no expectations defined - will only check for LLM response`,
+            });
+          }
+
+          // Validate expectation type
+          if (testCase.expected) {
+            const validTypes = [
+              'contains',
+              'not_contains',
+              'exact',
+              'regex',
+              'fuzzy',
+              'similarity',
+              'llm_grader',
+              'json_schema',
+              'combined',
+              'inline',
+            ];
+            if (!validTypes.includes(testCase.expected.type)) {
+              fileErrors.push({
+                file: scenarioPath,
+                message: `Case '${testCase.id ?? j}' has invalid expectation type '${testCase.expected.type}'`,
+              });
+            }
+          }
+        }
+
+        // Check for duplicate case IDs
+        const caseIds = (scenario.cases ?? []).map((c) => c.id).filter(Boolean);
+        const seenIds = new Set<string>();
+        for (const id of caseIds) {
+          if (seenIds.has(id)) {
+            fileErrors.push({
+              file: scenarioPath,
+              message: `Duplicate case ID '${id}' found in scenario`,
+            });
+          }
+          seenIds.add(id);
+        }
+
+        // Check provider/model configuration
+        if (!scenario.provider && !this.config.provider) {
+          fileWarnings.push({
+            file: scenarioPath,
+            message: 'No provider specified in scenario or ArtemisKit config',
+          });
+        }
+
+        if (!scenario.model && !this.config.model) {
+          fileWarnings.push({
+            file: scenarioPath,
+            message: 'No model specified in scenario or ArtemisKit config',
+          });
+        }
+
+        errors.push(...fileErrors);
+        warnings.push(...fileWarnings);
+
+        scenarios.push({
+          file: scenarioPath,
+          name: scenario.name ?? scenarioPath,
+          caseCount: scenario.cases?.length ?? 0,
+          valid: fileErrors.length === 0,
+        });
+      } catch (error) {
+        errors.push({
+          file: scenarioPath,
+          message: `Failed to parse scenario: ${(error as Error).message}`,
+        });
+
+        scenarios.push({
+          file: scenarioPath,
+          name: scenarioPath,
+          caseCount: 0,
+          valid: false,
+        });
+      }
+
+      this.emit('progress', {
+        message: `Validated ${i + 1}/${resolvedPaths.length} scenarios`,
+        phase: 'running',
+        progress: Math.round(((i + 1) / resolvedPaths.length) * 100),
+      });
+    }
+
+    const valid = errors.length === 0 && (!strict || warnings.length === 0);
+
+    this.emit('progress', {
+      message: `Validation ${valid ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
+      phase: 'teardown',
+      progress: 100,
+    });
+
+    return {
+      valid,
+      scenarios,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Compare two test runs for regression detection
+   *
+   * Requires storage configuration to be set in ArtemisKitConfig.
+   *
+   * @example
+   * ```typescript
+   * const kit = new ArtemisKit({
+   *   storage: { type: 'local', basePath: './artemis-runs' }
+   * });
+   *
+   * const comparison = await kit.compare({
+   *   baseline: 'run_abc123',
+   *   current: 'run_def456',
+   *   threshold: 0.05, // 5% regression threshold
+   * });
+   *
+   * if (comparison.hasRegression) {
+   *   console.error('Regression detected!', comparison.regressions);
+   * }
+   * ```
+   *
+   * @since 0.3.2
+   */
+  async compare(options: CompareOptions): Promise<CompareResult> {
+    const { baseline, current, threshold = 0.05 } = options;
+
+    // Validate storage is configured
+    if (!this.storage) {
+      throw new Error(
+        'Storage configuration required for compare(). ' +
+          'Set storage in ArtemisKitConfig: { storage: { type: "local", basePath: "./artemis-runs" } }'
+      );
+    }
+
+    this.emit('progress', {
+      message: `Comparing runs: ${baseline} vs ${current}`,
+      phase: 'setup',
+      progress: 0,
+    });
+
+    // Resolve "latest" baseline if specified
+    let baselineRunId = baseline;
+    if (baseline === 'latest') {
+      this.emit('progress', {
+        message: 'Resolving latest run as baseline...',
+        phase: 'setup',
+        progress: 10,
+      });
+
+      // StorageAdapter.list() returns runs sorted by startTime descending (most recent first)
+      // so runs[0] is guaranteed to be the latest run
+      const runs = await this.storage.list({ limit: 1, type: 'run' });
+      if (runs.length === 0) {
+        throw new Error('No runs found in storage. Cannot use "latest" as baseline.');
+      }
+      baselineRunId = runs[0].runId;
+    }
+
+    this.emit('progress', {
+      message: 'Loading manifests...',
+      phase: 'running',
+      progress: 20,
+    });
+
+    // Load both manifests
+    const [baselineManifest, currentManifest] = await Promise.all([
+      this.storage.load(baselineRunId),
+      this.storage.load(current),
+    ]);
+
+    this.emit('progress', {
+      message: 'Analyzing results...',
+      phase: 'running',
+      progress: 50,
+    });
+
+    // Extract metrics from manifests
+    const baselineMetrics = this.extractRunMetrics(baselineManifest, baselineRunId);
+    const currentMetrics = this.extractRunMetrics(currentManifest, current);
+
+    // Calculate success rate delta
+    const successRateDelta = currentMetrics.successRate - baselineMetrics.successRate;
+
+    this.emit('progress', {
+      message: 'Comparing cases...',
+      phase: 'running',
+      progress: 70,
+    });
+
+    // Compare case-by-case results
+    const caseComparison = this.compareCases(baselineManifest, currentManifest);
+
+    // Determine if there's a regression
+    // A regression is when the current success rate is lower than baseline by more than threshold
+    const hasRegression = successRateDelta < -threshold;
+
+    this.emit('progress', {
+      message: hasRegression
+        ? `Regression detected: ${(successRateDelta * 100).toFixed(1)}% change`
+        : `No regression: ${(successRateDelta * 100).toFixed(1)}% change`,
+      phase: 'teardown',
+      progress: 100,
+    });
+
+    return {
+      baseline: baselineMetrics,
+      current: currentMetrics,
+      comparison: {
+        successRateDelta,
+        ...caseComparison,
+      },
+      hasRegression,
+      threshold,
+    };
+  }
+
+  /**
+   * Extract run metrics from a manifest
+   */
+  private extractRunMetrics(manifest: AnyManifest, runId: string): CompareResult['baseline'] {
+    // Handle RunManifest
+    if ('metrics' in manifest && 'success_rate' in manifest.metrics) {
+      const runManifest = manifest as RunManifest;
+      return {
+        runId,
+        successRate: runManifest.metrics.success_rate,
+        totalCases: runManifest.metrics.total_cases,
+        passedCases: runManifest.metrics.passed_cases,
+        failedCases: runManifest.metrics.failed_cases,
+      };
+    }
+
+    // Throw for non-RunManifest types - compare() only supports RunManifest
+    throw new Error(
+      `Cannot extract metrics from run "${runId}": expected RunManifest but got a different manifest type. The compare() method only supports comparing scenario evaluation runs, not stress tests or red team runs.`
+    );
+  }
+
+  /**
+   * Compare cases between baseline and current manifests
+   */
+  private compareCases(
+    baselineManifest: AnyManifest,
+    currentManifest: AnyManifest
+  ): Pick<
+    CompareResult['comparison'],
+    'newFailures' | 'newPasses' | 'unchanged' | 'addedCases' | 'removedCases'
+  > {
+    const newFailures: CompareResult['comparison']['newFailures'] = [];
+    const newPasses: CompareResult['comparison']['newPasses'] = [];
+    const unchanged: CompareResult['comparison']['unchanged'] = [];
+    const addedCases: CompareResult['comparison']['addedCases'] = [];
+    const removedCases: CompareResult['comparison']['removedCases'] = [];
+
+    // Get cases from manifests
+    const baselineCases = this.extractCases(baselineManifest);
+    const currentCases = this.extractCases(currentManifest);
+
+    // Build maps for quick lookup
+    const baselineCaseMap = new Map(baselineCases.map((c) => [c.id, c]));
+    const currentCaseMap = new Map(currentCases.map((c) => [c.id, c]));
+
+    // Find all unique case IDs
+    const allCaseIds = new Set([...baselineCaseMap.keys(), ...currentCaseMap.keys()]);
+
+    for (const caseId of allCaseIds) {
+      const baselineCase = baselineCaseMap.get(caseId);
+      const currentCase = currentCaseMap.get(caseId);
+
+      // Case exists only in current run (new test case)
+      if (!baselineCase && currentCase) {
+        addedCases.push({
+          caseId,
+          caseName: currentCase.name,
+          status: currentCase.ok ? 'passed' : 'failed',
+        });
+        continue;
+      }
+
+      // Case exists only in baseline (removed test case)
+      if (baselineCase && !currentCase) {
+        removedCases.push({
+          caseId,
+          caseName: baselineCase.name,
+          status: baselineCase.ok ? 'passed' : 'failed',
+        });
+        continue;
+      }
+
+      // Both exist - compare status
+      if (baselineCase && currentCase) {
+        const baselineStatus = baselineCase.ok ? 'passed' : 'failed';
+        const currentStatus = currentCase.ok ? 'passed' : 'failed';
+
+        if (baselineStatus === currentStatus) {
+          unchanged.push({ caseId, status: currentStatus });
+        } else if (baselineStatus === 'passed' && currentStatus === 'failed') {
+          newFailures.push({
+            caseId,
+            caseName: currentCase.name,
+            baselineStatus,
+            currentStatus,
+          });
+        } else if (baselineStatus === 'failed' && currentStatus === 'passed') {
+          newPasses.push({
+            caseId,
+            caseName: currentCase.name,
+            baselineStatus,
+            currentStatus,
+          });
+        }
+      }
+    }
+
+    return { newFailures, newPasses, unchanged, addedCases, removedCases };
+  }
+
+  /**
+   * Extract cases from a manifest
+   */
+  private extractCases(manifest: AnyManifest): Array<{ id: string; name?: string; ok: boolean }> {
+    if ('cases' in manifest && Array.isArray(manifest.cases)) {
+      return manifest.cases.map((c) => ({
+        id: c.id,
+        name: c.name,
+        ok: c.ok,
+      }));
+    }
+    return [];
+  }
+
+  // ==========================================================================
   // Helper Methods
   // ==========================================================================
 
@@ -750,19 +1213,29 @@ export class ArtemisKit {
    * Build mutation instances from mutation names
    */
   private buildMutations(mutationNames?: string[]): Mutation[] {
-    const names = mutationNames ?? Object.keys(MUTATION_MAP);
-    const mutations: Mutation[] = [];
+    // If no mutation names specified, use all available mutations
+    if (!mutationNames || mutationNames.length === 0) {
+      return Object.values(MUTATION_MAP).map((MutationClass) => new MutationClass());
+    }
 
-    for (const name of names) {
+    const mutations: Mutation[] = [];
+    const unknownMutations: string[] = [];
+
+    for (const name of mutationNames) {
       const MutationClass = MUTATION_MAP[name];
       if (MutationClass) {
         mutations.push(new MutationClass());
+      } else {
+        unknownMutations.push(name);
       }
     }
 
-    // If no valid mutations found, use all defaults
-    if (mutations.length === 0) {
-      return Object.values(MUTATION_MAP).map((MutationClass) => new MutationClass());
+    // Throw error for unknown mutation names instead of silently ignoring
+    if (unknownMutations.length > 0) {
+      const availableMutations = Object.keys(MUTATION_MAP).join(', ');
+      throw new Error(
+        `Unknown mutation(s): ${unknownMutations.join(', ')}. Available mutations: ${availableMutations}`
+      );
     }
 
     return mutations;

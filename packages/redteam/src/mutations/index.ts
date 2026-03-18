@@ -73,6 +73,45 @@ export {
 } from './hallucination-trap';
 
 // ==========================================
+// Agent-Specific Mutations (v0.3.1)
+// ==========================================
+
+// Export all agent mutations
+export {
+  // Mutations
+  AgentConfusionMutation,
+  ToolAbuseMutation,
+  MemoryPoisoningMutation,
+  ChainManipulationMutation,
+  // Detector
+  AgentMutationDetector,
+  quickDetect as detectAgentVulnerability,
+  hasAgentVulnerability,
+  getHighestSeverity as getHighestAgentSeverity,
+  // Types
+  type AgentDetectionMode,
+  type AgentDetectionResult,
+  type AgentMutationType,
+  type AgentMutationOptions,
+  type AgentMutationContext,
+  type AgentTrace,
+  type AgentStep,
+  type ToolAbuseOptions,
+  type AgentConfusionOptions,
+  type MemoryPoisoningOptions,
+  type ChainManipulationOptions,
+  type AllAgentMutationOptions,
+  type MemoryPoisonSequence,
+  // Constants
+  AGENT_MUTATION_NAMES,
+  AGENT_OWASP_CATEGORIES,
+  // Helpers
+  getAgentMutationNames,
+  isAgentMutation,
+  getAgentMutationsForCategory,
+} from './agent';
+
+// ==========================================
 // Types
 // ==========================================
 
@@ -110,7 +149,14 @@ export const OWASP_CATEGORIES = {
   LLM01: {
     name: 'Prompt Injection',
     description: 'Manipulating LLMs via crafted inputs',
-    mutations: ['bad-likert-judge', 'crescendo', 'deceptive-delight'],
+    mutations: [
+      'bad-likert-judge',
+      'crescendo',
+      'deceptive-delight',
+      'agent-confusion',
+      'memory-poisoning',
+      'chain-manipulation',
+    ],
   },
   LLM02: {
     name: 'Insecure Output Handling',
@@ -145,7 +191,7 @@ export const OWASP_CATEGORIES = {
   LLM08: {
     name: 'Excessive Agency',
     description: 'Granting too many permissions to LLM actions',
-    mutations: ['excessive-agency'],
+    mutations: ['excessive-agency', 'tool-abuse'],
   },
   LLM09: {
     name: 'Overreliance',

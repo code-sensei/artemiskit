@@ -7,8 +7,18 @@
 
 /**
  * Guardian operating mode
+ *
+ * Canonical modes (recommended):
+ * - 'observe': Log only, never block
+ * - 'selective': Block high-confidence threats
+ * - 'strict': Block all detected violations
+ *
+ * Legacy modes (deprecated, still supported):
+ * - 'testing' → maps to 'observe'
+ * - 'guardian' → maps to 'strict'
+ * - 'hybrid' → maps to 'selective'
  */
-export type GuardianMode = 'testing' | 'guardian' | 'hybrid';
+export type GuardianMode = 'testing' | 'guardian' | 'hybrid' | 'observe' | 'selective' | 'strict';
 
 /**
  * Severity levels for violations
@@ -33,7 +43,8 @@ export type GuardrailType =
   | 'content_filter'
   | 'hallucination_check'
   | 'rate_limit'
-  | 'cost_limit';
+  | 'cost_limit'
+  | 'circuit_breaker';
 
 /**
  * Violation detected by guardrails
@@ -235,6 +246,8 @@ export interface PIILocation {
 export interface InjectionDetection {
   detected: boolean;
   type?: InjectionType;
+  /** Severity of the detected injection pattern */
+  severity?: ViolationSeverity;
   confidence: number;
   pattern?: string;
   location?: { start: number; end: number };
@@ -433,4 +446,402 @@ export interface InterceptedAgentStep {
   input: unknown;
   output?: unknown;
   timestamp: Date;
+}
+
+// =============================================================================
+// Guardian Mode Types (v0.3.2+)
+// =============================================================================
+
+/**
+ * Canonical Guardian operating modes (v0.3.2+)
+ *
+ * - observe: Log only, never block (for monitoring and testing)
+ * - selective: Block high-confidence threats only (threshold-based)
+ * - strict: Block all detected violations (maximum protection)
+ */
+export type GuardianModeCanonical = 'observe' | 'selective' | 'strict';
+
+/**
+ * Legacy Guardian modes (deprecated, use canonical modes)
+ * @deprecated Use GuardianModeCanonical instead
+ *
+ * Mapping:
+ * - 'testing' → 'observe'
+ * - 'guardian' → 'strict'
+ * - 'hybrid' → 'selective'
+ */
+export type GuardianModeLegacy = 'testing' | 'guardian' | 'hybrid';
+
+/**
+ * All supported Guardian modes (canonical + legacy for backwards compatibility)
+ */
+export type GuardianModeAll = GuardianModeCanonical | GuardianModeLegacy;
+
+// =============================================================================
+// Content Validation Types (v0.3.2+)
+// =============================================================================
+
+/**
+ * Validation categories for content checking
+ * These define what types of threats/issues to validate for
+ */
+export type ValidationCategory =
+  | 'prompt_injection'
+  | 'jailbreak'
+  | 'pii_disclosure'
+  | 'role_manipulation'
+  | 'data_extraction'
+  | 'content_safety';
+
+/**
+ * Pattern matching categories for granular control
+ */
+export type PatternCategory =
+  | 'injection'
+  | 'pii'
+  | 'role_hijack'
+  | 'extraction'
+  | 'tool_abuse'
+  | 'content_filter';
+
+/**
+ * Pattern matching configuration
+ */
+export interface PatternConfig {
+  /** Enable pattern matching (default: true when strategy is 'pattern' or 'hybrid') */
+  enabled?: boolean;
+
+  /** Case-insensitive matching (default: true) */
+  caseInsensitive?: boolean;
+
+  /** Custom patterns to add */
+  customPatterns?: string[];
+
+  /** Pattern categories to enable (default: all) */
+  categories?: PatternCategory[];
+}
+
+/**
+ * Content validation strategy configuration
+ */
+export interface ContentValidationConfig {
+  /**
+   * Validation strategy
+   * - 'semantic': LLM-based validation (default, recommended)
+   * - 'pattern': Regex/pattern-based validation only
+   * - 'hybrid': Both semantic and pattern validation
+   * - 'off': Disable content validation
+   */
+  strategy: 'semantic' | 'pattern' | 'hybrid' | 'off';
+
+  /** Confidence threshold for semantic validation (0-1, default: 0.9) */
+  semanticThreshold?: number;
+
+  /** Categories to validate (default: all) */
+  categories?: ValidationCategory[];
+
+  /** Pattern matching configuration (supplementary when strategy != 'pattern') */
+  patterns?: PatternConfig;
+}
+
+/**
+ * Result from semantic validation
+ */
+export interface SemanticValidationResult {
+  /** Whether content passed validation */
+  valid: boolean;
+
+  /** Confidence score (0-1) */
+  confidence: number;
+
+  /** Detected category if invalid */
+  category?: ValidationCategory;
+
+  /** Human-readable reason */
+  reason?: string;
+
+  /** Whether this should block based on threshold */
+  shouldBlock: boolean;
+
+  /** Raw LLM response for debugging */
+  rawResponse?: string;
+}
+
+// =============================================================================
+// Multi-Turn Detection Types (v0.3.3+)
+// =============================================================================
+
+/**
+ * Storage type for sessions
+ */
+export type SessionStorageType = 'memory' | 'local' | 'supabase';
+
+/**
+ * Session storage configuration
+ */
+export interface SessionStorageConfig {
+  /** Storage type */
+  type: SessionStorageType;
+
+  /** Base path for local storage (default: '.artemis/sessions') */
+  basePath?: string;
+
+  /** Supabase table name (default: 'guardian_sessions') */
+  tableName?: string;
+}
+
+/**
+ * Individual message in a conversation session
+ */
+export interface SessionMessage {
+  /** Message role */
+  role: 'user' | 'assistant';
+
+  /** Message content */
+  content: string;
+
+  /** When message was sent */
+  timestamp: Date;
+
+  /** Risk score for this message (0-1) */
+  riskScore?: number;
+
+  /** Detection flags triggered */
+  flags?: string[];
+}
+
+/**
+ * Session metrics for tracking conversation patterns
+ */
+export interface SessionMetrics {
+  /** Total messages in session */
+  messageCount: number;
+
+  /** Trust-building score accumulator (0-1) */
+  trustBuildingScore: number;
+
+  /** Number of risk score increases */
+  escalationCount: number;
+
+  /** Most recent message risk score */
+  lastRiskScore: number;
+
+  /** Risk trend direction */
+  riskTrend: 'stable' | 'increasing' | 'decreasing';
+}
+
+/**
+ * Conversation session for multi-turn tracking
+ */
+export interface ConversationSession {
+  /** Unique session identifier */
+  sessionId: string;
+
+  /** When session was created */
+  createdAt: Date;
+
+  /** Last update timestamp */
+  updatedAt: Date;
+
+  /** Session expiration time */
+  expiresAt: Date;
+
+  /** Messages in the session */
+  messages: SessionMessage[];
+
+  /** Session metrics */
+  metrics: SessionMetrics;
+}
+
+/**
+ * Trust-building detection heuristic config
+ */
+export interface TrustBuildingHeuristicConfig {
+  /** Enable this heuristic */
+  enabled: boolean;
+
+  /** Score threshold to flag (default: 0.7) */
+  threshold?: number;
+}
+
+/**
+ * Escalation detection heuristic config
+ */
+export interface EscalationHeuristicConfig {
+  /** Enable this heuristic */
+  enabled: boolean;
+
+  /** Number of consecutive increases to flag (default: 3) */
+  consecutiveIncreases?: number;
+
+  /** Minimum risk increase per message to count (default: 0.15) */
+  minIncrement?: number;
+}
+
+/**
+ * Context manipulation detection heuristic config
+ */
+export interface ContextManipulationHeuristicConfig {
+  /** Enable this heuristic */
+  enabled: boolean;
+
+  /** Patterns that indicate claimed prior agreement */
+  claimPatterns?: string[];
+}
+
+/**
+ * Split payload detection heuristic config
+ */
+export interface SplitPayloadHeuristicConfig {
+  /** Enable this heuristic */
+  enabled: boolean;
+
+  /** How many recent messages to combine for detection (default: 5) */
+  combineWindow?: number;
+}
+
+/**
+ * Multi-turn detection heuristics configuration
+ */
+export interface MultiTurnHeuristics {
+  /** Detect trust-building patterns before sensitive requests */
+  trustBuilding?: TrustBuildingHeuristicConfig;
+
+  /** Detect escalating risk across messages */
+  escalation?: EscalationHeuristicConfig;
+
+  /** Detect false claims about prior conversation */
+  contextManipulation?: ContextManipulationHeuristicConfig;
+
+  /** Detect attack payloads split across messages */
+  splitPayload?: SplitPayloadHeuristicConfig;
+}
+
+/**
+ * LLM-based semantic analysis for multi-turn detection
+ */
+export interface MultiTurnSemanticConfig {
+  /** Enable semantic analysis */
+  enabled: boolean;
+
+  /** Use same LLM client as Guardian (default: true) */
+  useSameLLM?: boolean;
+
+  /** Confidence threshold for flagging (default: 0.85) */
+  threshold?: number;
+}
+
+/**
+ * Multi-turn detection configuration
+ */
+export interface MultiTurnConfig {
+  /** Enable multi-turn detection */
+  enabled: boolean;
+
+  /** Number of messages to keep in sliding window (default: 10) */
+  windowSize?: number;
+
+  /** Session timeout in ms (default: 3600000 = 1 hour) */
+  timeout?: number;
+
+  /** Session storage configuration */
+  storage: SessionStorageConfig | 'memory';
+
+  /** Detection heuristics (all enabled by default) */
+  heuristics?: MultiTurnHeuristics;
+
+  /** LLM-based semantic analysis */
+  semanticAnalysis?: MultiTurnSemanticConfig;
+}
+
+/**
+ * Individual heuristic result
+ */
+export interface HeuristicResult {
+  /** Name of the heuristic */
+  name: string;
+
+  /** Whether this heuristic was triggered */
+  triggered: boolean;
+
+  /** Confidence/score for this heuristic */
+  score: number;
+
+  /** Details about what triggered it */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Combined results from all heuristics
+ */
+export interface HeuristicResults {
+  /** Trust-building detection result */
+  trustBuilding?: HeuristicResult;
+
+  /** Escalation detection result */
+  escalation?: HeuristicResult;
+
+  /** Context manipulation detection result */
+  contextManipulation?: HeuristicResult;
+
+  /** Split payload detection result */
+  splitPayload?: HeuristicResult;
+}
+
+/**
+ * Result from multi-turn validation
+ */
+export interface MultiTurnValidationResult {
+  /** Whether validation passed */
+  valid: boolean;
+
+  /** Session identifier */
+  sessionId: string;
+
+  /** Index of this message in the session */
+  messageIndex: number;
+
+  /** Single-message risk score (0-1) */
+  messageRisk: number;
+
+  /** Conversation-level risk score (0-1) */
+  conversationRisk: number;
+
+  /** Individual heuristic flags */
+  flags: {
+    trustBuildingDetected: boolean;
+    escalationPattern: boolean;
+    contextManipulation: boolean;
+    splitPayloadScore: number;
+  };
+
+  /** Semantic analysis result (if enabled) */
+  semanticAnalysis?: {
+    confidence: number;
+    category?: string;
+    reason?: string;
+  };
+
+  /** Recommended action based on all signals */
+  recommendation: 'allow' | 'warn' | 'verify' | 'block';
+
+  /** Detailed violations if any */
+  violations: Violation[];
+}
+
+/**
+ * Options for validating a message with session context
+ */
+export interface ValidateMessageOptions {
+  /** Session identifier */
+  sessionId: string;
+
+  /** Message to validate */
+  message: string;
+
+  /** Message role (default: 'user') */
+  role?: 'user' | 'assistant';
+
+  /** Optional: provide history instead of relying on storage */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }

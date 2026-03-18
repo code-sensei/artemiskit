@@ -36,12 +36,24 @@ export interface InterceptorConfig {
   inputGuardrails?: GuardrailFn[];
   /** Output guardrails to run */
   outputGuardrails?: GuardrailFn[];
-  /** Whether to block on validation failure */
+  /** Whether to block on validation failure (flat boolean, see shouldBlockViolation for finer control) */
   blockOnFailure?: boolean;
+  /**
+   * Callback to determine if a specific violation should cause blocking.
+   * Use this for mode-aware blocking (e.g., selective mode blocks only high-severity).
+   * If provided, this callback is used instead of flat blockOnFailure for per-violation decisions.
+   * The callback receives a violation and should return true if it should block.
+   */
+  shouldBlockViolation?: (violation: Violation) => boolean;
   /** Event handlers */
   onEvent?: GuardianEventHandler;
   /** Log violations */
   logViolations?: boolean;
+  /**
+   * Callback to check if requests should be allowed (e.g., circuit breaker check).
+   * Called before each LLM request. Return false to block the request.
+   */
+  shouldAllow?: () => { allowed: boolean; reason?: string };
 }
 
 /**
@@ -95,6 +107,31 @@ export class GuardianInterceptor implements ModelClient {
     const startTime = Date.now();
     this.stats.totalRequests++;
 
+    // Check if requests are allowed (e.g., circuit breaker)
+    if (this.config.shouldAllow) {
+      const allowResult = this.config.shouldAllow();
+      if (!allowResult.allowed) {
+        this.stats.blockedRequests++;
+        const violation: Violation = {
+          id: nanoid(),
+          type: 'circuit_breaker',
+          severity: 'high',
+          message: allowResult.reason ?? 'Request blocked by circuit breaker',
+          timestamp: new Date(),
+          action: 'block',
+          blocked: true,
+        };
+        this.emitEvent({
+          type: 'request_blocked',
+          timestamp: new Date(),
+          data: { requestId, phase: 'pre-request', violations: [violation] },
+        });
+        throw new GuardianBlockedError(allowResult.reason ?? 'Request blocked by circuit breaker', [
+          violation,
+        ]);
+      }
+    }
+
     // Extract prompt text
     const promptText = this.extractPromptText(options.prompt);
 
@@ -133,7 +170,17 @@ export class GuardianInterceptor implements ModelClient {
           });
         }
 
-        if (this.config.blockOnFailure && inputResult.violations.some((v) => v.blocked)) {
+        // Determine which violations should cause blocking
+        // Use shouldBlockViolation callback for mode-aware decisions (e.g., selective mode)
+        // Fall back to flat blockOnFailure + v.blocked check
+        const blockingViolations = inputResult.violations.filter((v) => {
+          if (this.config.shouldBlockViolation) {
+            return v.blocked && this.config.shouldBlockViolation(v);
+          }
+          return this.config.blockOnFailure && v.blocked;
+        });
+
+        if (blockingViolations.length > 0) {
           this.stats.blockedRequests++;
           this.emitEvent({
             type: 'request_blocked',
@@ -165,6 +212,9 @@ export class GuardianInterceptor implements ModelClient {
         requestId,
         phase: 'output',
         response,
+        // Pass the original input as context for output validation
+        // This enables semantic validators to detect manipulation success patterns
+        inputContext: promptText,
       });
 
       if (!outputResult.passed) {
@@ -179,7 +229,17 @@ export class GuardianInterceptor implements ModelClient {
           });
         }
 
-        if (this.config.blockOnFailure && outputResult.violations.some((v) => v.blocked)) {
+        // Determine which violations should cause blocking
+        // Use shouldBlockViolation callback for mode-aware decisions (e.g., selective mode)
+        // Fall back to flat blockOnFailure + v.blocked check
+        const blockingViolations = outputResult.violations.filter((v) => {
+          if (this.config.shouldBlockViolation) {
+            return v.blocked && this.config.shouldBlockViolation(v);
+          }
+          return this.config.blockOnFailure && v.blocked;
+        });
+
+        if (blockingViolations.length > 0) {
           this.stats.blockedRequests++;
           this.emitEvent({
             type: 'request_blocked',
@@ -226,15 +286,31 @@ export class GuardianInterceptor implements ModelClient {
   }
 
   /**
-   * Stream generation (pass-through with validation)
+   * Stream generation with guardrail validation
+   *
+   * IMPORTANT: Streaming is currently not supported by GuardianInterceptor.
+   * This method throws an error to prevent bypassing Guardian protections.
+   *
+   * Streaming validation is complex because:
+   * 1. Input validation must complete before streaming starts
+   * 2. Output validation requires the complete response
+   * 3. Circuit breaker must be checked per-request
+   *
+   * For protected LLM access, use the non-streaming `generate()` method.
+   * If you need streaming, use the underlying client directly (unprotected).
+   *
+   * @throws {Error} Always throws - streaming not supported in Guardian
    */
-  stream?(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
-    if (!this.client.stream) {
-      throw new Error('Underlying client does not support streaming');
-    }
-    // For streaming, we'd need to accumulate and validate
-    // This is a simplified pass-through for now
-    return this.client.stream(options, onChunk);
+  stream?(_options: GenerateOptions, _onChunk: (chunk: string) => void): AsyncIterable<string> {
+    // SECURITY: Do not allow streaming to bypass Guardian protections.
+    // The previous pass-through implementation was a security gap that allowed
+    // attackers to bypass all guardrails, circuit breaker, and metrics by using
+    // the streaming endpoint instead of generate().
+    throw new Error(
+      'Streaming is not supported by GuardianInterceptor. ' +
+        'Streaming would bypass Guardian protections (input/output validation, circuit breaker, metrics). ' +
+        'Use generate() for protected LLM access, or access the underlying client directly for unprotected streaming.'
+    );
   }
 
   /**

@@ -23,6 +23,7 @@ export {
   AttackConfigSchema,
   type AttackConfig,
   type AttackConfigDefaults,
+  type CreateMutationsOptions,
   type BadLikertJudgeConfig,
   type CrescendoConfig,
   type DeceptiveDelightConfig,
@@ -32,6 +33,10 @@ export {
   type HallucinationTrapConfig,
   type EncodingConfig,
   type MultiTurnConfig,
+  type ToolAbuseConfig,
+  type AgentConfusionConfig,
+  type MemoryPoisoningConfig,
+  type ChainManipulationConfig,
 } from './attack-config';
 
 // ==========================================

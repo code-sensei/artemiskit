@@ -34,45 +34,258 @@ export type {
   // Event emitter
   ArtemisKitEvents,
   ArtemisKitEventName,
+  // Validation types (v0.3.2+)
+  ValidateOptions,
+  ValidationResult,
+  ValidationError,
+  ValidationWarning,
+  ScenarioValidation,
+  // Comparison types (v0.3.2+)
+  CompareOptions,
+  CompareResult,
+  RunSummary,
+  ComparisonDetails,
 } from './types';
 
-// Re-export core types for convenience
+// ============================================================================
+// Core Types - Scenarios & Test Cases
+// ============================================================================
+
 export type {
-  // Core types
   Scenario,
   TestCase,
   Expected,
   Provider,
-  CaseResult,
-  RunManifest,
-  RedTeamManifest,
-  StressManifest,
-  RedTeamCaseResult,
-  StressRequestResult,
-  // Adapter types
-  ModelClient,
-  AdapterConfig,
-  GenerateOptions,
-  GenerateResult,
-  // Redaction
-  RedactionConfig,
+  ProviderConfig,
+  ChatMessageType,
+  Variables,
 } from '@artemiskit/core';
 
-// Re-export redteam types for convenience
+// ============================================================================
+// Core Types - Results & Manifests
+// ============================================================================
+
+export type {
+  // Case results
+  CaseResult,
+  CaseRedactionInfo,
+  // Run manifest
+  RunManifest,
+  RunConfig,
+  RunMetrics,
+  // Red team manifest
+  RedTeamManifest,
+  RedTeamConfig,
+  RedTeamMetrics,
+  RedTeamCaseResult,
+  RedTeamStatus,
+  RedTeamSeverity,
+  // Stress manifest
+  StressManifest,
+  StressConfig,
+  StressMetrics,
+  StressRequestResult,
+  // Common
+  AnyManifest,
+  ResolvedConfig,
+  ConfigSource,
+  ManifestRedactionInfo,
+  CostEstimateInfo,
+  GitInfo,
+  ProvenanceInfo,
+} from '@artemiskit/core';
+
+// ============================================================================
+// Core Types - Adapters
+// ============================================================================
+
+export type {
+  // Client interface
+  ModelClient,
+  ModelCapabilities,
+  // Request/Response
+  GenerateOptions,
+  GenerateResult,
+  TokenUsage,
+  // Messages
+  ChatMessage,
+  // Function/Tool calling
+  FunctionDefinition,
+  ToolDefinition,
+  ToolCall,
+  // Config types
+  AdapterConfig,
+  BaseAdapterConfig,
+  OpenAIAdapterConfig,
+  AzureOpenAIAdapterConfig,
+  VercelAIAdapterConfig,
+  AnthropicAdapterConfig,
+  LangChainAdapterConfig,
+  DeepAgentsAdapterConfig,
+  ProviderType,
+} from '@artemiskit/core';
+
+// ============================================================================
+// Core Types - Evaluators
+// ============================================================================
+
+export type { Evaluator, EvaluatorContext, EvaluatorResult } from '@artemiskit/core';
+
+// ============================================================================
+// Core Types - Storage
+// ============================================================================
+
+export type {
+  StorageAdapter,
+  StorageConfig,
+  RunListItem,
+  ListOptions,
+  ComparisonResult,
+  BaselineMetadata,
+  BaselineStorageAdapter,
+  // Analytics
+  CaseResultRecord,
+  CaseResultStatus,
+  CaseResultQueryOptions,
+  MetricsSnapshot,
+  MetricsTrendOptions,
+  TrendDataPoint,
+  AnalyticsStorageAdapter,
+} from '@artemiskit/core';
+
+// ============================================================================
+// Core Types - Redaction
+// ============================================================================
+
+export type { RedactionConfig } from '@artemiskit/core';
+
+// ============================================================================
+// Core Functions - Type Guards (from core)
+// ============================================================================
+
+export { isRunManifest, isRedTeamManifest, isStressManifest } from '@artemiskit/core';
+
+// ============================================================================
+// Redteam Types
+// ============================================================================
+
 export type { Severity, SeverityInfo, CvssScore } from '@artemiskit/redteam';
 
-// Export matchers
-export {
-  artemiskitMatchers,
-  type ArtemisKitMatchers,
-  type MatcherResult,
-} from './matchers';
+// ============================================================================
+// Matchers
+// ============================================================================
 
-// Export guardian module for runtime protection
+export { artemiskitMatchers, type ArtemisKitMatchers, type MatcherResult } from './matchers';
+
+// ============================================================================
+// Utility Types & Functions
+// ============================================================================
+
+export {
+  // Type guards for results
+  isRunResult,
+  isRedTeamResult,
+  isStressResult,
+  isRunManifestType,
+  isRedTeamManifestType,
+  isStressManifestType,
+  // Assertion helpers
+  assertDefined,
+  assert,
+  // Result analysis helpers
+  getFailedCases,
+  getPassedCases,
+  getCasesByTag,
+  calculateSuccessRate,
+} from './utils';
+
+export type {
+  // Provider/Expectation types
+  ProviderName,
+  ExpectationType,
+  // Result types
+  AnyResult,
+  ExtractRunCases,
+  ExtractRedTeamCases,
+  ExtractStressResults,
+  ExtractManifest,
+  // Partial types
+  DeepPartial,
+  PartialScenario,
+  RequireFields,
+  OptionalFields,
+  StrictAdapterConfig,
+} from './utils';
+
+// ============================================================================
+// Contracts for Custom Implementations
+// ============================================================================
+
+export {
+  // Adapter contract
+  defineAdapter,
+  // Evaluator contract
+  defineEvaluator,
+  // Storage contract
+  defineStorage,
+  // Plugin system
+  definePlugin,
+} from './contracts';
+
+export type {
+  AdapterContract,
+  EvaluatorContract,
+  StorageContract,
+  AdapterFactory,
+  EvaluatorFactory,
+  StorageFactory,
+  ArtemisKitPlugin,
+} from './contracts';
+
+// ============================================================================
+// Builders for Programmatic Scenario Construction
+// ============================================================================
+
+export {
+  // Builder classes
+  ScenarioBuilder,
+  TestCaseBuilder,
+  // Factory functions
+  scenario,
+  testCase,
+  // Quick helpers
+  containsCase,
+  exactCase,
+  regexCase,
+  jsonCase,
+  gradedCase,
+  // Expectation helpers
+  exact,
+  contains,
+  notContains,
+  regex,
+  fuzzy,
+  jsonSchema,
+  llmGrade,
+  similarity,
+  inline,
+  allOf,
+  anyOf,
+} from './builders';
+
+// ============================================================================
+// Guardian Module - Runtime Protection
+// ============================================================================
+
 export {
   // Main Guardian class
   Guardian,
   createGuardian,
+  // Mode normalization (v0.3.2+)
+  normalizeGuardianMode,
+  // Semantic Validator (v0.3.2+)
+  SemanticValidator,
+  createSemanticValidator,
   // Interceptor
   GuardianInterceptor,
   GuardianBlockedError,
@@ -91,6 +304,9 @@ export {
   filterContent,
   createContentFilterGuardrail,
   createGuardrails,
+  // Pattern matching utilities (v0.3.2+)
+  matchPattern,
+  createCustomPatternGuardrail,
   // Policy
   loadPolicy,
   parsePolicy,
@@ -115,6 +331,7 @@ export type {
   IntentClassifierConfig,
   GuardrailsConfig,
   RateLimiterConfig,
+  CustomPatternOptions,
   // Core types
   GuardianMode,
   ViolationSeverity,
@@ -161,4 +378,31 @@ export type {
   // Framework types
   FrameworkType,
   FrameworkIntegrationConfig,
+  // Mode types (v0.3.2+)
+  GuardianModeCanonical,
+  GuardianModeLegacy,
+  GuardianModeAll,
+  // Content validation types (v0.3.2+)
+  ContentValidationConfig,
+  PatternConfig,
+  ValidationCategory,
+  PatternCategory,
+  SemanticValidationResult,
+  // Multi-turn detection types (v0.3.3+)
+  SessionStorageType,
+  SessionStorageConfig,
+  SessionMessage,
+  SessionMetrics,
+  ConversationSession,
+  TrustBuildingHeuristicConfig,
+  EscalationHeuristicConfig,
+  ContextManipulationHeuristicConfig,
+  SplitPayloadHeuristicConfig,
+  MultiTurnHeuristics,
+  MultiTurnSemanticConfig,
+  MultiTurnConfig,
+  HeuristicResult,
+  HeuristicResults,
+  MultiTurnValidationResult,
+  ValidateMessageOptions,
 } from './guardian';

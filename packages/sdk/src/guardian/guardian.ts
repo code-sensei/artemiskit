@@ -244,8 +244,15 @@ export class Guardian {
 
     // Initialize semantic validator if strategy is 'semantic' or 'hybrid' and LLM client is provided
     const validationStrategy = this.config.contentValidation?.strategy ?? 'semantic';
-    const shouldUseSemanticValidation =
-      (validationStrategy === 'semantic' || validationStrategy === 'hybrid') && config.llmClient;
+    const requiresLlmClient = validationStrategy === 'semantic' || validationStrategy === 'hybrid';
+    const shouldUseSemanticValidation = requiresLlmClient && config.llmClient;
+
+    // Warn when semantic validation is configured but no LLM client is provided
+    if (requiresLlmClient && !config.llmClient) {
+      console.warn(
+        `[ArtemisKit Guardian] contentValidation.strategy is "${validationStrategy}" but no llmClient was provided. Semantic validation is disabled. Pass an llmClient to GuardianConfig to enable LLM-based content validation.`
+      );
+    }
 
     if (shouldUseSemanticValidation && config.llmClient) {
       this.semanticValidator = createSemanticValidator(

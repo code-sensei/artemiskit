@@ -994,6 +994,8 @@ export class ArtemisKit {
         progress: 10,
       });
 
+      // StorageAdapter.list() returns runs sorted by startTime descending (most recent first)
+      // so runs[0] is guaranteed to be the latest run
       const runs = await this.storage.list({ limit: 1, type: 'run' });
       if (runs.length === 0) {
         throw new Error('No runs found in storage. Cannot use "latest" as baseline.');

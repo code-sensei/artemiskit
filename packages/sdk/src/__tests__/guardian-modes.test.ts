@@ -74,8 +74,9 @@ describe('Guardian Mode Normalization', () => {
         const hybridGuardian = createGuardian({ mode: 'hybrid' });
         expect(hybridGuardian.getMode()).toBe('selective');
 
-        // Verify warnings were logged
-        expect(warnCalls.length).toBe(3);
+        // Verify mode deprecation warnings were logged (filter out semantic validation warnings)
+        const modeDeprecationWarnings = warnCalls.filter((w) => w.includes('deprecated'));
+        expect(modeDeprecationWarnings.length).toBe(3);
       } finally {
         console.warn = originalWarn;
       }

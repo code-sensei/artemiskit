@@ -229,7 +229,7 @@ export class MemoryPoisoningMutation implements Mutation {
     return {
       poison,
       verification: AGGRESSIVE_VERIFICATION_PROMPTS.slice(0, this.options.followUpTurns ?? 3),
-      category: 'permission',
+      category: 'mixed', // Uses templates from all categories, not just 'permission'
     };
   }
 

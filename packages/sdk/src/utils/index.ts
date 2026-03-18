@@ -137,9 +137,19 @@ export function isStressResult(result: AnyResult): result is StressResult {
 
 /**
  * Type guard for RunManifest
+ *
+ * Uses structural field checks rather than absence-of-field logic for robustness.
+ * Checks for RunManifest-specific fields: 'metrics.success_rate' and 'cases' array.
  */
 export function isRunManifestType(manifest: AnyManifest): manifest is RunManifest {
-  return !('type' in manifest) || manifest.type === undefined;
+  return (
+    'metrics' in manifest &&
+    manifest.metrics !== null &&
+    typeof manifest.metrics === 'object' &&
+    'success_rate' in manifest.metrics &&
+    'cases' in manifest &&
+    Array.isArray((manifest as RunManifest).cases)
+  );
 }
 
 /**

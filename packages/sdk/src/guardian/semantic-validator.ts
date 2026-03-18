@@ -187,21 +187,33 @@ export class SemanticValidator {
    */
   private parseResponse(responseText: string): SemanticValidationResult {
     try {
-      // Extract JSON from the response by finding valid JSON blocks
-      // Try to find JSON that starts with the expected "valid" field first
-      const jsonMatch = responseText.match(/\{"valid"\s*:/);
+      // SECURITY: Extract JSON from the response by iterating from the END to prefer
+      // the validator's actual output over any injected JSON that might appear earlier.
+      // This mitigates prompt injection attacks that prepend a benign JSON object.
       let jsonToParse: string | null = null;
 
-      if (jsonMatch && jsonMatch.index !== undefined) {
-        // Found a JSON block starting with "valid", extract the complete object
-        const startIndex = jsonMatch.index;
-        jsonToParse = this.extractJsonObject(responseText, startIndex);
+      // Find all positions where {"valid" appears (primary pattern)
+      const validPatternMatches = [...responseText.matchAll(/\{"valid"\s*:/g)];
+      // Try from end to start for security
+      for (let i = validPatternMatches.length - 1; i >= 0; i--) {
+        const match = validPatternMatches[i];
+        if (match.index === undefined) continue;
+        const candidate = this.extractJsonObject(responseText, match.index);
+        if (candidate) {
+          try {
+            const parsed = JSON.parse(candidate);
+            // Require both valid (boolean) and confidence (number) to reduce false positives
+            if (typeof parsed.valid === 'boolean' && typeof parsed.confidence === 'number') {
+              jsonToParse = candidate;
+              break;
+            }
+          } catch {
+            // Not valid JSON, try next
+          }
+        }
       }
 
-      // Fallback: try to find any JSON object and parse progressively
-      // SECURITY: Iterate from the END of the response to prefer the validator's actual output
-      // over any injected JSON that might appear earlier in the response. This mitigates
-      // prompt injection attacks that prepend a benign JSON object.
+      // Fallback: try to find any JSON object with required fields
       if (!jsonToParse) {
         const allJsonStarts = [...responseText.matchAll(/\{/g)];
         // Reverse to start from the end of the response

@@ -371,7 +371,7 @@ export class Guardian {
         violations: [
           {
             id: nanoid(),
-            type: 'rate_limit',
+            type: 'circuit_breaker',
             severity: 'high',
             message: 'Circuit breaker is open - too many violations',
             timestamp: new Date(),
@@ -458,7 +458,7 @@ export class Guardian {
       }
     }
 
-    // Record violations
+    // Record violations in circuit breaker
     for (const violation of violations) {
       this.circuitBreaker.recordViolation(violation);
     }
@@ -476,9 +476,8 @@ export class Guardian {
       violations,
     });
 
-    if (blocked) {
-      this.circuitBreaker.recordViolation(violations[0]);
-    } else if (violations.length === 0) {
+    // Record success only when no violations (violations already recorded in loop above)
+    if (violations.length === 0) {
       this.circuitBreaker.recordSuccess();
     }
 
@@ -514,7 +513,7 @@ export class Guardian {
       }
     }
 
-    // Record violations
+    // Record violations in circuit breaker
     for (const violation of violations) {
       this.circuitBreaker.recordViolation(violation);
     }
@@ -532,9 +531,8 @@ export class Guardian {
       violations,
     });
 
-    if (blocked) {
-      this.circuitBreaker.recordViolation(violations[0]);
-    } else if (violations.length === 0) {
+    // Record success only when no violations (violations already recorded in loop above)
+    if (violations.length === 0) {
       this.circuitBreaker.recordSuccess();
     }
 

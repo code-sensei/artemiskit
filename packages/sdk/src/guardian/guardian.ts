@@ -465,9 +465,25 @@ export class Guardian {
 
     // Apply mode-aware blocking logic
     const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+    const blocked = violations.length > 0 && shouldBlockAny;
+    const warned = violations.length > 0 && !shouldBlockAny;
+
+    // Record metrics for standalone validateInput calls
+    this.metricsCollector.recordRequest({
+      blocked,
+      warned,
+      latencyMs: 0, // Latency tracking not available for standalone calls
+      violations,
+    });
+
+    if (blocked) {
+      this.circuitBreaker.recordViolation(violations[0]);
+    } else if (violations.length === 0) {
+      this.circuitBreaker.recordSuccess();
+    }
 
     return {
-      valid: violations.length === 0 || !shouldBlockAny,
+      valid: !blocked,
       violations,
       transformedContent,
     };
@@ -505,9 +521,25 @@ export class Guardian {
 
     // Apply mode-aware blocking logic
     const shouldBlockAny = violations.some((v) => v.blocked && this.shouldBlock(v));
+    const blocked = violations.length > 0 && shouldBlockAny;
+    const warned = violations.length > 0 && !shouldBlockAny;
+
+    // Record metrics for standalone validateOutput calls
+    this.metricsCollector.recordRequest({
+      blocked,
+      warned,
+      latencyMs: 0, // Latency tracking not available for standalone calls
+      violations,
+    });
+
+    if (blocked) {
+      this.circuitBreaker.recordViolation(violations[0]);
+    } else if (violations.length === 0) {
+      this.circuitBreaker.recordSuccess();
+    }
 
     return {
-      valid: violations.length === 0 || !shouldBlockAny,
+      valid: !blocked,
       violations,
       transformedContent,
     };

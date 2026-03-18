@@ -153,9 +153,14 @@ export class CircuitBreaker {
   }
 
   /**
-   * Force the circuit to a specific state
+   * Force the circuit to a specific state.
+   * When forcing to 'open', also updates lastOpenTime so the cooldown
+   * period starts from now (matching trip() behavior).
    */
   forceState(state: CircuitBreakerState): void {
+    if (state === 'open') {
+      this.lastOpenTime = Date.now();
+    }
     this.transition(state);
   }
 

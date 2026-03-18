@@ -199,15 +199,21 @@ export class SemanticValidator {
       }
 
       // Fallback: try to find any JSON object and parse progressively
+      // SECURITY: Iterate from the END of the response to prefer the validator's actual output
+      // over any injected JSON that might appear earlier in the response. This mitigates
+      // prompt injection attacks that prepend a benign JSON object.
       if (!jsonToParse) {
         const allJsonStarts = [...responseText.matchAll(/\{/g)];
-        for (const match of allJsonStarts) {
+        // Reverse to start from the end of the response
+        for (let i = allJsonStarts.length - 1; i >= 0; i--) {
+          const match = allJsonStarts[i];
           if (match.index === undefined) continue;
           const candidate = this.extractJsonObject(responseText, match.index);
           if (candidate) {
             try {
               const parsed = JSON.parse(candidate);
-              if (typeof parsed.valid === 'boolean') {
+              // Require both valid (boolean) and confidence (number) to reduce false positives
+              if (typeof parsed.valid === 'boolean' && typeof parsed.confidence === 'number') {
                 jsonToParse = candidate;
                 break;
               }

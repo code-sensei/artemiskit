@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.3] - 2026-03-18
+
+### Highlights
+
+- **Guardian Security Hardening** - Critical security fixes for streaming and prompt injection detection
+- **Programmatic Scenario Builders** - Type-safe fluent APIs for building scenarios
+- **Type Contracts** - Strict type contracts for safe SDK usage
+
+### Added
+
+#### SDK (`@artemiskit/sdk`)
+
+- `ScenarioBuilder` - Fluent API for building scenarios programmatically
+- `TestCaseBuilder` - Fluent API for building test cases with expectations
+- `createScenario()` and `createTestCase()` factory functions
+- `shouldBlockViolation` callback for mode-aware per-violation blocking decisions
+- `addedCases`/`removedCases` fields in comparison results
+
+### Fixed
+
+- **Security**: Streaming now throws on violations instead of bypassing protections
+- **Security**: Hardened `parseResponse` to detect multiple JSON candidates as potential prompt injection
+- Case-insensitive pattern matching in guardrails
+- Lint warnings in semantic validator
+
+### Changed
+
+- Added `circuit_breaker` to GuardrailType for type safety
+
+---
+
+## [0.3.2] - 2026-03-12
+
+### Highlights
+
+- **SDK Parity Methods** - `kit.validate()` and `kit.compare()` for programmatic workflow
+- **Guardian Mode Normalization** - Canonical modes with deprecation warnings for legacy names
+- **Semantic Validation** - LLM-as-judge pattern as default content validation strategy
+
+### Added
+
+#### SDK (`@artemiskit/sdk`)
+
+- `kit.validate()` - Validate scenario files without execution (pre-flight checks for CI/CD)
+- `kit.compare()` - Compare two test runs for regression detection
+- `SemanticValidator` class - LLM-based content analysis
+- `createSemanticValidator()` factory function
+- `normalizeGuardianMode()` utility for mode conversion
+
+#### Guardian Mode
+
+- Canonical modes: `observe`, `selective`, `strict`
+- Deprecation warnings for legacy modes (`testing`, `guardian`, `hybrid`)
+- Content validation strategies: `semantic`, `pattern`, `hybrid`, `off`
+- Configurable semantic threshold (0-1)
+- Input and output validation with LLM-as-judge
+
+### Changed
+
+- Default content validation strategy changed from `pattern` to `semantic`
+- Guardian now requires `llmClient` for semantic validation
+
+---
+
 ## [0.3.1] - 2026-03-06
 
 ### Highlights
@@ -223,6 +287,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.3.3]: https://github.com/code-sensei/artemiskit/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/code-sensei/artemiskit/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/code-sensei/artemiskit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/code-sensei/artemiskit/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/code-sensei/artemiskit/compare/v0.2.1...v0.2.4

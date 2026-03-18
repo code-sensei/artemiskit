@@ -11,7 +11,7 @@
 **Repository:** https://github.com/code-sensei/artemiskit  
 **Website:** https://artemiskit.vercel.app  
 **License:** Apache-2.0  
-**Current Version:** 0.2.0 (February 2026)  
+**Current Version:** 0.3.3 (March 2026)  
 **Status:** Active Development
 
 ### What This Project Does

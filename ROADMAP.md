@@ -2,7 +2,7 @@
 
 This document outlines the development roadmap for ArtemisKit, the open-source LLM evaluation toolkit.
 
-**Current Version:** 0.3.1 (March 2026)
+**Current Version:** 0.3.3 (March 2026)
 **License:** Apache-2.0
 **Status:** Active Development
 
@@ -465,22 +465,38 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 | `--agent-detection` flag | ✅ | - | Dual detection modes (trace/response/combined) |
 | `AgentMutationDetector` | ✅ | - | Unified detector with `quickDetect()` and `detectAll()` |
 
-### v0.3.2 - SDK Parity + Guardian Foundation 🚧
+### v0.3.2 - SDK Parity + Guardian Foundation ✅
 
 **Focus:** Achieve CLI-SDK parity and lay foundation for semantic-first Guardian.
 
-**Status:** In Progress (March 2026)
+**Status:** Complete (March 2026)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| `kit.validate()` | 🚧 | Validate scenario files without execution (pre-flight checks) |
-| `kit.compare()` | 🚧 | Compare two test runs for regression detection |
-| Guardian mode normalization | 🚧 | `observe`/`selective`/`strict` modes with deprecation warnings |
-| Semantic validation default | 🚧 | LLM-as-judge validation strategy by default |
-| Case-insensitive patterns | 📋 | Pattern matching improvements |
-| Content validation config | 📋 | `semantic`/`pattern`/`hybrid`/`off` strategies |
+| `kit.validate()` | ✅ | Validate scenario files without execution (pre-flight checks) |
+| `kit.compare()` | ✅ | Compare two test runs for regression detection |
+| Guardian mode normalization | ✅ | `observe`/`selective`/`strict` modes with deprecation warnings |
+| Semantic validation default | ✅ | LLM-as-judge validation strategy by default |
+| Case-insensitive patterns | ✅ | Pattern matching improvements |
+| Content validation config | ✅ | `semantic`/`pattern`/`hybrid`/`off` strategies |
 
-### v0.3.3 - Multi-Turn Detection 📋
+### v0.3.3 - Guardian Security Hardening ✅
+
+**Focus:** Guardian security improvements and SDK refinements.
+
+**Status:** Complete (March 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| `shouldBlockViolation` callback | ✅ | Mode-aware per-violation blocking decisions |
+| Prompt injection hardening | ✅ | Detect multiple JSON candidates as potential injection |
+| `circuit_breaker` type | ✅ | Added to GuardrailType for type safety |
+| Streaming security fix | ✅ | Streaming now throws instead of bypassing protections |
+| Comparison enhancements | ✅ | Added `addedCases`/`removedCases` to results |
+| Programmatic builders | ✅ | `ScenarioBuilder` and `TestCaseBuilder` fluent APIs |
+| Type contracts | ✅ | Strict type contracts for safe SDK usage |
+
+### v0.3.4 - Multi-Turn Detection 📋
 
 **Focus:** Session-aware validation and multi-turn attack detection.
 
@@ -496,7 +512,7 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 | Split payload detection | 📋 | Detect attack payloads split across messages |
 | `guardian.validateMessage()` | 📋 | Multi-turn aware message validation |
 
-### v0.3.4 - SDK Completeness 📋
+### v0.3.5 - SDK Completeness 📋
 
 **Focus:** Complete SDK feature parity with CLI.
 
@@ -513,7 +529,7 @@ All features from v0.2.2 and v0.2.3 are included in this release.
 | `kit.report.generate()` | 📋 | Generate reports programmatically |
 | Streaming validation | 📋 | `guardian.validateStream()` for streaming responses |
 
-### v0.3.5 - Semantic Redteam Detection 📋
+### v0.3.6 - Semantic Redteam Detection 📋
 
 **Focus:** LLM-powered semantic detection for red team attacks.
 
@@ -714,4 +730,4 @@ Have ideas or suggestions? We'd love to hear from you:
 
 ---
 
-*Last Updated: March 2026 (v0.3.1)*
+*Last Updated: March 2026 (v0.3.3)*

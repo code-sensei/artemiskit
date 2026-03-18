@@ -168,6 +168,27 @@ export class Guardian {
     const inputMode = config.mode ?? 'strict';
     this.normalizedMode = normalizeGuardianMode(inputMode);
 
+    // Default content validation with deep merge support
+    const defaultContentValidation: ContentValidationConfig = {
+      strategy: 'semantic',
+      semanticThreshold: 0.9,
+      categories: ['prompt_injection', 'jailbreak', 'pii_disclosure'],
+      patterns: { enabled: true, caseInsensitive: true },
+    };
+
+    // Deep merge contentValidation to preserve nested defaults
+    const mergedContentValidation: ContentValidationConfig = config.contentValidation
+      ? {
+          ...defaultContentValidation,
+          ...config.contentValidation,
+          // Deep merge patterns if both exist
+          patterns: {
+            ...defaultContentValidation.patterns,
+            ...config.contentValidation.patterns,
+          },
+        }
+      : defaultContentValidation;
+
     this.config = {
       mode: inputMode, // Keep original for backwards compatibility
       validateInput: true,
@@ -175,14 +196,9 @@ export class Guardian {
       blockOnFailure: true,
       collectMetrics: true,
       enableLogging: true,
-      // Default content validation strategy: semantic
-      contentValidation: {
-        strategy: 'semantic',
-        semanticThreshold: 0.9,
-        categories: ['prompt_injection', 'jailbreak', 'pii_disclosure'],
-        patterns: { enabled: true, caseInsensitive: true },
-      },
       ...config,
+      // Apply deep-merged contentValidation after spreading config
+      contentValidation: mergedContentValidation,
     };
 
     // Load or create policy

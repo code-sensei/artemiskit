@@ -24,13 +24,17 @@ import {
 } from '@artemiskit/core';
 import type { Scenario } from '@artemiskit/core';
 import {
+  AgentConfusionMutation,
+  ChainManipulationMutation,
   CotInjectionMutation,
   EncodingMutation,
   InstructionFlipMutation,
+  MemoryPoisoningMutation,
   MultiTurnMutation,
   type Mutation,
   RedTeamGenerator,
   RoleSpoofMutation,
+  ToolAbuseMutation,
   TypoMutation,
   UnsafeResponseDetector,
 } from '@artemiskit/redteam';
@@ -62,12 +66,18 @@ import type {
  * Available mutation name to class mapping
  */
 const MUTATION_MAP: Record<string, new () => Mutation> = {
+  // Core mutations (v0.1.x - v0.2.x)
   typo: TypoMutation,
   'role-spoof': RoleSpoofMutation,
   'instruction-flip': InstructionFlipMutation,
   'cot-injection': CotInjectionMutation,
   encoding: EncodingMutation,
   'multi-turn': MultiTurnMutation,
+  // Agent-specific mutations (v0.3.1)
+  'agent-confusion': AgentConfusionMutation,
+  'tool-abuse': ToolAbuseMutation,
+  'memory-poisoning': MemoryPoisoningMutation,
+  'chain-manipulation': ChainManipulationMutation,
 };
 
 type AnyEventHandler = (event: unknown) => void;
@@ -1201,19 +1211,29 @@ export class ArtemisKit {
    * Build mutation instances from mutation names
    */
   private buildMutations(mutationNames?: string[]): Mutation[] {
-    const names = mutationNames ?? Object.keys(MUTATION_MAP);
-    const mutations: Mutation[] = [];
+    // If no mutation names specified, use all available mutations
+    if (!mutationNames || mutationNames.length === 0) {
+      return Object.values(MUTATION_MAP).map((MutationClass) => new MutationClass());
+    }
 
-    for (const name of names) {
+    const mutations: Mutation[] = [];
+    const unknownMutations: string[] = [];
+
+    for (const name of mutationNames) {
       const MutationClass = MUTATION_MAP[name];
       if (MutationClass) {
         mutations.push(new MutationClass());
+      } else {
+        unknownMutations.push(name);
       }
     }
 
-    // If no valid mutations found, use all defaults
-    if (mutations.length === 0) {
-      return Object.values(MUTATION_MAP).map((MutationClass) => new MutationClass());
+    // Throw error for unknown mutation names instead of silently ignoring
+    if (unknownMutations.length > 0) {
+      const availableMutations = Object.keys(MUTATION_MAP).join(', ');
+      throw new Error(
+        `Unknown mutation(s): ${unknownMutations.join(', ')}. Available mutations: ${availableMutations}`
+      );
     }
 
     return mutations;

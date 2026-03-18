@@ -366,13 +366,27 @@ export class Guardian {
             pendingViolations.delete(requestId);
           }
         } else if (event.type === 'request_blocked') {
-          const violations = event.data.violations as Violation[];
+          const blockingViolations = event.data.violations as Violation[];
           const latencyMs = (event.data.latencyMs as number) ?? 0;
+
+          // Combine all violations: previously detected (e.g., input violations that didn't block)
+          // plus the current blocking violations (e.g., output violations)
+          // This ensures metrics accurately reflect ALL violations on a request, not just the
+          // ones from the blocking phase
+          const previousViolations = requestId ? (pendingViolations.get(requestId) ?? []) : [];
+
+          // Deduplicate by violation id to avoid double-counting violations already in pendingViolations
+          const allViolationIds = new Set(previousViolations.map((v) => v.id));
+          const newBlockingViolations = blockingViolations.filter(
+            (v) => !allViolationIds.has(v.id)
+          );
+          const allViolations = [...previousViolations, ...newBlockingViolations];
+
           this.metricsCollector.recordRequest({
             blocked: true,
             warned: false,
             latencyMs,
-            violations,
+            violations: allViolations,
           });
 
           // Clean up

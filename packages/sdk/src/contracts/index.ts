@@ -196,6 +196,15 @@ export function defineEvaluator<T extends EvaluatorContract>(evaluator: T): T {
 /**
  * Contract for implementing custom storage adapters
  *
+ * **IMPORTANT: Sort Order Requirement**
+ *
+ * The `list()` method MUST return results sorted by `startTime` in descending order
+ * (most recent first). This is required by `ArtemisKit.compare()` when using
+ * `baseline: 'latest'` - it relies on `list({ limit: 1 })[0]` being the most recent run.
+ *
+ * If your storage backend doesn't natively support this sort order, you must
+ * implement sorting in the adapter's `list()` method.
+ *
  * @example
  * ```typescript
  * import { defineStorage, type StorageContract } from '@artemiskit/sdk'
@@ -210,7 +219,10 @@ export function defineEvaluator<T extends EvaluatorContract>(evaluator: T): T {
  *     return JSON.parse(data)
  *   },
  *   async list(options) {
- *     // Implementation
+ *     // IMPORTANT: Results must be sorted by startTime descending (most recent first)
+ *     const runs = await this.getAllRuns()
+ *     runs.sort((a, b) => b.startTime.getTime() - a.startTime.getTime())
+ *     return runs.slice(0, options?.limit ?? runs.length)
  *   },
  *   async delete(runId) {
  *     await redis.del(`run:${runId}`)

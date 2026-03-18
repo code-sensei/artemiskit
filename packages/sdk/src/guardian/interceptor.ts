@@ -195,6 +195,9 @@ export class GuardianInterceptor implements ModelClient {
         requestId,
         phase: 'output',
         response,
+        // Pass the original input as context for output validation
+        // This enables semantic validators to detect manipulation success patterns
+        inputContext: promptText,
       });
 
       if (!outputResult.passed) {
@@ -256,15 +259,31 @@ export class GuardianInterceptor implements ModelClient {
   }
 
   /**
-   * Stream generation (pass-through with validation)
+   * Stream generation with guardrail validation
+   *
+   * IMPORTANT: Streaming is currently not supported by GuardianInterceptor.
+   * This method throws an error to prevent bypassing Guardian protections.
+   *
+   * Streaming validation is complex because:
+   * 1. Input validation must complete before streaming starts
+   * 2. Output validation requires the complete response
+   * 3. Circuit breaker must be checked per-request
+   *
+   * For protected LLM access, use the non-streaming `generate()` method.
+   * If you need streaming, use the underlying client directly (unprotected).
+   *
+   * @throws {Error} Always throws - streaming not supported in Guardian
    */
-  stream?(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
-    if (!this.client.stream) {
-      throw new Error('Underlying client does not support streaming');
-    }
-    // For streaming, we'd need to accumulate and validate
-    // This is a simplified pass-through for now
-    return this.client.stream(options, onChunk);
+  stream?(_options: GenerateOptions, _onChunk: (chunk: string) => void): AsyncIterable<string> {
+    // SECURITY: Do not allow streaming to bypass Guardian protections.
+    // The previous pass-through implementation was a security gap that allowed
+    // attackers to bypass all guardrails, circuit breaker, and metrics by using
+    // the streaming endpoint instead of generate().
+    throw new Error(
+      'Streaming is not supported by GuardianInterceptor. ' +
+        'Streaming would bypass Guardian protections (input/output validation, circuit breaker, metrics). ' +
+        'Use generate() for protected LLM access, or access the underlying client directly for unprotected streaming.'
+    );
   }
 
   /**

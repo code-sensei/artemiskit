@@ -101,15 +101,24 @@ export class SemanticValidator {
 
   /**
    * Create a guardrail function from this validator
+   *
+   * For output validation, the context parameter should include `inputContext`
+   * containing the original user input, which improves detection of manipulation
+   * success patterns where an attacker's prompt injection affected the output.
    */
   asGuardrail(
     direction: 'input' | 'output' = 'input'
   ): (content: string, context?: Record<string, unknown>) => Promise<GuardrailResult> {
-    return async (content: string) => {
+    return async (content: string, context?: Record<string, unknown>) => {
+      // For output validation, extract inputContext from the context parameter
+      // This allows the LLM validator to correlate input and output for better detection
+      const inputContext =
+        direction === 'output' ? (context?.inputContext as string | undefined) : undefined;
+
       const result =
         direction === 'input'
           ? await this.validateInput(content)
-          : await this.validateOutput(content);
+          : await this.validateOutput(content, inputContext);
 
       if (!result.valid && result.shouldBlock) {
         const violation: Violation = {

@@ -646,9 +646,23 @@ export function createGuardrails(
 
   // Add custom patterns guardrail if patterns are provided
   if (config.customPatterns && config.customPatterns.length > 0) {
+    // Determine category: single category uses that, multiple categories uses 'custom',
+    // no categories defaults to 'injection'
+    const categories = config.patternConfig?.categories ?? [];
+    let category: PatternCategory;
+    if (categories.length === 0) {
+      category = 'injection';
+    } else if (categories.length === 1) {
+      category = categories[0];
+    } else {
+      // Multiple categories specified - use 'custom' since we can't assign
+      // per-pattern categories with the current flat pattern array API
+      category = 'custom';
+    }
+
     const patternOptions: CustomPatternOptions = {
       caseInsensitive: config.patternConfig?.caseInsensitive ?? true,
-      category: config.patternConfig?.categories?.[0] ?? 'injection',
+      category,
       severity: 'high',
     };
     guardrails.push(createCustomPatternGuardrail(config.customPatterns, patternOptions));

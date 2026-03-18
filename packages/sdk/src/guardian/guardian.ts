@@ -24,7 +24,7 @@ import {
   type InterceptorConfig,
 } from './interceptor';
 import { createDefaultPolicy, loadPolicy, parsePolicy } from './policy';
-import { SemanticValidator, createSemanticValidator } from './semantic-validator';
+import { type SemanticValidator, createSemanticValidator } from './semantic-validator';
 import type {
   ActionDefinition,
   ContentValidationConfig,

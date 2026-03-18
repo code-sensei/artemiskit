@@ -499,7 +499,8 @@ export type PatternCategory =
   | 'role_hijack'
   | 'extraction'
   | 'tool_abuse'
-  | 'content_filter';
+  | 'content_filter'
+  | 'custom';
 
 /**
  * Pattern matching configuration

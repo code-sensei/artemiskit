@@ -193,19 +193,20 @@ export class SemanticValidator {
 
   /**
    * Parse LLM response into SemanticValidationResult
+   *
+   * SECURITY: This method detects multiple valid JSON candidates in the response.
+   * Multiple candidates could indicate a prompt injection attack where the attacker
+   * prepended their own benign JSON object. When detected, we treat this as suspicious.
    */
   private parseResponse(responseText: string): SemanticValidationResult {
     try {
-      // SECURITY: Extract JSON from the response by iterating from the END to prefer
-      // the validator's actual output over any injected JSON that might appear earlier.
-      // This mitigates prompt injection attacks that prepend a benign JSON object.
-      let jsonToParse: string | null = null;
+      // SECURITY: Extract ALL valid JSON candidates from the response
+      // Multiple candidates is suspicious - could indicate injection attack
+      const validCandidates: Array<{ json: string; index: number; parsed: unknown }> = [];
 
       // Find all positions where {"valid" appears (primary pattern)
       const validPatternMatches = [...responseText.matchAll(/\{"valid"\s*:/g)];
-      // Try from end to start for security
-      for (let i = validPatternMatches.length - 1; i >= 0; i--) {
-        const match = validPatternMatches[i];
+      for (const match of validPatternMatches) {
         if (match.index === undefined) continue;
         const candidate = this.extractJsonObject(responseText, match.index);
         if (candidate) {
@@ -213,14 +214,34 @@ export class SemanticValidator {
             const parsed = JSON.parse(candidate);
             // Require both valid (boolean) and confidence (number) to reduce false positives
             if (typeof parsed.valid === 'boolean' && typeof parsed.confidence === 'number') {
-              jsonToParse = candidate;
-              break;
+              validCandidates.push({ json: candidate, index: match.index, parsed });
             }
           } catch {
-            // Not valid JSON, try next
+            // Not valid JSON, skip
           }
         }
       }
+
+      // SECURITY: If multiple valid JSON candidates found, treat as suspicious
+      // This could indicate a prompt injection prepending a benign JSON object
+      if (validCandidates.length > 1) {
+        console.warn(
+          `[SemanticValidator] SECURITY: Found ${validCandidates.length} valid JSON candidates in response. This could indicate a prompt injection attack. Treating content as suspicious.`,
+          responseText.slice(0, 300)
+        );
+        return {
+          valid: false,
+          confidence: 0.85, // High confidence this is suspicious
+          category: 'prompt_injection',
+          reason: `Multiple JSON candidates detected (${validCandidates.length}) - possible injection attack`,
+          shouldBlock: true,
+          rawResponse: responseText,
+        };
+      }
+
+      // Use the last candidate (from end) for security if we have exactly one
+      let jsonToParse: string | null =
+        validCandidates.length === 1 ? validCandidates[0].json : null;
 
       // Fallback: try to find any JSON object with required fields
       if (!jsonToParse) {

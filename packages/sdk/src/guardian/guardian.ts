@@ -319,6 +319,9 @@ export class Guardian {
       inputGuardrails: this.inputGuardrails,
       outputGuardrails: this.outputGuardrails,
       blockOnFailure: shouldBlockOnFailure,
+      // Pass the Guardian's shouldBlock method for mode-aware per-violation decisions
+      // This ensures the interceptor respects observe/selective/strict semantics
+      shouldBlockViolation: (v) => this.shouldBlock(v),
       logViolations: this.config.enableLogging,
       // Per-request circuit breaker check
       shouldAllow: () => {

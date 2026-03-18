@@ -43,7 +43,8 @@ export type GuardrailType =
   | 'content_filter'
   | 'hallucination_check'
   | 'rate_limit'
-  | 'cost_limit';
+  | 'cost_limit'
+  | 'circuit_breaker';
 
 /**
  * Violation detected by guardrails
@@ -245,6 +246,8 @@ export interface PIILocation {
 export interface InjectionDetection {
   detected: boolean;
   type?: InjectionType;
+  /** Severity of the detected injection pattern */
+  severity?: ViolationSeverity;
   confidence: number;
   pattern?: string;
   location?: { start: number; end: number };

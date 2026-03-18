@@ -231,6 +231,7 @@ export function detectInjection(text: string): InjectionDetection {
         return {
           detected: true,
           type,
+          severity, // Include actual severity from pattern definition
           confidence: severity === 'critical' ? 0.95 : severity === 'high' ? 0.85 : 0.7,
           pattern: pattern.source,
           location:
@@ -265,7 +266,8 @@ export function createInjectionGuardrail(): (
           {
             id: nanoid(),
             type: 'injection_detection',
-            severity: 'critical',
+            // Use detected severity from pattern definition, fallback to critical for safety
+            severity: detection.severity ?? 'critical',
             message: `Detected ${detection.type?.replace(/_/g, ' ')} attempt`,
             details: {
               type: detection.type,

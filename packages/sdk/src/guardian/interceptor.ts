@@ -36,8 +36,15 @@ export interface InterceptorConfig {
   inputGuardrails?: GuardrailFn[];
   /** Output guardrails to run */
   outputGuardrails?: GuardrailFn[];
-  /** Whether to block on validation failure */
+  /** Whether to block on validation failure (flat boolean, see shouldBlockViolation for finer control) */
   blockOnFailure?: boolean;
+  /**
+   * Callback to determine if a specific violation should cause blocking.
+   * Use this for mode-aware blocking (e.g., selective mode blocks only high-severity).
+   * If provided, this callback is used instead of flat blockOnFailure for per-violation decisions.
+   * The callback receives a violation and should return true if it should block.
+   */
+  shouldBlockViolation?: (violation: Violation) => boolean;
   /** Event handlers */
   onEvent?: GuardianEventHandler;
   /** Log violations */
@@ -163,7 +170,17 @@ export class GuardianInterceptor implements ModelClient {
           });
         }
 
-        if (this.config.blockOnFailure && inputResult.violations.some((v) => v.blocked)) {
+        // Determine which violations should cause blocking
+        // Use shouldBlockViolation callback for mode-aware decisions (e.g., selective mode)
+        // Fall back to flat blockOnFailure + v.blocked check
+        const blockingViolations = inputResult.violations.filter((v) => {
+          if (this.config.shouldBlockViolation) {
+            return v.blocked && this.config.shouldBlockViolation(v);
+          }
+          return this.config.blockOnFailure && v.blocked;
+        });
+
+        if (blockingViolations.length > 0) {
           this.stats.blockedRequests++;
           this.emitEvent({
             type: 'request_blocked',
@@ -212,7 +229,17 @@ export class GuardianInterceptor implements ModelClient {
           });
         }
 
-        if (this.config.blockOnFailure && outputResult.violations.some((v) => v.blocked)) {
+        // Determine which violations should cause blocking
+        // Use shouldBlockViolation callback for mode-aware decisions (e.g., selective mode)
+        // Fall back to flat blockOnFailure + v.blocked check
+        const blockingViolations = outputResult.violations.filter((v) => {
+          if (this.config.shouldBlockViolation) {
+            return v.blocked && this.config.shouldBlockViolation(v);
+          }
+          return this.config.blockOnFailure && v.blocked;
+        });
+
+        if (blockingViolations.length > 0) {
           this.stats.blockedRequests++;
           this.emitEvent({
             type: 'request_blocked',

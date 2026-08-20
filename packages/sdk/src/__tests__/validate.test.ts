@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { createStorageAdapter as createRealStorageAdapter } from '../../../core/src/storage/factory';
 
 // Track parseScenarioFile calls and responses
 let parseScenarioFileResponse: unknown = {};
@@ -34,7 +35,9 @@ mock.module('@artemiskit/core', () => ({
   }),
   runScenario: async () => ({}),
   getGitInfo: async () => ({ commit: 'abc123', branch: 'main', dirty: false }),
-  createStorageAdapter: () => null,
+  // Bun's module mocks are shared by test files in a monorepo run. Preserve the
+  // real storage factory so unrelated CLI integration tests can create storage.
+  createStorageAdapter: createRealStorageAdapter,
 }));
 
 mock.module('@artemiskit/redteam', () => ({

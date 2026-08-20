@@ -39,6 +39,11 @@ providers:
     apiKey: \${ANTHROPIC_API_KEY}
     defaultModel: claude-sonnet-4-20250514
 
+  ling:
+    apiKey: \${LING_API_KEY}
+    baseUrl: https://api.ant-ling.com/v1
+    defaultModel: Ling-3.0-flash
+
 # Storage configuration
 storage:
   type: local
@@ -90,6 +95,7 @@ const ENV_KEYS = [
   'AZURE_OPENAI_DEPLOYMENT=',
   'AZURE_OPENAI_API_VERSION=',
   'ANTHROPIC_API_KEY=',
+  'LING_API_KEY=',
 ];
 
 /**

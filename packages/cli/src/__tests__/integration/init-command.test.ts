@@ -95,6 +95,7 @@ AZURE_OPENAI_RESOURCE=
 AZURE_OPENAI_DEPLOYMENT=
 AZURE_OPENAI_API_VERSION=
 ANTHROPIC_API_KEY=
+LING_API_KEY=
 `;
       const envPath = join(testDir, '.env');
       await writeFile(envPath, envContent);
@@ -104,6 +105,7 @@ ANTHROPIC_API_KEY=
       const content = await readFile(envPath, 'utf-8');
       expect(content).toContain('OPENAI_API_KEY=');
       expect(content).toContain('ANTHROPIC_API_KEY=');
+      expect(content).toContain('LING_API_KEY=');
       expect(content).toContain('AZURE_OPENAI_API_KEY=');
     });
 
@@ -118,7 +120,7 @@ SOME_OTHER_VAR=value
 
       // Simulate appending missing keys
       const envContent = await readFile(envPath, 'utf-8');
-      const keysToAdd = ['ANTHROPIC_API_KEY=', 'AZURE_OPENAI_API_KEY='];
+      const keysToAdd = ['ANTHROPIC_API_KEY=', 'AZURE_OPENAI_API_KEY=', 'LING_API_KEY='];
 
       const missingKeys = keysToAdd.filter((key) => {
         const keyName = key.split('=')[0];
@@ -135,6 +137,7 @@ SOME_OTHER_VAR=value
       expect(finalContent).toContain('SOME_OTHER_VAR=value'); // preserved
       expect(finalContent).toContain('ANTHROPIC_API_KEY='); // added
       expect(finalContent).toContain('AZURE_OPENAI_API_KEY='); // added
+      expect(finalContent).toContain('LING_API_KEY='); // added
     });
 
     it('should not duplicate existing keys', async () => {

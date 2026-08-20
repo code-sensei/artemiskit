@@ -20,6 +20,7 @@ export const ProviderSchema = z.enum([
   'ollama',
   'langchain',
   'deepagents',
+  'ling',
   'custom',
 ]);
 
@@ -60,6 +61,9 @@ export const ProviderConfigSchema = z
     // DeepAgents specific
     captureTraces: z.boolean().optional(),
     captureMessages: z.boolean().optional(),
+    thinking: z.object({ type: z.enum(['enabled', 'disabled']) }).optional(),
+    enableSearch: z.boolean().optional(),
+    searchOptions: z.record(z.unknown()).optional(),
   })
   .optional();
 

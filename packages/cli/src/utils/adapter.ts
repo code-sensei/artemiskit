@@ -119,6 +119,18 @@ export function buildAdapterConfig(options: AdapterConfigOptions): AdapterConfig
         fileProviderConfig,
       });
 
+    case 'ling':
+      return buildLingConfig({
+        provider,
+        providerSource,
+        model,
+        modelSource,
+        temperature,
+        maxTokens,
+        scenarioConfig,
+        fileProviderConfig,
+      });
+
     case 'langchain':
       return buildLangChainConfig({
         provider,
@@ -156,6 +168,38 @@ export function buildAdapterConfig(options: AdapterConfigOptions): AdapterConfig
         fileProviderConfig,
       });
   }
+}
+
+function buildLingConfig(options: ProviderBuildOptions): AdapterConfigResult {
+  const base = buildOpenAIConfig(options);
+  const config = base.adapterConfig as AdapterConfig & Record<string, unknown>;
+  const scenario = options.scenarioConfig as (ProviderConfig & Record<string, unknown>) | undefined;
+  const file = options.fileProviderConfig as (ProviderConfig & Record<string, unknown>) | undefined;
+  return {
+    adapterConfig: {
+      ...config,
+      provider: 'ling',
+      apiKey:
+        (scenario?.apiKey as string | undefined) ??
+        (file?.apiKey as string | undefined) ??
+        process.env.LING_API_KEY,
+      baseUrl:
+        (scenario?.baseUrl as string | undefined) ??
+        (file?.baseUrl as string | undefined) ??
+        'https://api.ant-ling.com/v1',
+      thinking: scenario?.thinking,
+      enableSearch: scenario?.enableSearch,
+      searchOptions: scenario?.searchOptions,
+    } as AdapterConfig,
+    resolvedConfig: {
+      ...base.resolvedConfig,
+      provider: 'ling',
+      base_url:
+        (scenario?.baseUrl as string | undefined) ??
+        (file?.baseUrl as string | undefined) ??
+        'https://api.ant-ling.com/v1',
+    },
+  };
 }
 
 interface ProviderBuildOptions {

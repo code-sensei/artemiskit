@@ -132,6 +132,13 @@ export async function registerBuiltInAdapters(): Promise<void> {
     return new mod.AnthropicAdapter(config);
   });
 
+  adapterRegistry.register('ling', async (config) => {
+    const mod = await tryImport<{ LingAdapter: new (c: AdapterConfig) => ModelClient }>(
+      '@artemiskit/adapter-ling'
+    );
+    return new mod.LingAdapter(config);
+  });
+
   // ============================================
   // AGENTIC FRAMEWORK ADAPTERS
   // ============================================

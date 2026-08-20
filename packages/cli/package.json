@@ -47,6 +47,7 @@
   "dependencies": {
     "@artemiskit/adapter-deepagents": "workspace:*",
     "@artemiskit/adapter-langchain": "workspace:*",
+    "@artemiskit/adapter-ling": "workspace:*",
     "@artemiskit/adapter-openai": "workspace:*",
     "@artemiskit/adapter-vercel-ai": "workspace:*",
     "@artemiskit/core": "workspace:*",

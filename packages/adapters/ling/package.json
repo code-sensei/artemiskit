@@ -1,0 +1,17 @@
+{
+  "name": "@artemiskit/adapter-ling",
+  "version": "0.1.0",
+  "description": "Ant Ling adapter for ArtemisKit",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": {
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": { "@artemiskit/core": "workspace:*", "nanoid": "^5.0.0", "openai": "^4.28.0" },
+  "devDependencies": { "@types/bun": "^1.1.0", "typescript": "^5.3.0" }
+}

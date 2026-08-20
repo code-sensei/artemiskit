@@ -4,6 +4,7 @@
  */
 
 import { OpenAIAdapter } from '@artemiskit/adapter-openai';
+import { LingAdapter } from '@artemiskit/adapter-ling';
 import { VercelAIAdapter } from '@artemiskit/adapter-vercel-ai';
 import { type AdapterConfig, type ModelClient, adapterRegistry } from '@artemiskit/core';
 
@@ -17,6 +18,10 @@ export async function registerAdapters(): Promise<void> {
   adapterRegistry.register('azure-openai', async (config: AdapterConfig): Promise<ModelClient> => {
     return new OpenAIAdapter(config);
   });
+  adapterRegistry.register(
+    'ling',
+    async (config: AdapterConfig): Promise<ModelClient> => new LingAdapter(config)
+  );
 
   // Vercel AI SDK adapter
   adapterRegistry.register('vercel-ai', async (config: AdapterConfig): Promise<ModelClient> => {

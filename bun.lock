@@ -17,7 +17,7 @@
     },
     "packages/adapters/anthropic": {
       "name": "@artemiskit/adapter-anthropic",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.30.0",
         "@artemiskit/core": "workspace:*",
@@ -30,7 +30,7 @@
     },
     "packages/adapters/deepagents": {
       "name": "@artemiskit/adapter-deepagents",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -48,7 +48,7 @@
     },
     "packages/adapters/langchain": {
       "name": "@artemiskit/adapter-langchain",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -68,9 +68,22 @@
         "langchain",
       ],
     },
+    "packages/adapters/ling": {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.0",
+      "dependencies": {
+        "@artemiskit/core": "workspace:*",
+        "nanoid": "^5.0.0",
+        "openai": "^4.28.0",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.1.0",
+        "typescript": "^5.3.0",
+      },
+    },
     "packages/adapters/openai": {
       "name": "@artemiskit/adapter-openai",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "nanoid": "^5.0.0",
@@ -83,7 +96,7 @@
     },
     "packages/adapters/vercel-ai": {
       "name": "@artemiskit/adapter-vercel-ai",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "dependencies": {
         "@ai-sdk/azure": "^3.0.0",
         "@ai-sdk/openai": "^3.0.0",
@@ -98,7 +111,7 @@
     },
     "packages/cli": {
       "name": "@artemiskit/cli",
-      "version": "0.2.4",
+      "version": "0.3.2",
       "bin": {
         "artemiskit": "./bin/artemis.ts",
         "akit": "./bin/artemis.ts",
@@ -106,6 +119,7 @@
       "dependencies": {
         "@artemiskit/adapter-deepagents": "workspace:*",
         "@artemiskit/adapter-langchain": "workspace:*",
+        "@artemiskit/adapter-ling": "workspace:*",
         "@artemiskit/adapter-openai": "workspace:*",
         "@artemiskit/adapter-vercel-ai": "workspace:*",
         "@artemiskit/core": "workspace:*",
@@ -127,7 +141,7 @@
     },
     "packages/core": {
       "name": "@artemiskit/core",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "dependencies": {
         "@supabase/supabase-js": "^2.39.0",
         "consola": "3.4.2",
@@ -144,7 +158,7 @@
     },
     "packages/redteam": {
       "name": "@artemiskit/redteam",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "yaml": "2.8.2",
@@ -156,7 +170,7 @@
     },
     "packages/reports": {
       "name": "@artemiskit/reports",
-      "version": "0.2.4",
+      "version": "0.3.0",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "handlebars": "^4.7.8",
@@ -168,7 +182,7 @@
     },
     "packages/sdk": {
       "name": "@artemiskit/sdk",
-      "version": "0.2.4",
+      "version": "0.3.3",
       "dependencies": {
         "@artemiskit/core": "workspace:*",
         "@artemiskit/redteam": "workspace:*",
@@ -205,6 +219,8 @@
     "@artemiskit/adapter-deepagents": ["@artemiskit/adapter-deepagents@workspace:packages/adapters/deepagents"],
 
     "@artemiskit/adapter-langchain": ["@artemiskit/adapter-langchain@workspace:packages/adapters/langchain"],
+
+    "@artemiskit/adapter-ling": ["@artemiskit/adapter-ling@workspace:packages/adapters/ling"],
 
     "@artemiskit/adapter-openai": ["@artemiskit/adapter-openai@workspace:packages/adapters/openai"],
 

@@ -40,6 +40,13 @@ export interface GenerateOptions {
   tools?: ToolDefinition[];
   responseFormat?: { type: 'text' | 'json_object' };
   metadata?: Record<string, unknown>;
+  providerOptions?: { ling?: LingRequestOptions };
+}
+
+export interface LingRequestOptions {
+  thinking?: { type: 'enabled' | 'disabled' };
+  enableSearch?: boolean;
+  searchOptions?: Record<string, unknown>;
 }
 
 /**
@@ -122,6 +129,7 @@ export type ProviderType =
   | 'anthropic'
   | 'langchain'
   | 'deepagents'
+  | 'ling'
   | 'google'
   | 'mistral'
   | 'cohere'
@@ -184,6 +192,13 @@ export interface AnthropicAdapterConfig extends BaseAdapterConfig {
   provider: 'anthropic';
 }
 
+export interface LingAdapterConfig extends BaseAdapterConfig {
+  provider: 'ling';
+  thinking?: LingRequestOptions['thinking'];
+  enableSearch?: boolean;
+  searchOptions?: Record<string, unknown>;
+}
+
 /**
  * LangChain adapter configuration
  */
@@ -224,6 +239,7 @@ export type AdapterConfig =
   | AzureOpenAIAdapterConfig
   | VercelAIAdapterConfig
   | AnthropicAdapterConfig
+  | LingAdapterConfig
   | LangChainAdapterConfig
   | DeepAgentsAdapterConfig
   | BaseAdapterConfig;

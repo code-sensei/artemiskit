@@ -135,7 +135,7 @@ async function executeCaseAttempt(
   context: ExecutorContext,
   timeout?: number
 ): Promise<CaseResult> {
-  const { client, scenario, redaction: cliRedaction } = context;
+  const { client, scenario, redaction: cliRedaction, toolExecutor } = context;
 
   // Merge scenario-level and case-level variables (case overrides scenario)
   const variables = mergeVariables(scenario.variables, testCase.variables);
@@ -175,12 +175,26 @@ async function executeCaseAttempt(
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
 
-  if (policy.enabled && tools && fixtures) {
-    const executor = new FixtureToolExecutor({
-      tools,
-      fixtures,
-      maxToolResultBytes: policy.maxToolResultBytes,
-    });
+  if (policy.enabled) {
+    if (!tools || (!fixtures && !toolExecutor)) {
+      throw createToolLoopError(
+        testCase,
+        toolTrace,
+        {
+          status: 'error',
+          steps: 0,
+          terminationReason: 'tool_error',
+        },
+        'TOOL_EXECUTOR_REQUIRED'
+      );
+    }
+    const executor =
+      toolExecutor ??
+      new FixtureToolExecutor({
+        tools,
+        fixtures: fixtures ?? {},
+        maxToolResultBytes: policy.maxToolResultBytes,
+      });
     const seenCalls = new Set<string>();
     for (let step = 0; result.toolCalls?.length && step < policy.maxSteps; step++) {
       const calls = result.toolCalls;

@@ -270,6 +270,7 @@ export class ArtemisKit {
       timeout: options.timeout ?? this.config.timeout,
       retries: options.retries ?? this.config.retries,
       redaction: options.redaction ?? this.config.redaction,
+      toolExecutor: options.toolExecutor,
       onCaseComplete: (caseResult, index, total) => {
         this.emit('caseComplete', { result: caseResult, index, total });
         this.emit('progress', {

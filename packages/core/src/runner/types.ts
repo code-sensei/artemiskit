@@ -6,6 +6,7 @@ import type { ModelClient } from '../adapters/types';
 import type { CaseResult, ResolvedConfig, RunManifest } from '../artifacts/types';
 import type { RedactionConfig } from '../redaction/types';
 import type { Scenario } from '../scenario/schema';
+import type { ToolExecutor } from '../tools';
 
 /**
  * Options for running a scenario
@@ -29,6 +30,8 @@ export interface RunOptions {
   retries?: number;
   /** Redaction configuration (CLI overrides scenario) */
   redaction?: RedactionConfig;
+  /** SDK-only executor for explicitly supplied real tools. */
+  toolExecutor?: ToolExecutor;
   /** Callback for each case result */
   onCaseComplete?: (result: CaseResult, index: number, total: number) => void;
   /** Callback for progress updates */
@@ -57,4 +60,5 @@ export interface ExecutorContext {
   retries?: number;
   /** Redaction configuration for this execution */
   redaction?: RedactionConfig;
+  toolExecutor?: ToolExecutor;
 }

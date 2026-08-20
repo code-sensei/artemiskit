@@ -97,6 +97,11 @@ export function stressCommand(): Command {
         // Parse scenario
         spinner.start('Loading scenario...');
         const scenario = await parseScenarioFile(scenarioPath);
+        if (scenario.setup?.toolLoop?.enabled) {
+          throw new Error(
+            'Tool-loop scenarios are not supported by stress; use `akit run` instead.'
+          );
+        }
         spinner.succeed(`Loaded scenario: ${scenario.name}`);
 
         // Resolve provider and model with precedence and source tracking:

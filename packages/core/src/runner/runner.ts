@@ -22,6 +22,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     timeout,
     retries,
     redaction,
+    toolExecutor,
     onCaseComplete,
     onProgress,
   } = options;
@@ -52,6 +53,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
         timeout: testCase.timeout || timeout,
         retries: testCase.retries ?? retries,
         redaction,
+        toolExecutor,
       });
       results.push(result);
       onCaseComplete?.(result, i, cases.length);
@@ -70,6 +72,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
             timeout: testCase.timeout || timeout,
             retries: testCase.retries ?? retries,
             redaction,
+            toolExecutor,
           });
           completed++;
           onCaseComplete?.(result, completed - 1, cases.length);

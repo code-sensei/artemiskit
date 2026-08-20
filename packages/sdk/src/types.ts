@@ -12,6 +12,7 @@ import type {
   StorageConfig,
   StressManifest,
   StressRequestResult,
+  ToolExecutor,
 } from '@artemiskit/core';
 import type { RedactionConfig } from '@artemiskit/core';
 import type { Scenario } from '@artemiskit/core';
@@ -147,6 +148,8 @@ export interface RunOptions {
   retries?: number;
   /** Redaction configuration */
   redaction?: RedactionConfig;
+  /** Explicit executor for real tools; CLI scenarios remain fixture-only. */
+  toolExecutor?: ToolExecutor;
 }
 
 /**

@@ -41,6 +41,9 @@ artemis-runs/
 # Artemis output (reports)
 artemis-output/
 
+# Private Ling API evaluation corpus, manifests, and report aggregates
+ling-evaluation/
+
 # AI trace logs
 ai-trace/
 notes.txt

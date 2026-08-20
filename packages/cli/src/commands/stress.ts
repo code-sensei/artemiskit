@@ -511,7 +511,7 @@ function calculateMetrics(
     };
 
     // Estimate cost if model is known
-    if (model && totalTokens > 0) {
+    if (model && !model.toLowerCase().includes('ling-') && totalTokens > 0) {
       const costEstimate = estimateCost(totalPromptTokens, totalCompletionTokens, model);
       const pricing = getModelPricing(model);
 

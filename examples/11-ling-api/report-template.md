@@ -7,6 +7,7 @@
 - Endpoint: `https://api.ant-ling.com/v1`
 - Model and settings:
 - Scenario files and tags:
+- Prompt/configuration commit:
 
 ## Measured results
 
@@ -21,6 +22,7 @@
 - Tool-use behavior and recovery:
 - Long-context behavior:
 - Instruction/JSON adherence:
+- Tiny suitability for compact/high-frequency work:
 
 ## Beta allocation consumed
 

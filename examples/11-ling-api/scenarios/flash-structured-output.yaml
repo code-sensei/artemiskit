@@ -1,0 +1,32 @@
+name: ling-flash-structured-output
+description: Strict JSON extraction and classification checks for Ling-3.0-flash.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+tags: [ling, flash, structured-output]
+cases:
+  - id: extract-release-fields
+    prompt: |
+      Return only JSON with exactly these fields from the following note:
+      title (string), version (integer), and ready (boolean).
+      Note: ArtemisKit release 3 is ready for review.
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [title, version, ready]
+        properties:
+          title: { type: string }
+          version: { type: integer }
+          ready: { type: boolean }
+  - id: classify-priority
+    prompt: |
+      Return only JSON with one field, priority. Its value must be one of low, medium, high.
+      Ticket: "Production checkout is unavailable for all customers."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [priority]
+        properties:
+          priority: { type: string, enum: [low, medium, high] }

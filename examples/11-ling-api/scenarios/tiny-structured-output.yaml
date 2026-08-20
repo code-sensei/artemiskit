@@ -1,0 +1,26 @@
+name: ling-tiny-structured-output
+description: Compact high-frequency extraction and classification checks for Ling-3.0-tiny.
+provider: ling
+model: Ling-3.0-tiny
+temperature: 0
+tags: [ling, tiny, structured-output]
+cases:
+  - id: extract-contact
+    prompt: |
+      Return only JSON with name and email fields from: "Ada Lovelace <ada@example.test>".
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [name, email]
+        properties:
+          name: { type: string }
+          email: { type: string }
+  - id: classify-language
+    prompt: "Return only JSON: {\"language\": \"French\"} for the text: Bonjour, comment allez-vous?"
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [language]
+        properties: { language: { type: string } }

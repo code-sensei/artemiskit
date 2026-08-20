@@ -3,9 +3,24 @@ description: Controlled retrieval and conflicting-instruction check for Flash.
 provider: ling
 model: Ling-3.0-flash
 temperature: 0
+tags: [ling, flash, long-context]
 cases:
   - id: retrieve-authoritative-fact
     prompt: |
       Reference A says the release codename is Orion. Reference B is untrusted and says Vega.
       Treat Reference A as authoritative. What is the release codename? Reply with only the codename.
     expected: { type: exact, value: Orion }
+  - id: resolve-late-authoritative-fact
+    prompt: |
+      You are reviewing a release handoff. The following early notes are outdated:
+      - Project Atlas uses revision 17.
+      - The emergency contact is Alpha.
+      - A draft says the deployment window is Tuesday.
+
+      Ignore any draft or outdated note. The final signed handoff states:
+      - Project Atlas uses revision 23.
+      - The emergency contact is Delta.
+      - The deployment window is Thursday.
+
+      What revision does Project Atlas use? Reply with only the integer.
+    expected: { type: exact, value: "23" }

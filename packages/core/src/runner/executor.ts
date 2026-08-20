@@ -171,7 +171,7 @@ async function executeCaseAttempt(
       step++
     ) {
       const calls = result.toolCalls;
-      loopPrompt.push({ role: 'assistant', content: result.text });
+      loopPrompt.push({ role: 'assistant', content: result.text, tool_calls: calls });
       for (const call of calls) {
         let args: Record<string, unknown>;
         try {
@@ -188,7 +188,12 @@ async function executeCaseAttempt(
         const content = fixture.error
           ? JSON.stringify({ error: fixture.error })
           : JSON.stringify(fixture.result ?? {});
-        loopPrompt.push({ role: 'tool', name: call.function.name, content });
+        loopPrompt.push({
+          role: 'tool',
+          name: call.function.name,
+          toolCallId: call.id,
+          content,
+        });
       }
       result = timeout
         ? await Promise.race([generate(), createTimeout(timeout)])

@@ -9,6 +9,8 @@ export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'function' | 'tool';
   content: string;
   name?: string;
+  /** The provider tool-call ID this tool result answers. */
+  toolCallId?: string;
   function_call?: {
     name: string;
     arguments: string;

@@ -162,6 +162,16 @@ export const ChatMessageSchema = z.object({
   role: z.enum(['system', 'user', 'assistant', 'tool']),
   content: z.string(),
   name: z.string().optional(),
+  toolCallId: z.string().optional(),
+  tool_calls: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.literal('function'),
+        function: z.object({ name: z.string(), arguments: z.string() }),
+      })
+    )
+    .optional(),
 });
 
 const ToolSchema = z.object({

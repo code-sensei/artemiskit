@@ -32,9 +32,11 @@ export class LingAdapter implements ModelClient {
       messages:
         typeof options.prompt === 'string'
           ? [{ role: 'user', content: options.prompt }]
-          : options.prompt.map(({ role, content }) => ({
+          : options.prompt.map(({ role, content, toolCallId, tool_calls }) => ({
               role: role as 'system' | 'user' | 'assistant' | 'tool',
               content,
+              ...(toolCallId ? { tool_call_id: toolCallId } : {}),
+              ...(tool_calls ? { tool_calls } : {}),
             })),
       temperature: options.temperature,
       top_p: options.topP,

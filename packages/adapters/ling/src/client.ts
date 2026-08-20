@@ -33,7 +33,7 @@ export class LingAdapter implements ModelClient {
         typeof options.prompt === 'string'
           ? [{ role: 'user', content: options.prompt }]
           : options.prompt.map(({ role, content }) => ({
-              role: role as 'system' | 'user' | 'assistant',
+              role: role as 'system' | 'user' | 'assistant' | 'tool',
               content,
             })),
       temperature: options.temperature,

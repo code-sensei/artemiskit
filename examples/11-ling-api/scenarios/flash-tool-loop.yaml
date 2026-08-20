@@ -1,0 +1,24 @@
+name: ling-flash-tool-loop
+description: Deterministic Ling Flash tool-call smoke test using only static fixtures.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+setup:
+  tools:
+    - type: function
+      function:
+        name: lookup_weather
+        description: Return weather for a city.
+        parameters:
+          type: object
+          required: [city]
+          properties: { city: { type: string } }
+  fixtures:
+    lookup_weather:
+      - when: { city: Lagos }
+        result: { city: Lagos, temperature_c: 28, condition: sunny }
+  toolLoop: { enabled: true, maxSteps: 3 }
+cases:
+  - id: weather-tool
+    prompt: "Use the lookup_weather tool for Lagos, then reply with only the temperature in Celsius."
+    expected: { type: contains, values: ["28"] }

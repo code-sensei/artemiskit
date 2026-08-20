@@ -159,8 +159,23 @@ export const ExpectedSchema = z.union([BaseExpectedSchema, CombinedExpectedSchem
  * Chat message schema
  */
 export const ChatMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant']),
+  role: z.enum(['system', 'user', 'assistant', 'tool']),
   content: z.string(),
+  name: z.string().optional(),
+});
+
+const ToolSchema = z.object({
+  type: z.literal('function'),
+  function: z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    parameters: z.record(z.unknown()),
+  }),
+});
+const ToolFixtureSchema = z.object({
+  when: z.record(z.unknown()).optional(),
+  result: z.unknown().optional(),
+  error: z.string().optional(),
 });
 
 /**
@@ -215,6 +230,14 @@ export const ScenarioSchema = z.object({
     .object({
       systemPrompt: z.string().optional(),
       functions: z.array(z.unknown()).optional(),
+      tools: z.array(ToolSchema).optional(),
+      fixtures: z.record(z.array(ToolFixtureSchema)).optional(),
+      toolLoop: z
+        .object({
+          enabled: z.boolean().default(false),
+          maxSteps: z.number().int().min(1).max(10).default(5),
+        })
+        .optional(),
     })
     .optional(),
   cases: z.array(TestCaseSchema).min(1),

@@ -87,7 +87,11 @@ function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
 
   // Calculate cost if model is provided
   let cost: CostEstimateInfo | undefined;
-  if (model && (totalPromptTokens > 0 || totalCompletionTokens > 0)) {
+  if (
+    model &&
+    !model.toLowerCase().includes('ling-') &&
+    (totalPromptTokens > 0 || totalCompletionTokens > 0)
+  ) {
     const costEstimate = estimateCost(totalPromptTokens, totalCompletionTokens, model);
     const pricing = getModelPricing(model);
     cost = {

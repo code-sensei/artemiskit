@@ -146,17 +146,56 @@ async function executeCaseAttempt(
   }
 
   // Generate response with optional timeout
-  const generatePromise = client.generate({
-    prompt,
-    model: testCase.model || scenario.model,
-    temperature: scenario.temperature,
-    maxTokens: scenario.maxTokens,
-    seed: scenario.seed,
-  });
+  const tools = scenario.setup?.tools;
+  let loopPrompt =
+    typeof prompt === 'string' ? [{ role: 'user' as const, content: prompt }] : prompt;
+  const generate = () =>
+    client.generate({
+      prompt: loopPrompt,
+      model: testCase.model || scenario.model,
+      temperature: scenario.temperature,
+      maxTokens: scenario.maxTokens,
+      seed: scenario.seed,
+      tools,
+    });
+  const generatePromise = generate();
 
-  const result = timeout
+  let result = timeout
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
+
+  if (scenario.setup?.toolLoop?.enabled && tools && scenario.setup.fixtures) {
+    for (
+      let step = 0;
+      result.toolCalls?.length && step < scenario.setup.toolLoop.maxSteps;
+      step++
+    ) {
+      const calls = result.toolCalls;
+      loopPrompt.push({ role: 'assistant', content: result.text });
+      for (const call of calls) {
+        let args: Record<string, unknown>;
+        try {
+          args = JSON.parse(call.function.arguments) as Record<string, unknown>;
+        } catch {
+          throw new Error(`TOOL_ARGUMENTS_INVALID: ${call.function.name}`);
+        }
+        const fixture = scenario.setup.fixtures[call.function.name]?.find(
+          (candidate) =>
+            !candidate.when ||
+            Object.entries(candidate.when).every(([key, value]) => args[key] === value)
+        );
+        if (!fixture) throw new Error(`TOOL_FIXTURE_NOT_FOUND: ${call.function.name}`);
+        const content = fixture.error
+          ? JSON.stringify({ error: fixture.error })
+          : JSON.stringify(fixture.result ?? {});
+        loopPrompt.push({ role: 'tool', name: call.function.name, content });
+      }
+      result = timeout
+        ? await Promise.race([generate(), createTimeout(timeout)])
+        : await generate();
+    }
+    if (result.toolCalls?.length) throw new Error('TOOL_LOOP_MAX_STEPS');
+  }
 
   // Evaluate response
   const evaluator = getEvaluator(testCase.expected.type);

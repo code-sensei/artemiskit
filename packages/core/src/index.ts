@@ -33,5 +33,8 @@ export * from './redaction';
 // Cost estimation
 export * from './cost';
 
+// Safe tool execution
+export * from './tools';
+
 // Validator
 export * from './validator';

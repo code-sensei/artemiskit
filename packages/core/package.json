@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "ajv": "^8.17.1",
     "consola": "3.4.2",
     "fastest-levenshtein": "^1.0.16",
     "nanoid": "^5.0.0",

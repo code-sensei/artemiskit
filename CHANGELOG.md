@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Native Ant Ling Studio adapter for `Ling-3.0-flash` and `Ling-3.0-tiny`
+- Safe tool-loop fixtures, JSON-schema validation, traces, recovery handling, and SDK executors
+- Opt-in Ling API smoke scenarios and benchmark/report templates
+
+### Changed
+
+- `akit init` includes an empty `LING_API_KEY=` placeholder
+
+---
+
 ## [0.3.3] - 2026-03-18
 
 ### Highlights

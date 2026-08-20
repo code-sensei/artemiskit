@@ -17,7 +17,8 @@
 - **Guardian Mode** - Runtime AI protection with injection detection, PII filtering, and action validation
 - **Programmatic SDK** - TypeScript/JavaScript SDK with Jest/Vitest integration
 - **Stress Testing** - Measure latency, throughput, and reliability under load
-- **Multi-Provider Support** - OpenAI, Anthropic, Azure OpenAI, Vercel AI SDK (20+ providers)
+- **Multi-Provider Support** - OpenAI, Anthropic, Azure OpenAI, Ant Ling, Vercel AI SDK (20+ providers)
+- **Safe Tool Loops** - Fixture-backed tool evaluation, trace assertions, and opt-in SDK executors
 - **Agentic Testing** - Test LangChain and DeepAgents applications
 - **Rich Reports** - Interactive HTML reports with configuration traceability
 - **CI/CD Ready** - Exit codes, JUnit export, and baseline regression detection
@@ -68,6 +69,21 @@ akit run scenarios/hello.yaml
 ```
 
 That's it! ArtemisKit will use OpenAI by default. See below for full configuration options.
+
+### Ant Ling Studio
+
+Use Ling Studio with a native adapter and keep tool-loop tests deterministic with fixtures:
+
+```yaml
+provider: ling
+model: Ling-3.0-flash
+providers:
+  ling:
+    apiKey: ${LING_API_KEY}
+    baseUrl: https://api.ant-ling.com/v1
+```
+
+See [`examples/11-ling-api`](examples/11-ling-api/) for Flash, Tiny, structured-output, and tool-loop examples. Live smoke tests require both `LING_API_KEY` and `LING_LIVE_TESTS=1`.
 
 ---
 

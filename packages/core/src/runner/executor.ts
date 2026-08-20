@@ -225,6 +225,15 @@ async function executeCaseAttempt(
         };
         toolTrace.push(traceEntry);
         if (execution.status === 'error') {
+          if (execution.error?.code === 'TOOL_EXECUTION_FAILED') {
+            loopPrompt.push({
+              role: 'tool',
+              name: call.function.name,
+              toolCallId: call.id,
+              content: JSON.stringify({ error: execution.error.message }),
+            });
+            continue;
+          }
           throw createToolLoopError(
             testCase,
             toolTrace,

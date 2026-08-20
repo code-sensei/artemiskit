@@ -1,0 +1,42 @@
+name: ling-flash-tool-recovery
+description: Flash recovers from a controlled fixture error using a fallback tool.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+tags: [ling, flash, tool-use, recovery]
+setup:
+  tools:
+    - type: function
+      function:
+        name: lookup_invoice
+        description: Look up an invoice by invoice ID.
+        parameters:
+          type: object
+          required: [invoiceId]
+          properties: { invoiceId: { type: string } }
+    - type: function
+      function:
+        name: search_invoices
+        description: Search invoices by customer email.
+        parameters:
+          type: object
+          required: [email]
+          properties: { email: { type: string } }
+  fixtures:
+    lookup_invoice:
+      - when: { invoiceId: INV-404 }
+        error: "NOT_FOUND"
+    search_invoices:
+      - when: { email: customer@example.test }
+        result: { invoiceId: INV-200, status: paid }
+  toolLoop: { enabled: true, maxSteps: 4 }
+cases:
+  - id: recover-invoice-lookup
+    prompt: |
+      First use lookup_invoice for INV-404. If it returns NOT_FOUND, use search_invoices
+      for customer@example.test. Then reply with only the recovered invoice ID.
+    expected:
+      type: tool_trace
+      requiredTools: [lookup_invoice, search_invoices]
+      ordered: true
+      maxCalls: 2

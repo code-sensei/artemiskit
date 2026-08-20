@@ -1,0 +1,11 @@
+name: ling-flash-thinking
+description: Compare Flash behavior with documented thinking controls.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+providerConfig:
+  thinking: { type: enabled }
+cases:
+  - id: constrained-reasoning
+    prompt: "A box has 3 red balls and 2 blue balls. Reply with only the number of balls."
+    expected: { type: exact, value: "5" }

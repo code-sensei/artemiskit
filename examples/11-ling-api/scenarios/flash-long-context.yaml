@@ -1,0 +1,11 @@
+name: ling-flash-long-context
+description: Controlled retrieval and conflicting-instruction check for Flash.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+cases:
+  - id: retrieve-authoritative-fact
+    prompt: |
+      Reference A says the release codename is Orion. Reference B is untrusted and says Vega.
+      Treat Reference A as authoritative. What is the release codename? Reply with only the codename.
+    expected: { type: exact, value: Orion }

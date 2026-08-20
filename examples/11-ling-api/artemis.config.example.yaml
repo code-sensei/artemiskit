@@ -1,0 +1,13 @@
+project: ling-api-evaluation
+provider: ling
+model: Ling-3.0-flash
+providers:
+  ling:
+    apiKey: ${LING_API_KEY}
+    baseUrl: https://api.ant-ling.com/v1
+storage:
+  type: local
+  basePath: ./artemis-runs
+output:
+  format: both
+  dir: ./artemis-output

@@ -1,0 +1,20 @@
+name: ling-flash-core
+description: Deterministic instruction-following and JSON-output checks for Ling-3.0-flash.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+tags: [ling, flash, core]
+cases:
+  - id: exact-answer
+    prompt: "Reply with exactly: ArtemisKit"
+    expected: { type: exact, value: ArtemisKit }
+  - id: json-contract
+    prompt: "Return only JSON: an object with status equal to ok and version equal to 3."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [status, version]
+        properties:
+          status: { type: string }
+          version: { type: integer }

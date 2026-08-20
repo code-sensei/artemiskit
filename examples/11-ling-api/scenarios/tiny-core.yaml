@@ -1,0 +1,15 @@
+name: ling-tiny-core
+description: Compact structured-output checks for Ling-3.0-tiny.
+provider: ling
+model: Ling-3.0-tiny
+temperature: 0
+tags: [ling, tiny, core]
+cases:
+  - id: classify-sentiment
+    prompt: "Return only JSON: {\"sentiment\": \"positive\"} for: I love reliable tests."
+    expected:
+      type: json_schema
+      schema:
+        type: object
+        required: [sentiment]
+        properties: { sentiment: { type: string } }

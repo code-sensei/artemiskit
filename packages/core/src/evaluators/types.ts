@@ -4,6 +4,7 @@
 
 import type { ModelClient } from '../adapters/types';
 import type { Expected, TestCase } from '../scenario/schema';
+import type { ToolTraceEntry } from '../tools';
 
 /**
  * Context provided to evaluators
@@ -11,6 +12,7 @@ import type { Expected, TestCase } from '../scenario/schema';
 export interface EvaluatorContext {
   client?: ModelClient;
   testCase?: TestCase;
+  toolTrace?: ToolTraceEntry[];
 }
 
 /**

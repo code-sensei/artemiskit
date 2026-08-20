@@ -12,6 +12,7 @@ import { LLMGraderEvaluator } from './llm-grader';
 import { NotContainsEvaluator } from './not-contains';
 import { RegexEvaluator } from './regex';
 import { SimilarityEvaluator } from './similarity';
+import { ToolTraceEvaluator } from './tool-trace';
 import type { Evaluator } from './types';
 
 const evaluators = new Map<string, Evaluator>();
@@ -25,6 +26,7 @@ evaluators.set('json_schema', new JsonSchemaEvaluator());
 evaluators.set('llm_grader', new LLMGraderEvaluator());
 evaluators.set('similarity', new SimilarityEvaluator());
 evaluators.set('inline', new InlineEvaluator());
+evaluators.set('tool_trace', new ToolTraceEvaluator());
 
 /**
  * Get an evaluator by type
@@ -63,3 +65,4 @@ export { JsonSchemaEvaluator } from './json-schema';
 export { LLMGraderEvaluator } from './llm-grader';
 export { SimilarityEvaluator } from './similarity';
 export { InlineEvaluator, SUPPORTED_EXPRESSIONS } from './inline';
+export { ToolTraceEvaluator } from './tool-trace';

@@ -2,6 +2,7 @@ import type { ToolCall, ToolDefinition } from '../adapters/types';
 import { validateToolArguments } from './schema-validator';
 import type {
   FixtureExecutorOptions,
+  ToolExecutionContext,
   ToolExecutionResult,
   ToolFixture,
   ToolFixtures,
@@ -26,7 +27,7 @@ export class FixtureToolExecutor {
     this.maxToolResultBytes = maxToolResultBytes;
   }
 
-  async execute(call: ToolCall): Promise<ToolExecutionResult> {
+  async execute(call: ToolCall, _context?: ToolExecutionContext): Promise<ToolExecutionResult> {
     const tool = this.tools.get(call.function.name);
     if (!tool) {
       return error('TOOL_UNKNOWN', `Tool '${call.function.name}' is not declared.`);

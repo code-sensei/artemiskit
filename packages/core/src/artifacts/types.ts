@@ -65,6 +65,10 @@ export interface CaseResult {
   error?: string;
   /** Redaction information for this case */
   redaction?: CaseRedactionInfo;
+  /** Ordered tool activity captured for an enabled tool loop. */
+  toolTrace?: import('../tools').ToolTraceEntry[];
+  /** Terminal status for an enabled tool loop. */
+  toolLoop?: import('../tools').ToolLoopSummary;
 }
 
 /**

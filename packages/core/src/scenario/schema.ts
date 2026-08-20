@@ -121,6 +121,14 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
   }),
 
   z.object({
+    type: z.literal('tool_trace'),
+    requiredTools: z.array(z.string()).optional(),
+    forbiddenTools: z.array(z.string()).optional(),
+    ordered: z.boolean().optional().default(false),
+    maxCalls: z.number().int().min(0).optional(),
+  }),
+
+  z.object({
     type: z.literal('similarity'),
     value: z.string(),
     threshold: z.number().min(0).max(1).default(0.75),
@@ -174,19 +182,23 @@ export const ChatMessageSchema = z.object({
     .optional(),
 });
 
-const ToolSchema = z.object({
-  type: z.literal('function'),
-  function: z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    parameters: z.record(z.unknown()),
-  }),
-});
-const ToolFixtureSchema = z.object({
-  when: z.record(z.unknown()).optional(),
-  result: z.unknown().optional(),
-  error: z.string().optional(),
-});
+const ToolSchema = z
+  .object({
+    type: z.literal('function'),
+    function: z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      parameters: z.record(z.unknown()),
+    }),
+  })
+  .strict();
+const ToolFixtureSchema = z
+  .object({
+    when: z.record(z.unknown()).optional(),
+    result: z.unknown().optional(),
+    error: z.string().optional(),
+  })
+  .strict();
 
 /**
  * Variables schema - key-value pairs for template substitution
@@ -246,7 +258,11 @@ export const ScenarioSchema = z.object({
         .object({
           enabled: z.boolean().default(false),
           maxSteps: z.number().int().min(1).max(10).default(5),
+          timeoutMs: z.number().int().min(1).max(300_000).default(60_000),
+          maxToolResultBytes: z.number().int().min(1).max(1_048_576).default(32_768),
+          rejectDuplicateCalls: z.boolean().default(true),
         })
+        .strict()
         .optional(),
     })
     .optional(),

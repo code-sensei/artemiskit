@@ -7,6 +7,12 @@ import { getEvaluator } from '../evaluators';
 import { type RedactionConfig, Redactor } from '../redaction';
 import type { TestCase } from '../scenario/schema';
 import { mergeVariables, substituteVariables } from '../scenario/variables';
+import {
+  DEFAULT_TOOL_LOOP_POLICY,
+  FixtureToolExecutor,
+  type ToolLoopSummary,
+  type ToolTraceEntry,
+} from '../tools';
 import type { ExecutorContext } from './types';
 
 /**
@@ -97,6 +103,7 @@ export async function executeCase(
       return result;
     } catch (error) {
       lastError = error as Error;
+      if (error instanceof ToolLoopError) return error.caseResult;
       if (attempt < retries) {
         // Wait before retry with exponential backoff
         await sleep(2 ** attempt * 1000);
@@ -147,6 +154,10 @@ async function executeCaseAttempt(
 
   // Generate response with optional timeout
   const tools = scenario.setup?.tools;
+  const fixtures = scenario.setup?.fixtures;
+  const policy = { ...DEFAULT_TOOL_LOOP_POLICY, ...scenario.setup?.toolLoop };
+  const toolTrace: ToolTraceEntry[] = [];
+  let toolLoop: ToolLoopSummary | undefined;
   let loopPrompt =
     typeof prompt === 'string' ? [{ role: 'user' as const, content: prompt }] : prompt;
   const generate = () =>
@@ -164,30 +175,59 @@ async function executeCaseAttempt(
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
 
-  if (scenario.setup?.toolLoop?.enabled && tools && scenario.setup.fixtures) {
-    for (
-      let step = 0;
-      result.toolCalls?.length && step < scenario.setup.toolLoop.maxSteps;
-      step++
-    ) {
+  if (policy.enabled && tools && fixtures) {
+    const executor = new FixtureToolExecutor({
+      tools,
+      fixtures,
+      maxToolResultBytes: policy.maxToolResultBytes,
+    });
+    const seenCalls = new Set<string>();
+    for (let step = 0; result.toolCalls?.length && step < policy.maxSteps; step++) {
       const calls = result.toolCalls;
       loopPrompt.push({ role: 'assistant', content: result.text, tool_calls: calls });
       for (const call of calls) {
-        let args: Record<string, unknown>;
-        try {
-          args = JSON.parse(call.function.arguments) as Record<string, unknown>;
-        } catch {
-          throw new Error(`TOOL_ARGUMENTS_INVALID: ${call.function.name}`);
+        const fingerprint = `${call.function.name}:${call.function.arguments}`;
+        if (policy.rejectDuplicateCalls && seenCalls.has(fingerprint)) {
+          throw createToolLoopError(
+            testCase,
+            toolTrace,
+            {
+              status: 'error',
+              steps: step,
+              terminationReason: 'duplicate_call',
+            },
+            'TOOL_DUPLICATE_CALL'
+          );
         }
-        const fixture = scenario.setup.fixtures[call.function.name]?.find(
-          (candidate) =>
-            !candidate.when ||
-            Object.entries(candidate.when).every(([key, value]) => args[key] === value)
-        );
-        if (!fixture) throw new Error(`TOOL_FIXTURE_NOT_FOUND: ${call.function.name}`);
-        const content = fixture.error
-          ? JSON.stringify({ error: fixture.error })
-          : JSON.stringify(fixture.result ?? {});
+        seenCalls.add(fingerprint);
+        const toolStart = Date.now();
+        const execution = await executor.execute(call, { caseId: testCase.id, step });
+        const traceEntry: ToolTraceEntry = {
+          step,
+          toolCall: call,
+          result: execution.result,
+          error: execution.error,
+          latencyMs: Date.now() - toolStart,
+        };
+        toolTrace.push(traceEntry);
+        if (execution.status === 'error') {
+          throw createToolLoopError(
+            testCase,
+            toolTrace,
+            {
+              status: 'error',
+              steps: step + 1,
+              terminationReason:
+                execution.error?.code === 'TOOL_UNKNOWN'
+                  ? 'unknown_tool'
+                  : execution.error?.code?.startsWith('TOOL_ARGUMENTS')
+                    ? 'invalid_arguments'
+                    : 'tool_error',
+            },
+            execution.error?.code ?? 'TOOL_EXECUTION_FAILED'
+          );
+        }
+        const content = JSON.stringify(execution.result ?? {});
         loopPrompt.push({
           role: 'tool',
           name: call.function.name,
@@ -199,7 +239,19 @@ async function executeCaseAttempt(
         ? await Promise.race([generate(), createTimeout(timeout)])
         : await generate();
     }
-    if (result.toolCalls?.length) throw new Error('TOOL_LOOP_MAX_STEPS');
+    if (result.toolCalls?.length) {
+      throw createToolLoopError(
+        testCase,
+        toolTrace,
+        {
+          status: 'error',
+          steps: policy.maxSteps,
+          terminationReason: 'max_steps',
+        },
+        'TOOL_LOOP_MAX_STEPS'
+      );
+    }
+    toolLoop = { status: 'completed', steps: toolTrace.length, terminationReason: 'completed' };
   }
 
   // Evaluate response
@@ -207,6 +259,7 @@ async function executeCaseAttempt(
   const evalResult = await evaluator.evaluate(result.text, testCase.expected, {
     client,
     testCase,
+    toolTrace,
   });
 
   // Determine effective redaction config (CLI > case > scenario)
@@ -281,7 +334,43 @@ async function executeCaseAttempt(
     expected: testCase.expected,
     tags: testCase.tags,
     redaction: redactionInfo,
+    toolTrace: toolTrace.length ? toolTrace : undefined,
+    toolLoop,
   };
+}
+
+function createToolLoopError(
+  testCase: TestCase,
+  toolTrace: ToolTraceEntry[],
+  toolLoop: ToolLoopSummary,
+  code: string
+): ToolLoopError {
+  return new ToolLoopError(code, {
+    id: testCase.id,
+    name: testCase.name,
+    ok: false,
+    score: 0,
+    matcherType: testCase.expected.type,
+    reason: code,
+    latencyMs: 0,
+    tokens: { prompt: 0, completion: 0, total: 0 },
+    prompt: testCase.prompt,
+    response: '',
+    expected: testCase.expected,
+    tags: testCase.tags,
+    error: code,
+    toolTrace,
+    toolLoop,
+  });
+}
+
+class ToolLoopError extends Error {
+  constructor(
+    message: string,
+    readonly caseResult: CaseResult
+  ) {
+    super(message);
+  }
 }
 
 function createTimeout(ms: number): Promise<never> {

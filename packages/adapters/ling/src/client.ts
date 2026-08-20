@@ -88,4 +88,32 @@ export class LingAdapter implements ModelClient {
       jsonMode: true,
     };
   }
+
+  async *stream(options: GenerateOptions, onChunk: (chunk: string) => void): AsyncIterable<string> {
+    const stream = await this.client.chat.completions.create({
+      model: options.model ?? this.config.defaultModel ?? 'Ling-3.0-flash',
+      messages:
+        typeof options.prompt === 'string'
+          ? [{ role: 'user', content: options.prompt }]
+          : options.prompt.map(({ role, content, toolCallId, tool_calls }) => ({
+              role: role as 'system' | 'user' | 'assistant' | 'tool',
+              content,
+              ...(toolCallId ? { tool_call_id: toolCallId } : {}),
+              ...(tool_calls ? { tool_calls } : {}),
+            })),
+      temperature: options.temperature,
+      top_p: options.topP,
+      stream: true,
+    } as never);
+
+    for await (const chunk of stream as unknown as AsyncIterable<{
+      choices: { delta?: { content?: string | null } }[];
+    }>) {
+      const content = chunk.choices[0]?.delta?.content ?? '';
+      if (content) {
+        onChunk(content);
+        yield content;
+      }
+    }
+  }
 }

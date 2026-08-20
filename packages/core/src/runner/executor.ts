@@ -196,6 +196,7 @@ async function executeCaseAttempt(
         maxToolResultBytes: policy.maxToolResultBytes,
       });
     const seenCalls = new Set<string>();
+    const loopStartedAt = Date.now();
     for (let step = 0; result.toolCalls?.length && step < policy.maxSteps; step++) {
       const calls = result.toolCalls;
       loopPrompt.push({ role: 'assistant', content: result.text, tool_calls: calls });
@@ -258,9 +259,17 @@ async function executeCaseAttempt(
           content,
         });
       }
-      result = timeout
-        ? await Promise.race([generate(), createTimeout(timeout)])
-        : await generate();
+      const remainingLoopTime = policy.timeoutMs - (Date.now() - loopStartedAt);
+      if (remainingLoopTime <= 0) {
+        throw createToolLoopError(
+          testCase,
+          toolTrace,
+          { status: 'error', steps: step + 1, terminationReason: 'timeout' },
+          'TOOL_LOOP_TIMEOUT'
+        );
+      }
+      const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
+      result = await Promise.race([generate(), createTimeout(requestTimeout)]);
     }
     if (result.toolCalls?.length) {
       throw createToolLoopError(

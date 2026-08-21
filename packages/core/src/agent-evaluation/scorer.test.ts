@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { scoreAgentOutcome, type AgentEvaluationEvidence } from './scorer';
+import { type AgentEvaluationEvidence, scoreAgentOutcome } from './scorer';
 import type { AgentOutcome, AgentTask } from './types';
 
 const task: AgentTask = {
@@ -244,5 +244,33 @@ describe('scoreAgentOutcome', () => {
 
     expect(result.verdict).toBe('infrastructure_failed');
     expect(result.issues.map((issue) => issue.code)).toContain('trace-timestamp-invalid');
+  });
+
+  it('reports contradictory acceptance status and exit code as an infrastructure failure', () => {
+    const outcome = createOutcome({ acceptancePassed: false });
+    const evidence = createEvidence({
+      acceptanceChecks: [
+        {
+          command: 'akit validate scenario.yaml',
+          status: 'passed',
+          exitCode: 1,
+          durationMs: 25,
+        },
+      ],
+    });
+
+    const result = scoreAgentOutcome(task, outcome, evidence);
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('acceptance-evidence-invalid');
+  });
+
+  it('reports missing final diff evidence when changed paths are declared', () => {
+    for (const finalDiff of [undefined, '', '  \n']) {
+      const result = scoreAgentOutcome(task, createOutcome({ finalDiff }), createEvidence());
+
+      expect(result.verdict).toBe('infrastructure_failed');
+      expect(result.issues.map((issue) => issue.code)).toContain('final-diff-missing');
+    }
   });
 });

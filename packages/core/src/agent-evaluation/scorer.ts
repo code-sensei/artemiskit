@@ -1,4 +1,4 @@
-import { actionBudgetExceeded, type AgentOutcome, type AgentTask } from './types';
+import { type AgentOutcome, type AgentTask, actionBudgetExceeded } from './types';
 
 export type AgentTerminationStatus =
   | 'completed'
@@ -183,6 +183,29 @@ export function scoreAgentOutcome(
     }
   }
 
+  const invalidAcceptanceCheck = evidence.acceptanceChecks.find(
+    (check) =>
+      !Number.isFinite(check.durationMs) ||
+      check.durationMs < 0 ||
+      (check.status === 'passed' && check.exitCode !== 0) ||
+      (check.status === 'failed' && (check.exitCode === null || check.exitCode === 0)) ||
+      (check.status === 'executor_error' && check.exitCode !== null)
+  );
+  if (invalidAcceptanceCheck) {
+    return {
+      taskId: task.id,
+      verdict: 'infrastructure_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'acceptance-evidence-invalid',
+          message: `Acceptance status, exit code, or duration is inconsistent for: ${invalidAcceptanceCheck.command}.`,
+        },
+      ],
+    };
+  }
+
   const executorError = evidence.acceptanceChecks.find(
     (check) => check.status === 'executor_error'
   );
@@ -215,6 +238,21 @@ export function scoreAgentOutcome(
         {
           code: 'acceptance-evidence-mismatch',
           message: 'The outcome acceptance summary does not match the recorded command evidence.',
+        },
+      ],
+    };
+  }
+
+  if (outcome.trace.changedPaths.length > 0 && !outcome.finalDiff?.trim()) {
+    return {
+      taskId: task.id,
+      verdict: 'infrastructure_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'final-diff-missing',
+          message: 'Changed paths were recorded without a non-empty final diff.',
         },
       ],
     };

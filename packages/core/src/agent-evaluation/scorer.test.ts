@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { type AgentEvaluationEvidence, scoreAgentOutcome } from './scorer';
+import {
+  type AgentAcceptanceCheck,
+  type AgentArtifactCheck,
+  type AgentEvaluationEvidence,
+  type AgentTerminationStatus,
+  scoreAgentOutcome,
+} from './scorer';
 import type { AgentOutcome, AgentTask } from './types';
 
 const task: AgentTask = {
@@ -332,5 +338,53 @@ describe('scoreAgentOutcome', () => {
 
     expect(result.verdict).toBe('infrastructure_failed');
     expect(result.issues.map((issue) => issue.code)).toContain('acceptance-evidence-missing');
+  });
+
+  it('fails closed for an unknown termination status at runtime', () => {
+    const result = scoreAgentOutcome(
+      task,
+      createOutcome(),
+      createEvidence({
+        termination: { status: 'unknown' as AgentTerminationStatus },
+      })
+    );
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('termination-evidence-invalid');
+  });
+
+  it('fails closed for an unknown acceptance status even when the summary is false', () => {
+    const outcome = createOutcome({ acceptancePassed: false });
+    const invalidCheck: AgentAcceptanceCheck = {
+      command: 'akit validate scenario.yaml',
+      status: 'unknown' as AgentAcceptanceCheck['status'],
+      exitCode: null,
+      durationMs: 1,
+    };
+
+    const result = scoreAgentOutcome(
+      task,
+      outcome,
+      createEvidence({ acceptanceChecks: [invalidCheck] })
+    );
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('acceptance-evidence-invalid');
+  });
+
+  it('fails closed for any unknown artifact status at runtime', () => {
+    const invalidCheck: AgentArtifactCheck = {
+      id: 'unrequested-check',
+      status: 'unknown' as AgentArtifactCheck['status'],
+      durationMs: 1,
+    };
+
+    const result = scoreAgentOutcome(task, createOutcome(), {
+      ...createEvidence(),
+      artifactChecks: [invalidCheck],
+    });
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('artifact-evidence-invalid');
   });
 });

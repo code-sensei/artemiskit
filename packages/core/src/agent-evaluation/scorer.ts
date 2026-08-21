@@ -49,6 +49,16 @@ export interface AgentEvaluationScore {
   issues: AgentEvaluationIssue[];
 }
 
+const TERMINATION_STATUSES = new Set<unknown>([
+  'completed',
+  'agent_error',
+  'tool_error',
+  'infrastructure_error',
+  'timed_out',
+]);
+
+const CHECK_STATUSES = new Set<unknown>(['passed', 'failed', 'executor_error']);
+
 function normalizeRelativePath(path: string): string | undefined {
   const slashPath = path.replaceAll('\\', '/');
   if (slashPath.startsWith('/') || /^[A-Za-z]:\//.test(slashPath) || slashPath.includes('\0')) {
@@ -94,6 +104,21 @@ export function scoreAgentOutcome(
         {
           code: 'task-evidence-mismatch',
           message: 'Outcome or trace evidence belongs to a different task.',
+        },
+      ],
+    };
+  }
+
+  if (!TERMINATION_STATUSES.has(evidence.termination.status)) {
+    return {
+      taskId: task.id,
+      verdict: 'infrastructure_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'termination-evidence-invalid',
+          message: 'Termination evidence contains an unknown status.',
         },
       ],
     };
@@ -159,6 +184,43 @@ export function scoreAgentOutcome(
   }
 
   const artifactChecks = evidence.artifactChecks ?? [];
+  const invalidArtifactCheck = artifactChecks.find(
+    (check) =>
+      !CHECK_STATUSES.has(check.status) ||
+      !Number.isFinite(check.durationMs) ||
+      check.durationMs < 0
+  );
+  if (invalidArtifactCheck) {
+    return {
+      taskId: task.id,
+      verdict: 'infrastructure_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'artifact-evidence-invalid',
+          message: `Artifact evidence is invalid for: ${invalidArtifactCheck.id}.`,
+        },
+      ],
+    };
+  }
+
+  const artifactExecutorError = artifactChecks.find((check) => check.status === 'executor_error');
+  if (artifactExecutorError) {
+    return {
+      taskId: task.id,
+      verdict: 'infrastructure_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'artifact-executor-error',
+          message: `Artifact check could not be executed: ${artifactExecutorError.id}.`,
+        },
+      ],
+    };
+  }
+
   for (const checkId of task.requiredArtifactChecks ?? []) {
     const matchingChecks = artifactChecks.filter((check) => check.id === checkId);
     if (matchingChecks.length === 0) {
@@ -185,36 +247,6 @@ export function scoreAgentOutcome(
           {
             code: 'artifact-evidence-duplicate',
             message: `Multiple artifact results were recorded for: ${checkId}.`,
-          },
-        ],
-      };
-    }
-
-    const [check] = matchingChecks;
-    if (!check || !Number.isFinite(check.durationMs) || check.durationMs < 0) {
-      return {
-        taskId: task.id,
-        verdict: 'infrastructure_failed',
-        passed: false,
-        recoveredActionCount: 0,
-        issues: [
-          {
-            code: 'artifact-evidence-invalid',
-            message: `Artifact evidence is invalid for: ${checkId}.`,
-          },
-        ],
-      };
-    }
-    if (check.status === 'executor_error') {
-      return {
-        taskId: task.id,
-        verdict: 'infrastructure_failed',
-        passed: false,
-        recoveredActionCount: 0,
-        issues: [
-          {
-            code: 'artifact-executor-error',
-            message: `Artifact check could not be executed: ${checkId}.`,
           },
         ],
       };
@@ -255,10 +287,11 @@ export function scoreAgentOutcome(
 
   const invalidAcceptanceCheck = evidence.acceptanceChecks.find(
     (check) =>
+      !CHECK_STATUSES.has(check.status) ||
       !Number.isFinite(check.durationMs) ||
       check.durationMs < 0 ||
       (check.status === 'passed' && check.exitCode !== 0) ||
-      (check.status === 'failed' && (check.exitCode === null || check.exitCode === 0)) ||
+      (check.status === 'failed' && (!Number.isInteger(check.exitCode) || check.exitCode === 0)) ||
       (check.status === 'executor_error' && check.exitCode !== null)
   );
   if (invalidAcceptanceCheck) {

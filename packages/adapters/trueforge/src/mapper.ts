@@ -98,19 +98,24 @@ function normalizeToolName(name: string): string {
 function responseStatus(content: string): AgentAction['status'] {
   try {
     const parsed = JSON.parse(content) as unknown;
+    if (containsRejection(parsed)) return 'rejected';
     if (containsFailure(parsed)) return 'error';
-    if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      'status' in parsed &&
-      parsed.status === 'rejected'
-    ) {
-      return 'rejected';
-    }
   } catch {
     if (/\b(?:error|denied|rejected|failed)\b/i.test(content)) return 'error';
   }
   return 'success';
+}
+
+function containsRejection(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsRejection);
+  if (value === null || typeof value !== 'object') return false;
+
+  for (const [key, entry] of Object.entries(value)) {
+    const normalizedKey = key.replace(/[-_]/g, '').toLowerCase();
+    if (normalizedKey === 'status' && entry === 'rejected') return true;
+    if (containsRejection(entry)) return true;
+  }
+  return false;
 }
 
 function containsFailure(value: unknown): boolean {
@@ -133,7 +138,7 @@ function containsFailure(value: unknown): boolean {
     if (
       normalizedKey === 'status' &&
       typeof entry === 'string' &&
-      /^(?:error|failed|rejected)$/i.test(entry)
+      /^(?:error|failed)$/i.test(entry)
     ) {
       return true;
     }

@@ -277,6 +277,74 @@ describe('TrueForge event mapping', () => {
 
     expect(normalizeTrueForgeActions(events)[0]?.status).toBe('error');
   });
+
+  it('preserves a top-level structured tool rejection', () => {
+    const events = [
+      {
+        type: 'model.message' as const,
+        id: 'event-1',
+        threadId: 'main',
+        createdAt: '2026-08-21T10:00:00.000Z',
+        toolCalls: [
+          {
+            id: 'call-1',
+            type: 'function' as const,
+            function: { name: 'workspace_patch', arguments: '{}' },
+            toolInfo: {
+              type: 'mcp' as const,
+              serverId: 'server-1',
+              serverName: 'sandbox',
+              name: 'workspace_patch',
+            },
+          },
+        ],
+      },
+      {
+        type: 'tool.response' as const,
+        id: 'event-2',
+        threadId: 'main',
+        toolCallId: 'call-1',
+        content: '{"status":"rejected","reason":"path denied"}',
+        createdAt: '2026-08-21T10:00:00.010Z',
+      },
+    ];
+
+    expect(normalizeTrueForgeActions(events)[0]?.status).toBe('rejected');
+  });
+
+  it('preserves a nested structured tool rejection', () => {
+    const events = [
+      {
+        type: 'model.message' as const,
+        id: 'event-1',
+        threadId: 'main',
+        createdAt: '2026-08-21T10:00:00.000Z',
+        toolCalls: [
+          {
+            id: 'call-1',
+            type: 'function' as const,
+            function: { name: 'workspace_patch', arguments: '{}' },
+            toolInfo: {
+              type: 'mcp' as const,
+              serverId: 'server-1',
+              serverName: 'sandbox',
+              name: 'workspace_patch',
+            },
+          },
+        ],
+      },
+      {
+        type: 'tool.response' as const,
+        id: 'event-2',
+        threadId: 'main',
+        toolCallId: 'call-1',
+        content: '{"structuredContent":{"status":"rejected","reason":"tool denied"}}',
+        createdAt: '2026-08-21T10:00:00.010Z',
+      },
+    ];
+
+    expect(normalizeTrueForgeActions(events)[0]?.status).toBe('rejected');
+  });
 });
 
 describe('TrueForgeAdapter', () => {

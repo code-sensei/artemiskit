@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { type AgentArtifactCheck, ScenarioValidator, parseScenarioFile } from '@artemiskit/core';
@@ -31,13 +32,16 @@ export async function checkScenarioRepair(
 
   try {
     const expectedScenarioPath = resolve(import.meta.dir, 'expected', 'scenario.yaml');
-    const [scenario, expectedScenario] = await Promise.all([
+    const [scenario, expectedScenario, scenarioSource, expectedScenarioSource] = await Promise.all([
       parseScenarioFile(scenarioPath),
       parseScenarioFile(expectedScenarioPath),
+      readFile(scenarioPath, 'utf8'),
+      readFile(expectedScenarioPath, 'utf8'),
     ]);
     const expectationType = scenario.cases.find((testCase) => testCase.id === 'greeting')?.expected
       .type;
-    const matchesExpectedScenario = isDeepStrictEqual(scenario, expectedScenario);
+    const matchesExpectedScenario =
+      scenarioSource === expectedScenarioSource && isDeepStrictEqual(scenario, expectedScenario);
 
     return {
       id: SCENARIO_REPAIR_ARTIFACT_CHECK,

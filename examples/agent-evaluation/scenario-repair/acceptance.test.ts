@@ -48,6 +48,14 @@ describe('scenario repair acceptance', () => {
     expect(result.issueRules).toContain('scenario-does-not-match-expected');
   });
 
+  it('rejects a schema-valid unknown top-level field', async () => {
+    const result = await checkExpectedVariant((source) => `${source}unrelated: true\n`);
+
+    expect(result.scenarioValid).toBe(true);
+    expect(result.passed).toBe(false);
+    expect(result.issueRules).toContain('scenario-does-not-match-expected');
+  });
+
   it('rejects unrelated prompt and description edits', async () => {
     const unrelatedEdits = [
       ['A deterministic scenario', 'An unrelated scenario'],

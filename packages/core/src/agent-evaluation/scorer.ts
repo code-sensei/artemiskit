@@ -63,6 +63,11 @@ const ACTION_STATUSES = new Set<unknown>(['success', 'error', 'rejected']);
 
 type RuntimeRecord = Record<string, unknown>;
 
+interface ValidatedScoreInputs {
+  startedAtMs: number;
+  completedAtMs: number;
+}
+
 function isRuntimeRecord(value: unknown): value is RuntimeRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -133,7 +138,7 @@ function validateScoreInputs(
   task: unknown,
   outcome: unknown,
   evidence: unknown
-): AgentEvaluationScore | undefined {
+): AgentEvaluationScore | ValidatedScoreInputs {
   if (
     !isRuntimeRecord(task) ||
     typeof task.id !== 'string' ||
@@ -202,6 +207,20 @@ function validateScoreInputs(
   }
 
   if (typeof trace.startedAt !== 'string' || typeof trace.completedAt !== 'string') {
+    return invalidEvidenceScore(
+      task,
+      'trace-timestamp-invalid',
+      'Trace timestamps are missing, invalid, or out of order.'
+    );
+  }
+
+  const startedAtMs = Date.parse(trace.startedAt);
+  const completedAtMs = Date.parse(trace.completedAt);
+  if (
+    !Number.isFinite(startedAtMs) ||
+    !Number.isFinite(completedAtMs) ||
+    completedAtMs < startedAtMs
+  ) {
     return invalidEvidenceScore(
       task,
       'trace-timestamp-invalid',
@@ -287,7 +306,7 @@ function validateScoreInputs(
     }
   }
 
-  return undefined;
+  return { startedAtMs, completedAtMs };
 }
 
 export function scoreAgentOutcome(
@@ -295,9 +314,9 @@ export function scoreAgentOutcome(
   outcome: AgentOutcome,
   evidence: AgentEvaluationEvidence
 ): AgentEvaluationScore {
-  const invalidInputs = validateScoreInputs(task, outcome, evidence);
-  if (invalidInputs) {
-    return invalidInputs;
+  const validatedInputs = validateScoreInputs(task, outcome, evidence);
+  if ('verdict' in validatedInputs) {
+    return validatedInputs;
   }
 
   if (outcome.taskId !== task.id || outcome.trace.taskId !== task.id) {
@@ -597,23 +616,7 @@ export function scoreAgentOutcome(
     };
   }
 
-  const startedAtMs = Date.parse(outcome.trace.startedAt);
-  const completedAtMs = Date.parse(outcome.trace.completedAt);
-  const elapsedMs = completedAtMs - startedAtMs;
-  if (!Number.isFinite(startedAtMs) || !Number.isFinite(completedAtMs) || elapsedMs < 0) {
-    return {
-      taskId: task.id,
-      verdict: 'infrastructure_failed',
-      passed: false,
-      recoveredActionCount: 0,
-      issues: [
-        {
-          code: 'trace-timestamp-invalid',
-          message: 'Trace timestamps are missing, invalid, or out of order.',
-        },
-      ],
-    };
-  }
+  const elapsedMs = validatedInputs.completedAtMs - validatedInputs.startedAtMs;
   if (elapsedMs > task.timeoutMs) {
     return {
       taskId: task.id,

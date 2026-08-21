@@ -925,6 +925,195 @@ describe('scoreAgentOutcome', () => {
       });
     }
 
+    const requiredArtifactTask: AgentTask = {
+      ...task,
+      requiredArtifactChecks: ['scenario-matches-expected'],
+    };
+    const passedArtifactCheck: AgentArtifactCheck = {
+      id: 'scenario-matches-expected',
+      status: 'passed',
+      durationMs: 1,
+    };
+    const precedenceCases: Array<{
+      name: string;
+      taskValue: AgentTask;
+      outcomeValue: AgentOutcome;
+      evidenceValue: AgentEvaluationEvidence;
+    }> = [
+      {
+        name: 'task mismatch',
+        taskValue: task,
+        outcomeValue: createOutcome({ taskId: 'other-task' }),
+        evidenceValue: createEvidence(),
+      },
+      ...(['agent_error', 'tool_error', 'infrastructure_error', 'timed_out'] as const).map(
+        (status) => ({
+          name: `${status} termination`,
+          taskValue: task,
+          outcomeValue: createOutcome({ completed: false, acceptancePassed: false }),
+          evidenceValue: createEvidence({ termination: { status } }),
+        })
+      ),
+      {
+        name: 'completion mismatch',
+        taskValue: task,
+        outcomeValue: createOutcome({ completed: false }),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'artifact executor error',
+        taskValue: requiredArtifactTask,
+        outcomeValue: createOutcome(),
+        evidenceValue: createEvidence({
+          artifactChecks: [{ ...passedArtifactCheck, status: 'executor_error' }],
+        }),
+      },
+      {
+        name: 'missing artifact evidence',
+        taskValue: requiredArtifactTask,
+        outcomeValue: createOutcome(),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'duplicate artifact evidence',
+        taskValue: requiredArtifactTask,
+        outcomeValue: createOutcome(),
+        evidenceValue: createEvidence({
+          artifactChecks: [{ ...passedArtifactCheck }, { ...passedArtifactCheck }],
+        }),
+      },
+      {
+        name: 'failed artifact check',
+        taskValue: requiredArtifactTask,
+        outcomeValue: createOutcome(),
+        evidenceValue: createEvidence({
+          artifactChecks: [{ ...passedArtifactCheck, status: 'failed' }],
+        }),
+      },
+      {
+        name: 'acceptance executor error',
+        taskValue: task,
+        outcomeValue: createOutcome({ acceptancePassed: false }),
+        evidenceValue: createEvidence({
+          acceptanceChecks: [
+            {
+              command: 'akit validate scenario.yaml',
+              status: 'executor_error',
+              exitCode: null,
+              durationMs: 1,
+            },
+          ],
+        }),
+      },
+      {
+        name: 'missing acceptance evidence',
+        taskValue: task,
+        outcomeValue: createOutcome({ acceptancePassed: false }),
+        evidenceValue: createEvidence({ acceptanceChecks: [] }),
+      },
+      {
+        name: 'duplicate acceptance evidence',
+        taskValue: task,
+        outcomeValue: createOutcome(),
+        evidenceValue: createEvidence({
+          acceptanceChecks: [
+            { ...createEvidence().acceptanceChecks[0] },
+            { ...createEvidence().acceptanceChecks[0] },
+          ],
+        }),
+      },
+      {
+        name: 'acceptance evidence mismatch',
+        taskValue: task,
+        outcomeValue: createOutcome({ acceptancePassed: false }),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'failed acceptance check',
+        taskValue: task,
+        outcomeValue: createOutcome({ acceptancePassed: false }),
+        evidenceValue: createEvidence({
+          acceptanceChecks: [
+            {
+              command: 'akit validate scenario.yaml',
+              status: 'failed',
+              exitCode: 1,
+              durationMs: 1,
+            },
+          ],
+        }),
+      },
+      {
+        name: 'missing final diff',
+        taskValue: task,
+        outcomeValue: createOutcome({ finalDiff: undefined }),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'changed path violation',
+        taskValue: task,
+        outcomeValue: createOutcome({
+          trace: { ...createOutcome().trace, changedPaths: ['README.md'] },
+        }),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'prohibited action',
+        taskValue: task,
+        outcomeValue: createOutcome({
+          trace: {
+            ...createOutcome().trace,
+            actions: [{ type: 'tool', name: 'workspace_read', status: 'rejected', durationMs: 1 }],
+          },
+        }),
+        evidenceValue: createEvidence(),
+      },
+      {
+        name: 'action budget violation',
+        taskValue: task,
+        outcomeValue: createOutcome({
+          trace: {
+            ...createOutcome().trace,
+            actions: Array.from({ length: task.maxActions + 1 }, () => ({
+              type: 'tool' as const,
+              name: 'workspace_read',
+              status: 'success' as const,
+              durationMs: 1,
+            })),
+          },
+        }),
+        evidenceValue: createEvidence(),
+      },
+    ];
+
+    for (const [timestampName, timestampOverrides] of [
+      ['nonparseable', { completedAt: 'not-a-timestamp' }],
+      [
+        'out-of-order',
+        {
+          startedAt: '2026-08-21T00:00:01.000Z',
+          completedAt: '2026-08-21T00:00:00.000Z',
+        },
+      ],
+    ] as const) {
+      for (const { name, taskValue, outcomeValue, evidenceValue } of precedenceCases) {
+        it(`prioritizes ${timestampName} timestamps over ${name}`, () => {
+          const result = scoreAgentOutcome(
+            taskValue,
+            {
+              ...outcomeValue,
+              trace: { ...outcomeValue.trace, ...timestampOverrides },
+            },
+            evidenceValue
+          );
+
+          expect(result.verdict).toBe('infrastructure_failed');
+          expect(result.passed).toBe(false);
+          expect(result.issues.map((issue) => issue.code)).toEqual(['trace-timestamp-invalid']);
+        });
+      }
+    }
+
     for (const [name, timestampOverrides] of [
       ['missing startedAt', { startedAt: undefined }],
       ['null startedAt', { startedAt: null }],

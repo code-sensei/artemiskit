@@ -25,7 +25,7 @@
 
 - [ ] Write failing policy tests for rejected host paths, network/install commands, remote Git, and commands outside the allowlist.
 - [ ] Implement a sandbox policy that accepts only fixture-root reads/patches, Git status/diff, and `bun test`, `bun run typecheck`, `bun run build`, `akit validate`.
-- [ ] Implement Docker workspace provisioning with `--network none`, read-only base fixture, writable ephemeral volume, resource/time limits, and cleanup.
+- [ ] Implement Docker workspace provisioning with a fresh host temporary workspace copied from the fixture, an exclusive writable bind mount for that disposable copy, host Git control data outside the mount, `--network none`, a read-only container root filesystem, resource/time limits, and cleanup.
 - [ ] Expose MCP tools `workspace_read`, `workspace_patch`, `workspace_status`, `workspace_diff`, and `workspace_run` through the policy.
 - [ ] Run package tests/typecheck and commit `feat: add Docker MCP sandbox`.
 

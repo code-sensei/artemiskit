@@ -257,6 +257,55 @@ describe('Docker workspace', () => {
     await workspace.dispose();
   });
 
+  it('permanently blocks operations after a queued disposal times out and allows disposal retry', async () => {
+    let releaseRun: (() => void) | undefined;
+    let reportRunStarted: (() => void) | undefined;
+    const runStarted = new Promise<void>((resolve) => {
+      reportRunStarted = resolve;
+    });
+    const runGate = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      operationTimeoutMs: 5,
+      gitRunner: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      dockerRunner: async (request) => {
+        if (request.argv[1] === 'run') {
+          reportRunStarted?.();
+          await runGate;
+        }
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    const run = workspace.run('bun test');
+    await runStarted;
+    await expect(workspace.dispose()).rejects.toMatchObject({
+      code: 'SANDBOX_OPERATION_TIMEOUT',
+    });
+
+    const operations = [
+      () => workspace.read('scenario.yaml'),
+      () => workspace.patch({ path: 'scenario.yaml', oldText: 'before', newText: 'after' }),
+      () => workspace.status(),
+      () => workspace.diff(),
+      () => workspace.run('bun test'),
+    ];
+    try {
+      for (const operation of operations) {
+        await expect(operation()).rejects.toMatchObject({ code: 'SANDBOX_DISPOSED' });
+      }
+    } finally {
+      releaseRun?.();
+      await run;
+    }
+
+    await workspace.dispose();
+    await expect(lstat(workspace.root)).rejects.toThrow();
+  });
+
   it('bounds host Git and invokes it with isolated control and work-tree paths', async () => {
     const gitRequests: DockerRunRequest[] = [];
     let statusWasAborted = false;
@@ -406,6 +455,68 @@ describe('Docker workspace', () => {
     await workspace.dispose();
   });
 
+  it('stays fail-closed when a timed-out Docker launch settles after initial cleanup', async () => {
+    const requests: DockerRunRequest[] = [];
+    let lateLaunchSettled = false;
+    let releaseLateLaunch: (() => void) | undefined;
+    let reportLateLaunchSettled: (() => void) | undefined;
+    const lateLaunchGate = new Promise<void>((resolve) => {
+      releaseLateLaunch = resolve;
+    });
+    const launchSettlement = new Promise<void>((resolve) => {
+      reportLateLaunchSettled = resolve;
+    });
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      commandTimeoutMs: 5,
+      cleanupTimeoutMs: 5,
+      dockerRunner: async (request: DockerRunRequest) => {
+        requests.push(request);
+        if (request.argv[1] === 'run') {
+          await lateLaunchGate;
+          lateLaunchSettled = true;
+          reportLateLaunchSettled?.();
+          return { exitCode: 125, stdout: '', stderr: 'late launch failure\n' };
+        }
+        if (request.argv[1] === 'rm') {
+          return lateLaunchSettled
+            ? { exitCode: 0, stdout: '', stderr: '' }
+            : { exitCode: 1, stdout: '', stderr: 'not created yet\n' };
+        }
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `Error: No such container: ${request.argv.at(-1)}\n`,
+        };
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    await expect(workspace.run('bun test')).rejects.toMatchObject({
+      code: 'SANDBOX_COMMAND_TIMEOUT',
+    });
+    await expect(workspace.read('scenario.yaml')).rejects.toMatchObject({
+      code: 'SANDBOX_CLEANUP_UNCONFIRMED',
+    });
+    await expect(workspace.dispose()).rejects.toMatchObject({
+      code: 'SANDBOX_CLEANUP_UNCONFIRMED',
+    });
+    releaseLateLaunch?.();
+    await launchSettlement;
+    await expect(workspace.read('scenario.yaml')).rejects.toMatchObject({
+      code: 'SANDBOX_DISPOSED',
+    });
+
+    const runRequest = requests.find(({ argv }) => argv[1] === 'run');
+    const containerName = runRequest?.argv[runRequest.argv.indexOf('--name') + 1];
+    await workspace.dispose();
+    const cleanupRequests = requests.filter(({ argv }) => argv[1] === 'rm');
+    expect(cleanupRequests).toHaveLength(2);
+    for (const request of cleanupRequests) {
+      expect(request.argv).toEqual(['docker', 'rm', '-f', containerName]);
+    }
+  });
+
   it('fails closed after cleanup cannot be confirmed and retries the exact name on dispose', async () => {
     for (const cleanupFailure of ['nonzero', 'timeout'] as const) {
       const requests: DockerRunRequest[] = [];
@@ -475,7 +586,7 @@ describe('Docker workspace', () => {
       });
       expect((await lstat(workspace.root)).isDirectory()).toBe(true);
       await expect(workspace.read('scenario.yaml')).rejects.toMatchObject({
-        code: 'SANDBOX_CLEANUP_UNCONFIRMED',
+        code: 'SANDBOX_DISPOSED',
       });
       await workspace.dispose();
       const cleanupRequests = requests.filter(({ argv }) => argv[1] === 'rm');

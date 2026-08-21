@@ -64,6 +64,10 @@ export interface DockerRunRequest {
 
 export type DockerRunner = (request: DockerRunRequest) => Promise<CommandResult>;
 
+interface UnsafeContainerState {
+  launchSettled: boolean;
+}
+
 const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 const DEFAULT_OPERATION_TIMEOUT_MS = 10_000;
 const DEFAULT_CONTAINER_CLEANUP_TIMEOUT_MS = 5_000;
@@ -110,16 +114,27 @@ export async function createDockerWorkspace(
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const dockerRunner = options.dockerRunner ?? runDocker;
   const serialize = createOperationQueue(operationTimeoutMs);
-  const unsafeContainerNames = new Set<string>();
+  const unsafeContainers = new Map<string, UnsafeContainerState>();
   let commandCount = 0;
   let operationCount = 0;
   let isDisposed = false;
-  let isDisposing = false;
+  let disposalRequested = false;
   let disposalPromise: Promise<void> | undefined;
   const assertActive = (): void => {
-    if (isDisposed || isDisposing) throw new SandboxError(SANDBOX_ERROR_CODES.disposed);
-    if (unsafeContainerNames.size > 0) {
+    if (isDisposed || disposalRequested) throw new SandboxError(SANDBOX_ERROR_CODES.disposed);
+    if (unsafeContainers.size > 0) {
       throw new SandboxError(SANDBOX_ERROR_CODES.cleanupUnconfirmed);
+    }
+  };
+  const markCleanupUnconfirmed = (containerName: string, pendingLaunch?: Promise<void>): void => {
+    // An aborted Docker client can still create its named container later. Keep the workspace
+    // poisoned until that launch settles and a subsequent exact-name cleanup confirms safety.
+    const state = { launchSettled: pendingLaunch === undefined };
+    unsafeContainers.set(containerName, state);
+    if (pendingLaunch) {
+      void pendingLaunch.then(() => {
+        state.launchSettled = true;
+      });
     }
   };
   const reserveOperation = (): void => {
@@ -222,29 +237,29 @@ export async function createDockerWorkspace(
           cleanupTimeoutMs,
           maxOutputBytes,
           dockerRunner,
-          (containerName) => unsafeContainerNames.add(containerName)
+          markCleanupUnconfirmed
         );
       });
     },
     async dispose() {
       if (isDisposed) return;
       if (disposalPromise) return disposalPromise;
-      isDisposing = true;
+      disposalRequested = true;
       disposalPromise = serialize(async () => {
-        for (const containerName of unsafeContainerNames) {
+        for (const [containerName, state] of unsafeContainers) {
+          if (!state.launchSettled) continue;
           if (
             await cleanupContainer(containerName, maxOutputBytes, cleanupTimeoutMs, dockerRunner)
           ) {
-            unsafeContainerNames.delete(containerName);
+            unsafeContainers.delete(containerName);
           }
         }
-        if (unsafeContainerNames.size > 0) {
+        if (unsafeContainers.size > 0) {
           throw new SandboxError(SANDBOX_ERROR_CODES.cleanupUnconfirmed);
         }
         await rm(controlRoot, { recursive: true, force: true });
         isDisposed = true;
       }).finally(() => {
-        isDisposing = false;
         disposalPromise = undefined;
       });
       return disposalPromise;
@@ -315,22 +330,30 @@ async function runDockerCommand(
   cleanupTimeoutMs: number,
   maxOutputBytes: number,
   dockerRunner: DockerRunner,
-  markCleanupUnconfirmed: (containerName: string) => void
+  markCleanupUnconfirmed: (containerName: string, pendingLaunch?: Promise<void>) => void
 ): Promise<CommandResult> {
   const containerName = `artemiskit-agent-${randomUUID()}`;
   const argv = buildDockerArgv(root, akitBundlePath, containerName, executable, args);
+  let pendingLaunch: Promise<void> | undefined;
   try {
     const result = await runWithTimeout(
       dockerRunner,
       { argv, timeoutMs, maxOutputBytes },
-      SANDBOX_ERROR_CODES.commandTimeout
+      SANDBOX_ERROR_CODES.commandTimeout,
+      (settlement) => {
+        pendingLaunch = settlement;
+      }
     );
     if (combinedByteLength(result) > maxOutputBytes) {
       throw new SandboxError(SANDBOX_ERROR_CODES.outputLimitExceeded);
     }
     return result;
   } catch (error) {
-    if (!(await cleanupContainer(containerName, maxOutputBytes, cleanupTimeoutMs, dockerRunner))) {
+    if (pendingLaunch) markCleanupUnconfirmed(containerName, pendingLaunch);
+    if (
+      !(await cleanupContainer(containerName, maxOutputBytes, cleanupTimeoutMs, dockerRunner)) &&
+      !pendingLaunch
+    ) {
       markCleanupUnconfirmed(containerName);
     }
     throw error;
@@ -384,7 +407,8 @@ async function runWithTimeout(
   request: Omit<DockerRunRequest, 'signal'>,
   timeoutCode:
     | typeof SANDBOX_ERROR_CODES.commandTimeout
-    | typeof SANDBOX_ERROR_CODES.operationTimeout
+    | typeof SANDBOX_ERROR_CODES.operationTimeout,
+  onUnsettledTimeout?: (settlement: Promise<void>) => void
 ): Promise<CommandResult> {
   const controller = new AbortController();
   let didTimeout = false;
@@ -397,13 +421,19 @@ async function runWithTimeout(
     }, request.timeoutMs);
   });
   const runnerPromise = runner({ ...request, signal: controller.signal });
+  const settlement = runnerPromise.then(
+    () => undefined,
+    () => undefined
+  );
   try {
     const result = await Promise.race([runnerPromise, timeoutPromise]);
     if (didTimeout) throw new SandboxError(timeoutCode);
     return result;
   } catch (error) {
     if (didTimeout) {
-      await waitForSettlement(runnerPromise, DEFAULT_ABORT_SETTLE_TIMEOUT_MS);
+      if (!(await waitForSettlement(settlement, DEFAULT_ABORT_SETTLE_TIMEOUT_MS))) {
+        onUnsettledTimeout?.(settlement);
+      }
       throw new SandboxError(timeoutCode);
     }
     throw error;
@@ -412,18 +442,24 @@ async function runWithTimeout(
   }
 }
 
-async function waitForSettlement(promise: Promise<unknown>, timeoutMs: number): Promise<void> {
+async function waitForSettlement(promise: Promise<unknown>, timeoutMs: number): Promise<boolean> {
+  let didSettle = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       promise.then(
-        () => undefined,
-        () => undefined
+        () => {
+          didSettle = true;
+        },
+        () => {
+          didSettle = true;
+        }
       ),
       new Promise<void>((resolve) => {
         timeout = setTimeout(resolve, timeoutMs);
       }),
     ]);
+    return didSettle;
   } finally {
     if (timeout) clearTimeout(timeout);
   }

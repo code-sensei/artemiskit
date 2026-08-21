@@ -99,6 +99,8 @@ export async function startMcpSandboxServer(
   const protectLoopback = isLoopbackHostname(hostname);
   const activeServers = new Set<Server>();
   let isClosed = false;
+  let isDisposed = false;
+  let closePromise: Promise<void> | undefined;
   let httpServer: Bun.Server<undefined>;
   try {
     httpServer = Bun.serve({
@@ -150,12 +152,21 @@ export async function startMcpSandboxServer(
     url,
     workspace,
     async close() {
-      if (isClosed) return;
-      isClosed = true;
-      await httpServer.stop(true);
-      await Promise.all([...activeServers].map((server) => server.close()));
-      activeServers.clear();
-      await workspace.dispose();
+      if (isDisposed) return;
+      if (closePromise) return closePromise;
+      closePromise = (async () => {
+        if (!isClosed) {
+          isClosed = true;
+          await httpServer.stop(true);
+          await Promise.all([...activeServers].map((server) => server.close()));
+          activeServers.clear();
+        }
+        await workspace.dispose();
+        isDisposed = true;
+      })().finally(() => {
+        closePromise = undefined;
+      });
+      return closePromise;
     },
   };
 }

@@ -22,6 +22,27 @@ describe('MCP sandbox server', () => {
     expect(packageModule.startMcpSandboxServer).toBeFunction();
   });
 
+  it('retries workspace disposal after an earlier close attempt fails', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const disposeWorkspace = workspace.dispose.bind(workspace);
+    let disposalAttempts = 0;
+    workspace.dispose = async () => {
+      disposalAttempts += 1;
+      if (disposalAttempts === 1) throw new Error('injected disposal failure');
+      await disposeWorkspace();
+    };
+    const runningServer = await startMcpSandboxServer({ workspace });
+
+    await expect(runningServer.close()).rejects.toThrow('injected disposal failure');
+    await runningServer.close();
+
+    expect(disposalAttempts).toBe(2);
+    await expect(workspace.read('scenario.yaml')).rejects.toMatchObject({
+      code: 'SANDBOX_DISPOSED',
+    });
+  });
+
   it('serves all bounded workspace tools over real loopback Streamable HTTP', async () => {
     const dockerRequests: string[][] = [];
     const workspace = await createDockerWorkspace({

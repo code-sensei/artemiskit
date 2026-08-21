@@ -16,7 +16,7 @@ The first public release supports TrueForge only. The core interface is intentio
 
 ## Safety model
 
-Every run receives a fresh fixture copied to a Docker volume. The MCP server permits reads, patches, Git status/diff, and allowlisted validation commands only inside the assigned workspace. It rejects host paths, network commands, package installation, Docker socket access, background processes, remote Git, destructive workspace-wide operations, and secrets. Containers run without network access and are destroyed after artifact collection.
+Every run receives a fresh host temporary workspace copied from the fixture. Only that disposable copy is bind-mounted read-write into the network-disabled container; Git control data stays in a separate host directory outside the mount. The MCP server permits reads, patches, Git status/diff, and allowlisted validation commands only inside the assigned workspace. It rejects host paths, network commands, package installation, Docker socket access, background processes, remote Git, destructive workspace-wide operations, and secrets. Containers use a read-only root filesystem and are destroyed after artifact collection.
 
 ## Evaluation model
 

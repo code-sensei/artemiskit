@@ -36,5 +36,8 @@ export * from './cost';
 // Safe tool execution
 export * from './tools';
 
+// Real-agent evaluation contracts
+export * from './agent-evaluation';
+
 // Validator
 export * from './validator';

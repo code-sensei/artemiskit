@@ -1,4 +1,5 @@
 import { type AgentAction, createDefaultRedactor } from '@artemiskit/core';
+import { isEventDelta, mergeEventDelta } from '@truefoundry/trueforge-sdk';
 import type { SanitizedTrueForgeEvent, TrueForgeEvent } from './types';
 
 const REDACTED = '[REDACTED]';
@@ -16,7 +17,7 @@ const SENSITIVE_KEYS = new Set([
   'accesstoken',
 ]);
 const SECRET_ASSIGNMENT_PATTERN =
-  /\b(password|secret|token|apikey|api_key|auth)(\s*[=:]\s*)(['"]?)([^\s'"]+)/gi;
+  /\b(?:password|passphrase|secret|client[-_]?secret|token|auth[-_]?token|api[-_]?key|authorization|credentials?|private[-_]?key)["']?\s*[=:]\s*(?:bearer\s+)?["']?[^\s,;'"}]+/gi;
 const JWT_PATTERN = /\beyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_.+/=]*\b/g;
 
 function escapeRegExp(value: string): string {
@@ -27,23 +28,34 @@ export function sanitizeTrueForgeText(
   text: string,
   sensitiveValues: readonly string[] = []
 ): string {
-  let result = text.replace(
-    SECRET_ASSIGNMENT_PATTERN,
-    (_match, _key: string, _separator: string, quote: string) => `${quote}${REDACTED}`
-  );
-  result = CORE_REDACTOR.redact(result).text;
-  result = result.replace(JWT_PATTERN, REDACTED);
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed !== null && typeof parsed === 'object') {
+      return JSON.stringify(sanitizeValue(parsed, sensitiveValues));
+    }
+  } catch {
+    // Non-JSON text is handled by the string redactors below.
+  }
+
+  let result = text;
   for (const sensitiveValue of sensitiveValues) {
     if (sensitiveValue.length > 0) {
       result = result.replace(new RegExp(escapeRegExp(sensitiveValue), 'g'), REDACTED);
     }
   }
+  result = result.replace(SECRET_ASSIGNMENT_PATTERN, REDACTED);
+  result = CORE_REDACTOR.redact(result).text;
+  result = result.replace(JWT_PATTERN, REDACTED);
   return result;
 }
 
 function isSensitiveKey(key: string): boolean {
-  const normalized = key.replace(/[-_]/g, '').toLowerCase();
-  return SENSITIVE_KEYS.has(normalized) || normalized.endsWith('apikey');
+  const normalized = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  return (
+    SENSITIVE_KEYS.has(normalized) ||
+    /(?:apikey|authtoken|clientsecret|privatekey)/.test(normalized) ||
+    /(?:password|passphrase|secret|token|authorization|credentials?|cookie)$/.test(normalized)
+  );
 }
 
 function sanitizeValue(value: unknown, sensitiveValues: readonly string[], key?: string): unknown {
@@ -59,6 +71,10 @@ function sanitizeValue(value: unknown, sensitiveValues: readonly string[], key?:
     );
   }
   return value;
+}
+
+export function sanitizeTrueForgeValue<T>(value: T, sensitiveValues: readonly string[] = []): T {
+  return sanitizeValue(value, sensitiveValues) as T;
 }
 
 export function sanitizeTrueForgeEvents(
@@ -81,14 +97,49 @@ function normalizeToolName(name: string): string {
 
 function responseStatus(content: string): AgentAction['status'] {
   try {
-    const parsed = JSON.parse(content) as Record<string, unknown>;
-    if (parsed.isError === true || parsed.error !== undefined) return 'error';
-    if (typeof parsed.exitCode === 'number' && parsed.exitCode !== 0) return 'error';
-    if (parsed.status === 'error' || parsed.status === 'rejected') return parsed.status;
+    const parsed = JSON.parse(content) as unknown;
+    if (containsFailure(parsed)) return 'error';
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'status' in parsed &&
+      parsed.status === 'rejected'
+    ) {
+      return 'rejected';
+    }
   } catch {
     if (/\b(?:error|denied|rejected|failed)\b/i.test(content)) return 'error';
   }
   return 'success';
+}
+
+function containsFailure(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsFailure);
+  if (value === null || typeof value !== 'object') return false;
+
+  for (const [key, entry] of Object.entries(value)) {
+    const normalizedKey = key.replace(/[-_]/g, '').toLowerCase();
+    if (normalizedKey === 'exitcode' && typeof entry === 'number' && entry !== 0) return true;
+    if (normalizedKey === 'iserror' && entry === true) return true;
+    if (
+      normalizedKey === 'error' &&
+      entry !== undefined &&
+      entry !== null &&
+      entry !== false &&
+      entry !== ''
+    ) {
+      return true;
+    }
+    if (
+      normalizedKey === 'status' &&
+      typeof entry === 'string' &&
+      /^(?:error|failed|rejected)$/i.test(entry)
+    ) {
+      return true;
+    }
+    if (containsFailure(entry)) return true;
+  }
+  return false;
 }
 
 function timestamp(value: string | undefined): number | undefined {
@@ -101,13 +152,24 @@ export function normalizeTrueForgeActions(
   events: readonly TrueForgeEvent[],
   sensitiveValues: readonly string[] = []
 ): AgentAction[] {
+  const mergedEvents = events.map((event) => structuredClone(event));
+  const messages = new Map<string, Extract<TrueForgeEvent, { type: 'model.message' }>>();
+  for (const event of mergedEvents) {
+    if (event.type === 'model.message') {
+      messages.set(event.id, event);
+    } else if (isEventDelta(event)) {
+      const message = messages.get(event.id);
+      if (message) mergeEventDelta(message, event);
+    }
+  }
+
   const pending = new Map<
     string,
     { name: string; startedAt?: number; type: AgentAction['type'] }
   >();
   const actions: AgentAction[] = [];
 
-  for (const event of events) {
+  for (const event of mergedEvents) {
     if (event.type === 'model.message') {
       const startedAt = timestamp(event.createdAt);
       for (const toolCall of event.toolCalls ?? []) {

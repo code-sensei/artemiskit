@@ -51,10 +51,10 @@ export interface TrueForgeOutcomeCollection {
 
 export interface TrueForgeOutcomeContext {
   events: readonly TrueForgeEvent[];
-  sessionId: string;
+  sessionId?: string;
   task: AgentTask;
-  terminalState: TrueForgeApi.TurnDoneEventState;
-  turnId: string;
+  terminalState?: TrueForgeApi.TurnDoneEventState;
+  turnId?: string;
 }
 
 export type TrueForgeOutcomeCollector = (
@@ -76,6 +76,8 @@ interface TrueForgeAdapterConfigBase {
   agent: TrueForgeApi.AgentSpec;
   baseUrl?: string;
   collectOutcome: TrueForgeOutcomeCollector;
+  /** Extra 1–1,000 ms window for collecting scoreable evidence after a failed run. */
+  failureCollectionGraceMs?: number;
   fetch?: typeof fetch;
   maxRetries?: number;
   /** Settings are changed only when setup() is explicitly called. */

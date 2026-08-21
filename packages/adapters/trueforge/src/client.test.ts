@@ -1,0 +1,375 @@
+import { describe, expect, it } from 'bun:test';
+import type { AgentTask } from '@artemiskit/core';
+import { TrueForgeAdapter } from './client';
+import { normalizeTrueForgeActions, sanitizeTrueForgeEvents } from './mapper';
+import { type TrueForgeClient, createLingProviderSetup } from './types';
+
+const TASK: AgentTask = {
+  id: 'scenario-repair',
+  fixturePath: '/fixtures/scenario-repair',
+  allowedPaths: ['scenario.yaml'],
+  allowedTools: ['workspace_read', 'workspace_patch', 'workspace_run'],
+  maxActions: 8,
+  timeoutMs: 1_000,
+  acceptanceCommands: ['akit validate scenario.yaml'],
+};
+
+const TURN_CREATED = {
+  type: 'turn.created' as const,
+  id: 'event-1',
+  turnId: 'turn-1',
+  previousTurnId: null,
+  state: { status: 'running' as const },
+  createdAt: '2026-08-21T10:00:00.000Z',
+  threadId: null,
+};
+
+const TURN_DONE = {
+  type: 'turn.done' as const,
+  id: 'event-4',
+  threadId: null,
+  createdAt: '2026-08-21T10:00:01.000Z',
+  state: {
+    status: 'done' as const,
+    output: null,
+    requiredActions: [],
+    completedAt: '2026-08-21T10:00:01.000Z',
+    metrics: { totalInputTokens: 20, totalOutputTokens: 5, totalTokens: 25 },
+  },
+};
+
+function createClient(events = [TURN_CREATED, TURN_DONE]) {
+  const calls = {
+    sessions: [] as unknown[],
+    turns: [] as unknown[],
+    cancellations: [] as string[],
+    providers: [] as unknown[],
+    mcpServers: [] as unknown[],
+  };
+
+  const client: TrueForgeClient = {
+    settings: {
+      modelProviders: {
+        async createOrUpdate(request) {
+          calls.providers.push(request);
+          return { data: { name: request.manifest.type } };
+        },
+      },
+      mcpServers: {
+        async createOrUpdate(request) {
+          calls.mcpServers.push(request);
+          return { data: { name: request.manifest.name } };
+        },
+      },
+    },
+    sessions: {
+      async create(request) {
+        calls.sessions.push(request);
+        return { data: { id: 'session-1' } };
+      },
+      async createTurnStream(sessionId, request) {
+        calls.turns.push({ sessionId, request });
+        return (async function* () {
+          for (const event of events) yield event;
+        })();
+      },
+      async cancel(sessionId) {
+        calls.cancellations.push(sessionId);
+        return {};
+      },
+    },
+  };
+
+  return { client, calls };
+}
+
+describe('TrueForge event mapping', () => {
+  it('maps correlated MCP calls to semantic actions and redacts retained content', () => {
+    const events = [
+      TURN_CREATED,
+      {
+        type: 'model.message' as const,
+        id: 'event-2',
+        threadId: 'main',
+        createdAt: '2026-08-21T10:00:00.100Z',
+        toolCalls: [
+          {
+            id: 'call-1',
+            type: 'function' as const,
+            function: { name: 'workspace_run', arguments: '{"command":"akit validate"}' },
+            providerSpecificFields: {
+              authorization: 'fixture-sensitive-value',
+              inputTokens: 12,
+            },
+            toolInfo: {
+              type: 'mcp' as const,
+              serverId: 'server-1',
+              serverName: 'sandbox',
+              name: 'workspace_run',
+            },
+          },
+        ],
+      },
+      {
+        type: 'tool.response' as const,
+        id: 'event-3',
+        threadId: 'main',
+        toolCallId: 'call-1',
+        content:
+          '{"exitCode":0,"stdout":"token=fixture-sensitive-value","contact":"owner@example.com"}',
+        createdAt: '2026-08-21T10:00:00.350Z',
+      },
+      TURN_DONE,
+    ];
+
+    expect(normalizeTrueForgeActions(events, ['fixture-sensitive-value'])).toEqual([
+      {
+        type: 'command',
+        name: 'workspace_run',
+        status: 'success',
+        durationMs: 250,
+        summary: '{"exitCode":0,"stdout":"[REDACTED]","contact":"[REDACTED]"}',
+      },
+    ]);
+    const sanitized = sanitizeTrueForgeEvents(events, ['fixture-sensitive-value']);
+    expect(JSON.stringify(sanitized)).not.toContain('fixture-sensitive-value');
+    expect(JSON.stringify(sanitized)).not.toContain('owner@example.com');
+    expect(
+      (sanitized[1].toolCalls as Array<{ providerSpecificFields: Record<string, unknown> }>)[0]
+        .providerSpecificFields.inputTokens
+    ).toBe(12);
+  });
+
+  it('normalizes qualified tool names and marks non-zero command exits as errors', () => {
+    const events = [
+      {
+        type: 'model.message' as const,
+        id: 'event-1',
+        threadId: 'main',
+        createdAt: '2026-08-21T10:00:00.000Z',
+        toolCalls: [
+          {
+            id: 'call-1',
+            type: 'function' as const,
+            function: { name: 'sandbox__workspace_run', arguments: '{}' },
+            toolInfo: {
+              type: 'mcp' as const,
+              serverId: 'server-1',
+              serverName: 'sandbox',
+              name: 'sandbox__workspace_run',
+            },
+          },
+        ],
+      },
+      {
+        type: 'tool.response' as const,
+        id: 'event-2',
+        threadId: 'main',
+        toolCallId: 'call-1',
+        content: '{"exitCode":2,"stderr":"validation failed"}',
+        createdAt: '2026-08-21T10:00:00.010Z',
+      },
+    ];
+
+    expect(normalizeTrueForgeActions(events)).toEqual([
+      {
+        type: 'command',
+        name: 'workspace_run',
+        status: 'error',
+        durationMs: 10,
+        summary: '{"exitCode":2,"stderr":"validation failed"}',
+      },
+    ]);
+  });
+});
+
+describe('TrueForgeAdapter', () => {
+  it('builds a Ling-compatible custom provider and model reference', () => {
+    expect(createLingProviderSetup()).toEqual({
+      model: { name: 'ling/ling-3-flash' },
+      provider: {
+        type: 'custom',
+        name: 'ling',
+        baseUrl: 'https://api.ant-ling.com/v1',
+        models: [{ modelId: 'Ling-3.0-flash', name: 'ling-3-flash', properties: {} }],
+      },
+    });
+  });
+
+  it('runs a session and streamed turn without mutating settings', async () => {
+    const { client, calls } = createClient();
+    const adapter = new TrueForgeAdapter(
+      {
+        agent: {
+          model: { name: 'ling/ling-3-flash' },
+          mcpServers: [{ name: 'sandbox', enableTools: ['@all'], requireApprovalForTools: [] }],
+        },
+        buildPrompt: (task) => `Repair the fixture at ${task.fixturePath}`,
+        collectOutcome: async () => ({
+          acceptancePassed: true,
+          changedPaths: ['scenario.yaml'],
+          finalDiff: 'diff --git a/scenario.yaml b/scenario.yaml',
+        }),
+      },
+      client
+    );
+
+    const outcome = await adapter.run(TASK);
+
+    expect(calls.providers).toEqual([]);
+    expect(calls.mcpServers).toEqual([]);
+    expect(calls.sessions).toEqual([
+      {
+        agent: {
+          spec: {
+            model: { name: 'ling/ling-3-flash' },
+            mcpServers: [{ name: 'sandbox', enableTools: ['@all'], requireApprovalForTools: [] }],
+          },
+        },
+      },
+    ]);
+    expect(calls.turns).toEqual([
+      {
+        sessionId: 'session-1',
+        request: {
+          input: [
+            { type: 'user.message', content: 'Repair the fixture at /fixtures/scenario-repair' },
+          ],
+        },
+      },
+    ]);
+    expect(outcome).toMatchObject({
+      taskId: 'scenario-repair',
+      completed: true,
+      acceptancePassed: true,
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      metrics: { totalTokens: 25 },
+      finalDiff: 'diff --git a/scenario.yaml b/scenario.yaml',
+      trace: { changedPaths: ['scenario.yaml'] },
+    });
+    expect(outcome.evidence.events).toHaveLength(2);
+  });
+
+  it('upserts provider and MCP settings only through explicit setup', async () => {
+    const { client, calls } = createClient();
+    const adapter = new TrueForgeAdapter(
+      {
+        agent: { model: { name: 'ling/ling-3-flash' } },
+        prompt: 'Repair the supplied scenario.',
+        collectOutcome: async () => ({ acceptancePassed: false, changedPaths: [] }),
+        setup: {
+          provider: {
+            type: 'custom',
+            name: 'ling',
+            baseUrl: 'https://api.ant-ling.com/v1',
+            models: [{ modelId: 'Ling-3.0-flash', name: 'ling-3-flash', properties: {} }],
+          },
+          mcpServer: {
+            type: 'remote',
+            name: 'sandbox',
+            url: 'http://127.0.0.1:8787/mcp',
+            description: 'Local evaluation sandbox',
+          },
+        },
+      },
+      client
+    );
+
+    const result = await adapter.setup();
+
+    expect(calls.providers).toHaveLength(1);
+    expect(calls.mcpServers).toHaveLength(1);
+    expect(result).toEqual({ providerName: 'ling', mcpServerName: 'sandbox' });
+  });
+
+  it('does not treat pending required actions as a completed outcome', async () => {
+    const pending = {
+      ...TURN_DONE,
+      state: {
+        ...TURN_DONE.state,
+        requiredActions: [
+          {
+            type: 'tool.approval_required' as const,
+            id: 'approval-1',
+            createdAt: '2026-08-21T10:00:01.000Z',
+            threadId: 'main',
+            toolCalls: [{ id: 'call-1', sourceEventId: 'event-2' }],
+          },
+        ],
+      },
+    };
+    const { client } = createClient([TURN_CREATED, pending]);
+    let collected = false;
+    const adapter = new TrueForgeAdapter(
+      {
+        agent: { model: { name: 'ling/ling-3-flash' } },
+        prompt: 'Repair the supplied scenario.',
+        collectOutcome: async () => {
+          collected = true;
+          return { acceptancePassed: true, changedPaths: [] };
+        },
+      },
+      client
+    );
+
+    const outcome = await adapter.run(TASK);
+
+    expect(collected).toBe(false);
+    expect(outcome.completed).toBe(false);
+    expect(outcome.acceptancePassed).toBe(false);
+    expect(outcome.error).toContain('requires additional action');
+  });
+
+  it('aborts timed-out turns and best-effort cancels their session', async () => {
+    const { client, calls } = createClient();
+    client.sessions.createTurnStream = async (_sessionId, _request, options) =>
+      (async function* () {
+        yield TURN_CREATED;
+        await new Promise<void>((_resolve, reject) => {
+          options?.abortSignal?.addEventListener('abort', () => reject(new Error('aborted')), {
+            once: true,
+          });
+        });
+      })();
+    const adapter = new TrueForgeAdapter(
+      {
+        agent: { model: { name: 'ling/ling-3-flash' } },
+        prompt: 'Repair the supplied scenario.',
+        collectOutcome: async () => ({ acceptancePassed: true, changedPaths: [] }),
+        turnTimeoutMs: 5,
+      },
+      client
+    );
+
+    const outcome = await adapter.run(TASK);
+
+    expect(outcome.completed).toBe(false);
+    expect(outcome.acceptancePassed).toBe(false);
+    expect(outcome.error).toBe('TrueForge turn timed out after 5ms');
+    expect(calls.cancellations).toEqual(['session-1']);
+  });
+
+  it('returns a redacted structured outcome for routine API failures', async () => {
+    const { client } = createClient();
+    client.sessions.create = async () => {
+      throw new Error('request failed: Authorization: Bearer not-a-real-token');
+    };
+    const adapter = new TrueForgeAdapter(
+      {
+        agent: { model: { name: 'ling/ling-3-flash' } },
+        prompt: 'Repair the supplied scenario.',
+        token: 'not-a-real-token',
+        collectOutcome: async () => ({ acceptancePassed: true, changedPaths: [] }),
+      },
+      client
+    );
+
+    const outcome = await adapter.run(TASK);
+
+    expect(outcome.completed).toBe(false);
+    expect(outcome.acceptancePassed).toBe(false);
+    expect(outcome.error).toContain('[REDACTED]');
+    expect(JSON.stringify(outcome)).not.toContain('not-a-real-token');
+  });
+});

@@ -44,6 +44,9 @@ artemis-output/
 # Private Ling API evaluation corpus, manifests, and report aggregates
 ling-evaluation/
 
+# Local real-agent evaluation traces, diffs, and sanitized harness artifacts
+agent-evaluation-runs/
+
 # AI trace logs
 ai-trace/
 notes.txt

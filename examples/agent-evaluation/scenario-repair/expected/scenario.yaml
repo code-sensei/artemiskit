@@ -1,0 +1,9 @@
+name: scenario-repair-fixture
+description: A deterministic scenario with one malformed expectation type.
+
+cases:
+  - id: greeting
+    prompt: Reply with the word hello.
+    expected:
+      type: contains
+      values: [hello]

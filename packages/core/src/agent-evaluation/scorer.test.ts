@@ -273,4 +273,64 @@ describe('scoreAgentOutcome', () => {
       expect(result.issues.map((issue) => issue.code)).toContain('final-diff-missing');
     }
   });
+
+  it('requires every task-declared artifact check', () => {
+    const taskWithArtifactCheck = {
+      ...task,
+      requiredArtifactChecks: ['scenario-matches-expected'],
+    };
+
+    const result = scoreAgentOutcome(taskWithArtifactCheck, createOutcome(), createEvidence());
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('artifact-evidence-missing');
+  });
+
+  it('fails the task when a required artifact check fails', () => {
+    const taskWithArtifactCheck = {
+      ...task,
+      requiredArtifactChecks: ['scenario-matches-expected'],
+    };
+    const evidence = {
+      ...createEvidence(),
+      artifactChecks: [
+        {
+          id: 'scenario-matches-expected',
+          status: 'failed' as const,
+          durationMs: 5,
+        },
+      ],
+    };
+
+    const result = scoreAgentOutcome(taskWithArtifactCheck, createOutcome(), evidence);
+
+    expect(result.verdict).toBe('task_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('artifact-check-failed');
+  });
+
+  it('prioritizes missing acceptance evidence over a failed artifact check', () => {
+    const taskWithArtifactCheck = {
+      ...task,
+      requiredArtifactChecks: ['scenario-matches-expected'],
+    };
+    const evidence = {
+      ...createEvidence({ acceptanceChecks: [] }),
+      artifactChecks: [
+        {
+          id: 'scenario-matches-expected',
+          status: 'failed' as const,
+          durationMs: 5,
+        },
+      ],
+    };
+
+    const result = scoreAgentOutcome(
+      taskWithArtifactCheck,
+      createOutcome({ acceptancePassed: false }),
+      evidence
+    );
+
+    expect(result.verdict).toBe('infrastructure_failed');
+    expect(result.issues.map((issue) => issue.code)).toContain('acceptance-evidence-missing');
+  });
 });

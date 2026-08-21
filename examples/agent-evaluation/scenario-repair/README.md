@@ -19,11 +19,13 @@ return normalized ArtemisKit outcome evidence.
 2. Configure only the tools and budgets listed in `task.yaml`.
 3. Give the agent the `instructions` value and collect its normalized outcome and trace.
 4. Run every `acceptanceCommands` entry after the agent terminates.
-5. Call `scoreAgentOutcome(task, outcome, evidence)` from `@artemiskit/core`.
+5. Call `checkScenarioRepair(workspacePath)` and include its returned artifact check in
+   `evidence.artifactChecks`.
+6. Call `scoreAgentOutcome(task, outcome, evidence)` from `@artemiskit/core`.
 
-Adapters can additionally call `checkScenarioRepair(workspacePath)` from `acceptance.ts` after
-artifact collection. It uses ArtemisKit's authoritative validator and parser; it does not duplicate
-the scenario schema.
+The `scenario-matches-expected` artifact check is required by `task.yaml`, so omitting it is an
+infrastructure evidence failure and a valid but unrelated edit is a task failure. The helper uses
+ArtemisKit's authoritative validator and parser; it does not duplicate the scenario schema.
 
 ## Local fixture proof
 

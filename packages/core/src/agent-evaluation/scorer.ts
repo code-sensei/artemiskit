@@ -18,9 +18,16 @@ export interface AgentAcceptanceCheck {
   durationMs: number;
 }
 
+export interface AgentArtifactCheck {
+  id: string;
+  status: 'passed' | 'failed' | 'executor_error';
+  durationMs: number;
+}
+
 export interface AgentEvaluationEvidence {
   termination: AgentTerminationEvidence;
   acceptanceChecks: AgentAcceptanceCheck[];
+  artifactChecks?: AgentArtifactCheck[];
 }
 
 export type AgentEvaluationVerdict =
@@ -151,6 +158,69 @@ export function scoreAgentOutcome(
     };
   }
 
+  const artifactChecks = evidence.artifactChecks ?? [];
+  for (const checkId of task.requiredArtifactChecks ?? []) {
+    const matchingChecks = artifactChecks.filter((check) => check.id === checkId);
+    if (matchingChecks.length === 0) {
+      return {
+        taskId: task.id,
+        verdict: 'infrastructure_failed',
+        passed: false,
+        recoveredActionCount: 0,
+        issues: [
+          {
+            code: 'artifact-evidence-missing',
+            message: `No artifact evidence was recorded for: ${checkId}.`,
+          },
+        ],
+      };
+    }
+    if (matchingChecks.length > 1) {
+      return {
+        taskId: task.id,
+        verdict: 'infrastructure_failed',
+        passed: false,
+        recoveredActionCount: 0,
+        issues: [
+          {
+            code: 'artifact-evidence-duplicate',
+            message: `Multiple artifact results were recorded for: ${checkId}.`,
+          },
+        ],
+      };
+    }
+
+    const [check] = matchingChecks;
+    if (!check || !Number.isFinite(check.durationMs) || check.durationMs < 0) {
+      return {
+        taskId: task.id,
+        verdict: 'infrastructure_failed',
+        passed: false,
+        recoveredActionCount: 0,
+        issues: [
+          {
+            code: 'artifact-evidence-invalid',
+            message: `Artifact evidence is invalid for: ${checkId}.`,
+          },
+        ],
+      };
+    }
+    if (check.status === 'executor_error') {
+      return {
+        taskId: task.id,
+        verdict: 'infrastructure_failed',
+        passed: false,
+        recoveredActionCount: 0,
+        issues: [
+          {
+            code: 'artifact-executor-error',
+            message: `Artifact check could not be executed: ${checkId}.`,
+          },
+        ],
+      };
+    }
+  }
+
   for (const command of task.acceptanceCommands) {
     const matchingChecks = evidence.acceptanceChecks.filter((check) => check.command === command);
     if (matchingChecks.length === 0) {
@@ -253,6 +323,24 @@ export function scoreAgentOutcome(
         {
           code: 'final-diff-missing',
           message: 'Changed paths were recorded without a non-empty final diff.',
+        },
+      ],
+    };
+  }
+
+  const failedArtifactCheck = artifactChecks.find(
+    (check) => task.requiredArtifactChecks?.includes(check.id) === true && check.status === 'failed'
+  );
+  if (failedArtifactCheck) {
+    return {
+      taskId: task.id,
+      verdict: 'task_failed',
+      passed: false,
+      recoveredActionCount: 0,
+      issues: [
+        {
+          code: 'artifact-check-failed',
+          message: `Required artifact check failed: ${failedArtifactCheck.id}.`,
         },
       ],
     };

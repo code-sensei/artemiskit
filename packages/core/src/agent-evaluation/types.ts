@@ -6,6 +6,7 @@ export interface AgentTask {
   maxActions: number;
   timeoutMs: number;
   acceptanceCommands: string[];
+  requiredArtifactChecks?: string[];
 }
 
 export interface AgentAction {

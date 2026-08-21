@@ -16,3 +16,5 @@ maxActions: 10
 timeoutMs: 60000
 acceptanceCommands:
   - akit validate scenario.yaml
+requiredArtifactChecks:
+  - scenario-matches-expected

@@ -1,7 +1,10 @@
 import { resolve } from 'node:path';
-import { parseScenarioFile, ScenarioValidator } from '@artemiskit/core';
+import { isDeepStrictEqual } from 'node:util';
+import { type AgentArtifactCheck, ScenarioValidator, parseScenarioFile } from '@artemiskit/core';
 
-export interface ScenarioRepairAcceptance {
+export const SCENARIO_REPAIR_ARTIFACT_CHECK = 'scenario-matches-expected';
+
+export interface ScenarioRepairAcceptance extends AgentArtifactCheck {
   passed: boolean;
   scenarioValid: boolean;
   expectationType?: string;
@@ -11,11 +14,15 @@ export interface ScenarioRepairAcceptance {
 export async function checkScenarioRepair(
   workspacePath: string
 ): Promise<ScenarioRepairAcceptance> {
+  const startedAt = performance.now();
   const scenarioPath = resolve(workspacePath, 'scenario.yaml');
   const validation = new ScenarioValidator().validate(scenarioPath);
 
   if (!validation.valid) {
     return {
+      id: SCENARIO_REPAIR_ARTIFACT_CHECK,
+      status: 'failed',
+      durationMs: performance.now() - startedAt,
       passed: false,
       scenarioValid: false,
       issueRules: validation.errors.map((error) => error.rule),
@@ -23,18 +30,29 @@ export async function checkScenarioRepair(
   }
 
   try {
-    const scenario = await parseScenarioFile(scenarioPath);
+    const expectedScenarioPath = resolve(import.meta.dir, 'expected', 'scenario.yaml');
+    const [scenario, expectedScenario] = await Promise.all([
+      parseScenarioFile(scenarioPath),
+      parseScenarioFile(expectedScenarioPath),
+    ]);
     const expectationType = scenario.cases.find((testCase) => testCase.id === 'greeting')?.expected
       .type;
+    const matchesExpectedScenario = isDeepStrictEqual(scenario, expectedScenario);
 
     return {
-      passed: expectationType === 'contains',
+      id: SCENARIO_REPAIR_ARTIFACT_CHECK,
+      status: matchesExpectedScenario ? 'passed' : 'failed',
+      durationMs: performance.now() - startedAt,
+      passed: matchesExpectedScenario,
       scenarioValid: true,
       expectationType,
-      issueRules: expectationType === 'contains' ? [] : ['unexpected-expectation-type'],
+      issueRules: matchesExpectedScenario ? [] : ['scenario-does-not-match-expected'],
     };
   } catch {
     return {
+      id: SCENARIO_REPAIR_ARTIFACT_CHECK,
+      status: 'executor_error',
+      durationMs: performance.now() - startedAt,
       passed: false,
       scenarioValid: false,
       issueRules: ['scenario-parse-error'],

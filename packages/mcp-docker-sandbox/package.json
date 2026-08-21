@@ -4,8 +4,22 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli.js",
+      "types": "./dist/cli.d.ts"
+    }
+  },
+  "bin": {
+    "mcp-docker-sandbox": "./dist/cli.js"
+  },
   "scripts": {
-    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "tsc && bun build ./src/index.ts ./src/cli.ts --outdir ./dist --target bun",
+    "start": "bun run ./src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

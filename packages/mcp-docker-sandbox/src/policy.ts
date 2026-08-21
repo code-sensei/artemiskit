@@ -7,6 +7,7 @@ export const SANDBOX_ERROR_CODES = {
   commandDenied: 'SANDBOX_COMMAND_DENIED',
   commandFailed: 'SANDBOX_COMMAND_FAILED',
   commandTimeout: 'SANDBOX_COMMAND_TIMEOUT',
+  cleanupUnconfirmed: 'SANDBOX_CLEANUP_UNCONFIRMED',
   disposed: 'SANDBOX_DISPOSED',
   fileTooLarge: 'SANDBOX_FILE_TOO_LARGE',
   fixtureInvalid: 'SANDBOX_FIXTURE_INVALID',

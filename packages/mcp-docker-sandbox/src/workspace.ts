@@ -45,6 +45,7 @@ export interface DockerWorkspaceOptions {
   fixturePath?: string;
   akitBundlePath?: string;
   commandTimeoutMs?: number;
+  cleanupTimeoutMs?: number;
   maxCommands?: number;
   operationTimeoutMs?: number;
   maxOperations?: number;
@@ -102,17 +103,24 @@ export async function createDockerWorkspace(
   }
 
   const commandTimeoutMs = options.commandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
+  const cleanupTimeoutMs = options.cleanupTimeoutMs ?? DEFAULT_CONTAINER_CLEANUP_TIMEOUT_MS;
   const maxCommands = options.maxCommands ?? DEFAULT_MAX_COMMANDS;
   const maxOperations = options.maxOperations ?? DEFAULT_MAX_OPERATIONS;
   const maxFileBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const dockerRunner = options.dockerRunner ?? runDocker;
   const serialize = createOperationQueue(operationTimeoutMs);
+  const unsafeContainerNames = new Set<string>();
   let commandCount = 0;
   let operationCount = 0;
   let isDisposed = false;
+  let isDisposing = false;
+  let disposalPromise: Promise<void> | undefined;
   const assertActive = (): void => {
-    if (isDisposed) throw new SandboxError(SANDBOX_ERROR_CODES.disposed);
+    if (isDisposed || isDisposing) throw new SandboxError(SANDBOX_ERROR_CODES.disposed);
+    if (unsafeContainerNames.size > 0) {
+      throw new SandboxError(SANDBOX_ERROR_CODES.cleanupUnconfirmed);
+    }
   };
   const reserveOperation = (): void => {
     if (operationCount >= maxOperations) {
@@ -126,20 +134,22 @@ export async function createDockerWorkspace(
     async read(path) {
       assertActive();
       reserveOperation();
-      return serialize(() =>
-        withOperationTimeout(async (signal) => {
+      return serialize(() => {
+        assertActive();
+        return withOperationTimeout(async (signal) => {
           const resolvedPath = await resolveWorkspaceFile(root, path);
           await assertFileWithinLimit(resolvedPath, maxFileBytes);
           return readFile(resolvedPath, { encoding: 'utf8', signal });
-        }, operationTimeoutMs)
-      );
+        }, operationTimeoutMs);
+      });
     },
     async patch({ path, oldText, newText }) {
       assertActive();
       reserveOperation();
       if (!oldText) throw new SandboxError(SANDBOX_ERROR_CODES.patchConflict);
-      return serialize(() =>
-        withOperationTimeout(async (signal) => {
+      return serialize(() => {
+        assertActive();
+        return withOperationTimeout(async (signal) => {
           const resolvedPath = await resolveWorkspaceFile(root, path);
           await assertFileWithinLimit(resolvedPath, maxFileBytes);
           const contents = await readFile(resolvedPath, { encoding: 'utf8', signal });
@@ -155,41 +165,44 @@ export async function createDockerWorkspace(
           }
           await writeFile(resolvedPath, updated, { signal });
           return { path, replacements: 1 as const };
-        }, operationTimeoutMs)
-      );
+        }, operationTimeoutMs);
+      });
     },
     async status() {
       assertActive();
       reserveOperation();
-      const result = await serialize(() =>
-        runGit(
+      const result = await serialize(() => {
+        assertActive();
+        return runGit(
           root,
           gitDirectory,
           ['status', '--short', '--untracked-files=all'],
           maxOutputBytes,
           operationTimeoutMs,
           gitRunner
-        )
-      );
+        );
+      });
       return result.stdout;
     },
     async diff() {
       assertActive();
       reserveOperation();
-      const result = await serialize(() =>
-        runGit(
+      const result = await serialize(() => {
+        assertActive();
+        return runGit(
           root,
           gitDirectory,
           ['diff', '--no-ext-diff', '--no-color', '--'],
           maxOutputBytes,
           operationTimeoutMs,
           gitRunner
-        )
-      );
+        );
+      });
       return result.stdout;
     },
     async run(command) {
       assertActive();
+      reserveOperation();
       const allowed = assertAllowedCommand(command);
       if (allowed.requiresAkitBundle && !akitBundlePath) {
         throw new SandboxError(SANDBOX_ERROR_CODES.akitBundleRequired);
@@ -197,24 +210,44 @@ export async function createDockerWorkspace(
       if (commandCount >= maxCommands) {
         throw new SandboxError(SANDBOX_ERROR_CODES.commandBudgetExceeded);
       }
-      reserveOperation();
       commandCount += 1;
-      return serialize(() =>
-        runDockerCommand(
+      return serialize(() => {
+        assertActive();
+        return runDockerCommand(
           root,
           akitBundlePath,
           allowed.executable,
           allowed.args,
           commandTimeoutMs,
+          cleanupTimeoutMs,
           maxOutputBytes,
-          dockerRunner
-        )
-      );
+          dockerRunner,
+          (containerName) => unsafeContainerNames.add(containerName)
+        );
+      });
     },
     async dispose() {
       if (isDisposed) return;
-      isDisposed = true;
-      await serialize(() => rm(controlRoot, { recursive: true, force: true }));
+      if (disposalPromise) return disposalPromise;
+      isDisposing = true;
+      disposalPromise = serialize(async () => {
+        for (const containerName of unsafeContainerNames) {
+          if (
+            await cleanupContainer(containerName, maxOutputBytes, cleanupTimeoutMs, dockerRunner)
+          ) {
+            unsafeContainerNames.delete(containerName);
+          }
+        }
+        if (unsafeContainerNames.size > 0) {
+          throw new SandboxError(SANDBOX_ERROR_CODES.cleanupUnconfirmed);
+        }
+        await rm(controlRoot, { recursive: true, force: true });
+        isDisposed = true;
+      }).finally(() => {
+        isDisposing = false;
+        disposalPromise = undefined;
+      });
+      return disposalPromise;
     },
   };
 }
@@ -279,8 +312,10 @@ async function runDockerCommand(
   executable: string,
   args: string[],
   timeoutMs: number,
+  cleanupTimeoutMs: number,
   maxOutputBytes: number,
-  dockerRunner: DockerRunner
+  dockerRunner: DockerRunner,
+  markCleanupUnconfirmed: (containerName: string) => void
 ): Promise<CommandResult> {
   const containerName = `artemiskit-agent-${randomUUID()}`;
   const argv = buildDockerArgv(root, akitBundlePath, containerName, executable, args);
@@ -295,7 +330,9 @@ async function runDockerCommand(
     }
     return result;
   } catch (error) {
-    await cleanupContainer(containerName, maxOutputBytes, timeoutMs, dockerRunner);
+    if (!(await cleanupContainer(containerName, maxOutputBytes, cleanupTimeoutMs, dockerRunner))) {
+      markCleanupUnconfirmed(containerName);
+    }
     throw error;
   }
 }
@@ -303,22 +340,43 @@ async function runDockerCommand(
 async function cleanupContainer(
   containerName: string,
   maxOutputBytes: number,
-  commandTimeoutMs: number,
+  timeoutMs: number,
   dockerRunner: DockerRunner
-): Promise<void> {
+): Promise<boolean> {
+  let removalResult: CommandResult | undefined;
   try {
-    await runWithTimeout(
+    removalResult = await runWithTimeout(
       dockerRunner,
       {
         argv: ['docker', 'rm', '-f', containerName],
-        timeoutMs: Math.min(commandTimeoutMs, DEFAULT_CONTAINER_CLEANUP_TIMEOUT_MS),
+        timeoutMs,
         maxOutputBytes,
       },
       SANDBOX_ERROR_CODES.operationTimeout
     );
   } catch {
-    // Best effort: the exact named container may not have reached Docker before failure.
+    // Inspect below: a failed removal is safe only if Docker confirms absence.
   }
+  if (removalResult?.exitCode === 0) return true;
+
+  let inspectionResult: CommandResult;
+  try {
+    inspectionResult = await runWithTimeout(
+      dockerRunner,
+      {
+        argv: ['docker', 'container', 'inspect', containerName],
+        timeoutMs,
+        maxOutputBytes,
+      },
+      SANDBOX_ERROR_CODES.operationTimeout
+    );
+  } catch {
+    return false;
+  }
+  return (
+    inspectionResult.exitCode !== 0 &&
+    inspectionResult.stderr.includes(`No such container: ${containerName}`)
+  );
 }
 
 async function runWithTimeout(

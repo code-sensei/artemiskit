@@ -12,6 +12,8 @@ export const SANDBOX_ERROR_CODES = {
   fixtureInvalid: 'SANDBOX_FIXTURE_INVALID',
   internalError: 'SANDBOX_INTERNAL_ERROR',
   invalidArgument: 'SANDBOX_INVALID_ARGUMENT',
+  operationBudgetExceeded: 'SANDBOX_OPERATION_BUDGET_EXCEEDED',
+  operationTimeout: 'SANDBOX_OPERATION_TIMEOUT',
   outputLimitExceeded: 'SANDBOX_OUTPUT_LIMIT_EXCEEDED',
   patchConflict: 'SANDBOX_PATCH_CONFLICT',
   pathDenied: 'SANDBOX_PATH_DENIED',

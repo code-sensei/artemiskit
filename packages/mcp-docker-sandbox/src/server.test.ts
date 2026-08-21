@@ -64,12 +64,14 @@ describe('MCP sandbox server', () => {
           })
         )
       ).toMatchObject({ ok: true, path: 'scenario.yaml', replacements: 1 });
-      expect(
-        structured(await client.callTool({ name: 'workspace_status', arguments: {} }))
-      ).toMatchObject({ ok: true, status: expect.stringContaining(' M scenario.yaml') });
-      expect(
-        structured(await client.callTool({ name: 'workspace_diff', arguments: {} }))
-      ).toMatchObject({ ok: true, diff: expect.stringContaining('+after') });
+      expect(structured(await client.callTool({ name: 'workspace_status' }))).toMatchObject({
+        ok: true,
+        status: expect.stringContaining(' M scenario.yaml'),
+      });
+      expect(structured(await client.callTool({ name: 'workspace_diff' }))).toMatchObject({
+        ok: true,
+        diff: expect.stringContaining('+after'),
+      });
       expect(
         structured(
           await client.callTool({
@@ -118,6 +120,13 @@ describe('MCP sandbox server', () => {
         ok: false,
         error: { code: 'SANDBOX_INVALID_ARGUMENT', message: 'SANDBOX_INVALID_ARGUMENT' },
       });
+
+      const missingArguments = await client.callTool({ name: 'workspace_read' });
+      expect(missingArguments.isError).toBe(true);
+      expect(structured(missingArguments)).toEqual({
+        ok: false,
+        error: { code: 'SANDBOX_INVALID_ARGUMENT', message: 'SANDBOX_INVALID_ARGUMENT' },
+      });
     } finally {
       await client.close();
       await runningServer.close();
@@ -133,6 +142,48 @@ describe('MCP sandbox server', () => {
     });
     expect(await workspace.read('scenario.yaml')).toBe('before\n');
     await workspace.dispose();
+  });
+
+  it('rejects hostile Host and Origin headers on loopback', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const runningServer = await startMcpSandboxServer({ workspace });
+    const body = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'host-validation-test', version: '1.0.0' },
+      },
+    });
+
+    try {
+      const hostileHost = await fetch(runningServer.url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+          Host: 'attacker.example',
+        },
+        body,
+      });
+      expect(hostileHost.status).toBe(403);
+
+      const hostileOrigin = await fetch(runningServer.url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+          Origin: 'https://attacker.example',
+        },
+        body,
+      });
+      expect(hostileOrigin.status).toBe(403);
+    } finally {
+      await runningServer.close();
+    }
   });
 });
 

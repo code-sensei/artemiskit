@@ -96,6 +96,7 @@ export async function startMcpSandboxServer(
   }
 
   const workspace = options.workspace ?? (await createDockerWorkspace(options));
+  const protectLoopback = isLoopbackHostname(hostname);
   const activeServers = new Set<Server>();
   let isClosed = false;
   let httpServer: Bun.Server<undefined>;
@@ -116,6 +117,9 @@ export async function startMcpSandboxServer(
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
+          allowedHosts: protectLoopback ? [httpServer.url.host] : undefined,
+          allowedOrigins: protectLoopback ? [httpServer.url.origin] : undefined,
+          enableDnsRebindingProtection: protectLoopback,
         });
         activeServers.add(protocolServer);
         try {
@@ -168,13 +172,14 @@ function createProtocolServer(workspace: DockerWorkspace): Server {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOL_DEFINITIONS }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      const args = requireRecord(request.params.arguments);
       switch (request.params.name) {
         case 'workspace_read': {
+          const args = requireRecord(request.params.arguments);
           const path = requireString(args, 'path');
           return successResult({ ok: true, path, content: await workspace.read(path) });
         }
         case 'workspace_patch': {
+          const args = requireRecord(request.params.arguments);
           const path = requireString(args, 'path');
           const result = await workspace.patch({
             path,
@@ -184,10 +189,13 @@ function createProtocolServer(workspace: DockerWorkspace): Server {
           return successResult({ ok: true, ...result });
         }
         case 'workspace_status':
+          requireNoArguments(request.params.arguments);
           return successResult({ ok: true, status: await workspace.status() });
         case 'workspace_diff':
+          requireNoArguments(request.params.arguments);
           return successResult({ ok: true, diff: await workspace.diff() });
         case 'workspace_run': {
+          const args = requireRecord(request.params.arguments);
           const command = requireString(args, 'command');
           return successResult({ ok: true, command, ...(await workspace.run(command)) });
         }
@@ -226,6 +234,14 @@ function requireRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function requireNoArguments(value: unknown): void {
+  if (value === undefined) return;
+  const args = requireRecord(value);
+  if (Object.keys(args).length > 0) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+  }
+}
+
 function requireString(args: Record<string, unknown>, key: string, allowEmpty = false): string {
   const value = args[key];
   if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) {
@@ -235,13 +251,17 @@ function requireString(args: Record<string, unknown>, key: string, allowEmpty = 
 }
 
 function assertAllowedBinding(hostname: string, allowRemoteBinding: boolean): void {
+  if (!isLoopbackHostname(hostname) && !allowRemoteBinding) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.remoteBindingDenied);
+  }
+}
+
+function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
-  const isLoopback =
+  return (
     normalized === '127.0.0.1' ||
     normalized === 'localhost' ||
     normalized === '::1' ||
-    normalized === '[::1]';
-  if (!isLoopback && !allowRemoteBinding) {
-    throw new SandboxError(SANDBOX_ERROR_CODES.remoteBindingDenied);
-  }
+    normalized === '[::1]'
+  );
 }

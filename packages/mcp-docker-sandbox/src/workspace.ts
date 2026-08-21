@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   copyFile,
   lstat,
@@ -45,9 +46,12 @@ export interface DockerWorkspaceOptions {
   akitBundlePath?: string;
   commandTimeoutMs?: number;
   maxCommands?: number;
+  operationTimeoutMs?: number;
+  maxOperations?: number;
   maxFileBytes?: number;
   maxOutputBytes?: number;
   dockerRunner?: DockerRunner;
+  gitRunner?: DockerRunner;
 }
 
 export interface DockerRunRequest {
@@ -60,7 +64,11 @@ export interface DockerRunRequest {
 export type DockerRunner = (request: DockerRunRequest) => Promise<CommandResult>;
 
 const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+const DEFAULT_OPERATION_TIMEOUT_MS = 10_000;
+const DEFAULT_CONTAINER_CLEANUP_TIMEOUT_MS = 5_000;
+const DEFAULT_ABORT_SETTLE_TIMEOUT_MS = 1_000;
 const DEFAULT_MAX_COMMANDS = 20;
+const DEFAULT_MAX_OPERATIONS = 100;
 const DEFAULT_MAX_FILE_BYTES = 1_000_000;
 const DEFAULT_MAX_OUTPUT_BYTES = 1_000_000;
 const DOCKER_IMAGE = 'oven/bun:1.3.10';
@@ -68,73 +76,115 @@ const DOCKER_IMAGE = 'oven/bun:1.3.10';
 export async function createDockerWorkspace(
   options: DockerWorkspaceOptions = {}
 ): Promise<DockerWorkspace> {
-  const root = await mkdtemp(join(tmpdir(), 'artemiskit-agent-'));
+  const controlRoot = await mkdtemp(join(tmpdir(), 'artemiskit-agent-'));
+  const root = join(controlRoot, 'workspace');
+  const gitDirectory = join(controlRoot, 'git');
+  const operationTimeoutMs = options.operationTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS;
+  const gitRunner = options.gitRunner ?? runGitProcess;
   let akitBundlePath: string | undefined;
   try {
+    await mkdir(root);
     akitBundlePath = await resolveAkitBundle(options.akitBundlePath);
     if (options.fixturePath) {
       await copyFixture(options.fixturePath, root);
     }
-    await initializeGitBaseline(root);
+    await initializeGitBaseline(
+      root,
+      gitDirectory,
+      operationTimeoutMs,
+      options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+      gitRunner
+    );
   } catch (error) {
-    await rm(root, { recursive: true, force: true });
+    await rm(controlRoot, { recursive: true, force: true });
     if (error instanceof SandboxError) throw error;
     throw new SandboxError(SANDBOX_ERROR_CODES.fixtureInvalid, undefined, { cause: error });
   }
 
   const commandTimeoutMs = options.commandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
   const maxCommands = options.maxCommands ?? DEFAULT_MAX_COMMANDS;
+  const maxOperations = options.maxOperations ?? DEFAULT_MAX_OPERATIONS;
   const maxFileBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const dockerRunner = options.dockerRunner ?? runDocker;
+  const serialize = createOperationQueue(operationTimeoutMs);
   let commandCount = 0;
+  let operationCount = 0;
   let isDisposed = false;
   const assertActive = (): void => {
     if (isDisposed) throw new SandboxError(SANDBOX_ERROR_CODES.disposed);
+  };
+  const reserveOperation = (): void => {
+    if (operationCount >= maxOperations) {
+      throw new SandboxError(SANDBOX_ERROR_CODES.operationBudgetExceeded);
+    }
+    operationCount += 1;
   };
 
   return {
     root,
     async read(path) {
       assertActive();
-      const resolvedPath = await resolveWorkspaceFile(root, path);
-      await assertFileWithinLimit(resolvedPath, maxFileBytes);
-      return readFile(resolvedPath, 'utf8');
+      reserveOperation();
+      return serialize(() =>
+        withOperationTimeout(async (signal) => {
+          const resolvedPath = await resolveWorkspaceFile(root, path);
+          await assertFileWithinLimit(resolvedPath, maxFileBytes);
+          return readFile(resolvedPath, { encoding: 'utf8', signal });
+        }, operationTimeoutMs)
+      );
     },
     async patch({ path, oldText, newText }) {
       assertActive();
+      reserveOperation();
       if (!oldText) throw new SandboxError(SANDBOX_ERROR_CODES.patchConflict);
-      const resolvedPath = await resolveWorkspaceFile(root, path);
-      await assertFileWithinLimit(resolvedPath, maxFileBytes);
-      const contents = await readFile(resolvedPath, 'utf8');
-      const firstMatch = contents.indexOf(oldText);
-      if (firstMatch < 0 || contents.indexOf(oldText, firstMatch + oldText.length) >= 0) {
-        throw new SandboxError(SANDBOX_ERROR_CODES.patchConflict);
-      }
-      const updated = `${contents.slice(0, firstMatch)}${newText}${contents.slice(
-        firstMatch + oldText.length
-      )}`;
-      if (Buffer.byteLength(updated) > maxFileBytes) {
-        throw new SandboxError(SANDBOX_ERROR_CODES.fileTooLarge);
-      }
-      await writeFile(resolvedPath, updated);
-      return { path, replacements: 1 };
+      return serialize(() =>
+        withOperationTimeout(async (signal) => {
+          const resolvedPath = await resolveWorkspaceFile(root, path);
+          await assertFileWithinLimit(resolvedPath, maxFileBytes);
+          const contents = await readFile(resolvedPath, { encoding: 'utf8', signal });
+          const firstMatch = contents.indexOf(oldText);
+          if (firstMatch < 0 || contents.indexOf(oldText, firstMatch + oldText.length) >= 0) {
+            throw new SandboxError(SANDBOX_ERROR_CODES.patchConflict);
+          }
+          const updated = `${contents.slice(0, firstMatch)}${newText}${contents.slice(
+            firstMatch + oldText.length
+          )}`;
+          if (Buffer.byteLength(updated) > maxFileBytes) {
+            throw new SandboxError(SANDBOX_ERROR_CODES.fileTooLarge);
+          }
+          await writeFile(resolvedPath, updated, { signal });
+          return { path, replacements: 1 as const };
+        }, operationTimeoutMs)
+      );
     },
     async status() {
       assertActive();
-      const result = await runGit(
-        root,
-        ['status', '--short', '--untracked-files=all'],
-        maxOutputBytes
+      reserveOperation();
+      const result = await serialize(() =>
+        runGit(
+          root,
+          gitDirectory,
+          ['status', '--short', '--untracked-files=all'],
+          maxOutputBytes,
+          operationTimeoutMs,
+          gitRunner
+        )
       );
       return result.stdout;
     },
     async diff() {
       assertActive();
-      const result = await runGit(
-        root,
-        ['diff', '--no-ext-diff', '--no-color', '--'],
-        maxOutputBytes
+      reserveOperation();
+      const result = await serialize(() =>
+        runGit(
+          root,
+          gitDirectory,
+          ['diff', '--no-ext-diff', '--no-color', '--'],
+          maxOutputBytes,
+          operationTimeoutMs,
+          gitRunner
+        )
       );
       return result.stdout;
     },
@@ -147,45 +197,24 @@ export async function createDockerWorkspace(
       if (commandCount >= maxCommands) {
         throw new SandboxError(SANDBOX_ERROR_CODES.commandBudgetExceeded);
       }
+      reserveOperation();
       commandCount += 1;
-
-      const argv = buildDockerArgv(root, akitBundlePath, allowed.executable, allowed.args);
-      const controller = new AbortController();
-      let didTimeout = false;
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => {
-          didTimeout = true;
-          controller.abort();
-          reject(new SandboxError(SANDBOX_ERROR_CODES.commandTimeout));
-        }, commandTimeoutMs);
-      });
-      try {
-        const result = await Promise.race([
-          dockerRunner({
-            argv,
-            signal: controller.signal,
-            timeoutMs: commandTimeoutMs,
-            maxOutputBytes,
-          }),
-          timeoutPromise,
-        ]);
-        if (didTimeout) throw new SandboxError(SANDBOX_ERROR_CODES.commandTimeout);
-        if (combinedByteLength(result) > maxOutputBytes) {
-          throw new SandboxError(SANDBOX_ERROR_CODES.outputLimitExceeded);
-        }
-        return result;
-      } catch (error) {
-        if (didTimeout) throw new SandboxError(SANDBOX_ERROR_CODES.commandTimeout);
-        throw error;
-      } finally {
-        if (timeout) clearTimeout(timeout);
-      }
+      return serialize(() =>
+        runDockerCommand(
+          root,
+          akitBundlePath,
+          allowed.executable,
+          allowed.args,
+          commandTimeoutMs,
+          maxOutputBytes,
+          dockerRunner
+        )
+      );
     },
     async dispose() {
       if (isDisposed) return;
       isDisposed = true;
-      await rm(root, { recursive: true, force: true });
+      await serialize(() => rm(controlRoot, { recursive: true, force: true }));
     },
   };
 }
@@ -207,6 +236,7 @@ async function resolveAkitBundle(bundlePath: string | undefined): Promise<string
 function buildDockerArgv(
   root: string,
   akitBundlePath: string | undefined,
+  containerName: string,
   executable: string,
   args: string[]
 ): string[] {
@@ -214,6 +244,8 @@ function buildDockerArgv(
     'docker',
     'run',
     '--rm',
+    '--name',
+    containerName,
     '--pull',
     'never',
     '--network',
@@ -241,11 +273,126 @@ function buildDockerArgv(
   return argv;
 }
 
+async function runDockerCommand(
+  root: string,
+  akitBundlePath: string | undefined,
+  executable: string,
+  args: string[],
+  timeoutMs: number,
+  maxOutputBytes: number,
+  dockerRunner: DockerRunner
+): Promise<CommandResult> {
+  const containerName = `artemiskit-agent-${randomUUID()}`;
+  const argv = buildDockerArgv(root, akitBundlePath, containerName, executable, args);
+  try {
+    const result = await runWithTimeout(
+      dockerRunner,
+      { argv, timeoutMs, maxOutputBytes },
+      SANDBOX_ERROR_CODES.commandTimeout
+    );
+    if (combinedByteLength(result) > maxOutputBytes) {
+      throw new SandboxError(SANDBOX_ERROR_CODES.outputLimitExceeded);
+    }
+    return result;
+  } catch (error) {
+    await cleanupContainer(containerName, maxOutputBytes, timeoutMs, dockerRunner);
+    throw error;
+  }
+}
+
+async function cleanupContainer(
+  containerName: string,
+  maxOutputBytes: number,
+  commandTimeoutMs: number,
+  dockerRunner: DockerRunner
+): Promise<void> {
+  try {
+    await runWithTimeout(
+      dockerRunner,
+      {
+        argv: ['docker', 'rm', '-f', containerName],
+        timeoutMs: Math.min(commandTimeoutMs, DEFAULT_CONTAINER_CLEANUP_TIMEOUT_MS),
+        maxOutputBytes,
+      },
+      SANDBOX_ERROR_CODES.operationTimeout
+    );
+  } catch {
+    // Best effort: the exact named container may not have reached Docker before failure.
+  }
+}
+
+async function runWithTimeout(
+  runner: DockerRunner,
+  request: Omit<DockerRunRequest, 'signal'>,
+  timeoutCode:
+    | typeof SANDBOX_ERROR_CODES.commandTimeout
+    | typeof SANDBOX_ERROR_CODES.operationTimeout
+): Promise<CommandResult> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+      reject(new SandboxError(timeoutCode));
+    }, request.timeoutMs);
+  });
+  const runnerPromise = runner({ ...request, signal: controller.signal });
+  try {
+    const result = await Promise.race([runnerPromise, timeoutPromise]);
+    if (didTimeout) throw new SandboxError(timeoutCode);
+    return result;
+  } catch (error) {
+    if (didTimeout) {
+      await waitForSettlement(runnerPromise, DEFAULT_ABORT_SETTLE_TIMEOUT_MS);
+      throw new SandboxError(timeoutCode);
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+async function waitForSettlement(promise: Promise<unknown>, timeoutMs: number): Promise<void> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      promise.then(
+        () => undefined,
+        () => undefined
+      ),
+      new Promise<void>((resolve) => {
+        timeout = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 async function runDocker(request: DockerRunRequest): Promise<CommandResult> {
+  return runSubprocess(request);
+}
+
+async function runGitProcess(request: DockerRunRequest): Promise<CommandResult> {
+  return runSubprocess(request, {
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1',
+    LC_ALL: 'C',
+    PATH: process.env.PATH ?? '',
+  });
+}
+
+async function runSubprocess(
+  request: DockerRunRequest,
+  env?: Record<string, string>
+): Promise<CommandResult> {
   const child = Bun.spawn(request.argv, {
     stdout: 'pipe',
     stderr: 'pipe',
     signal: request.signal,
+    env,
   });
   const totalBytes = { value: 0 };
   try {
@@ -256,8 +403,10 @@ async function runDocker(request: DockerRunRequest): Promise<CommandResult> {
     ]);
     return { exitCode, stdout, stderr };
   } catch (error) {
-    child.kill('SIGKILL');
-    await child.exited;
+    try {
+      child.kill('SIGKILL');
+    } catch {}
+    await child.exited.catch(() => undefined);
     throw error;
   }
 }
@@ -356,54 +505,121 @@ async function assertFileWithinLimit(path: string, maxFileBytes: number): Promis
   }
 }
 
-async function initializeGitBaseline(root: string): Promise<void> {
-  await runGit(root, ['init', '--quiet']);
-  await runGit(root, ['add', '--all']);
-  await runGit(root, [
-    '-c',
-    'user.name=ArtemisKit Sandbox',
-    '-c',
-    'user.email=sandbox@invalid',
-    'commit',
-    '--quiet',
-    '--allow-empty',
-    '-m',
-    'fixture baseline',
-  ]);
+async function initializeGitBaseline(
+  root: string,
+  gitDirectory: string,
+  timeoutMs: number,
+  maxOutputBytes: number,
+  gitRunner: DockerRunner
+): Promise<void> {
+  await runGit(root, gitDirectory, ['init', '--quiet'], maxOutputBytes, timeoutMs, gitRunner);
+  await runGit(root, gitDirectory, ['add', '--all'], maxOutputBytes, timeoutMs, gitRunner);
+  await runGit(
+    root,
+    gitDirectory,
+    [
+      '-c',
+      'user.name=ArtemisKit Sandbox',
+      '-c',
+      'user.email=sandbox@invalid',
+      'commit',
+      '--quiet',
+      '--allow-empty',
+      '-m',
+      'fixture baseline',
+    ],
+    maxOutputBytes,
+    timeoutMs,
+    gitRunner
+  );
 }
 
 async function runGit(
   root: string,
+  gitDirectory: string,
   args: string[],
-  maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES
+  maxOutputBytes: number,
+  timeoutMs: number,
+  gitRunner: DockerRunner
 ): Promise<CommandResult> {
-  const child = Bun.spawn(['git', ...args], {
-    cwd: root,
-    stdout: 'pipe',
-    stderr: 'pipe',
-    env: {
-      GIT_CONFIG_GLOBAL: '/dev/null',
-      GIT_CONFIG_NOSYSTEM: '1',
-      LC_ALL: 'C',
-      PATH: process.env.PATH ?? '',
+  const result = await runWithTimeout(
+    gitRunner,
+    {
+      argv: ['git', '--git-dir', gitDirectory, '--work-tree', root, ...args],
+      timeoutMs,
+      maxOutputBytes,
     },
-  });
-  const totalBytes = { value: 0 };
-  let result: CommandResult;
-  try {
-    const [exitCode, stdout, stderr] = await Promise.all([
-      child.exited,
-      readBoundedStream(child.stdout, maxOutputBytes, totalBytes),
-      readBoundedStream(child.stderr, maxOutputBytes, totalBytes),
-    ]);
-    result = { exitCode, stdout, stderr };
-  } catch (error) {
-    child.kill('SIGKILL');
-    await child.exited;
-    throw error;
+    SANDBOX_ERROR_CODES.operationTimeout
+  );
+  if (combinedByteLength(result) > maxOutputBytes) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.outputLimitExceeded);
   }
   if (result.exitCode !== 0) {
     throw new SandboxError(SANDBOX_ERROR_CODES.commandFailed);
   }
   return result;
+}
+
+function createOperationQueue(timeoutMs: number) {
+  let tail = Promise.resolve();
+  return <T>(operation: () => Promise<T>): Promise<T> => {
+    let didStart = false;
+    let didExpire = false;
+    let release: () => void = () => undefined;
+    const previous = tail;
+    tail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        if (didStart) return;
+        didExpire = true;
+        reject(new SandboxError(SANDBOX_ERROR_CODES.operationTimeout));
+      }, timeoutMs);
+      void previous.then(async () => {
+        if (didExpire) {
+          release();
+          return;
+        }
+        didStart = true;
+        clearTimeout(timeout);
+        try {
+          resolve(await operation());
+        } catch (error) {
+          reject(error);
+        } finally {
+          release();
+        }
+      });
+    });
+  };
+}
+
+async function withOperationTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number
+): Promise<T> {
+  const controller = new AbortController();
+  let didTimeout = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+      reject(new SandboxError(SANDBOX_ERROR_CODES.operationTimeout));
+    }, timeoutMs);
+  });
+  const operationPromise = operation(controller.signal);
+  try {
+    return await Promise.race([operationPromise, timeoutPromise]);
+  } catch (error) {
+    if (didTimeout) {
+      await waitForSettlement(operationPromise, DEFAULT_ABORT_SETTLE_TIMEOUT_MS);
+      throw new SandboxError(SANDBOX_ERROR_CODES.operationTimeout);
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }

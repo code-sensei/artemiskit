@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDockerWorkspace } from './workspace';
+import { type DockerRunRequest, createDockerWorkspace } from './workspace';
 
 const temporaryPaths: string[] = [];
 
@@ -23,6 +23,15 @@ describe('Docker workspace', () => {
     expect(workspace.root).not.toBe(fixturePath);
     await workspace.dispose();
     await expect(readFile(workspace.root, 'utf8')).rejects.toThrow();
+    await workspace.dispose();
+  });
+
+  it('keeps Git control data outside the container-mounted workspace', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+
+    await expect(lstat(join(workspace.root, '.git'))).rejects.toThrow();
+    expect(await workspace.status()).toBe('');
     await workspace.dispose();
   });
 
@@ -208,6 +217,133 @@ describe('Docker workspace', () => {
       code: 'SANDBOX_COMMAND_TIMEOUT',
     });
     await timeoutWorkspace.dispose();
+  });
+
+  it('serializes container runs and host file operations', async () => {
+    let releaseRun: (() => void) | undefined;
+    let reportStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      reportStarted = resolve;
+    });
+    const runGate = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      dockerRunner: async () => {
+        reportStarted?.();
+        await runGate;
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    const run = workspace.run('bun test');
+    await started;
+    let readSettled = false;
+    const read = workspace.read('scenario.yaml').finally(() => {
+      readSettled = true;
+    });
+    await Bun.sleep(20);
+    expect(readSettled).toBe(false);
+
+    releaseRun?.();
+    await run;
+    expect(await read).toBe('before\n');
+    await workspace.dispose();
+  });
+
+  it('bounds host Git and invokes it with isolated control and work-tree paths', async () => {
+    const gitRequests: DockerRunRequest[] = [];
+    let statusWasAborted = false;
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      operationTimeoutMs: 5,
+      gitRunner: async (request: DockerRunRequest) => {
+        gitRequests.push(request);
+        if (!request.argv.includes('status')) {
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        return new Promise((resolve) => {
+          request.signal.addEventListener('abort', () => {
+            statusWasAborted = true;
+            resolve({ exitCode: 143, stdout: '', stderr: '' });
+          });
+        });
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    await expect(workspace.status()).rejects.toMatchObject({ code: 'SANDBOX_OPERATION_TIMEOUT' });
+    expect(statusWasAborted).toBe(true);
+    expect(gitRequests).not.toHaveLength(0);
+    for (const request of gitRequests) {
+      const gitDirectoryIndex = request.argv.indexOf('--git-dir');
+      const workTreeIndex = request.argv.indexOf('--work-tree');
+      expect(gitDirectoryIndex).toBeGreaterThan(0);
+      expect(workTreeIndex).toBeGreaterThan(gitDirectoryIndex);
+      expect(request.argv[gitDirectoryIndex + 1]).not.toStartWith(workspace.root);
+      expect(request.argv[workTreeIndex + 1]).toBe(workspace.root);
+    }
+    await workspace.dispose();
+  });
+
+  it('budgets every workspace operation', async () => {
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      maxOperations: 1,
+    });
+    temporaryPaths.push(workspace.root);
+
+    expect(await workspace.read('scenario.yaml')).toBe('before\n');
+    await expect(workspace.status()).rejects.toMatchObject({
+      code: 'SANDBOX_OPERATION_BUDGET_EXCEEDED',
+    });
+    await workspace.dispose();
+  });
+
+  it('names every container uniquely and cleans up the exact container after timeout', async () => {
+    const requests: DockerRunRequest[] = [];
+    let cleanupFinished = false;
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      commandTimeoutMs: 5,
+      dockerRunner: async (request: DockerRunRequest) => {
+        requests.push(request);
+        if (request.argv[1] === 'rm') {
+          await Bun.sleep(2);
+          cleanupFinished = true;
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        if (requests.filter(({ argv }) => argv[1] === 'run').length === 1) {
+          return new Promise((resolve) => {
+            request.signal.addEventListener('abort', () =>
+              resolve({ exitCode: 143, stdout: '', stderr: '' })
+            );
+          });
+        }
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    await expect(workspace.run('bun test')).rejects.toMatchObject({
+      code: 'SANDBOX_COMMAND_TIMEOUT',
+    });
+    await workspace.run('bun test');
+
+    const runRequests = requests.filter(({ argv }) => argv[1] === 'run');
+    const cleanupRequests = requests.filter(({ argv }) => argv[1] === 'rm');
+    expect(runRequests).toHaveLength(2);
+    expect(cleanupRequests).toHaveLength(1);
+    const firstName = runRequests[0]?.argv[runRequests[0].argv.indexOf('--name') + 1];
+    const secondName = runRequests[1]?.argv[runRequests[1].argv.indexOf('--name') + 1];
+    expect(firstName).toStartWith('artemiskit-agent-');
+    expect(secondName).toStartWith('artemiskit-agent-');
+    expect(secondName).not.toBe(firstName);
+    expect(cleanupRequests[0]?.argv).toEqual(['docker', 'rm', '-f', firstName]);
+    expect(cleanupFinished).toBe(true);
+    await workspace.dispose();
   });
 
   it('bounds file reads, patches, and Git output', async () => {

@@ -50,6 +50,34 @@ function createEvidence(overrides: Partial<AgentEvaluationEvidence> = {}): Agent
   };
 }
 
+function withoutKey(value: Record<string, unknown>, key: string): unknown {
+  const copy = { ...value };
+  delete copy[key];
+  return copy;
+}
+
+function scoreRuntimeValues(...values: unknown[]) {
+  const taskValue = values.length > 0 ? values[0] : task;
+  const outcomeValue = values.length > 1 ? values[1] : createOutcome();
+  const evidenceValue = values.length > 2 ? values[2] : createEvidence();
+  return scoreAgentOutcome(
+    taskValue as AgentTask,
+    outcomeValue as AgentOutcome,
+    evidenceValue as AgentEvaluationEvidence
+  );
+}
+
+function expectInfrastructureInvalid(code: string, ...values: unknown[]) {
+  let result: ReturnType<typeof scoreAgentOutcome> | undefined;
+
+  expect(() => {
+    result = scoreRuntimeValues(...values);
+  }).not.toThrow();
+  expect(result?.verdict).toBe('infrastructure_failed');
+  expect(result?.passed).toBe(false);
+  expect(result?.issues.map((issue) => issue.code)).toContain(code);
+}
+
 describe('scoreAgentOutcome', () => {
   it('passes a completed task with successful observable checks', () => {
     const result = scoreAgentOutcome(task, createOutcome(), createEvidence());
@@ -386,5 +414,564 @@ describe('scoreAgentOutcome', () => {
 
     expect(result.verdict).toBe('infrastructure_failed');
     expect(result.issues.map((issue) => issue.code)).toContain('artifact-evidence-invalid');
+  });
+
+  describe('runtime boundary validation', () => {
+    const sparseArray = Array(1);
+
+    for (const [name, taskValue] of [
+      ['missing task', undefined],
+      ['null task', null],
+      ['primitive task', 1],
+      ['array task', []],
+      ['missing id', withoutKey(task as unknown as Record<string, unknown>, 'id')],
+      ['non-string id', { ...task, id: 7 }],
+      [
+        'missing fixturePath',
+        withoutKey(task as unknown as Record<string, unknown>, 'fixturePath'),
+      ],
+      ['non-string fixturePath', { ...task, fixturePath: 7 }],
+      [
+        'missing allowedPaths',
+        withoutKey(task as unknown as Record<string, unknown>, 'allowedPaths'),
+      ],
+      ['non-array allowedPaths', { ...task, allowedPaths: 'scenario.yaml' }],
+      ['sparse allowedPaths', { ...task, allowedPaths: sparseArray }],
+      ['non-string allowed path', { ...task, allowedPaths: [7] }],
+      ['empty allowed path', { ...task, allowedPaths: [''] }],
+      ['absolute allowed path', { ...task, allowedPaths: ['/scenario.yaml'] }],
+      ['traversing allowed path', { ...task, allowedPaths: ['../scenario.yaml'] }],
+      [
+        'missing allowedTools',
+        withoutKey(task as unknown as Record<string, unknown>, 'allowedTools'),
+      ],
+      ['non-array allowedTools', { ...task, allowedTools: 'workspace_read' }],
+      ['sparse allowedTools', { ...task, allowedTools: sparseArray }],
+      ['non-string allowed tool', { ...task, allowedTools: [7] }],
+      [
+        'missing acceptanceCommands',
+        withoutKey(task as unknown as Record<string, unknown>, 'acceptanceCommands'),
+      ],
+      ['non-array acceptanceCommands', { ...task, acceptanceCommands: 'akit validate' }],
+      ['sparse acceptanceCommands', { ...task, acceptanceCommands: sparseArray }],
+      ['non-string acceptance command', { ...task, acceptanceCommands: [7] }],
+      ['null requiredArtifactChecks', { ...task, requiredArtifactChecks: null }],
+      ['non-array requiredArtifactChecks', { ...task, requiredArtifactChecks: 'artifact' }],
+      ['sparse requiredArtifactChecks', { ...task, requiredArtifactChecks: sparseArray }],
+      ['non-string required artifact check', { ...task, requiredArtifactChecks: [7] }],
+      ['missing maxActions', withoutKey(task as unknown as Record<string, unknown>, 'maxActions')],
+      ['NaN maxActions', { ...task, maxActions: Number.NaN }],
+      ['infinite maxActions', { ...task, maxActions: Number.POSITIVE_INFINITY }],
+      ['negative maxActions', { ...task, maxActions: -1 }],
+      ['fractional maxActions', { ...task, maxActions: 1.5 }],
+      ['numeric-string maxActions', { ...task, maxActions: '8' }],
+      ['missing timeoutMs', withoutKey(task as unknown as Record<string, unknown>, 'timeoutMs')],
+      ['NaN timeoutMs', { ...task, timeoutMs: Number.NaN }],
+      ['infinite timeoutMs', { ...task, timeoutMs: Number.POSITIVE_INFINITY }],
+      ['negative timeoutMs', { ...task, timeoutMs: -1 }],
+      ['numeric-string timeoutMs', { ...task, timeoutMs: '60000' }],
+    ] as const) {
+      it(`rejects ${name} as an invalid task definition`, () => {
+        expectInfrastructureInvalid('task-definition-invalid', taskValue);
+      });
+    }
+
+    it('accepts absent or undefined required artifact checks and unknown task properties', () => {
+      const withUndefined = { ...task, requiredArtifactChecks: undefined, futureField: true };
+
+      expect(scoreRuntimeValues(task)).toEqual(scoreRuntimeValues(withUndefined));
+      expect(scoreRuntimeValues(withUndefined).verdict).toBe('passed');
+    });
+
+    for (const [name, outcomeValue] of [
+      ['missing outcome', undefined],
+      ['null outcome', null],
+      ['primitive outcome', false],
+      ['array outcome', []],
+      [
+        'missing taskId',
+        withoutKey(createOutcome() as unknown as Record<string, unknown>, 'taskId'),
+      ],
+      ['non-string taskId', { ...createOutcome(), taskId: 7 }],
+      [
+        'missing completed',
+        withoutKey(createOutcome() as unknown as Record<string, unknown>, 'completed'),
+      ],
+      ['non-boolean completed', { ...createOutcome(), completed: 'true' }],
+      [
+        'missing acceptancePassed',
+        withoutKey(createOutcome() as unknown as Record<string, unknown>, 'acceptancePassed'),
+      ],
+      ['non-boolean acceptancePassed', { ...createOutcome(), acceptancePassed: 1 }],
+      ['missing trace', withoutKey(createOutcome() as unknown as Record<string, unknown>, 'trace')],
+      ['null trace', { ...createOutcome(), trace: null }],
+      ['primitive trace', { ...createOutcome(), trace: 'trace' }],
+      ['array trace', { ...createOutcome(), trace: [] }],
+      ['null error', { ...createOutcome(), error: null }],
+      ['non-string error', { ...createOutcome(), error: 7 }],
+    ] as const) {
+      it(`rejects ${name} as invalid outcome evidence`, () => {
+        expectInfrastructureInvalid('outcome-evidence-invalid', task, outcomeValue);
+      });
+    }
+
+    it('accepts an absent or undefined outcome error and unknown outcome properties', () => {
+      const withUndefined = { ...createOutcome(), error: undefined, futureField: true };
+
+      expect(scoreRuntimeValues(task, withUndefined).verdict).toBe('passed');
+    });
+
+    for (const [name, trace] of [
+      [
+        'missing taskId',
+        withoutKey(createOutcome().trace as unknown as Record<string, unknown>, 'taskId'),
+      ],
+      ['non-string taskId', { ...createOutcome().trace, taskId: 7 }],
+      [
+        'missing actions',
+        withoutKey(createOutcome().trace as unknown as Record<string, unknown>, 'actions'),
+      ],
+      ['non-array actions', { ...createOutcome().trace, actions: {} }],
+      [
+        'missing changedPaths',
+        withoutKey(createOutcome().trace as unknown as Record<string, unknown>, 'changedPaths'),
+      ],
+      ['non-array changedPaths', { ...createOutcome().trace, changedPaths: 'scenario.yaml' }],
+      ['sparse changedPaths', { ...createOutcome().trace, changedPaths: sparseArray }],
+      ['non-string changed path', { ...createOutcome().trace, changedPaths: [7] }],
+    ] as const) {
+      it(`rejects ${name} as invalid trace evidence`, () => {
+        expectInfrastructureInvalid('trace-evidence-invalid', task, {
+          ...createOutcome(),
+          trace,
+        });
+      });
+    }
+
+    for (const [name, action] of [
+      ['sparse action', undefined],
+      ['null action', null],
+      ['primitive action', 'action'],
+      ['array action', []],
+      ['missing type', { name: 'workspace_read', status: 'success', durationMs: 1 }],
+      [
+        'unknown action type',
+        { type: 'unknown', name: 'workspace_read', status: 'success', durationMs: 1 },
+      ],
+      ['missing name', { type: 'tool', status: 'success', durationMs: 1 }],
+      ['non-string name', { type: 'tool', name: 7, status: 'success', durationMs: 1 }],
+      ['missing status', { type: 'tool', name: 'workspace_read', durationMs: 1 }],
+      [
+        'unknown action status',
+        { type: 'tool', name: 'workspace_read', status: 'unknown', durationMs: 1 },
+      ],
+      ['missing durationMs', { type: 'tool', name: 'workspace_read', status: 'success' }],
+      [
+        'NaN durationMs',
+        { type: 'tool', name: 'workspace_read', status: 'success', durationMs: Number.NaN },
+      ],
+      [
+        'infinite durationMs',
+        {
+          type: 'tool',
+          name: 'workspace_read',
+          status: 'success',
+          durationMs: Number.POSITIVE_INFINITY,
+        },
+      ],
+      [
+        'negative durationMs',
+        { type: 'tool', name: 'workspace_read', status: 'success', durationMs: -1 },
+      ],
+      [
+        'numeric-string durationMs',
+        { type: 'tool', name: 'workspace_read', status: 'success', durationMs: '1' },
+      ],
+      [
+        'null summary',
+        {
+          type: 'tool',
+          name: 'workspace_read',
+          status: 'success',
+          durationMs: 1,
+          summary: null,
+        },
+      ],
+      [
+        'non-string summary',
+        {
+          type: 'tool',
+          name: 'workspace_read',
+          status: 'success',
+          durationMs: 1,
+          summary: 7,
+        },
+      ],
+    ] as const) {
+      it(`rejects ${name} as invalid action evidence`, () => {
+        const actions = name === 'sparse action' ? sparseArray : [action];
+        expectInfrastructureInvalid('action-evidence-invalid', task, {
+          ...createOutcome(),
+          trace: { ...createOutcome().trace, actions },
+        });
+      });
+    }
+
+    it('accepts an absent or undefined action summary and unknown action properties', () => {
+      const outcome = createOutcome();
+      outcome.trace.actions = [
+        {
+          type: 'tool',
+          name: 'workspace_read',
+          status: 'success',
+          durationMs: 1,
+          summary: undefined,
+          futureField: true,
+        } as AgentOutcome['trace']['actions'][number],
+      ];
+
+      expect(scoreAgentOutcome(task, outcome, createEvidence()).verdict).toBe('passed');
+    });
+
+    for (const [name, evidenceValue] of [
+      ['missing evidence', undefined],
+      ['null evidence', null],
+      ['primitive evidence', 'evidence'],
+      ['array evidence', []],
+    ] as const) {
+      it(`rejects ${name} as invalid top-level evaluation evidence`, () => {
+        expectInfrastructureInvalid(
+          'evaluation-evidence-invalid',
+          task,
+          createOutcome(),
+          evidenceValue
+        );
+      });
+    }
+
+    for (const [name, termination] of [
+      ['missing termination', undefined],
+      ['null termination', null],
+      ['primitive termination', 'completed'],
+      ['array termination', []],
+      ['missing termination status', {}],
+      ['unknown termination status', { status: 'unknown' }],
+    ] as const) {
+      it(`rejects ${name} as invalid termination evidence`, () => {
+        const evidenceValue =
+          name === 'missing termination'
+            ? withoutKey(createEvidence() as unknown as Record<string, unknown>, 'termination')
+            : { ...createEvidence(), termination };
+        expectInfrastructureInvalid(
+          'termination-evidence-invalid',
+          task,
+          createOutcome(),
+          evidenceValue
+        );
+      });
+    }
+
+    for (const [name, acceptanceChecks] of [
+      ['missing acceptanceChecks', undefined],
+      ['null acceptanceChecks', null],
+      ['non-array acceptanceChecks', {}],
+      ['sparse acceptanceChecks', sparseArray],
+      ['null acceptance check', [null]],
+      ['primitive acceptance check', ['check']],
+      ['array acceptance check', [[]]],
+      ['missing command', [{ status: 'passed', exitCode: 0, durationMs: 1 }]],
+      ['non-string command', [{ command: 7, status: 'passed', exitCode: 0, durationMs: 1 }]],
+      ['missing status', [{ command: 'akit validate scenario.yaml', exitCode: 0, durationMs: 1 }]],
+      [
+        'unknown status',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'unknown',
+            exitCode: 0,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'missing exitCode',
+        [{ command: 'akit validate scenario.yaml', status: 'passed', durationMs: 1 }],
+      ],
+      [
+        'NaN exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'failed',
+            exitCode: Number.NaN,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'infinite exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'failed',
+            exitCode: Number.POSITIVE_INFINITY,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'fractional exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'failed',
+            exitCode: 1.5,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'numeric-string exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'failed',
+            exitCode: '1',
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'contradictory passed exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'passed',
+            exitCode: 1,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'contradictory failed exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'failed',
+            exitCode: 0,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'contradictory executor exitCode',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'executor_error',
+            exitCode: 1,
+            durationMs: 1,
+          },
+        ],
+      ],
+      [
+        'missing durationMs',
+        [{ command: 'akit validate scenario.yaml', status: 'passed', exitCode: 0 }],
+      ],
+      [
+        'NaN durationMs',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'passed',
+            exitCode: 0,
+            durationMs: Number.NaN,
+          },
+        ],
+      ],
+      [
+        'infinite durationMs',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'passed',
+            exitCode: 0,
+            durationMs: Number.POSITIVE_INFINITY,
+          },
+        ],
+      ],
+      [
+        'negative durationMs',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'passed',
+            exitCode: 0,
+            durationMs: -1,
+          },
+        ],
+      ],
+      [
+        'numeric-string durationMs',
+        [
+          {
+            command: 'akit validate scenario.yaml',
+            status: 'passed',
+            exitCode: 0,
+            durationMs: '1',
+          },
+        ],
+      ],
+    ] as const) {
+      it(`rejects ${name} as invalid acceptance evidence`, () => {
+        const evidenceValue =
+          name === 'missing acceptanceChecks'
+            ? withoutKey(createEvidence() as unknown as Record<string, unknown>, 'acceptanceChecks')
+            : { ...createEvidence(), acceptanceChecks };
+        expectInfrastructureInvalid(
+          'acceptance-evidence-invalid',
+          task,
+          createOutcome(),
+          evidenceValue
+        );
+      });
+    }
+
+    for (const [name, artifactChecks] of [
+      ['null artifactChecks', null],
+      ['non-array artifactChecks', {}],
+      ['sparse artifactChecks', sparseArray],
+      ['null artifact check', [null]],
+      ['primitive artifact check', ['check']],
+      ['array artifact check', [[]]],
+      ['missing id', [{ status: 'passed', durationMs: 1 }]],
+      ['non-string id', [{ id: 7, status: 'passed', durationMs: 1 }]],
+      ['missing status', [{ id: 'artifact', durationMs: 1 }]],
+      ['unknown status', [{ id: 'artifact', status: 'unknown', durationMs: 1 }]],
+      ['missing durationMs', [{ id: 'artifact', status: 'passed' }]],
+      ['NaN durationMs', [{ id: 'artifact', status: 'passed', durationMs: Number.NaN }]],
+      [
+        'infinite durationMs',
+        [{ id: 'artifact', status: 'passed', durationMs: Number.POSITIVE_INFINITY }],
+      ],
+      ['negative durationMs', [{ id: 'artifact', status: 'passed', durationMs: -1 }]],
+      ['numeric-string durationMs', [{ id: 'artifact', status: 'passed', durationMs: '1' }]],
+    ] as const) {
+      it(`rejects ${name} as invalid artifact evidence`, () => {
+        expectInfrastructureInvalid('artifact-evidence-invalid', task, createOutcome(), {
+          ...createEvidence(),
+          artifactChecks,
+        });
+      });
+    }
+
+    it('accepts absent or undefined artifact checks and unknown evidence properties', () => {
+      const withUndefined = { ...createEvidence(), artifactChecks: undefined, futureField: true };
+
+      expect(scoreRuntimeValues(task, createOutcome(), withUndefined).verdict).toBe('passed');
+    });
+
+    it('allows unknown object properties throughout otherwise valid runtime input', () => {
+      const outcome = createOutcome();
+      const evidence = createEvidence();
+
+      expect(
+        scoreRuntimeValues(
+          { ...task, futureField: true },
+          {
+            ...outcome,
+            futureField: true,
+            trace: {
+              ...outcome.trace,
+              futureField: true,
+              actions: [
+                {
+                  type: 'tool',
+                  name: 'workspace_read',
+                  status: 'success',
+                  durationMs: 1,
+                  futureField: true,
+                },
+              ],
+            },
+          },
+          {
+            ...evidence,
+            futureField: true,
+            termination: { ...evidence.termination, futureField: true },
+            acceptanceChecks: evidence.acceptanceChecks.map((check) => ({
+              ...check,
+              futureField: true,
+            })),
+            artifactChecks: [
+              {
+                id: 'unrequested-check',
+                status: 'passed',
+                durationMs: 1,
+                futureField: true,
+              },
+            ],
+          }
+        ).verdict
+      ).toBe('passed');
+    });
+
+    for (const finalDiff of [null, 1, {}, []]) {
+      it(`rejects present non-string final diff ${JSON.stringify(finalDiff)}`, () => {
+        expectInfrastructureInvalid('final-diff-invalid', task, {
+          ...createOutcome(),
+          finalDiff,
+        });
+      });
+    }
+
+    for (const [name, timestampOverrides] of [
+      ['missing startedAt', { startedAt: undefined }],
+      ['null startedAt', { startedAt: null }],
+      ['numeric startedAt', { startedAt: 0 }],
+      ['missing completedAt', { completedAt: undefined }],
+      ['null completedAt', { completedAt: null }],
+      ['numeric completedAt', { completedAt: 0 }],
+      [
+        'out-of-order timestamps',
+        {
+          startedAt: '2026-08-21T00:00:01.000Z',
+          completedAt: '2026-08-21T00:00:00.000Z',
+        },
+      ],
+    ] as const) {
+      it(`rejects ${name} as invalid trace timestamps`, () => {
+        expectInfrastructureInvalid('trace-timestamp-invalid', task, {
+          ...createOutcome(),
+          trace: { ...createOutcome().trace, ...timestampOverrides },
+        });
+      });
+    }
+
+    it('allows an absent final diff when no changed paths are recorded', () => {
+      const outcome = createOutcome({ finalDiff: undefined });
+      outcome.trace.changedPaths = [];
+
+      expect(scoreAgentOutcome(task, outcome, createEvidence()).verdict).toBe('passed');
+    });
+
+    for (const changedPath of ['', '.', '..', '/scenario.yaml', 'C:\\scenario.yaml']) {
+      it(`reports the invalid changed path ${JSON.stringify(changedPath)} without a truthiness gap`, () => {
+        const result = scoreRuntimeValues(task, {
+          ...createOutcome(),
+          trace: { ...createOutcome().trace, changedPaths: [changedPath] },
+        });
+
+        expect(result.verdict).toBe('task_failed');
+        expect(result.passed).toBe(false);
+        expect(result.issues.map((issue) => issue.code)).toContain('changed-path-violation');
+      });
+    }
+
+    it('keeps well-typed task identity mismatches as task evidence mismatches', () => {
+      const result = scoreRuntimeValues(task, createOutcome({ taskId: 'other-task' }));
+
+      expect(result.issues.map((issue) => issue.code)).toContain('task-evidence-mismatch');
+    });
   });
 });

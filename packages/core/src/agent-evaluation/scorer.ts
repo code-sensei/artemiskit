@@ -58,6 +58,46 @@ const TERMINATION_STATUSES = new Set<unknown>([
 ]);
 
 const CHECK_STATUSES = new Set<unknown>(['passed', 'failed', 'executor_error']);
+const ACTION_TYPES = new Set<unknown>(['tool', 'command', 'file']);
+const ACTION_STATUSES = new Set<unknown>(['success', 'error', 'rejected']);
+
+type RuntimeRecord = Record<string, unknown>;
+
+function isRuntimeRecord(value: unknown): value is RuntimeRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isDenseArray(value: unknown): value is unknown[] {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function isDenseStringArray(value: unknown): value is string[] {
+  return isDenseArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isFiniteNonnegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function invalidEvidenceScore(task: unknown, code: string, message: string): AgentEvaluationScore {
+  return {
+    taskId: isRuntimeRecord(task) && typeof task.id === 'string' ? task.id : '',
+    verdict: 'infrastructure_failed',
+    passed: false,
+    recoveredActionCount: 0,
+    issues: [{ code, message }],
+  };
+}
 
 function normalizeRelativePath(path: string): string | undefined {
   const slashPath = path.replaceAll('\\', '/');
@@ -89,11 +129,177 @@ function isAllowedChangedPath(changedPath: string, allowedPaths: string[]): bool
   });
 }
 
+function validateScoreInputs(
+  task: unknown,
+  outcome: unknown,
+  evidence: unknown
+): AgentEvaluationScore | undefined {
+  if (
+    !isRuntimeRecord(task) ||
+    typeof task.id !== 'string' ||
+    typeof task.fixturePath !== 'string' ||
+    !isDenseStringArray(task.allowedPaths) ||
+    task.allowedPaths.some((path) => normalizeRelativePath(path) === undefined) ||
+    !isDenseStringArray(task.allowedTools) ||
+    !isDenseStringArray(task.acceptanceCommands) ||
+    (task.requiredArtifactChecks !== undefined &&
+      !isDenseStringArray(task.requiredArtifactChecks)) ||
+    !isFiniteNonnegativeNumber(task.maxActions) ||
+    !Number.isInteger(task.maxActions) ||
+    !isFiniteNonnegativeNumber(task.timeoutMs)
+  ) {
+    return invalidEvidenceScore(
+      task,
+      'task-definition-invalid',
+      'Task definition is malformed or contains invalid runtime values.'
+    );
+  }
+
+  if (
+    !isRuntimeRecord(outcome) ||
+    typeof outcome.taskId !== 'string' ||
+    typeof outcome.completed !== 'boolean' ||
+    typeof outcome.acceptancePassed !== 'boolean' ||
+    !isRuntimeRecord(outcome.trace) ||
+    (outcome.error !== undefined && typeof outcome.error !== 'string')
+  ) {
+    return invalidEvidenceScore(
+      task,
+      'outcome-evidence-invalid',
+      'Outcome evidence is malformed or contains invalid runtime values.'
+    );
+  }
+
+  const trace = outcome.trace;
+  if (
+    typeof trace.taskId !== 'string' ||
+    !Array.isArray(trace.actions) ||
+    !isDenseStringArray(trace.changedPaths)
+  ) {
+    return invalidEvidenceScore(
+      task,
+      'trace-evidence-invalid',
+      'Trace evidence is malformed or contains invalid runtime values.'
+    );
+  }
+
+  for (let index = 0; index < trace.actions.length; index += 1) {
+    const action = trace.actions[index];
+    if (
+      !isRuntimeRecord(action) ||
+      !ACTION_TYPES.has(action.type) ||
+      typeof action.name !== 'string' ||
+      !ACTION_STATUSES.has(action.status) ||
+      !isFiniteNonnegativeNumber(action.durationMs) ||
+      (action.summary !== undefined && typeof action.summary !== 'string')
+    ) {
+      return invalidEvidenceScore(
+        task,
+        'action-evidence-invalid',
+        `Action evidence is invalid at index ${index}.`
+      );
+    }
+  }
+
+  if (typeof trace.startedAt !== 'string' || typeof trace.completedAt !== 'string') {
+    return invalidEvidenceScore(
+      task,
+      'trace-timestamp-invalid',
+      'Trace timestamps are missing, invalid, or out of order.'
+    );
+  }
+
+  if (outcome.finalDiff !== undefined && typeof outcome.finalDiff !== 'string') {
+    return invalidEvidenceScore(
+      task,
+      'final-diff-invalid',
+      'Final diff evidence must be a string when present.'
+    );
+  }
+
+  if (!isRuntimeRecord(evidence)) {
+    return invalidEvidenceScore(
+      task,
+      'evaluation-evidence-invalid',
+      'Evaluation evidence is malformed or contains invalid runtime values.'
+    );
+  }
+
+  if (
+    !isRuntimeRecord(evidence.termination) ||
+    !TERMINATION_STATUSES.has(evidence.termination.status)
+  ) {
+    return invalidEvidenceScore(
+      task,
+      'termination-evidence-invalid',
+      'Termination evidence contains an unknown or malformed status.'
+    );
+  }
+
+  if (!isDenseArray(evidence.acceptanceChecks)) {
+    return invalidEvidenceScore(
+      task,
+      'acceptance-evidence-invalid',
+      'Acceptance evidence is malformed or contains invalid runtime values.'
+    );
+  }
+
+  for (const check of evidence.acceptanceChecks) {
+    if (
+      !isRuntimeRecord(check) ||
+      typeof check.command !== 'string' ||
+      !CHECK_STATUSES.has(check.status) ||
+      !isFiniteNonnegativeNumber(check.durationMs) ||
+      (check.status === 'passed' && check.exitCode !== 0) ||
+      (check.status === 'failed' && (!Number.isInteger(check.exitCode) || check.exitCode === 0)) ||
+      (check.status === 'executor_error' && check.exitCode !== null)
+    ) {
+      return invalidEvidenceScore(
+        task,
+        'acceptance-evidence-invalid',
+        'Acceptance evidence is malformed or internally inconsistent.'
+      );
+    }
+  }
+
+  if (evidence.artifactChecks !== undefined) {
+    if (!isDenseArray(evidence.artifactChecks)) {
+      return invalidEvidenceScore(
+        task,
+        'artifact-evidence-invalid',
+        'Artifact evidence is malformed or contains invalid runtime values.'
+      );
+    }
+
+    for (const check of evidence.artifactChecks) {
+      if (
+        !isRuntimeRecord(check) ||
+        typeof check.id !== 'string' ||
+        !CHECK_STATUSES.has(check.status) ||
+        !isFiniteNonnegativeNumber(check.durationMs)
+      ) {
+        return invalidEvidenceScore(
+          task,
+          'artifact-evidence-invalid',
+          'Artifact evidence is malformed or contains invalid runtime values.'
+        );
+      }
+    }
+  }
+
+  return undefined;
+}
+
 export function scoreAgentOutcome(
   task: AgentTask,
   outcome: AgentOutcome,
   evidence: AgentEvaluationEvidence
 ): AgentEvaluationScore {
+  const invalidInputs = validateScoreInputs(task, outcome, evidence);
+  if (invalidInputs) {
+    return invalidInputs;
+  }
+
   if (outcome.taskId !== task.id || outcome.trace.taskId !== task.id) {
     return {
       taskId: task.id,
@@ -104,21 +310,6 @@ export function scoreAgentOutcome(
         {
           code: 'task-evidence-mismatch',
           message: 'Outcome or trace evidence belongs to a different task.',
-        },
-      ],
-    };
-  }
-
-  if (!TERMINATION_STATUSES.has(evidence.termination.status)) {
-    return {
-      taskId: task.id,
-      verdict: 'infrastructure_failed',
-      passed: false,
-      recoveredActionCount: 0,
-      issues: [
-        {
-          code: 'termination-evidence-invalid',
-          message: 'Termination evidence contains an unknown status.',
         },
       ],
     };
@@ -184,27 +375,6 @@ export function scoreAgentOutcome(
   }
 
   const artifactChecks = evidence.artifactChecks ?? [];
-  const invalidArtifactCheck = artifactChecks.find(
-    (check) =>
-      !CHECK_STATUSES.has(check.status) ||
-      !Number.isFinite(check.durationMs) ||
-      check.durationMs < 0
-  );
-  if (invalidArtifactCheck) {
-    return {
-      taskId: task.id,
-      verdict: 'infrastructure_failed',
-      passed: false,
-      recoveredActionCount: 0,
-      issues: [
-        {
-          code: 'artifact-evidence-invalid',
-          message: `Artifact evidence is invalid for: ${invalidArtifactCheck.id}.`,
-        },
-      ],
-    };
-  }
-
   const artifactExecutorError = artifactChecks.find((check) => check.status === 'executor_error');
   if (artifactExecutorError) {
     return {
@@ -283,30 +453,6 @@ export function scoreAgentOutcome(
         ],
       };
     }
-  }
-
-  const invalidAcceptanceCheck = evidence.acceptanceChecks.find(
-    (check) =>
-      !CHECK_STATUSES.has(check.status) ||
-      !Number.isFinite(check.durationMs) ||
-      check.durationMs < 0 ||
-      (check.status === 'passed' && check.exitCode !== 0) ||
-      (check.status === 'failed' && (!Number.isInteger(check.exitCode) || check.exitCode === 0)) ||
-      (check.status === 'executor_error' && check.exitCode !== null)
-  );
-  if (invalidAcceptanceCheck) {
-    return {
-      taskId: task.id,
-      verdict: 'infrastructure_failed',
-      passed: false,
-      recoveredActionCount: 0,
-      issues: [
-        {
-          code: 'acceptance-evidence-invalid',
-          message: `Acceptance status, exit code, or duration is inconsistent for: ${invalidAcceptanceCheck.command}.`,
-        },
-      ],
-    };
   }
 
   const executorError = evidence.acceptanceChecks.find(
@@ -397,10 +543,11 @@ export function scoreAgentOutcome(
     };
   }
 
-  const disallowedChangedPath = outcome.trace.changedPaths.find(
+  const disallowedChangedPathIndex = outcome.trace.changedPaths.findIndex(
     (changedPath) => !isAllowedChangedPath(changedPath, task.allowedPaths)
   );
-  if (disallowedChangedPath) {
+  if (disallowedChangedPathIndex !== -1) {
+    const disallowedChangedPath = outcome.trace.changedPaths[disallowedChangedPathIndex];
     return {
       taskId: task.id,
       verdict: 'task_failed',

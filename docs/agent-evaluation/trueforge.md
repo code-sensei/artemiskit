@@ -112,3 +112,25 @@ multi-tenant production execution.
 Do not publish raw evaluation artifacts until you have reviewed them. The adapter redacts configured
 credentials, but prompts and model-generated content can still contain information specific to the
 task you supplied.
+
+## Compatibility snapshot
+
+On 2026-08-22, commit `b76117ac70ecd56e75da28cb07a763542a0bb087` was exercised three
+times per model against the same scenario-repair task with temperature 0, a ten-iteration limit,
+TrueForge 0.1.4, and the Ling Studio endpoint.
+
+| Model | Strict verdicts | Exact artifact | Average actions | Average tokens | Average elapsed |
+|-------|-----------------|----------------|-----------------|----------------|-----------------|
+| Ling-3.0-flash | 3/3 `passed_with_recovery` | 3/3 | 5 | 13,321 | 11.1 s |
+| Ling-3.0-tiny | 0/3 passed; 3/3 `task_failed` | 0/3 | 10 | 23,245 | 11.2 s |
+
+Flash consistently read the scenario, reproduced the validation error, made the exact one-line
+repair, revalidated it, and inspected the diff. Tiny repeatedly sent shell-style discovery commands
+through `workspace_run`, did not use `workspace_patch`, and reached the iteration limit.
+
+Prompt specificity mattered. In an earlier five-run Flash sample, a shorter one-line command
+restriction produced the correct final artifact in 5/5 runs, but every run also attempted one
+prohibited discovery command and therefore failed the strict policy score. Expanding the prompt into
+an explicit per-tool contract changed the next Flash sample to 3/3 strict passes. This small sample
+is a compatibility observation, not a general benchmark; retain the raw sanitized artifacts and run
+larger repeated suites before drawing broader model conclusions.

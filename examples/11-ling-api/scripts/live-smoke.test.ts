@@ -11,9 +11,12 @@ describe('Ling live smoke guard', () => {
 
   it('skips without performing a request when the opt-in is absent', async () => {
     const previous = process.env.LING_LIVE_TESTS;
-    delete process.env.LING_LIVE_TESTS;
-    await expect(runLiveSmoke()).resolves.toBe(0);
-    if (previous === undefined) delete process.env.LING_LIVE_TESTS;
-    else process.env.LING_LIVE_TESTS = previous;
+    Reflect.deleteProperty(process.env, 'LING_LIVE_TESTS');
+    try {
+      await expect(runLiveSmoke()).resolves.toBe(0);
+    } finally {
+      if (previous === undefined) Reflect.deleteProperty(process.env, 'LING_LIVE_TESTS');
+      else process.env.LING_LIVE_TESTS = previous;
+    }
   });
 });

@@ -3,8 +3,8 @@
  * This imports adapters directly to avoid dynamic import issues in bundled code
  */
 
-import { OpenAIAdapter } from '@artemiskit/adapter-openai';
 import { LingAdapter } from '@artemiskit/adapter-ling';
+import { OpenAIAdapter } from '@artemiskit/adapter-openai';
 import { VercelAIAdapter } from '@artemiskit/adapter-vercel-ai';
 import { type AdapterConfig, type ModelClient, adapterRegistry } from '@artemiskit/core';
 

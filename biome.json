@@ -45,6 +45,7 @@
       "announcements",
       ".agents",
       ".claude",
+      ".worktrees",
       "marketing-content"
     ]
   }

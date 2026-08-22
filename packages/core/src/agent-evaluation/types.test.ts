@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { actionBudgetExceeded, type AgentTask, type AgentTrace } from './types';
+import { type AgentTask, type AgentTrace, actionBudgetExceeded } from './types';
 
 describe('real agent evaluation contracts', () => {
   it('detects action-budget violations', () => {

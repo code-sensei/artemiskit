@@ -158,7 +158,7 @@ async function executeCaseAttempt(
   const policy = { ...DEFAULT_TOOL_LOOP_POLICY, ...scenario.setup?.toolLoop };
   const toolTrace: ToolTraceEntry[] = [];
   let toolLoop: ToolLoopSummary | undefined;
-  let loopPrompt =
+  const loopPrompt =
     typeof prompt === 'string' ? [{ role: 'user' as const, content: prompt }] : prompt;
   const generate = () =>
     client.generate({

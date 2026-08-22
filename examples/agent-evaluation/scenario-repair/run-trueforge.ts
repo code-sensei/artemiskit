@@ -10,6 +10,7 @@ import type {
   AgentTask,
   AgentTerminationStatus,
 } from '@artemiskit/core';
+import type { McpSandboxServerOptions } from '../../../packages/mcp-docker-sandbox/src/server';
 
 const LING_API_BASE_URL = 'https://api.ant-ling.com/v1';
 const TRUEFORGE_BASE_URL = 'http://localhost:8790';
@@ -131,10 +132,10 @@ export function workspaceOperationBudget(task: AgentTask): number {
 export function createSandboxOptions(
   task: BenchmarkTask,
   paths: { fixturePath: string; akitBundlePath: string }
-) {
+): McpSandboxServerOptions {
   return {
     ...paths,
-    allowedPaths: task.allowedPaths,
+    allowedWritePaths: task.allowedPaths,
     allowedCommands: task.allowedCommands ?? task.acceptanceCommands,
     allowedTools: task.allowedTools,
     commandTimeoutMs: task.timeoutMs,

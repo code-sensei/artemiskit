@@ -228,8 +228,13 @@ function resultStatus(result: unknown): SuiteAttemptStatus {
   const score = (result as Record<string, unknown>).score;
   if (!score || typeof score !== 'object' || Array.isArray(score)) return 'infrastructure_failed';
   const scoreRecord = score as Record<string, unknown>;
-  if (scoreRecord.passed === true) return 'passed';
-  return scoreRecord.verdict === 'infrastructure_failed' ? 'infrastructure_failed' : 'task_failed';
+  if (scoreRecord.passed === true) {
+    return scoreRecord.verdict === 'passed' || scoreRecord.verdict === 'passed_with_recovery'
+      ? 'passed'
+      : 'infrastructure_failed';
+  }
+  if (scoreRecord.passed === false && scoreRecord.verdict === 'task_failed') return 'task_failed';
+  return 'infrastructure_failed';
 }
 
 export async function runSuiteCoordinates(

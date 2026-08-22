@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { join } from 'node:path';
 import type { AgentOutcome, AgentTask } from '@artemiskit/core';
+import { createDockerWorkspace } from '../../../packages/mcp-docker-sandbox/src/workspace';
 import {
   type BenchmarkTask,
   buildAgentPrompt,
@@ -159,18 +160,19 @@ describe('TrueForge scenario-repair runner helpers', () => {
   });
 
   it('scopes the sandbox to task paths, tools, and optional command authority', () => {
-    expect(
-      createSandboxOptions(MANIFEST, {
-        fixturePath: '/tmp/fixture',
-        akitBundlePath: '/tmp/akit.js',
-      })
-    ).toMatchObject({
+    const options = createSandboxOptions(MANIFEST, {
       fixturePath: '/tmp/fixture',
       akitBundlePath: '/tmp/akit.js',
-      allowedPaths: ['scenario.yaml'],
+    });
+
+    expect(options).toMatchObject({
+      fixturePath: '/tmp/fixture',
+      akitBundlePath: '/tmp/akit.js',
+      allowedWritePaths: ['scenario.yaml'],
       allowedCommands: ['akit validate scenario.yaml', 'bun test ./acceptance.ts'],
       allowedTools: TASK.allowedTools,
     });
+    expect('allowedPaths' in options).toBe(false);
 
     expect(
       createSandboxOptions(
@@ -178,6 +180,36 @@ describe('TrueForge scenario-repair runner helpers', () => {
         { fixturePath: '/tmp/fixture', akitBundlePath: '/tmp/akit.js' }
       ).allowedCommands
     ).toEqual(MANIFEST.acceptanceCommands);
+  });
+
+  it('enforces generated task write authority in the Docker workspace', async () => {
+    const taskRoot = join(import.meta.dir, '..', 'ling-benchmark', 'tasks', 'validation-diagnosis');
+    const workspace = await createDockerWorkspace(
+      createSandboxOptions(
+        { ...MANIFEST, allowedPaths: ['diagnosis.json'] },
+        {
+          fixturePath: join(taskRoot, 'fixture'),
+          akitBundlePath: join(
+            import.meta.dir,
+            '..',
+            '..',
+            '..',
+            'packages',
+            'cli',
+            'bin',
+            'artemis.ts'
+          ),
+        }
+      )
+    );
+
+    try {
+      await expect(
+        workspace.patch({ path: 'scenario.yaml', oldText: 'includes', newText: 'contains' })
+      ).rejects.toMatchObject({ code: 'SANDBOX_PATH_DENIED' });
+    } finally {
+      await workspace.dispose();
+    }
   });
 
   it('maps completed, timed-out, terminal-agent, and infrastructure outcomes', () => {

@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  type SuiteAttemptStatus,
   buildSuiteCoordinates,
   createSuiteAggregate,
   loadBenchmarkSuite,
@@ -157,6 +158,45 @@ describe('Ling benchmark suite', () => {
     expect(JSON.stringify(attempts)).not.toContain('secret-key');
     expect(suiteExitCode(attempts)).toBe(1);
   });
+
+  it.each([
+    ['plain pass', { passed: true, verdict: 'passed' }, 'passed'],
+    ['recovery pass', { passed: true, verdict: 'passed_with_recovery' }, 'passed'],
+    ['task failure', { passed: false, verdict: 'task_failed' }, 'task_failed'],
+    [
+      'infrastructure failure',
+      { passed: false, verdict: 'infrastructure_failed' },
+      'infrastructure_failed',
+    ],
+    [
+      'contradictory infrastructure pass',
+      { passed: true, verdict: 'infrastructure_failed' },
+      'infrastructure_failed',
+    ],
+    ['contradictory task pass', { passed: true, verdict: 'task_failed' }, 'infrastructure_failed'],
+    [
+      'contradictory failed pass verdict',
+      { passed: false, verdict: 'passed' },
+      'infrastructure_failed',
+    ],
+    ['missing verdict', { passed: true }, 'infrastructure_failed'],
+    ['missing passed flag', { verdict: 'task_failed' }, 'infrastructure_failed'],
+    ['invalid passed flag', { passed: 'true', verdict: 'passed' }, 'infrastructure_failed'],
+    ['unknown verdict', { passed: false, verdict: 'unknown' }, 'infrastructure_failed'],
+  ] satisfies Array<[string, Record<string, unknown>, SuiteAttemptStatus]>)(
+    'classifies %s score evidence fail closed',
+    async (_name, score, expectedStatus) => {
+      const coordinate = buildSuiteCoordinates({
+        ...parseSuiteManifest(SUITE),
+        repetitions: 1,
+      })[0];
+      if (!coordinate) throw new Error('missing test coordinate');
+
+      const attempts = await runSuiteCoordinates([coordinate], async () => ({ score }));
+
+      expect(attempts[0]?.status).toBe(expectedStatus);
+    }
+  );
 
   it('writes sanitized attempt evidence and a compact aggregate beneath the ignored run root', async () => {
     const root = await mkdtemp(join(tmpdir(), 'artemiskit-ling-suite-'));

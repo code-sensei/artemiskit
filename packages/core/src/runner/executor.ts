@@ -277,7 +277,22 @@ async function executeCaseAttempt(
         );
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
-      result = await Promise.race([generate(), createTimeout(requestTimeout)]);
+      try {
+        result = await Promise.race([generate(), createTimeout(requestTimeout)]);
+      } catch (error) {
+        const timedOut = error instanceof TimeoutError;
+        throw createToolLoopError(
+          testCase,
+          toolTrace,
+          {
+            status: 'error',
+            steps: step + 1,
+            terminationReason: timedOut ? 'timeout' : 'tool_error',
+          },
+          generationMetrics,
+          timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED'
+        );
+      }
       generationMetrics.latencyMs += result.latencyMs;
       generationMetrics.tokens.prompt += result.tokens.prompt;
       generationMetrics.tokens.completion += result.tokens.completion;
@@ -421,8 +436,14 @@ class ToolLoopError extends Error {
 
 function createTimeout(ms: number): Promise<never> {
   return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms);
+    setTimeout(() => reject(new TimeoutError(ms)), ms);
   });
+}
+
+class TimeoutError extends Error {
+  constructor(ms: number) {
+    super(`Timeout after ${ms}ms`);
+  }
 }
 
 function sleep(ms: number): Promise<void> {

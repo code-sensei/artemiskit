@@ -3,35 +3,57 @@ import type { GenerateOptions, ModelClient } from '../adapters/types';
 import { ScenarioSchema } from '../scenario/schema';
 import { executeCase } from './executor';
 
-describe('executeCase tool loop', () => {
-  it('preserves tool call IDs while resolving fixture-backed calls', async () => {
-    const scenario = ScenarioSchema.parse({
-      name: 'fixture-backed tool loop',
-      provider: 'ling',
-      model: 'Ling-3.0-flash',
-      setup: {
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'lookup_order',
-              parameters: { type: 'object', properties: { orderId: { type: 'string' } } },
-            },
-          },
-        ],
-        fixtures: {
-          lookup_order: [{ when: { orderId: 'A-1' }, result: { status: 'delivered' } }],
-        },
-        toolLoop: { enabled: true, maxSteps: 2 },
-      },
-      cases: [
+function createEnabledToolLoopScenario() {
+  return ScenarioSchema.parse({
+    name: 'fixture-backed tool loop',
+    provider: 'ling',
+    model: 'Ling-3.0-flash',
+    setup: {
+      tools: [
         {
-          id: 'order-status',
-          prompt: 'Where is order A-1?',
-          expected: { type: 'exact', value: 'Order A-1 was delivered.' },
+          type: 'function',
+          function: {
+            name: 'lookup_order',
+            parameters: { type: 'object', properties: { orderId: { type: 'string' } } },
+          },
         },
       ],
-    });
+      fixtures: {
+        lookup_order: [{ when: { orderId: 'A-1' }, result: { status: 'delivered' } }],
+      },
+      toolLoop: { enabled: true, maxSteps: 2 },
+    },
+    cases: [
+      {
+        id: 'order-status',
+        prompt: 'Where is order A-1?',
+        expected: { type: 'exact', value: 'Order A-1 was delivered.' },
+      },
+    ],
+  });
+}
+
+function createToolCallResponse() {
+  return {
+    id: 'first',
+    model: 'Ling-3.0-flash',
+    text: '',
+    tokens: { prompt: 7, completion: 2, total: 9 },
+    latencyMs: 4,
+    finishReason: 'tool_calls' as const,
+    toolCalls: [
+      {
+        id: 'call-order',
+        type: 'function' as const,
+        function: { name: 'lookup_order', arguments: '{"orderId":"A-1"}' },
+      },
+    ],
+  };
+}
+
+describe('executeCase tool loop', () => {
+  it('preserves tool call IDs while resolving fixture-backed calls', async () => {
+    const scenario = createEnabledToolLoopScenario();
     const requests: GenerateOptions[] = [];
     const responses = [
       {
@@ -146,5 +168,67 @@ describe('executeCase tool loop', () => {
     expect(result.error).toBe('TOOL_EXECUTOR_REQUIRED');
     expect(result.latencyMs).toBe(4);
     expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
+  });
+
+  it('retains prior generation metrics when a later generation rejects', async () => {
+    const scenario = createEnabledToolLoopScenario();
+    let calls = 0;
+    const client: ModelClient = {
+      provider: 'ling',
+      generate: async () => {
+        calls++;
+        if (calls === 1) return createToolCallResponse();
+        throw new Error('later generation failed');
+      },
+      capabilities: async () => ({
+        streaming: true,
+        functionCalling: true,
+        toolUse: true,
+        maxContext: 256000,
+      }),
+    };
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(calls).toBe(2);
+    expect(result.error).toBe('TOOL_GENERATION_FAILED');
+    expect(result.latencyMs).toBe(4);
+    expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
+    expect(result.toolLoop).toEqual({
+      status: 'error',
+      steps: 1,
+      terminationReason: 'tool_error',
+    });
+  });
+
+  it('retains prior generation metrics when a later generation times out', async () => {
+    const scenario = createEnabledToolLoopScenario();
+    let calls = 0;
+    const client: ModelClient = {
+      provider: 'ling',
+      generate: async () => {
+        calls++;
+        if (calls === 1) return createToolCallResponse();
+        return await new Promise<never>(() => {});
+      },
+      capabilities: async () => ({
+        streaming: true,
+        functionCalling: true,
+        toolUse: true,
+        maxContext: 256000,
+      }),
+    };
+
+    const result = await executeCase(scenario.cases[0], { client, scenario, timeout: 10 });
+
+    expect(calls).toBe(2);
+    expect(result.error).toBe('TOOL_LOOP_TIMEOUT');
+    expect(result.latencyMs).toBe(4);
+    expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
+    expect(result.toolLoop).toEqual({
+      status: 'error',
+      steps: 1,
+      terminationReason: 'timeout',
+    });
   });
 });

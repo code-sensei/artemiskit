@@ -41,6 +41,7 @@
       "ai-trace",
       "artemis-runs",
       "artemis-output",
+      "ling-evaluation",
       "agent-evaluation-runs",
       "announcements",
       ".agents",

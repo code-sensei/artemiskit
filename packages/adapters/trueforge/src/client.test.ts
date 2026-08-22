@@ -345,6 +345,41 @@ describe('TrueForge event mapping', () => {
 
     expect(normalizeTrueForgeActions(events)[0]?.status).toBe('rejected');
   });
+
+  it('preserves sandbox denials serialized inside TrueForge error content', () => {
+    const events = [
+      {
+        type: 'model.message' as const,
+        id: 'event-1',
+        threadId: 'main',
+        createdAt: '2026-08-21T10:00:00.000Z',
+        toolCalls: [
+          {
+            id: 'call-1',
+            type: 'function' as const,
+            function: { name: 'workspace_run', arguments: '{"command":"ls"}' },
+            toolInfo: {
+              type: 'mcp' as const,
+              serverId: 'server-1',
+              serverName: 'sandbox',
+              name: 'workspace_run',
+            },
+          },
+        ],
+      },
+      {
+        type: 'tool.response' as const,
+        id: 'event-2',
+        threadId: 'main',
+        toolCallId: 'call-1',
+        content:
+          '{"error":[{"type":"text","text":"{\\"ok\\":false,\\"error\\":{\\"code\\":\\"SANDBOX_COMMAND_DENIED\\",\\"message\\":\\"SANDBOX_COMMAND_DENIED\\"}}"}]}',
+        createdAt: '2026-08-21T10:00:00.010Z',
+      },
+    ];
+
+    expect(normalizeTrueForgeActions(events)[0]?.status).toBe('rejected');
+  });
 });
 
 describe('TrueForgeAdapter', () => {

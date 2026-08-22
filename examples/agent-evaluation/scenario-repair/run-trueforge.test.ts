@@ -8,6 +8,7 @@ import {
   parseChangedPaths,
   realAgentEvaluationEnabled,
   resolveLingModel,
+  workspaceOperationBudget,
 } from './run-trueforge';
 
 const TASK: AgentTask = {
@@ -81,6 +82,11 @@ describe('TrueForge scenario-repair runner helpers', () => {
     expect(prompt).toContain('workspace_patch');
     expect(prompt).toContain('akit validate scenario.yaml');
     expect(prompt).toContain('Do not change files outside: scenario.yaml');
+    expect(prompt).toContain('workspace_run may execute only the listed acceptance commands');
+  });
+
+  it('reserves workspace operations for independent post-run evidence', () => {
+    expect(workspaceOperationBudget(TASK)).toBe(23);
   });
 
   it('maps completed, timed-out, terminal-agent, and infrastructure outcomes', () => {

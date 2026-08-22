@@ -107,6 +107,12 @@ function responseStatus(content: string): AgentAction['status'] {
 }
 
 function containsRejection(value: unknown): boolean {
+  if (
+    typeof value === 'string' &&
+    /\bSANDBOX_(?:COMMAND|PATH|SECRET|SYMLINK)_DENIED\b/.test(value)
+  ) {
+    return true;
+  }
   if (Array.isArray(value)) return value.some(containsRejection);
   if (value === null || typeof value !== 'object') return false;
 

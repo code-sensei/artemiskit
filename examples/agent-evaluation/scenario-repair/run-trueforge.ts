@@ -70,11 +70,19 @@ export function buildAgentPrompt(task: AgentTask, instructions?: string): string
     `Allowed tools: ${task.allowedTools.join(', ')}`,
     `Do not change files outside: ${task.allowedPaths.join(', ')}`,
     `Acceptance commands: ${task.acceptanceCommands.join(', ')}`,
+    'workspace_run may execute only the listed acceptance commands; do not use it for shell discovery.',
     `Maximum tool actions: ${String(task.maxActions)}`,
     '',
     'Inspect the file, make the smallest valid change, run the acceptance command, and verify the final diff before finishing.',
     'Do not claim success unless the acceptance command exits successfully.',
   ].join('\n');
+}
+
+export function workspaceOperationBudget(task: AgentTask): number {
+  // TrueForge can emit two tool calls in one loop iteration even when parallel execution is off.
+  // Keep that bounded while reserving acceptance, status, and diff operations for the scorer.
+  const evidenceOperations = task.acceptanceCommands.length + 2;
+  return task.maxActions * 2 + evidenceOperations;
 }
 
 export function inferTerminationStatus(
@@ -246,7 +254,7 @@ export async function runTrueForgeEvaluation(): Promise<number> {
     akitBundlePath,
     commandTimeoutMs: task.timeoutMs,
     maxCommands: task.maxActions + task.acceptanceCommands.length,
-    maxOperations: task.maxActions + task.acceptanceCommands.length + 2,
+    maxOperations: workspaceOperationBudget(task),
   });
   let collectedEvidence: CollectedEvidence | undefined;
   let terminalStatus: string | undefined;

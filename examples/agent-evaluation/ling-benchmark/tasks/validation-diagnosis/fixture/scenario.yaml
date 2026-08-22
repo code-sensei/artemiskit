@@ -1,0 +1,9 @@
+name: validation-diagnosis
+description: One deterministic schema failure for diagnosis.
+
+cases:
+  - id: greeting
+    prompt: Reply with the word hello.
+    expected:
+      type: includes
+      values: [hello]

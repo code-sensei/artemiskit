@@ -1,0 +1,11 @@
+name: release-readiness
+description: A synthetic release-gate response contract.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+cases:
+  - id: report-readiness
+    prompt: Reply with exactly READY.
+    expected:
+      type: exact
+      value: WAITING

@@ -1,0 +1,11 @@
+name: invoice-routing
+description: Deterministically route a synthetic support request.
+provider: ling
+model: Ling-3.0-tiny
+temperature: 0
+cases:
+  - id: route-billing-request
+    prompt: "Classify this request with exactly one word: I need a copy of invoice INV-1042."
+    expected:
+      type: exact
+      value: billing

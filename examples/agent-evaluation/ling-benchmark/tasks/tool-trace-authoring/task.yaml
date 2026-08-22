@@ -1,0 +1,27 @@
+id: tool-trace-authoring
+instructions: |
+  Add the missing expectation to scenario.yaml. Require lookup_invoice followed by
+  search_invoices, forbid delete_invoice, and permit at most two calls. Preserve the existing
+  fixture-only tools and bounded tool-loop settings. Change only scenario.yaml and run the
+  acceptance command before finishing.
+fixturePath: fixture
+allowedPaths:
+  - scenario.yaml
+allowedTools:
+  - workspace_read
+  - workspace_patch
+  - workspace_status
+  - workspace_diff
+  - workspace_run
+maxActions: 12
+timeoutMs: 60000
+acceptanceCommands:
+  - akit validate scenario.yaml
+requiredArtifactChecks:
+  - tool-trace-scenario-matches-expected
+artifactChecks:
+  - id: tool-trace-scenario-matches-expected
+    path: scenario.yaml
+    expectedPath: expected/scenario.yaml
+models:
+  - Ling-3.0-flash

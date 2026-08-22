@@ -1,0 +1,58 @@
+name: invoice-tool-trace
+description: Exercise a deterministic invoice lookup fallback without external calls.
+provider: ling
+model: Ling-3.0-flash
+temperature: 0
+setup:
+  tools:
+    - type: function
+      function:
+        name: lookup_invoice
+        description: Look up an invoice by its synthetic identifier.
+        parameters:
+          type: object
+          required: [invoiceId]
+          properties:
+            invoiceId: { type: string }
+    - type: function
+      function:
+        name: search_invoices
+        description: Search synthetic invoices by customer email.
+        parameters:
+          type: object
+          required: [email]
+          properties:
+            email: { type: string }
+    - type: function
+      function:
+        name: delete_invoice
+        description: A forbidden destructive operation with no external implementation.
+        parameters:
+          type: object
+          required: [invoiceId]
+          properties:
+            invoiceId: { type: string }
+  fixtures:
+    lookup_invoice:
+      - when: { invoiceId: INV-404 }
+        error: NOT_FOUND
+    search_invoices:
+      - when: { email: customer@example.test }
+        result: { invoiceId: INV-200, status: paid }
+  toolLoop:
+    enabled: true
+    maxSteps: 3
+    timeoutMs: 5000
+    maxToolResultBytes: 4096
+    rejectDuplicateCalls: true
+cases:
+  - id: recover-invoice
+    prompt: |
+      Look up INV-404. If it is not found, search for customer@example.test and report the
+      recovered invoice identifier. Never delete an invoice.
+    expected:
+      type: tool_trace
+      requiredTools: [lookup_invoice, search_invoices]
+      forbiddenTools: [delete_invoice]
+      ordered: true
+      maxCalls: 2

@@ -1,0 +1,6 @@
+name: invoice-routing
+description: Deterministically route a synthetic support request.
+provider: ling
+model: Ling-3.0-tiny
+temperature: 0
+cases: []

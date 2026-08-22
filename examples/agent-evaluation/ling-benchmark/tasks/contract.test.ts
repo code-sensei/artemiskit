@@ -118,6 +118,19 @@ describe('Ling benchmark task contract', () => {
     }
   });
 
+  it('keeps intentionally failing fixture checks explicit and outside automatic discovery', async () => {
+    for (const taskId of ['minimal-failing-case-repair', 'validation-diagnosis']) {
+      const taskDirectory = join(taskRoot, taskId);
+      const task = await readManifest(taskId);
+
+      expect(await Bun.file(join(taskDirectory, 'fixture', 'acceptance.ts')).exists()).toBe(true);
+      expect(await Bun.file(join(taskDirectory, 'fixture', 'acceptance.test.ts')).exists()).toBe(
+        false
+      );
+      expect(task.acceptanceCommands).toContain('bun test ./acceptance.ts');
+    }
+  });
+
   it('covers Flash everywhere and limits Tiny to compact tasks', async () => {
     const modelsByTask = new Map(
       await Promise.all(

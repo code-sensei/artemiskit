@@ -15,7 +15,7 @@ allowedTools:
 maxActions: 10
 timeoutMs: 60000
 acceptanceCommands:
-  - bun test acceptance.test.ts
+  - bun test ./acceptance.ts
 requiredArtifactChecks:
   - minimal-repair-matches-expected
 artifactChecks:

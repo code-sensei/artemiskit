@@ -1,0 +1,26 @@
+id: ling-artemiskit-agent-benchmark
+repetitions: 3
+tasks:
+  - id: scenario-repair
+    taskPath: examples/agent-evaluation/scenario-repair/task.yaml
+    models:
+      - Ling-3.0-flash
+      - Ling-3.0-tiny
+  - id: minimal-failing-case-repair
+    taskPath: examples/agent-evaluation/ling-benchmark/tasks/minimal-failing-case-repair/task.yaml
+    models:
+      - Ling-3.0-flash
+  - id: scenario-authoring
+    taskPath: examples/agent-evaluation/ling-benchmark/tasks/scenario-authoring/task.yaml
+    models:
+      - Ling-3.0-flash
+      - Ling-3.0-tiny
+  - id: tool-trace-authoring
+    taskPath: examples/agent-evaluation/ling-benchmark/tasks/tool-trace-authoring/task.yaml
+    models:
+      - Ling-3.0-flash
+  - id: validation-diagnosis
+    taskPath: examples/agent-evaluation/ling-benchmark/tasks/validation-diagnosis/task.yaml
+    models:
+      - Ling-3.0-flash
+      - Ling-3.0-tiny

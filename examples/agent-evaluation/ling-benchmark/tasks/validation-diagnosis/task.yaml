@@ -2,7 +2,7 @@ id: validation-diagnosis
 instructions: |
   Run `akit validate scenario.yaml`, diagnose its single validation failure, and replace the stub
   diagnosis.json with a structured report. Record the command, exit code, validity, validator
-  evidence, and smallest recommended fix using the shape enforced by acceptance.test.ts. Do not
+  evidence, and smallest recommended fix using the shape enforced by acceptance.ts. Do not
   edit the invalid scenario. Run the acceptance test before finishing.
 fixturePath: fixture
 allowedPaths:
@@ -16,7 +16,10 @@ allowedTools:
 maxActions: 10
 timeoutMs: 60000
 acceptanceCommands:
-  - bun test acceptance.test.ts
+  - bun test ./acceptance.ts
+allowedCommands:
+  - akit validate scenario.yaml
+  - bun test ./acceptance.ts
 requiredArtifactChecks:
   - validation-diagnosis-matches-expected
 artifactChecks:

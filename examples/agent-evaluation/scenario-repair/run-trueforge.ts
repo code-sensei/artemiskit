@@ -1,10 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type {
   AgentAcceptanceCheck,
   AgentArtifactCheck,
   AgentEvaluationEvidence,
+  AgentEvaluationScore,
   AgentOutcome,
   AgentTask,
   AgentTerminationStatus,
@@ -12,14 +13,25 @@ import type {
 
 const LING_API_BASE_URL = 'https://api.ant-ling.com/v1';
 const TRUEFORGE_BASE_URL = 'http://localhost:8790';
-const MCP_SERVER_NAME = 'artemiskit-scenario-repair';
+const MCP_SERVER_NAME = 'artemiskit-ling-benchmark';
 
-interface ScenarioRepairTask extends AgentTask {
-  instructions: string;
+export type LingModelId = 'Ling-3.0-flash' | 'Ling-3.0-tiny';
+
+export interface ArtifactCheckDefinition {
+  id: string;
+  path: string;
+  expectedPath: string;
 }
 
-interface LingModelSelection {
-  modelId: 'Ling-3.0-flash' | 'Ling-3.0-tiny';
+export interface BenchmarkTask extends AgentTask {
+  instructions: string;
+  allowedCommands?: string[];
+  artifactChecks: ArtifactCheckDefinition[];
+  models: LingModelId[];
+}
+
+export interface LingModelSelection {
+  modelId: LingModelId;
   modelName: 'ling-3-flash' | 'ling-3-tiny';
 }
 
@@ -28,6 +40,28 @@ type Environment = Readonly<Record<string, string | undefined>>;
 interface CollectedEvidence {
   acceptanceChecks: AgentAcceptanceCheck[];
   artifactChecks: AgentArtifactCheck[];
+}
+
+export interface TrueForgeEvaluationResult {
+  schemaVersion: 1;
+  createdAt: string;
+  repositoryCommit?: string;
+  provider: { name: 'ling'; baseUrl: string };
+  model: LingModelSelection;
+  harness: { name: 'trueforge'; baseUrl: string };
+  task: BenchmarkTask;
+  outcome: AgentOutcome;
+  evidence: AgentEvaluationEvidence;
+  score: AgentEvaluationScore;
+}
+
+export interface TrueForgeAttemptOptions {
+  repoRoot: string;
+  taskRoot: string;
+  task: BenchmarkTask;
+  model: LingModelSelection;
+  apiKey: string;
+  akitBundlePath: string;
 }
 
 export function realAgentEvaluationEnabled(environment: Environment): boolean {
@@ -56,7 +90,10 @@ export function parseChangedPaths(status: string): string[] {
     });
 }
 
-export function buildAgentPrompt(task: AgentTask, instructions?: string): string {
+export function buildAgentPrompt(
+  task: AgentTask & { allowedCommands?: string[] },
+  instructions?: string
+): string {
   const target = task.allowedPaths[0] ?? 'the assigned fixture';
   const taskInstructions =
     instructions ??
@@ -69,12 +106,13 @@ export function buildAgentPrompt(task: AgentTask, instructions?: string): string
     '',
     `Allowed tools: ${task.allowedTools.join(', ')}`,
     `Do not change files outside: ${task.allowedPaths.join(', ')}`,
+    `Allowed commands: ${(task.allowedCommands ?? task.acceptanceCommands).join(', ')}`,
     `Acceptance commands: ${task.acceptanceCommands.join(', ')}`,
     '',
     'Tool contract:',
     '- Use workspace_read to inspect file contents; do not use workspace_run as cat.',
     '- Use workspace_patch for the edit, workspace_status for changed paths, and workspace_diff for the final patch.',
-    '- workspace_run may execute only the listed acceptance commands. Any other command is prohibited and fails this evaluation.',
+    '- workspace_run may execute only the listed allowed commands. Any other command is prohibited and fails this evaluation.',
     '- Do not run help, listing, search, package, shell, or discovery commands.',
     `Maximum tool actions: ${String(task.maxActions)}`,
     '',
@@ -90,6 +128,21 @@ export function workspaceOperationBudget(task: AgentTask): number {
   return task.maxActions * 2 + evidenceOperations;
 }
 
+export function createSandboxOptions(
+  task: BenchmarkTask,
+  paths: { fixturePath: string; akitBundlePath: string }
+) {
+  return {
+    ...paths,
+    allowedPaths: task.allowedPaths,
+    allowedCommands: task.allowedCommands ?? task.acceptanceCommands,
+    allowedTools: task.allowedTools,
+    commandTimeoutMs: task.timeoutMs,
+    maxCommands: task.maxActions + task.acceptanceCommands.length,
+    maxOperations: workspaceOperationBudget(task),
+  };
+}
+
 export function inferTerminationStatus(
   outcome: AgentOutcome,
   terminalStatus?: string
@@ -101,33 +154,131 @@ export function inferTerminationStatus(
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+  return (
+    Array.isArray(value) &&
+    Array.from({ length: value.length }, (_, index) => value[index]).every(
+      (item) => typeof item === 'string'
+    )
+  );
 }
 
-function parseTask(value: unknown): ScenarioRepairTask {
+function isUniqueNonEmptyStrings(value: unknown): value is string[] {
+  return (
+    isStringArray(value) &&
+    value.length > 0 &&
+    value.every((item) => item.trim().length > 0) &&
+    new Set(value).size === value.length
+  );
+}
+
+function isSafeRelativePath(path: string): boolean {
+  if (
+    !path ||
+    path.includes('\\') ||
+    path.includes('\0') ||
+    /^[A-Za-z]:\//.test(path) ||
+    isAbsolute(path)
+  ) {
+    return false;
+  }
+  const normalized = normalize(path);
+  return (
+    normalized === path &&
+    normalized !== '.' &&
+    normalized !== '..' &&
+    !normalized.startsWith(`..${sep}`)
+  );
+}
+
+function isAllowedCommand(command: string): boolean {
+  const match = /^(?:akit validate|bun test) ([a-zA-Z0-9._/-]+)$/.exec(command);
+  const commandPath = match?.[1];
+  if (!commandPath) return false;
+  return isSafeRelativePath(commandPath.startsWith('./') ? commandPath.slice(2) : commandPath);
+}
+
+function invalidTaskManifest(): never {
+  throw new Error('task.yaml does not satisfy the real-agent task contract');
+}
+
+export function parseTaskManifest(value: unknown): BenchmarkTask {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('task.yaml must contain an object');
+    return invalidTaskManifest();
   }
   const task = value as Record<string, unknown>;
+  const artifactChecks = task.artifactChecks;
   if (
     typeof task.id !== 'string' ||
+    task.id.trim().length === 0 ||
     typeof task.instructions !== 'string' ||
+    task.instructions.trim().length === 0 ||
     typeof task.fixturePath !== 'string' ||
-    !isStringArray(task.allowedPaths) ||
-    !isStringArray(task.allowedTools) ||
+    !isSafeRelativePath(task.fixturePath) ||
+    !isUniqueNonEmptyStrings(task.allowedPaths) ||
+    task.allowedPaths.some((path) => !isSafeRelativePath(path)) ||
+    !isUniqueNonEmptyStrings(task.allowedTools) ||
+    task.allowedTools.some(
+      (tool) =>
+        ![
+          'workspace_read',
+          'workspace_patch',
+          'workspace_status',
+          'workspace_diff',
+          'workspace_run',
+        ].includes(tool)
+    ) ||
     !Number.isInteger(task.maxActions) ||
     (task.maxActions as number) < 1 ||
     !Number.isInteger(task.timeoutMs) ||
     (task.timeoutMs as number) < 1 ||
-    !isStringArray(task.acceptanceCommands) ||
-    (task.requiredArtifactChecks !== undefined && !isStringArray(task.requiredArtifactChecks))
+    !isUniqueNonEmptyStrings(task.acceptanceCommands) ||
+    task.acceptanceCommands.some((command) => !isAllowedCommand(command)) ||
+    (task.allowedCommands !== undefined && !isUniqueNonEmptyStrings(task.allowedCommands)) ||
+    (isStringArray(task.allowedCommands) &&
+      task.allowedCommands.some((command) => !isAllowedCommand(command))) ||
+    !isUniqueNonEmptyStrings(task.requiredArtifactChecks) ||
+    !Array.isArray(artifactChecks) ||
+    artifactChecks.length === 0 ||
+    !isUniqueNonEmptyStrings(task.models) ||
+    task.models.some((model) => model !== 'Ling-3.0-flash' && model !== 'Ling-3.0-tiny')
   ) {
-    throw new Error('task.yaml does not satisfy the real-agent task contract');
+    return invalidTaskManifest();
   }
-  return task as unknown as ScenarioRepairTask;
+
+  const parsedArtifactChecks: ArtifactCheckDefinition[] = [];
+  for (const value of artifactChecks) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return invalidTaskManifest();
+    const check = value as Record<string, unknown>;
+    if (
+      typeof check.id !== 'string' ||
+      check.id.trim().length === 0 ||
+      typeof check.path !== 'string' ||
+      !isSafeRelativePath(check.path) ||
+      typeof check.expectedPath !== 'string' ||
+      !isSafeRelativePath(check.expectedPath) ||
+      !(task.allowedPaths as string[]).includes(check.path)
+    ) {
+      return invalidTaskManifest();
+    }
+    parsedArtifactChecks.push(check as unknown as ArtifactCheckDefinition);
+  }
+
+  const artifactIds = parsedArtifactChecks.map((check) => check.id);
+  const requiredArtifactChecks = task.requiredArtifactChecks as string[];
+  const allowedCommands = (task.allowedCommands ?? task.acceptanceCommands) as string[];
+  if (
+    new Set(artifactIds).size !== artifactIds.length ||
+    requiredArtifactChecks.length !== artifactIds.length ||
+    requiredArtifactChecks.some((id, index) => id !== artifactIds[index]) ||
+    !(task.acceptanceCommands as string[]).every((command) => allowedCommands.includes(command))
+  ) {
+    return invalidTaskManifest();
+  }
+
+  return task as unknown as BenchmarkTask;
 }
 
-async function buildAkitBundle(repoRoot: string): Promise<string> {
+export async function buildAkitBundle(repoRoot: string): Promise<string> {
   const outputDirectory = join(repoRoot, 'agent-evaluation-runs', 'bin');
   await mkdir(outputDirectory, { recursive: true });
   const result = await Bun.build({
@@ -145,13 +296,14 @@ async function buildAkitBundle(repoRoot: string): Promise<string> {
 }
 
 export async function collectWorkspaceEvidence(
-  task: AgentTask,
+  task: AgentTask & { artifactChecks?: ArtifactCheckDefinition[] },
   workspace: {
     root: string;
     run(command: string): Promise<{ exitCode: number }>;
     status(): Promise<string>;
     diff(): Promise<string>;
-  }
+  },
+  taskRoot = fileURLToPath(new URL('.', import.meta.url))
 ): Promise<{
   collection: { acceptancePassed: boolean; changedPaths: string[]; finalDiff?: string };
   evidence: CollectedEvidence;
@@ -181,12 +333,24 @@ export async function collectWorkspaceEvidence(
   const finalDiff = await workspace.diff();
 
   const artifactChecks: AgentArtifactCheck[] = [];
-  try {
-    const { checkScenarioRepair } = await import('./acceptance');
-    artifactChecks.push(await checkScenarioRepair(workspace.root));
-  } catch {
-    for (const id of task.requiredArtifactChecks ?? []) {
-      artifactChecks.push({ id, status: 'executor_error', durationMs: 0 });
+  for (const check of task.artifactChecks ?? []) {
+    const startedAt = performance.now();
+    try {
+      const [actual, expected] = await Promise.all([
+        readFile(join(workspace.root, check.path)),
+        readFile(join(taskRoot, check.expectedPath)),
+      ]);
+      artifactChecks.push({
+        id: check.id,
+        status: actual.equals(expected) ? 'passed' : 'failed',
+        durationMs: performance.now() - startedAt,
+      });
+    } catch {
+      artifactChecks.push({
+        id: check.id,
+        status: 'executor_error',
+        durationMs: performance.now() - startedAt,
+      });
     }
   }
 
@@ -230,37 +394,22 @@ async function currentCommit(repoRoot: string): Promise<string | undefined> {
   return exitCode === 0 ? stdout.trim() : undefined;
 }
 
-export async function runTrueForgeEvaluation(): Promise<number> {
-  if (!realAgentEvaluationEnabled(process.env)) {
-    console.log(
-      'Skipped: set LING_REAL_AGENT_TESTS=1 and LING_API_KEY to run the real Ling evaluation.'
-    );
-    return 0;
-  }
-
-  const apiKey = process.env.LING_API_KEY?.trim();
-  if (!apiKey) throw new Error('LING_API_KEY is required');
-
-  const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
-  const exampleRoot = join(repoRoot, 'examples', 'agent-evaluation', 'scenario-repair');
-  const taskSource = await readFile(join(exampleRoot, 'task.yaml'), 'utf8');
-  const task = parseTask(Bun.YAML.parse(taskSource));
-  const model = resolveLingModel(process.env);
-  const akitBundlePath = await buildAkitBundle(repoRoot);
-
+export async function runTrueForgeAttempt(
+  options: TrueForgeAttemptOptions
+): Promise<TrueForgeEvaluationResult> {
+  const { repoRoot, taskRoot, task, model, apiKey, akitBundlePath } = options;
   const { scoreAgentOutcome } = await import('@artemiskit/core');
   const { TrueForgeAdapter, createLingProviderSetup } = await import(
     '@artemiskit/adapter-trueforge'
   );
   const { startMcpSandboxServer } = await import('@artemiskit/mcp-docker-sandbox');
   const providerSetup = createLingProviderSetup({ apiKey, ...model });
-  const server = await startMcpSandboxServer({
-    fixturePath: resolve(exampleRoot, task.fixturePath),
-    akitBundlePath,
-    commandTimeoutMs: task.timeoutMs,
-    maxCommands: task.maxActions + task.acceptanceCommands.length,
-    maxOperations: workspaceOperationBudget(task),
-  });
+  const server = await startMcpSandboxServer(
+    createSandboxOptions(task, {
+      fixturePath: resolve(taskRoot, task.fixturePath),
+      akitBundlePath,
+    })
+  );
   let collectedEvidence: CollectedEvidence | undefined;
   let terminalStatus: string | undefined;
 
@@ -275,7 +424,7 @@ export async function runTrueForgeEvaluation(): Promise<number> {
         mcpServer: {
           type: 'remote',
           name: MCP_SERVER_NAME,
-          description: 'Disposable, network-disabled ArtemisKit scenario-repair workspace',
+          description: 'Disposable, network-disabled ArtemisKit benchmark workspace',
           url: server.url.toString(),
         },
       },
@@ -302,7 +451,7 @@ export async function runTrueForgeEvaluation(): Promise<number> {
       },
       collectOutcome: async (context) => {
         terminalStatus = context.terminalState?.status;
-        const collected = await collectWorkspaceEvidence(task, server.workspace);
+        const collected = await collectWorkspaceEvidence(task, server.workspace, taskRoot);
         collectedEvidence = collected.evidence;
         return collected.collection;
       },
@@ -315,42 +464,59 @@ export async function runTrueForgeEvaluation(): Promise<number> {
       ...(collectedEvidence ?? fallbackEvidence(task)),
     };
     const score = scoreAgentOutcome(task, outcome, evidence);
-    const timestamp = new Date().toISOString();
-    const outputDirectory = join(
-      repoRoot,
-      'agent-evaluation-runs',
-      'trueforge-ling',
-      timestamp.replaceAll(':', '-').replaceAll('.', '-')
-    );
-    const outputPath = join(outputDirectory, 'result.json');
-    await mkdir(outputDirectory, { recursive: true });
-    await writeFile(
-      outputPath,
-      `${JSON.stringify(
-        {
-          schemaVersion: 1,
-          createdAt: timestamp,
-          repositoryCommit: await currentCommit(repoRoot),
-          provider: { name: 'ling', baseUrl: LING_API_BASE_URL },
-          model,
-          harness: { name: 'trueforge', baseUrl: TRUEFORGE_BASE_URL },
-          task,
-          outcome,
-          evidence,
-          score,
-        },
-        null,
-        2
-      )}\n`,
-      'utf8'
-    );
-
-    console.log(`Verdict: ${score.verdict}`);
-    console.log(`Sanitized result: ${outputPath}`);
-    return score.passed ? 0 : 1;
+    return {
+      schemaVersion: 1,
+      createdAt: new Date().toISOString(),
+      repositoryCommit: await currentCommit(repoRoot),
+      provider: { name: 'ling', baseUrl: LING_API_BASE_URL },
+      model,
+      harness: { name: 'trueforge', baseUrl: TRUEFORGE_BASE_URL },
+      task,
+      outcome,
+      evidence,
+      score,
+    };
   } finally {
     await server.close();
   }
+}
+
+export async function runTrueForgeEvaluation(): Promise<number> {
+  if (!realAgentEvaluationEnabled(process.env)) {
+    console.log(
+      'Skipped: set LING_REAL_AGENT_TESTS=1 and LING_API_KEY to run the real Ling evaluation.'
+    );
+    return 0;
+  }
+
+  const apiKey = process.env.LING_API_KEY?.trim();
+  if (!apiKey) throw new Error('LING_API_KEY is required');
+
+  const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+  const taskRoot = join(repoRoot, 'examples', 'agent-evaluation', 'scenario-repair');
+  const taskSource = await readFile(join(taskRoot, 'task.yaml'), 'utf8');
+  const task = parseTaskManifest(Bun.YAML.parse(taskSource));
+  const result = await runTrueForgeAttempt({
+    repoRoot,
+    taskRoot,
+    task,
+    model: resolveLingModel(process.env),
+    apiKey,
+    akitBundlePath: await buildAkitBundle(repoRoot),
+  });
+  const outputDirectory = join(
+    repoRoot,
+    'agent-evaluation-runs',
+    'trueforge-ling',
+    result.createdAt.replaceAll(':', '-').replaceAll('.', '-')
+  );
+  const outputPath = join(outputDirectory, 'result.json');
+  await mkdir(outputDirectory, { recursive: true });
+  await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
+
+  console.log(`Verdict: ${result.score.verdict}`);
+  console.log(`Sanitized result: ${outputPath}`);
+  return result.score.passed ? 0 : 1;
 }
 
 if (import.meta.main) {

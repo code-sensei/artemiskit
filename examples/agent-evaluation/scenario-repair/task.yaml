@@ -18,3 +18,10 @@ acceptanceCommands:
   - akit validate scenario.yaml
 requiredArtifactChecks:
   - scenario-matches-expected
+artifactChecks:
+  - id: scenario-matches-expected
+    path: scenario.yaml
+    expectedPath: expected/scenario.yaml
+models:
+  - Ling-3.0-flash
+  - Ling-3.0-tiny

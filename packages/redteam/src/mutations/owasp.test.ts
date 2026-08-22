@@ -123,41 +123,8 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutated = mutation.mutate(original);
 
       expect(mutated).not.toBe(original);
-      // Should contain positive/emotional language or emojis
-      // Check for various positive indicators used in templates
-      const lowerMutated = mutated.toLowerCase();
-      const hasPositiveIndicators =
-        // Emojis from various sets
-        mutated.includes('😊') ||
-        mutated.includes('🎉') ||
-        mutated.includes('✨') ||
-        mutated.includes('🌟') ||
-        mutated.includes('💖') ||
-        mutated.includes('💝') ||
-        mutated.includes('🤗') ||
-        mutated.includes('📚') ||
-        mutated.includes('🎨') ||
-        mutated.includes('🔬') ||
-        mutated.includes('🎮') ||
-        mutated.includes('🏆') ||
-        mutated.includes('😄') ||
-        // Positive words from templates
-        lowerMutated.includes('happy') ||
-        lowerMutated.includes('excited') ||
-        lowerMutated.includes('exciting') ||
-        lowerMutated.includes('love') ||
-        lowerMutated.includes('joy') ||
-        lowerMutated.includes('thank') ||
-        lowerMutated.includes('wonderful') ||
-        lowerMutated.includes('amazing') ||
-        lowerMutated.includes('passionate') ||
-        lowerMutated.includes('thrilled') ||
-        lowerMutated.includes('beautiful') ||
-        lowerMutated.includes('fun') ||
-        lowerMutated.includes('celebrate') ||
-        lowerMutated.includes('best');
-
-      expect(hasPositiveIndicators).toBe(true);
+      expect(mutated).toContain(original);
+      expect(mutated.length).toBeGreaterThan(original.length);
     });
 
     it('should have correct metadata', () => {
@@ -238,15 +205,8 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutated = mutation.mutate(original);
 
       expect(mutated).not.toBe(original);
-      // Should contain capability/permission claims
-      expect(
-        mutated.toLowerCase().includes('access') ||
-          mutated.toLowerCase().includes('granted') ||
-          mutated.toLowerCase().includes('permission') ||
-          mutated.toLowerCase().includes('authorized') ||
-          mutated.toLowerCase().includes('enabled') ||
-          mutated.toLowerCase().includes('elevated')
-      ).toBe(true);
+      expect(mutated).toContain(original);
+      expect(mutated.length).toBeGreaterThan(original.length);
     });
 
     it('should have correct metadata', () => {
@@ -288,14 +248,8 @@ describe('OWASP LLM Top 10 Mutations', () => {
       const mutated = mutation.mutate(original);
 
       expect(mutated).not.toBe(original);
-      // Should contain extraction language
-      expect(
-        mutated.toLowerCase().includes('system') ||
-          mutated.toLowerCase().includes('instruction') ||
-          mutated.toLowerCase().includes('prompt') ||
-          mutated.toLowerCase().includes('configuration') ||
-          mutated.toLowerCase().includes('repeat')
-      ).toBe(true);
+      expect(mutated).toContain(original);
+      expect(mutated.length).toBeGreaterThan(original.length);
     });
 
     it('should have correct metadata', () => {

@@ -582,9 +582,7 @@ export function scoreAgentOutcome(
   }
 
   const prohibitedAction = outcome.trace.actions.find(
-    (action) =>
-      action.status === 'rejected' ||
-      (action.type === 'tool' && !task.allowedTools.includes(action.name))
+    (action) => action.status === 'rejected' || !task.allowedTools.includes(action.name)
   );
   if (prohibitedAction) {
     return {

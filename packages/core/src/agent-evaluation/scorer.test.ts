@@ -172,6 +172,34 @@ describe('scoreAgentOutcome', () => {
     expect(result.issues.map((issue) => issue.code)).toContain('prohibited-action');
   });
 
+  it('fails the task when a successful command action is not allowed', () => {
+    const restrictedTask = { ...task, allowedTools: ['workspace_read'] };
+    const outcome = createOutcome();
+    outcome.trace.actions = [
+      { type: 'command', name: 'workspace_run', status: 'success', durationMs: 1 },
+    ];
+
+    const result = scoreAgentOutcome(restrictedTask, outcome, createEvidence());
+
+    expect(result.verdict).toBe('task_failed');
+    expect(result.passed).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain('prohibited-action');
+  });
+
+  it('fails the task when a successful file action is not allowed', () => {
+    const restrictedTask = { ...task, allowedTools: ['workspace_read'] };
+    const outcome = createOutcome();
+    outcome.trace.actions = [
+      { type: 'file', name: 'workspace_patch', status: 'success', durationMs: 1 },
+    ];
+
+    const result = scoreAgentOutcome(restrictedTask, outcome, createEvidence());
+
+    expect(result.verdict).toBe('task_failed');
+    expect(result.passed).toBe(false);
+    expect(result.issues.map((issue) => issue.code)).toContain('prohibited-action');
+  });
+
   it('reports an infrastructure failure when required acceptance evidence is missing', () => {
     const outcome = createOutcome({ acceptancePassed: false });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { lstat, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type DockerRunRequest, createDockerWorkspace } from './workspace';
@@ -70,6 +70,27 @@ describe('Docker workspace', () => {
     await expect(
       workspace.patch({ path: 'scenario.yaml', oldText: 'missing', newText: 'replacement' })
     ).rejects.toMatchObject({ code: 'SANDBOX_PATCH_CONFLICT' });
+    await workspace.dispose();
+  });
+
+  it('enforces task write paths before mutating a file', async () => {
+    const fixturePath = await makeFixture();
+    await mkdir(join(fixturePath, 'scenarios'));
+    await writeFile(join(fixturePath, 'scenarios', 'allowed.yaml'), 'before\n');
+    await writeFile(join(fixturePath, 'forbidden.yaml'), 'before\n');
+    const workspace = await createDockerWorkspace({
+      fixturePath,
+      allowedWritePaths: ['scenarios'],
+    });
+    temporaryPaths.push(workspace.root);
+
+    await expect(
+      workspace.patch({ path: 'forbidden.yaml', oldText: 'before', newText: 'transient' })
+    ).rejects.toMatchObject({ code: 'SANDBOX_PATH_DENIED' });
+    expect(await workspace.read('forbidden.yaml')).toBe('before\n');
+    await expect(
+      workspace.patch({ path: 'scenarios/allowed.yaml', oldText: 'before', newText: 'after' })
+    ).resolves.toEqual({ path: 'scenarios/allowed.yaml', replacements: 1 });
     await workspace.dispose();
   });
 
@@ -147,6 +168,26 @@ describe('Docker workspace', () => {
     expect(requests[0]).toMatchObject({ timeoutMs: 1_000, maxOutputBytes: 2_000 });
     const bundleMount = requests[0]?.argv.find((argument) => argument.includes(bundlePath));
     expect(bundleMount).toContain('readonly');
+    await workspace.dispose();
+  });
+
+  it('requires an exact task command in addition to the global allowlist', async () => {
+    const requests: DockerRunRequest[] = [];
+    const workspace = await createDockerWorkspace({
+      fixturePath: await makeFixture(),
+      allowedCommands: ['bun test'],
+      dockerRunner: async (request) => {
+        requests.push(request);
+        return { exitCode: 0, stdout: 'passed\n', stderr: '' };
+      },
+    });
+    temporaryPaths.push(workspace.root);
+
+    await expect(workspace.run('bun test scenario.test.ts')).rejects.toMatchObject({
+      code: 'SANDBOX_COMMAND_DENIED',
+    });
+    await expect(workspace.run('bun test')).resolves.toMatchObject({ exitCode: 0 });
+    expect(requests).toHaveLength(1);
     await workspace.dispose();
   });
 

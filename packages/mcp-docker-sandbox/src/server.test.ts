@@ -113,6 +113,62 @@ describe('MCP sandbox server', () => {
     });
   });
 
+  it('advertises only task tools and rejects direct calls outside the task set', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const runningServer = await startMcpSandboxServer({
+      workspace,
+      allowedTools: ['workspace_read', 'workspace_patch'],
+    });
+    const client = new Client({ name: 'artemiskit-test-client', version: '1.0.0' });
+    const transport = new StreamableHTTPClientTransport(runningServer.url);
+
+    try {
+      await client.connect(transport);
+      expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual([
+        'workspace_read',
+        'workspace_patch',
+      ]);
+      expect(
+        structured(
+          await client.callTool({
+            name: 'workspace_read',
+            arguments: { path: 'scenario.yaml' },
+          })
+        )
+      ).toMatchObject({ ok: true, content: 'before\n' });
+
+      const denied = await client.callTool({ name: 'workspace_status' });
+      expect(denied.isError).toBe(true);
+      expect(structured(denied)).toEqual({
+        ok: false,
+        error: { code: 'SANDBOX_TOOL_NOT_FOUND', message: 'SANDBOX_TOOL_NOT_FOUND' },
+      });
+    } finally {
+      await client.close();
+      await runningServer.close();
+    }
+  });
+
+  it('rejects unknown task tool names before starting the server', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const result = await startMcpSandboxServer({
+      workspace,
+      allowedTools: ['workspace_read', 'unknown_tool'],
+    }).then(
+      async (runningServer) => {
+        await runningServer.close();
+        return undefined;
+      },
+      (error: unknown) => error
+    );
+
+    expect(result).toMatchObject({ code: 'SANDBOX_INVALID_ARGUMENT' });
+    expect(await workspace.read('scenario.yaml')).toBe('before\n');
+    await workspace.dispose();
+  });
+
   it('returns stable structured tool errors without leaking internal details', async () => {
     const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
     temporaryPaths.push(workspace.root);

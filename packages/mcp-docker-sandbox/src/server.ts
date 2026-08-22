@@ -20,6 +20,7 @@ export interface McpSandboxServerOptions extends DockerWorkspaceOptions {
   hostname?: string;
   port?: number;
   allowRemoteBinding?: boolean;
+  allowedTools?: string[];
 }
 
 export interface RunningMcpSandboxServer {
@@ -94,6 +95,7 @@ export async function startMcpSandboxServer(
   if (!Number.isInteger(port) || port < 0 || port > 65_535) {
     throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
   }
+  const toolDefinitions = selectToolDefinitions(options.allowedTools);
 
   const workspace = options.workspace ?? (await createDockerWorkspace(options));
   const protectLoopback = isLoopbackHostname(hostname);
@@ -115,7 +117,7 @@ export async function startMcpSandboxServer(
           return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
         }
 
-        const protocolServer = createProtocolServer(workspace);
+        const protocolServer = createProtocolServer(workspace, toolDefinitions);
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
@@ -171,7 +173,8 @@ export async function startMcpSandboxServer(
   };
 }
 
-function createProtocolServer(workspace: DockerWorkspace): Server {
+function createProtocolServer(workspace: DockerWorkspace, toolDefinitions: Tool[]): Server {
+  const allowedToolNames = new Set(toolDefinitions.map((tool) => tool.name));
   const server = new Server(
     { name: '@artemiskit/mcp-docker-sandbox', version: '0.1.0' },
     {
@@ -180,9 +183,12 @@ function createProtocolServer(workspace: DockerWorkspace): Server {
         'Use only the listed tools. All paths are relative to one disposable workspace.',
     }
   );
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOL_DEFINITIONS }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
+      if (!allowedToolNames.has(request.params.name)) {
+        throw new SandboxError(SANDBOX_ERROR_CODES.toolNotFound);
+      }
       switch (request.params.name) {
         case 'workspace_read': {
           const args = requireRecord(request.params.arguments);
@@ -218,6 +224,16 @@ function createProtocolServer(workspace: DockerWorkspace): Server {
     }
   });
   return server;
+}
+
+function selectToolDefinitions(allowedTools?: readonly string[]): Tool[] {
+  if (allowedTools === undefined) return TOOL_DEFINITIONS;
+  const allowedToolNames = new Set(allowedTools);
+  const knownToolNames = new Set(TOOL_DEFINITIONS.map((tool) => tool.name));
+  if (allowedTools.some((toolName) => !knownToolNames.has(toolName))) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+  }
+  return TOOL_DEFINITIONS.filter((tool) => allowedToolNames.has(tool.name));
 }
 
 function successResult(data: Record<string, unknown>): CallToolResult {

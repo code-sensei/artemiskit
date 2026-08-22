@@ -84,8 +84,32 @@ export function assertWorkspacePath(root: string, candidate: string): string {
   return path;
 }
 
-export function assertAllowedCommand(command: string): AllowedCommand {
+export function assertAllowedWritePath(
+  root: string,
+  candidate: string,
+  allowedWritePaths?: readonly string[]
+): string {
+  const path = assertWorkspacePath(root, candidate);
+  if (allowedWritePaths === undefined) return path;
+
+  const rootPath = resolve(root);
+  const relativePath = relative(rootPath, path);
+  const isAllowed = allowedWritePaths.some((allowedPath) => {
+    const allowed = relative(rootPath, assertWorkspacePath(rootPath, allowedPath));
+    return relativePath === allowed || relativePath.startsWith(`${allowed}${sep}`);
+  });
+  if (!isAllowed) throw new SandboxError(SANDBOX_ERROR_CODES.pathDenied);
+  return path;
+}
+
+export function assertAllowedCommand(
+  command: string,
+  allowedCommands?: readonly string[]
+): AllowedCommand {
   if (!command || command !== command.trim() || SHELL_CONTROL.test(command)) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.commandDenied);
+  }
+  if (allowedCommands !== undefined && !allowedCommands.includes(command)) {
     throw new SandboxError(SANDBOX_ERROR_CODES.commandDenied);
   }
 

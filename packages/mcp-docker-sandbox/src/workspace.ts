@@ -16,6 +16,7 @@ import {
   SANDBOX_ERROR_CODES,
   SandboxError,
   assertAllowedCommand,
+  assertAllowedWritePath,
   assertWorkspacePath,
 } from './policy';
 
@@ -51,6 +52,8 @@ export interface DockerWorkspaceOptions {
   maxOperations?: number;
   maxFileBytes?: number;
   maxOutputBytes?: number;
+  allowedWritePaths?: string[];
+  allowedCommands?: string[];
   dockerRunner?: DockerRunner;
   gitRunner?: DockerRunner;
 }
@@ -112,6 +115,8 @@ export async function createDockerWorkspace(
   const maxOperations = options.maxOperations ?? DEFAULT_MAX_OPERATIONS;
   const maxFileBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
+  const allowedWritePaths = options.allowedWritePaths?.slice();
+  const allowedCommands = options.allowedCommands?.slice();
   const dockerRunner = options.dockerRunner ?? runDocker;
   const serialize = createOperationQueue(operationTimeoutMs);
   const unsafeContainers = new Map<string, UnsafeContainerState>();
@@ -165,7 +170,7 @@ export async function createDockerWorkspace(
       return serialize(() => {
         assertActive();
         return withOperationTimeout(async (signal) => {
-          const resolvedPath = await resolveWorkspaceFile(root, path);
+          const resolvedPath = await resolveWorkspaceFile(root, path, allowedWritePaths);
           await assertFileWithinLimit(resolvedPath, maxFileBytes);
           const contents = await readFile(resolvedPath, { encoding: 'utf8', signal });
           const firstMatch = contents.indexOf(oldText);
@@ -218,7 +223,7 @@ export async function createDockerWorkspace(
     async run(command) {
       assertActive();
       reserveOperation();
-      const allowed = assertAllowedCommand(command);
+      const allowed = assertAllowedCommand(command, allowedCommands);
       if (allowed.requiresAkitBundle && !akitBundlePath) {
         throw new SandboxError(SANDBOX_ERROR_CODES.akitBundleRequired);
       }
@@ -572,8 +577,15 @@ async function copyFixtureDirectory(
   }
 }
 
-async function resolveWorkspaceFile(root: string, candidate: string): Promise<string> {
-  const resolvedPath = assertWorkspacePath(root, candidate);
+async function resolveWorkspaceFile(
+  root: string,
+  candidate: string,
+  allowedWritePaths?: readonly string[]
+): Promise<string> {
+  const resolvedPath =
+    allowedWritePaths === undefined
+      ? assertWorkspacePath(root, candidate)
+      : assertAllowedWritePath(root, candidate, allowedWritePaths);
   const pathParts = relative(root, resolvedPath).split('/');
   let currentPath = root;
   for (const part of pathParts) {

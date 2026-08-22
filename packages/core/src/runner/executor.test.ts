@@ -77,6 +77,8 @@ describe('executeCase tool loop', () => {
     const result = await executeCase(scenario.cases[0], { client, scenario });
 
     expect(result.ok).toBe(true);
+    expect(result.latencyMs).toBe(2);
+    expect(result.tokens).toEqual({ prompt: 30, completion: 8, total: 38 });
     expect(requests).toHaveLength(2);
     expect(requests[1].prompt).toEqual([
       { role: 'user', content: 'Where is order A-1?' },
@@ -98,5 +100,51 @@ describe('executeCase tool loop', () => {
         content: '{"status":"delivered"}',
       },
     ]);
+  });
+
+  it('retains generation metrics when the tool loop cannot start', async () => {
+    const scenario = ScenarioSchema.parse({
+      name: 'invalid tool loop',
+      provider: 'ling',
+      model: 'Ling-3.0-flash',
+      setup: { toolLoop: { enabled: true } },
+      cases: [
+        {
+          id: 'missing-tools',
+          prompt: 'Use a tool',
+          expected: { type: 'exact', value: '' },
+        },
+      ],
+    });
+    const client: ModelClient = {
+      provider: 'ling',
+      generate: async () => ({
+        id: 'first',
+        model: 'Ling-3.0-flash',
+        text: '',
+        tokens: { prompt: 7, completion: 2, total: 9 },
+        latencyMs: 4,
+        finishReason: 'tool_calls',
+        toolCalls: [
+          {
+            id: 'call-order',
+            type: 'function',
+            function: { name: 'lookup_order', arguments: '{"orderId":"A-1"}' },
+          },
+        ],
+      }),
+      capabilities: async () => ({
+        streaming: true,
+        functionCalling: true,
+        toolUse: true,
+        maxContext: 256000,
+      }),
+    };
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(result.error).toBe('TOOL_EXECUTOR_REQUIRED');
+    expect(result.latencyMs).toBe(4);
+    expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
   });
 });

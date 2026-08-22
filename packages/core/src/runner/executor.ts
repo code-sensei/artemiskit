@@ -174,6 +174,10 @@ async function executeCaseAttempt(
   let result = timeout
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
+  const generationMetrics = {
+    latencyMs: result.latencyMs,
+    tokens: { ...result.tokens },
+  };
 
   if (policy.enabled) {
     if (!tools || (!fixtures && !toolExecutor)) {
@@ -185,6 +189,7 @@ async function executeCaseAttempt(
           steps: 0,
           terminationReason: 'tool_error',
         },
+        generationMetrics,
         'TOOL_EXECUTOR_REQUIRED'
       );
     }
@@ -211,6 +216,7 @@ async function executeCaseAttempt(
               steps: step,
               terminationReason: 'duplicate_call',
             },
+            generationMetrics,
             'TOOL_DUPLICATE_CALL'
           );
         }
@@ -248,6 +254,7 @@ async function executeCaseAttempt(
                     ? 'invalid_arguments'
                     : 'tool_error',
             },
+            generationMetrics,
             execution.error?.code ?? 'TOOL_EXECUTION_FAILED'
           );
         }
@@ -265,11 +272,16 @@ async function executeCaseAttempt(
           testCase,
           toolTrace,
           { status: 'error', steps: step + 1, terminationReason: 'timeout' },
+          generationMetrics,
           'TOOL_LOOP_TIMEOUT'
         );
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
       result = await Promise.race([generate(), createTimeout(requestTimeout)]);
+      generationMetrics.latencyMs += result.latencyMs;
+      generationMetrics.tokens.prompt += result.tokens.prompt;
+      generationMetrics.tokens.completion += result.tokens.completion;
+      generationMetrics.tokens.total += result.tokens.total;
     }
     if (result.toolCalls?.length) {
       throw createToolLoopError(
@@ -280,6 +292,7 @@ async function executeCaseAttempt(
           steps: policy.maxSteps,
           terminationReason: 'max_steps',
         },
+        generationMetrics,
         'TOOL_LOOP_MAX_STEPS'
       );
     }
@@ -359,8 +372,8 @@ async function executeCaseAttempt(
     score: evalResult.score,
     matcherType: testCase.expected.type,
     reason: evalResult.reason,
-    latencyMs: result.latencyMs,
-    tokens: result.tokens,
+    latencyMs: generationMetrics.latencyMs,
+    tokens: generationMetrics.tokens,
     prompt: finalPrompt,
     response: finalResponse,
     expected: testCase.expected,
@@ -375,6 +388,7 @@ function createToolLoopError(
   testCase: TestCase,
   toolTrace: ToolTraceEntry[],
   toolLoop: ToolLoopSummary,
+  generationMetrics: Pick<CaseResult, 'latencyMs' | 'tokens'>,
   code: string
 ): ToolLoopError {
   return new ToolLoopError(code, {
@@ -384,8 +398,8 @@ function createToolLoopError(
     score: 0,
     matcherType: testCase.expected.type,
     reason: code,
-    latencyMs: 0,
-    tokens: { prompt: 0, completion: 0, total: 0 },
+    latencyMs: generationMetrics.latencyMs,
+    tokens: generationMetrics.tokens,
     prompt: testCase.prompt,
     response: '',
     expected: testCase.expected,

@@ -2,9 +2,21 @@
  * JSON Schema evaluator - validates response against a JSON schema
  */
 
-import { z } from 'zod';
+import Ajv, { type ValidateFunction } from 'ajv';
 import type { Expected } from '../scenario/schema';
 import type { Evaluator, EvaluatorResult } from './types';
+
+const ajv = new Ajv({ allErrors: true, strict: false });
+const validators = new WeakMap<object, ValidateFunction>();
+
+function getValidator(schema: Record<string, unknown>): ValidateFunction {
+  const cached = validators.get(schema);
+  if (cached) return cached;
+
+  const validator = ajv.compile(schema);
+  validators.set(schema, validator);
+  return validator;
+}
 
 export class JsonSchemaEvaluator implements Evaluator {
   readonly type = 'json_schema';
@@ -12,6 +24,18 @@ export class JsonSchemaEvaluator implements Evaluator {
   async evaluate(response: string, expected: Expected): Promise<EvaluatorResult> {
     if (expected.type !== 'json_schema') {
       throw new Error('Invalid expected type for JsonSchemaEvaluator');
+    }
+
+    let validator: ValidateFunction;
+    try {
+      validator = getValidator(expected.schema);
+    } catch {
+      return {
+        passed: false,
+        score: 0,
+        reason: 'Invalid JSON schema',
+        details: { error: 'Invalid JSON schema' },
+      };
     }
 
     let parsed: unknown;
@@ -28,71 +52,23 @@ export class JsonSchemaEvaluator implements Evaluator {
       };
     }
 
-    try {
-      const zodSchema = this.jsonSchemaToZod(expected.schema);
-      const result = zodSchema.safeParse(parsed);
-
-      if (result.success) {
-        return {
-          passed: true,
-          score: 1,
-          reason: 'Response matches JSON schema',
-          details: { parsed },
-        };
-      }
-      const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+    if (validator(parsed)) {
       return {
-        passed: false,
-        score: 0,
-        reason: `Schema validation failed: ${issues.join(', ')}`,
-        details: {
-          parsed,
-          errors: issues,
-        },
-      };
-    } catch (error) {
-      return {
-        passed: false,
-        score: 0,
-        reason: `Schema error: ${(error as Error).message}`,
-        details: { error: (error as Error).message },
+        passed: true,
+        score: 1,
+        reason: 'Response matches JSON schema',
+        details: { parsed },
       };
     }
-  }
 
-  private jsonSchemaToZod(schema: Record<string, unknown>): z.ZodTypeAny {
-    const type = schema.type as string;
-
-    switch (type) {
-      case 'string':
-        return z.string();
-      case 'number':
-        return z.number();
-      case 'integer':
-        return z.number().int();
-      case 'boolean':
-        return z.boolean();
-      case 'null':
-        return z.null();
-      case 'array':
-        if (schema.items) {
-          return z.array(this.jsonSchemaToZod(schema.items as Record<string, unknown>));
-        }
-        return z.array(z.unknown());
-      case 'object':
-        if (schema.properties) {
-          const shape: Record<string, z.ZodTypeAny> = {};
-          const required = (schema.required as string[]) || [];
-
-          for (const [key, value] of Object.entries(schema.properties as Record<string, unknown>)) {
-            const fieldSchema = this.jsonSchemaToZod(value as Record<string, unknown>);
-            shape[key] = required.includes(key) ? fieldSchema : fieldSchema.optional();
-          }
-          return z.object(shape);
-        }
-        return z.record(z.unknown());
-      default:
-        return z.unknown();
-    }
+    const errors = (validator.errors ?? []).map(
+      (error) => `${error.instancePath || '/'} ${error.message ?? 'is invalid'}`
+    );
+    return {
+      passed: false,
+      score: 0,
+      reason: `Schema validation failed: ${errors.join('; ')}`,
+      details: { parsed, errors },
+    };
   }
 }

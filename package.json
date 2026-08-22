@@ -18,6 +18,7 @@
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "eval:agent:trueforge": "bun examples/agent-evaluation/scenario-repair/run-trueforge.ts",
+    "eval:agent:trueforge:suite": "bun examples/agent-evaluation/ling-benchmark/run-suite.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --apply .",
     "format": "biome format --write .",

@@ -1,8 +1,9 @@
 # Evaluate a real Ling agent with TrueForge
 
 ArtemisKit can run a real tool-using Ling agent through TrueForge, place it in a disposable Docker
-workspace, and score independently observed evidence. The included scenario asks the agent to
-repair one invalid ArtemisKit YAML expectation and prove the repair with `akit validate`.
+workspace, and score independently observed evidence. The single-task example asks the agent to
+repair one invalid ArtemisKit YAML expectation. A separate suite exercises five deterministic
+authoring, repair, and diagnosis tasks across a fixed Ling model matrix.
 
 This is a local evaluation workflow, not a hosted-agent deployment. Only the Ling model request
 leaves the machine.
@@ -16,6 +17,8 @@ leaves the machine.
   status, diff, and allowlisted command execution.
 - `examples/agent-evaluation/scenario-repair` supplies a deterministic fixture, task contract,
   exact expected artifact, and end-to-end runner.
+- `examples/agent-evaluation/ling-benchmark` supplies the fixed suite matrix, four additional task
+  fixtures, a serial runner, per-attempt evidence, and aggregate counts.
 
 The runner currently targets TrueForge CLI 0.1.4 and `@truefoundry/trueforge-sdk` 0.1.3.
 
@@ -62,6 +65,31 @@ bun run eval:agent:trueforge
 The runner accepts only those two documented model IDs. Without both `LING_REAL_AGENT_TESTS=1`
 and `LING_API_KEY`, it exits successfully without contacting Ling or TrueForge.
 
+## Run the benchmark suite
+
+After completing the same prerequisites, run the committed suite from the repository root:
+
+```bash
+export LING_API_KEY="your-studio-key"
+LING_REAL_AGENT_TESTS=1 bun run eval:agent:trueforge:suite
+```
+
+The suite runs each configured task-and-model coordinate three times:
+
+| Task | Flash | Tiny |
+|------|-------|------|
+| Scenario repair | 3 | 3 |
+| Minimal failing-case repair | 3 | — |
+| Scenario authoring | 3 | 3 |
+| Tool-trace authoring | 3 | — |
+| Validation diagnosis | 3 | 3 |
+
+That is 24 fresh attempts: 15 with `Ling-3.0-flash` and 9 with `Ling-3.0-tiny`. Attempts execute
+serially. A task or infrastructure failure is recorded without aborting later coordinates, and the
+suite exits nonzero unless all 24 attempts pass. The same opt-in gate applies: without both
+`LING_REAL_AGENT_TESTS=1` and a non-empty `LING_API_KEY`, the command exits successfully before
+building the CLI bundle or contacting Ling, TrueForge, or Docker.
+
 ## What is verified
 
 For every run ArtemisKit:
@@ -71,8 +99,7 @@ For every run ArtemisKit:
 3. gives TrueForge only the five tools declared by the task;
 4. records normalized tool actions and sanitized TrueForge events;
 5. reruns every acceptance command after the agent stops;
-6. checks the repaired file with ArtemisKit's validator and parser and requires exact source
-   equality with the expected artifact;
+6. compares every declared artifact with its expected file byte for byte;
 7. checks changed paths, action/time budgets, rejected or failed actions, termination state, and
    evidence consistency; and
 8. writes a JSON result beneath `agent-evaluation-runs/trueforge-ling/<timestamp>/result.json`.
@@ -82,14 +109,21 @@ and artifact checks, token metrics when TrueForge supplies them, and one of thes
 `passed`, `passed_with_recovery`, `task_failed`, or `infrastructure_failed`. It never writes the
 Ling API key.
 
+The suite applies the same checks independently in each fresh workspace. It writes sanitized
+attempt records to
+`agent-evaluation-runs/trueforge-ling-suite/<timestamp>/attempts/001.json` and subsequent numbered
+files, plus aggregate counts in `aggregate.json`. The aggregate groups total and passed attempts by
+model and task; use the attempt files for complete verdict and evidence details.
+
 ## Safety boundary
 
 - The source fixture is copied and never mounted into the container.
 - Only the disposable copy is writable. Git metadata remains outside the container mount.
 - Validation containers have no network, a read-only root filesystem, dropped Linux capabilities,
   no-new-privileges, PID/memory/CPU limits, bounded output, and named-container cleanup.
-- Commands are parsed against a fixed allowlist; there is no arbitrary shell tool, package install,
-  remote Git, Docker socket, or host-path access.
+- Commands are parsed against each task's fixed allowlist; acceptance commands must be a subset of
+  that authority. There is no arbitrary shell tool, package install, remote Git, Docker socket, or
+  host-path access.
 - The MCP server binds to loopback and remote binding requires a separate explicit opt-in.
 - Cleanup failures fail closed instead of silently reusing a potentially unsafe workspace.
 

@@ -45,3 +45,27 @@ bun test examples/agent-evaluation/scenario-repair/acceptance.test.ts
 
 The model API is the only optional network dependency of a real run. Fixture validation and
 scoring are local and deterministic.
+
+## Run the real Ling agent
+
+Prerequisites are Bun, Docker with the `oven/bun:1.3.10` image available, a local TrueForge 0.1.4
+server, and a Ling Studio API key. From the repository root, start TrueForge in one terminal, then
+run:
+
+```bash
+export LING_API_KEY="your-studio-key"
+LING_REAL_AGENT_TESTS=1 bun run eval:agent:trueforge
+```
+
+Flash is the default. To exercise Tiny through the same tools and scorer:
+
+```bash
+LING_REAL_AGENT_TESTS=1 \
+LING_REAL_AGENT_MODEL=Ling-3.0-tiny \
+bun run eval:agent:trueforge
+```
+
+The opt-in flag prevents accidental API use. Results are sanitized and written under the
+gitignored `agent-evaluation-runs/trueforge-ling/` directory. See the
+[TrueForge integration guide](../../../docs/agent-evaluation/trueforge.md) for setup, evidence,
+and safety details.

@@ -19,6 +19,8 @@
 - **Stress Testing** - Measure latency, throughput, and reliability under load
 - **Multi-Provider Support** - OpenAI, Anthropic, Azure OpenAI, Ant Ling, Vercel AI SDK (20+ providers)
 - **Safe Tool Loops** - Fixture-backed tool evaluation, trace assertions, and opt-in SDK executors
+- **Real-Agent Evaluation** - Run real agents against disposable Docker workspaces and score
+  outcome evidence instead of trusting self-reported success
 - **Agentic Testing** - Test LangChain and DeepAgents applications
 - **Rich Reports** - Interactive HTML reports with configuration traceability
 - **CI/CD Ready** - Exit codes, JUnit export, and baseline regression detection
@@ -84,6 +86,11 @@ providers:
 ```
 
 See [`examples/11-ling-api`](examples/11-ling-api/) for Flash, Tiny, structured-output, and tool-loop examples. Live smoke tests require both `LING_API_KEY` and `LING_LIVE_TESTS=1`.
+
+For a real coding-agent workflow, see the
+[`scenario-repair` evaluation](examples/agent-evaluation/scenario-repair/) and the
+[TrueForge integration guide](docs/agent-evaluation/trueforge.md). It gives Ling a bounded MCP
+toolset in a disposable, network-disabled Docker workspace and independently verifies the result.
 
 ---
 
@@ -617,6 +624,9 @@ ArtemisKit is a monorepo with the following packages:
 | `@artemiskit/adapter-anthropic` | Anthropic provider adapter |
 | `@artemiskit/adapter-langchain` | LangChain.js agent testing adapter |
 | `@artemiskit/adapter-deepagents` | DeepAgents.js agentic testing adapter |
+| `@artemiskit/adapter-ling` | Native Ant Ling Studio adapter with safe tool-loop support |
+| `@artemiskit/adapter-trueforge` | TrueForge real-agent harness adapter |
+| `@artemiskit/mcp-docker-sandbox` | Disposable Docker workspace exposed through bounded MCP tools |
 
 ---
 

@@ -41,6 +41,7 @@
       "ai-trace",
       "artemis-runs",
       "artemis-output",
+      "agent-evaluation-runs",
       "announcements",
       ".agents",
       ".claude",

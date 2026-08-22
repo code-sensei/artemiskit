@@ -10,7 +10,7 @@ Core defines generic harness and evaluation contracts. It must not depend on Tru
 
 - `@artemiskit/core`: task specification, normalized agent trace, outcome checks, and report types.
 - `@artemiskit/adapter-trueforge`: submits a task to TrueForge and maps sessions, turns, and events to core traces.
-- `@artemiskit/mcp-sandbox`: exposes disposable Docker-backed workspace, Git, file, and allowlisted command tools over MCP.
+- `@artemiskit/mcp-docker-sandbox`: exposes disposable Docker-backed workspace, Git, file, and allowlisted command tools over MCP.
 
 The first public release supports TrueForge only. The core interface is intentionally open for future harness adapters without adding them now.
 

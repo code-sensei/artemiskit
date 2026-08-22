@@ -16,6 +16,8 @@ Comprehensive examples demonstrating ArtemisKit's testing, security, and perform
 | [08-configuration](./08-configuration/) | Config patterns | Setup & deployment |
 | [09-ci-cd](./09-ci-cd/) | Pipeline integration | Automation |
 | [10-hooks-and-extensions](./10-hooks-and-extensions/) | Customization | Advanced users |
+| [11-ling-api](./11-ling-api/) | Native Ling API workflows | Ling Studio users |
+| [agent-evaluation](./agent-evaluation/) | Real tool-using agent evaluation | Agent builders |
 | [use-cases](./use-cases/) | Role & industry specific | Targeted solutions |
 
 ## Directory Structure

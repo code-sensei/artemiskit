@@ -6,14 +6,13 @@ import Ajv, { type ValidateFunction } from 'ajv';
 import type { Expected } from '../scenario/schema';
 import type { Evaluator, EvaluatorResult } from './types';
 
-const ajv = new Ajv({ allErrors: true, strict: false });
 const validators = new WeakMap<object, ValidateFunction>();
 
 function getValidator(schema: Record<string, unknown>): ValidateFunction {
   const cached = validators.get(schema);
   if (cached) return cached;
 
-  const validator = ajv.compile(schema);
+  const validator = new Ajv({ allErrors: true, strict: false }).compile(schema);
   validators.set(schema, validator);
   return validator;
 }

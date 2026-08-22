@@ -98,4 +98,33 @@ describe('JsonSchemaEvaluator', () => {
     });
     expect(JSON.stringify(result)).not.toContain('sensitive-response-value');
   });
+
+  it('validates distinct schema objects with the same $id independently', async () => {
+    const firstExpected: Expected = {
+      type: 'json_schema',
+      schema: {
+        $id: 'https://schemas.example.test/shared-result',
+        type: 'object',
+        required: ['first'],
+        properties: { first: { const: true } },
+      },
+    };
+    const secondExpected: Expected = {
+      type: 'json_schema',
+      schema: {
+        $id: 'https://schemas.example.test/shared-result',
+        type: 'object',
+        required: ['second'],
+        properties: { second: { const: true } },
+      },
+    };
+
+    const firstResult = await evaluator.evaluate('{"first":true}', firstExpected);
+    const cachedResult = await evaluator.evaluate('{"first":true}', firstExpected);
+    const distinctResult = await evaluator.evaluate('{"second":true}', secondExpected);
+
+    expect(firstResult.passed).toBe(true);
+    expect(cachedResult.passed).toBe(true);
+    expect(distinctResult.passed).toBe(true);
+  });
 });

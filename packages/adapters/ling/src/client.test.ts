@@ -45,6 +45,7 @@ describe('LingAdapter', () => {
     const options: GenerateOptions = {
       prompt: [{ role: 'user', content: 'Find order A-1' }],
       model: 'Ling-3.0-flash',
+      maxTokens: 512,
       temperature: 0,
       topP: 0.9,
       stop: ['END'],
@@ -73,6 +74,7 @@ describe('LingAdapter', () => {
       {
         model: 'Ling-3.0-flash',
         messages: [{ role: 'user', content: 'Find order A-1' }],
+        max_tokens: 512,
         temperature: 0,
         top_p: 0.9,
         stop: ['END'],
@@ -149,5 +151,33 @@ describe('LingAdapter', () => {
       maxContext: 256000,
       jsonMode: true,
     });
+  });
+
+  it('forwards maxTokens to streaming requests', async () => {
+    async function* responseStream() {
+      yield { choices: [{ delta: { content: 'Hello' } }] };
+    }
+
+    const { adapter, requests } = createAdapterWithResponse(responseStream());
+    const chunks: string[] = [];
+
+    for await (const chunk of adapter.stream(
+      { prompt: 'Say hello', model: 'Ling-3.0-flash', maxTokens: 256 },
+      (value) => chunks.push(value)
+    )) {
+      expect(chunk).toBe('Hello');
+    }
+
+    expect(requests).toEqual([
+      {
+        model: 'Ling-3.0-flash',
+        messages: [{ role: 'user', content: 'Say hello' }],
+        max_tokens: 256,
+        temperature: undefined,
+        top_p: undefined,
+        stream: true,
+      },
+    ]);
+    expect(chunks).toEqual(['Hello']);
   });
 });

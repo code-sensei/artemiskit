@@ -5,6 +5,7 @@ import {
   type CallToolResult,
   ListToolsRequestSchema,
   type Tool,
+  ToolSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { SANDBOX_ERROR_CODES, SandboxError, type SandboxErrorCode } from './policy';
 import {
@@ -20,7 +21,21 @@ export interface McpSandboxServerOptions extends DockerWorkspaceOptions {
   hostname?: string;
   port?: number;
   allowRemoteBinding?: boolean;
-  allowedTools?: string[];
+  allowedTools?: readonly string[];
+  /** Additional bounded tools supplied by the server owner. */
+  customTools?: readonly McpSandboxCustomTool[];
+}
+
+export type McpSandboxCustomToolResult =
+  | ({ readonly ok: true } & Readonly<Record<string, unknown>>)
+  | ({
+      readonly ok: false;
+      readonly error: { readonly code: string; readonly message: string };
+    } & Readonly<Record<string, unknown>>);
+
+export interface McpSandboxCustomTool {
+  readonly definition: Tool;
+  readonly handler: (arguments_: Record<string, unknown>) => Promise<McpSandboxCustomToolResult>;
 }
 
 export interface RunningMcpSandboxServer {
@@ -95,7 +110,7 @@ export async function startMcpSandboxServer(
   if (!Number.isInteger(port) || port < 0 || port > 65_535) {
     throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
   }
-  const toolDefinitions = selectToolDefinitions(options.allowedTools);
+  const tools = selectTools(options.customTools, options.allowedTools);
 
   const workspace = options.workspace ?? (await createDockerWorkspace(options));
   const protectLoopback = isLoopbackHostname(hostname);
@@ -117,7 +132,7 @@ export async function startMcpSandboxServer(
           return Response.json({ error: 'NOT_FOUND' }, { status: 404 });
         }
 
-        const protocolServer = createProtocolServer(workspace, toolDefinitions);
+        const protocolServer = createProtocolServer(workspace, tools);
         const transport = new WebStandardStreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
           enableJsonResponse: true,
@@ -173,8 +188,13 @@ export async function startMcpSandboxServer(
   };
 }
 
-function createProtocolServer(workspace: DockerWorkspace, toolDefinitions: Tool[]): Server {
-  const allowedToolNames = new Set(toolDefinitions.map((tool) => tool.name));
+interface SelectedTools {
+  readonly definitions: Tool[];
+  readonly customHandlers: ReadonlyMap<string, McpSandboxCustomTool['handler']>;
+}
+
+function createProtocolServer(workspace: DockerWorkspace, tools: SelectedTools): Server {
+  const allowedToolNames = new Set(tools.definitions.map((tool) => tool.name));
   const server = new Server(
     { name: '@artemiskit/mcp-docker-sandbox', version: '0.1.0' },
     {
@@ -183,11 +203,17 @@ function createProtocolServer(workspace: DockerWorkspace, toolDefinitions: Tool[
         'Use only the listed tools. All paths are relative to one disposable workspace.',
     }
   );
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: tools.definitions }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       if (!allowedToolNames.has(request.params.name)) {
         throw new SandboxError(SANDBOX_ERROR_CODES.toolNotFound);
+      }
+      const customHandler = tools.customHandlers.get(request.params.name);
+      if (customHandler) {
+        const arguments_ =
+          request.params.arguments === undefined ? {} : requireRecord(request.params.arguments);
+        return customToolResult(await customHandler(arguments_));
       }
       switch (request.params.name) {
         case 'workspace_read': {
@@ -226,20 +252,73 @@ function createProtocolServer(workspace: DockerWorkspace, toolDefinitions: Tool[
   return server;
 }
 
-function selectToolDefinitions(allowedTools?: readonly string[]): Tool[] {
-  if (allowedTools === undefined) return TOOL_DEFINITIONS;
+function selectTools(
+  customTools?: readonly McpSandboxCustomTool[],
+  allowedTools?: readonly string[]
+): SelectedTools {
+  if (customTools !== undefined && !Array.isArray(customTools)) {
+    throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+  }
+
+  const definitions = [...TOOL_DEFINITIONS];
+  const knownToolNames = new Set(definitions.map((tool) => tool.name));
+  const customHandlers = new Map<string, McpSandboxCustomTool['handler']>();
+  for (const customTool of customTools ?? []) {
+    if (!customTool || typeof customTool !== 'object' || typeof customTool.handler !== 'function') {
+      throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+    }
+    const parsedDefinition = ToolSchema.safeParse(customTool.definition);
+    if (!parsedDefinition.success || parsedDefinition.data.name.trim().length === 0) {
+      throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+    }
+    if (knownToolNames.has(parsedDefinition.data.name)) {
+      throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
+    }
+    knownToolNames.add(parsedDefinition.data.name);
+    definitions.push(parsedDefinition.data);
+    customHandlers.set(parsedDefinition.data.name, customTool.handler);
+  }
+
+  if (allowedTools === undefined) return { definitions, customHandlers };
   const allowedToolNames = new Set(allowedTools);
-  const knownToolNames = new Set(TOOL_DEFINITIONS.map((tool) => tool.name));
   if (allowedTools.some((toolName) => !knownToolNames.has(toolName))) {
     throw new SandboxError(SANDBOX_ERROR_CODES.invalidArgument);
   }
-  return TOOL_DEFINITIONS.filter((tool) => allowedToolNames.has(tool.name));
+  return {
+    definitions: definitions.filter((tool) => allowedToolNames.has(tool.name)),
+    customHandlers: new Map(
+      [...customHandlers].filter(([toolName]) => allowedToolNames.has(toolName))
+    ),
+  };
 }
 
 function successResult(data: Record<string, unknown>): CallToolResult {
   return {
     content: [{ type: 'text', text: JSON.stringify(data) }],
     structuredContent: data,
+  };
+}
+
+function customToolResult(data: McpSandboxCustomToolResult): CallToolResult {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Invalid custom tool result');
+  }
+  if (data.ok === true) return successResult(data);
+  if (
+    data.ok !== false ||
+    !data.error ||
+    typeof data.error !== 'object' ||
+    typeof data.error.code !== 'string' ||
+    data.error.code.length === 0 ||
+    typeof data.error.message !== 'string' ||
+    data.error.message.length === 0
+  ) {
+    throw new Error('Invalid custom tool result');
+  }
+  return {
+    content: [{ type: 'text', text: JSON.stringify(data) }],
+    structuredContent: data,
+    isError: true,
   };
 }
 

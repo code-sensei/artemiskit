@@ -150,6 +150,213 @@ describe('MCP sandbox server', () => {
     }
   });
 
+  it('serves allowlisted custom tools with structured success and safe failure results', async () => {
+    const calls: Array<{ name: string; arguments: Record<string, unknown> }> = [];
+    let deniedHandlerCalled = false;
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const runningServer = await startMcpSandboxServer({
+      workspace,
+      allowedTools: ['workspace_read', 'invoice_lookup', 'invoice_search'],
+      customTools: [
+        {
+          definition: {
+            name: 'invoice_lookup',
+            description: 'Look up one synthetic invoice by identifier.',
+            inputSchema: {
+              type: 'object',
+              properties: { invoiceId: { type: 'string' } },
+              required: ['invoiceId'],
+              additionalProperties: false,
+            },
+          },
+          handler: async (arguments_) => {
+            calls.push({ name: 'invoice_lookup', arguments: arguments_ });
+            return {
+              ok: false,
+              error: { code: 'NOT_FOUND', message: 'No synthetic invoice matched.' },
+            };
+          },
+        },
+        {
+          definition: {
+            name: 'invoice_search',
+            description: 'Search synthetic invoices by customer email.',
+            inputSchema: {
+              type: 'object',
+              properties: { customerEmail: { type: 'string' } },
+              required: ['customerEmail'],
+              additionalProperties: false,
+            },
+          },
+          handler: async (arguments_) => {
+            calls.push({ name: 'invoice_search', arguments: arguments_ });
+            return { ok: true, invoiceId: 'INV-200', status: 'open' };
+          },
+        },
+        {
+          definition: {
+            name: 'invoice_delete',
+            inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+          },
+          handler: async () => {
+            deniedHandlerCalled = true;
+            return { ok: true };
+          },
+        },
+      ],
+    });
+    const client = new Client({ name: 'artemiskit-test-client', version: '1.0.0' });
+    const transport = new StreamableHTTPClientTransport(runningServer.url);
+
+    try {
+      await client.connect(transport);
+      const tools = (await client.listTools()).tools;
+      expect(tools.map((tool) => tool.name)).toEqual([
+        'workspace_read',
+        'invoice_lookup',
+        'invoice_search',
+      ]);
+      expect(tools.find((tool) => tool.name === 'invoice_lookup')?.inputSchema).toEqual({
+        type: 'object',
+        properties: { invoiceId: { type: 'string' } },
+        required: ['invoiceId'],
+        additionalProperties: false,
+      });
+
+      const denied = await client.callTool({ name: 'workspace_status' });
+      expect(denied.isError).toBe(true);
+      expect(structured(denied)).toEqual({
+        ok: false,
+        error: { code: 'SANDBOX_TOOL_NOT_FOUND', message: 'SANDBOX_TOOL_NOT_FOUND' },
+      });
+      const deniedCustom = await client.callTool({ name: 'invoice_delete' });
+      expect(deniedCustom.isError).toBe(true);
+      expect(structured(deniedCustom)).toEqual({
+        ok: false,
+        error: { code: 'SANDBOX_TOOL_NOT_FOUND', message: 'SANDBOX_TOOL_NOT_FOUND' },
+      });
+      expect(deniedHandlerCalled).toBe(false);
+
+      const missing = await client.callTool({
+        name: 'invoice_lookup',
+        arguments: { invoiceId: 'INV-404' },
+      });
+      expect(missing.isError).toBe(true);
+      expect(structured(missing)).toEqual({
+        ok: false,
+        error: { code: 'NOT_FOUND', message: 'No synthetic invoice matched.' },
+      });
+
+      const recovered = await client.callTool({
+        name: 'invoice_search',
+        arguments: { customerEmail: 'customer@example.test' },
+      });
+      expect(recovered.isError).toBeUndefined();
+      expect(structured(recovered)).toEqual({
+        ok: true,
+        invoiceId: 'INV-200',
+        status: 'open',
+      });
+      expect(calls).toEqual([
+        { name: 'invoice_lookup', arguments: { invoiceId: 'INV-404' } },
+        {
+          name: 'invoice_search',
+          arguments: { customerEmail: 'customer@example.test' },
+        },
+      ]);
+    } finally {
+      await client.close();
+      await runningServer.close();
+    }
+  });
+
+  it('redacts unexpected custom tool failures', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const runningServer = await startMcpSandboxServer({
+      workspace,
+      allowedTools: ['invoice_lookup'],
+      customTools: [
+        {
+          definition: {
+            name: 'invoice_lookup',
+            inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+          },
+          handler: async () => {
+            throw new Error('fixture database password must not escape');
+          },
+        },
+      ],
+    });
+    const client = new Client({ name: 'artemiskit-test-client', version: '1.0.0' });
+    const transport = new StreamableHTTPClientTransport(runningServer.url);
+
+    try {
+      await client.connect(transport);
+      const result = await client.callTool({ name: 'invoice_lookup' });
+      expect(result.isError).toBe(true);
+      expect(structured(result)).toEqual({
+        ok: false,
+        error: { code: 'SANDBOX_INTERNAL_ERROR', message: 'SANDBOX_INTERNAL_ERROR' },
+      });
+      expect(JSON.stringify(result)).not.toContain('fixture database password');
+    } finally {
+      await client.close();
+      await runningServer.close();
+    }
+  });
+
+  it('rejects duplicate and invalid custom definitions before starting the server', async () => {
+    const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
+    temporaryPaths.push(workspace.root);
+    const invoiceLookup = {
+      definition: {
+        name: 'invoice_lookup',
+        inputSchema: { type: 'object' as const, properties: {}, additionalProperties: false },
+      },
+      handler: async () => ({ ok: true as const }),
+    };
+
+    await expect(
+      startMcpSandboxServer({ workspace, customTools: [invoiceLookup, invoiceLookup] })
+    ).rejects.toMatchObject({ code: 'SANDBOX_INVALID_ARGUMENT' });
+    await expect(
+      startMcpSandboxServer({
+        workspace,
+        customTools: [
+          {
+            definition: {
+              name: 'workspace_read',
+              inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+            },
+            handler: async () => ({ ok: true }),
+          },
+        ],
+      })
+    ).rejects.toMatchObject({ code: 'SANDBOX_INVALID_ARGUMENT' });
+    await expect(
+      startMcpSandboxServer({
+        workspace,
+        customTools: [
+          {
+            definition: { name: 'invalid', inputSchema: { type: 'array' } } as never,
+            handler: async () => ({ ok: true }),
+          },
+        ],
+      })
+    ).rejects.toMatchObject({ code: 'SANDBOX_INVALID_ARGUMENT' });
+    await expect(
+      startMcpSandboxServer({
+        workspace,
+        customTools: [{ definition: invoiceLookup.definition, handler: undefined as never }],
+      })
+    ).rejects.toMatchObject({ code: 'SANDBOX_INVALID_ARGUMENT' });
+
+    expect(await workspace.read('scenario.yaml')).toBe('before\n');
+    await workspace.dispose();
+  });
+
   it('rejects unknown task tool names before starting the server', async () => {
     const workspace = await createDockerWorkspace({ fixturePath: await makeFixture() });
     temporaryPaths.push(workspace.root);

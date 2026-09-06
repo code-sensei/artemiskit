@@ -41,9 +41,6 @@ artemis-runs/
 # Artemis output (reports)
 artemis-output/
 
-# Private Ling API evaluation corpus, manifests, and report aggregates
-ling-evaluation/
-
 # Local real-agent evaluation traces, diffs, and sanitized harness artifacts
 agent-evaluation-runs/
 
@@ -78,3 +75,6 @@ demo/
 
 # Guardian examples with real API keys (private)
 examples/guardian-demo/
+
+# Private client evaluation work for Ant Ling (do not commit)
+ling-evaluation/

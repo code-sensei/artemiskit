@@ -181,7 +181,7 @@ export interface BaselineStorageAdapter extends StorageAdapter {
 /**
  * Status of an individual case result
  */
-export type CaseResultStatus = 'passed' | 'failed' | 'error';
+export type CaseResultStatus = 'passed' | 'failed' | 'invalid' | 'error';
 
 /**
  * Individual case result record for storage

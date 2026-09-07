@@ -95,6 +95,8 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
     model: z.string().optional(),
     provider: ProviderSchema.optional(),
     threshold: z.number().min(0).max(1).default(0.7),
+    /** Require exact, validated JSON from the judge for assurance assessments. */
+    strict: z.boolean().optional().default(false),
   }),
 
   z.object({

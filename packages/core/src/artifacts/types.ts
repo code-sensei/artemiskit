@@ -43,12 +43,36 @@ export interface ManifestRedactionInfo {
 // ============================================================================
 
 /**
+ * Terminal status of a case measurement.
+ *
+ * `invalid` means a target response was available but could not be evaluated
+ * reliably. `error` means execution did not produce a usable target response.
+ */
+export type CaseEvaluationStatus = 'passed' | 'failed' | 'invalid' | 'error';
+
+/** Reviewed, bounded evaluator evidence retained in a run artifact. */
+export interface CaseEvaluationEvidence {
+  evaluator: string;
+  score?: number;
+  threshold?: number;
+  model?: string;
+  validation?: {
+    status: 'valid' | 'invalid';
+    code?: string;
+  };
+}
+
+/**
  * Individual test case result
  */
 export interface CaseResult {
   id: string;
   name?: string;
   ok: boolean;
+  /** Present in manifest v1.1+. Missing values use the documented legacy mapping. */
+  status?: CaseEvaluationStatus;
+  /** Number of execution attempts represented by this terminal result. */
+  attempts?: number;
   score: number;
   matcherType: string;
   reason?: string;
@@ -63,6 +87,8 @@ export interface CaseResult {
   expected: object;
   tags: string[];
   error?: string;
+  /** Sanitized evaluator evidence; arbitrary evaluator details are never stored here. */
+  evidence?: CaseEvaluationEvidence;
   /** Redaction information for this case */
   redaction?: CaseRedactionInfo;
   /** Ordered tool activity captured for an enabled tool loop. */
@@ -95,7 +121,15 @@ export interface CostEstimateInfo {
  */
 export interface RunMetrics {
   success_rate: number;
+  /** Number of execution attempts, including retries. */
+  total_attempts?: number;
   total_cases: number;
+  /** Case results with a valid evaluator outcome (passed or failed). */
+  valid_evaluations?: number;
+  /** Case results excluded from outcome rates (invalid or error). */
+  invalid_evaluations?: number;
+  /** Denominator used for success_rate; zero produces a success_rate of zero. */
+  outcome_rate_denominator?: number;
   passed_cases: number;
   failed_cases: number;
   median_latency_ms: number;
@@ -242,6 +276,17 @@ export interface RunManifest {
   };
   /** Redaction information for this run */
   redaction?: ManifestRedactionInfo;
+}
+
+/**
+ * Read a case status from both v1.1 artifacts and historical v1.0 artifacts.
+ * Historical records cannot distinguish evaluator failures from ordinary failed
+ * criteria unless they set the legacy `error` field.
+ */
+export function getCaseEvaluationStatus(caseResult: CaseResult): CaseEvaluationStatus {
+  if (caseResult.status) return caseResult.status;
+  if (caseResult.ok) return 'passed';
+  return caseResult.error ? 'error' : 'failed';
 }
 
 // ============================================================================

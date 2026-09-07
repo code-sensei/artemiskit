@@ -2,8 +2,14 @@
  * Test case executor
  */
 
-import type { CaseRedactionInfo, CaseResult } from '../artifacts/types';
+import type {
+  CaseEvaluationEvidence,
+  CaseEvaluationStatus,
+  CaseRedactionInfo,
+  CaseResult,
+} from '../artifacts/types';
 import { getEvaluator } from '../evaluators';
+import type { EvaluatorResult } from '../evaluators';
 import { type RedactionConfig, Redactor } from '../redaction';
 import type { TestCase } from '../scenario/schema';
 import { mergeVariables, substituteVariables } from '../scenario/variables';
@@ -100,10 +106,10 @@ export async function executeCase(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const result = await executeCaseAttempt(testCase, context, timeout);
-      return result;
+      return { ...result, attempts: attempt + 1 };
     } catch (error) {
       lastError = error as Error;
-      if (error instanceof ToolLoopError) return error.caseResult;
+      if (error instanceof ToolLoopError) return { ...error.caseResult, attempts: attempt + 1 };
       if (attempt < retries) {
         // Wait before retry with exponential backoff
         await sleep(2 ** attempt * 1000);
@@ -117,6 +123,8 @@ export async function executeCase(
     id: testCase.id,
     name: testCase.name,
     ok: false,
+    status: 'error',
+    attempts: retries + 1,
     score: 0,
     matcherType: testCase.expected.type,
     reason: `Failed after ${retries + 1} attempts: ${lastError?.message}`,
@@ -316,11 +324,24 @@ async function executeCaseAttempt(
 
   // Evaluate response
   const evaluator = getEvaluator(testCase.expected.type);
-  const evalResult = await evaluator.evaluate(result.text, testCase.expected, {
-    client,
-    testCase,
-    toolTrace,
-  });
+  let evalResult: EvaluatorResult;
+  try {
+    evalResult = await evaluator.evaluate(result.text, testCase.expected, {
+      client,
+      testCase,
+      toolTrace,
+    });
+  } catch (error) {
+    evalResult = {
+      passed: false,
+      score: 0,
+      reason: `Evaluator failed: ${(error as Error).message}`,
+      status: 'invalid' as const,
+      evidence: {
+        validation: { status: 'invalid' as const, code: 'evaluator_failure' },
+      },
+    };
+  }
 
   // Determine effective redaction config (CLI > case > scenario)
   const effectiveRedaction = mergeRedactionConfig(
@@ -383,8 +404,9 @@ async function executeCaseAttempt(
   return {
     id: testCase.id,
     name: testCase.name,
-    ok: evalResult.passed,
-    score: evalResult.score,
+    ok: evaluationStatus(evalResult) === 'passed',
+    status: evaluationStatus(evalResult),
+    score: validScore(evalResult.score),
     matcherType: testCase.expected.type,
     reason: evalResult.reason,
     latencyMs: generationMetrics.latencyMs,
@@ -394,6 +416,7 @@ async function executeCaseAttempt(
     expected: testCase.expected,
     tags: testCase.tags,
     redaction: redactionInfo,
+    evidence: sanitizeEvidence(testCase.expected.type, evalResult),
     toolTrace: toolTrace.length ? toolTrace : undefined,
     toolLoop,
   };
@@ -410,6 +433,7 @@ function createToolLoopError(
     id: testCase.id,
     name: testCase.name,
     ok: false,
+    status: 'error',
     score: 0,
     matcherType: testCase.expected.type,
     reason: code,
@@ -423,6 +447,51 @@ function createToolLoopError(
     toolTrace,
     toolLoop,
   });
+}
+
+function evaluationStatus(result: {
+  passed: boolean;
+  status?: 'passed' | 'failed' | 'invalid';
+}): CaseEvaluationStatus {
+  return result.status ?? (result.passed ? 'passed' : 'failed');
+}
+
+function validScore(score: number): number {
+  return Number.isFinite(score) && score >= 0 && score <= 1 ? score : 0;
+}
+
+function sanitizeEvidence(
+  evaluator: string,
+  result: {
+    score: number;
+    evidence?: {
+      threshold?: number;
+      model?: string;
+      validation?: { status: 'valid' | 'invalid'; code?: string };
+    };
+  }
+): CaseEvaluationEvidence {
+  const evidence: CaseEvaluationEvidence = { evaluator };
+  const score = validScore(result.score);
+  if (Number.isFinite(result.score) && result.score >= 0 && result.score <= 1) {
+    evidence.score = score;
+  }
+  if (
+    result.evidence?.threshold !== undefined &&
+    validScore(result.evidence.threshold) === result.evidence.threshold
+  ) {
+    evidence.threshold = result.evidence.threshold;
+  }
+  if (result.evidence?.model) evidence.model = result.evidence.model.slice(0, 200);
+  if (result.evidence?.validation) {
+    evidence.validation = {
+      status: result.evidence.validation.status,
+      ...(result.evidence.validation.code
+        ? { code: result.evidence.validation.code.slice(0, 100) }
+        : {}),
+    };
+  }
+  return evidence;
 }
 
 class ToolLoopError extends Error {

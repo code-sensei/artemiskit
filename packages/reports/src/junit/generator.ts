@@ -6,7 +6,7 @@
  * Jenkins, GitHub Actions, GitLab CI, and other CI systems.
  */
 
-import type { RedTeamManifest, RunManifest } from '@artemiskit/core';
+import { type RedTeamManifest, type RunManifest, getCaseEvaluationStatus } from '@artemiskit/core';
 
 export interface JUnitReportOptions {
   /** Test suite name (defaults to scenario name) */
@@ -74,7 +74,7 @@ export function generateJUnitReport(
   // Calculate totals
   const tests = manifest.metrics.total_cases;
   const failures = manifest.metrics.failed_cases;
-  const errors = 0; // We treat all failures as failures, not errors
+  const errors = manifest.metrics.invalid_evaluations ?? 0;
   const skipped = 0;
   const time = manifest.duration_ms / 1000; // JUnit uses seconds
 
@@ -99,6 +99,18 @@ export function generateJUnitReport(
     `    <property name="artemis.success_rate" value="${(manifest.metrics.success_rate * 100).toFixed(1)}%" />`
   );
   lines.push(
+    `    <property name="artemis.total_attempts" value="${manifest.metrics.total_attempts ?? manifest.metrics.total_cases}" />`
+  );
+  lines.push(
+    `    <property name="artemis.valid_evaluations" value="${manifest.metrics.valid_evaluations ?? manifest.metrics.total_cases}" />`
+  );
+  lines.push(
+    `    <property name="artemis.invalid_evaluations" value="${manifest.metrics.invalid_evaluations ?? 0}" />`
+  );
+  lines.push(
+    `    <property name="artemis.outcome_rate_denominator" value="${manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases}" />`
+  );
+  lines.push(
     `    <property name="artemis.total_tokens" value="${manifest.metrics.total_tokens}" />`
   );
   if (manifest.metrics.cost) {
@@ -118,7 +130,8 @@ export function generateJUnitReport(
       `  <testcase classname="${className}" name="${testName}" time="${testTime.toFixed(3)}">`
     );
 
-    if (!testCase.ok) {
+    const status = getCaseEvaluationStatus(testCase);
+    if (status === 'failed') {
       // Failed test
       const failureMessage = escapeXml(testCase.reason || 'Test failed');
       const failureType = escapeXml(testCase.matcherType);
@@ -136,6 +149,18 @@ export function generateJUnitReport(
 
       lines.push(escapeXml(details.join('\n')));
       lines.push('    </failure>');
+    } else if (status === 'invalid' || status === 'error') {
+      const errorMessage = escapeXml(testCase.reason || testCase.error || 'Measurement incomplete');
+      lines.push(`    <error message="${errorMessage}" type="${status}">`);
+      const details: string[] = [`Measurement Status: ${status}`];
+      if (testCase.evidence?.validation) {
+        details.push(`Validation: ${testCase.evidence.validation.status}`);
+        if (testCase.evidence.validation.code) {
+          details.push(`Validation Code: ${testCase.evidence.validation.code}`);
+        }
+      }
+      lines.push(escapeXml(details.join('\n')));
+      lines.push('    </error>');
     }
 
     // System out (response)
@@ -146,10 +171,11 @@ export function generateJUnitReport(
     }
 
     // System err (error details for failed tests)
-    if (includeSystemErr && !testCase.ok && testCase.reason) {
+    if (includeSystemErr && status !== 'passed' && (testCase.reason || testCase.error)) {
       lines.push('    <system-err>');
       const errorDetails: string[] = [];
-      errorDetails.push(`Error: ${testCase.reason}`);
+      errorDetails.push(`Status: ${status}`);
+      errorDetails.push(`Error: ${testCase.reason || testCase.error}`);
       const promptStr =
         typeof testCase.prompt === 'string' ? testCase.prompt : JSON.stringify(testCase.prompt);
       errorDetails.push(`Prompt: ${truncate(promptStr, maxOutputLength / 2)}`);

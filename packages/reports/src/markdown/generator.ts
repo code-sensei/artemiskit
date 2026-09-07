@@ -4,7 +4,7 @@
  * Generates documentation-friendly markdown reports for compliance and audit trails.
  */
 
-import type { RedTeamManifest, RunManifest } from '@artemiskit/core';
+import { type RedTeamManifest, type RunManifest, getCaseEvaluationStatus } from '@artemiskit/core';
 
 export interface MarkdownReportOptions {
   /** Include full prompt/response details for failed cases */
@@ -75,7 +75,17 @@ export function generateMarkdownReport(
   lines.push('|--------|-------|');
   lines.push(`| Total Cases | ${manifest.metrics.total_cases} |`);
   lines.push(
-    `| Passed | ${manifest.metrics.passed_cases} (${(manifest.metrics.success_rate * 100).toFixed(1)}%) |`
+    `| Total Attempts | ${manifest.metrics.total_attempts ?? manifest.metrics.total_cases} |`
+  );
+  lines.push(
+    `| Valid Evaluations | ${manifest.metrics.valid_evaluations ?? manifest.metrics.total_cases} |`
+  );
+  lines.push(`| Invalid or Incomplete | ${manifest.metrics.invalid_evaluations ?? 0} |`);
+  lines.push(
+    `| Outcome Rate Denominator | ${manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases} |`
+  );
+  lines.push(
+    `| Passed (valid only) | ${manifest.metrics.passed_cases} (${(manifest.metrics.success_rate * 100).toFixed(1)}%) |`
   );
   lines.push(`| Failed | ${manifest.metrics.failed_cases} |`);
   lines.push(`| Duration | ${formatDuration(manifest.duration_ms)} |`);
@@ -96,7 +106,7 @@ export function generateMarkdownReport(
   lines.push('');
 
   // Passed cases (collapsed)
-  const passed = manifest.cases.filter((c) => c.ok);
+  const passed = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'passed');
   lines.push(`### Passed (${passed.length})`);
   lines.push('');
 
@@ -120,7 +130,7 @@ export function generateMarkdownReport(
   lines.push('');
 
   // Failed cases (expanded with details)
-  const failed = manifest.cases.filter((c) => !c.ok);
+  const failed = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'failed');
   lines.push(`### Failed (${failed.length})`);
   lines.push('');
 
@@ -163,6 +173,29 @@ export function generateMarkdownReport(
     }
   } else {
     lines.push('_No failed cases_');
+    lines.push('');
+  }
+
+  const incomplete = manifest.cases.filter((c) => {
+    const status = getCaseEvaluationStatus(c);
+    return status === 'invalid' || status === 'error';
+  });
+  lines.push(`### Invalid or Incomplete (${incomplete.length})`);
+  lines.push('');
+  if (incomplete.length > 0) {
+    for (const c of incomplete) {
+      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatus(c).toUpperCase()}`);
+      lines.push('');
+      lines.push(`**Reason:** ${c.reason || c.error || 'Unknown'}`);
+      if (c.evidence?.validation) {
+        lines.push(
+          `**Measurement Validation:** ${c.evidence.validation.status}${c.evidence.validation.code ? ` (${c.evidence.validation.code})` : ''}`
+        );
+      }
+      lines.push('');
+    }
+  } else {
+    lines.push('_No invalid or incomplete measurements_');
     lines.push('');
   }
 

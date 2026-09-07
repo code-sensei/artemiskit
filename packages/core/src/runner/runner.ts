@@ -124,7 +124,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     redaction: redactionInfo,
   });
 
-  const success = manifest.metrics.failed_cases === 0;
+  const success =
+    manifest.metrics.failed_cases === 0 && (manifest.metrics.invalid_evaluations ?? 0) === 0;
 
   return {
     manifest,

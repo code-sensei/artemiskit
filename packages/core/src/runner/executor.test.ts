@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { GenerateOptions, ModelClient } from '../adapters/types';
+import { registerEvaluator } from '../evaluators';
+import type { Evaluator } from '../evaluators';
 import { ScenarioSchema } from '../scenario/schema';
 import { executeCase } from './executor';
 
@@ -230,5 +232,109 @@ describe('executeCase tool loop', () => {
       steps: 1,
       terminationReason: 'timeout',
     });
+  });
+});
+
+describe('executeCase measurement integrity', () => {
+  const scenario = ScenarioSchema.parse({
+    name: 'measurement integrity',
+    cases: [
+      {
+        id: 'custom-evaluation',
+        prompt: 'Evaluate this',
+        expected: { type: 'custom', evaluator: 'test' },
+      },
+    ],
+  });
+
+  const client: ModelClient = {
+    provider: 'test',
+    generate: async () => ({
+      id: 'response',
+      model: 'target-model',
+      text: 'target response',
+      tokens: { prompt: 1, completion: 1, total: 2 },
+      latencyMs: 1,
+      finishReason: 'stop',
+    }),
+    capabilities: async () => ({
+      streaming: false,
+      functionCalling: false,
+      toolUse: false,
+      maxContext: 1,
+    }),
+  };
+
+  it('marks an evaluator exception invalid after a target response is received', async () => {
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () => {
+        throw new Error('judge offline');
+      },
+    });
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'invalid',
+      response: 'target response',
+      evidence: {
+        evaluator: 'custom',
+        validation: { status: 'invalid', code: 'evaluator_failure' },
+      },
+    });
+  });
+
+  it('marks a target generation failure as an execution error', async () => {
+    const unavailableClient: ModelClient = {
+      ...client,
+      generate: async () => {
+        throw new Error('provider unavailable');
+      },
+    };
+
+    const result = await executeCase(scenario.cases[0], {
+      client: unavailableClient,
+      scenario,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'error',
+      response: '',
+      error: 'provider unavailable',
+    });
+  });
+
+  it('retains only the bounded evidence contract rather than evaluator details', async () => {
+    const evaluator: Evaluator = {
+      type: 'custom',
+      evaluate: async () => ({
+        passed: true,
+        score: 1,
+        status: 'passed',
+        evidence: {
+          threshold: 0.7,
+          model: 'reviewer-model',
+          validation: { status: 'valid', code: 'accepted' },
+        },
+        details: { rawJudgeOutput: 'secret judge transcript', rubric: 'secret rubric' },
+      }),
+    };
+    registerEvaluator('custom', evaluator);
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(result.status).toBe('passed');
+    expect(result.evidence).toEqual({
+      evaluator: 'custom',
+      score: 1,
+      threshold: 0.7,
+      model: 'reviewer-model',
+      validation: { status: 'valid', code: 'accepted' },
+    });
+    expect(JSON.stringify(result)).not.toContain('secret judge transcript');
+    expect(JSON.stringify(result)).not.toContain('secret rubric');
   });
 });

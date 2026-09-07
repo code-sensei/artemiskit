@@ -22,6 +22,24 @@ export interface EvaluatorResult {
   passed: boolean;
   score: number;
   reason?: string;
+  /**
+   * Whether this evaluator produced a valid measurement. Omitted by legacy
+   * evaluators; the executor derives it from `passed` for compatibility.
+   */
+  status?: 'passed' | 'failed' | 'invalid';
+  /** Bounded evaluator metadata that may be retained in a run artifact. */
+  evidence?: {
+    threshold?: number;
+    model?: string;
+    validation?: {
+      status: 'valid' | 'invalid';
+      code?: string;
+    };
+  };
+  /**
+   * Legacy evaluator-private metadata. The standard executor never serializes
+   * this field; use `evidence` for reviewed, bounded artifact data.
+   */
   details?: Record<string, unknown>;
 }
 

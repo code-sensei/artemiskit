@@ -15,6 +15,7 @@ import type {
   RunManifest,
   RunMetrics,
 } from './types';
+import { getCaseEvaluationStatus } from './types';
 
 /**
  * Create a new run manifest
@@ -49,7 +50,7 @@ export function createRunManifest(options: {
   const environment = getEnvironmentInfo();
 
   return {
-    version: '1.0',
+    version: '1.1',
     run_id: nanoid(12),
     project,
     start_time: startTime.toISOString(),
@@ -74,7 +75,11 @@ export function createRunManifest(options: {
  * Calculate metrics from case results
  */
 function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
-  const passedCases = cases.filter((c) => c.ok);
+  const passedCases = cases.filter((c) => getCaseEvaluationStatus(c) === 'passed');
+  const validCases = cases.filter((c) => {
+    const status = getCaseEvaluationStatus(c);
+    return status === 'passed' || status === 'failed';
+  });
   const latencies = cases.map((c) => c.latencyMs).sort((a, b) => a - b);
 
   const medianLatency = latencies.length > 0 ? latencies[Math.floor(latencies.length / 2)] : 0;
@@ -107,10 +112,14 @@ function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
   }
 
   return {
-    success_rate: cases.length > 0 ? passedCases.length / cases.length : 0,
+    success_rate: validCases.length > 0 ? passedCases.length / validCases.length : 0,
+    total_attempts: cases.reduce((sum, c) => sum + (c.attempts ?? 1), 0),
     total_cases: cases.length,
+    valid_evaluations: validCases.length,
+    invalid_evaluations: cases.length - validCases.length,
+    outcome_rate_denominator: validCases.length,
     passed_cases: passedCases.length,
-    failed_cases: cases.length - passedCases.length,
+    failed_cases: validCases.length - passedCases.length,
     median_latency_ms: medianLatency,
     p95_latency_ms: p95Latency,
     total_tokens: totalPromptTokens + totalCompletionTokens,

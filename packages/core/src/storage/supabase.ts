@@ -3,7 +3,7 @@
  */
 
 import { type SupabaseClient, createClient } from '@supabase/supabase-js';
-import type { CaseResult, RunManifest } from '../artifacts/types';
+import { type CaseResult, type RunManifest, getCaseEvaluationStatus } from '../artifacts/types';
 import type {
   AnalyticsStorageAdapter,
   BaselineMetadata,
@@ -31,7 +31,7 @@ function mapCaseToRecord(runId: string, caseResult: CaseResult): CaseResultRecor
     runId,
     caseId: caseResult.id,
     caseName: caseResult.name,
-    status: caseResult.error ? 'error' : caseResult.ok ? 'passed' : 'failed',
+    status: getCaseEvaluationStatus(caseResult),
     score: caseResult.score,
     matcherType: caseResult.matcherType,
     reason: caseResult.reason,

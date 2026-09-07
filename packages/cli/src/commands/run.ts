@@ -105,6 +105,10 @@ interface CISummary {
   };
   cases: {
     total: number;
+    totalAttempts: number;
+    validEvaluations: number;
+    invalidEvaluations: number;
+    outcomeRateDenominator: number;
     passed: number;
     failed: number;
     successRate: number;
@@ -130,6 +134,10 @@ interface CISummary {
     passedCases: number;
     failedCases: number;
     totalCases: number;
+    totalAttempts: number;
+    validEvaluations: number;
+    invalidEvaluations: number;
+    outcomeRateDenominator: number;
     durationMs: number;
     estimatedCostUsd?: number;
   }>;
@@ -188,6 +196,24 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
   const failedScenarios = totalScenarios - passedScenarios;
 
   const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const totalAttempts = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.total_attempts ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
+  const validEvaluations = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
+  const invalidEvaluations = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.invalid_evaluations ?? 0),
+    0
+  );
+  const outcomeRateDenominator = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
   const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
   const failedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.failed_cases || 0), 0);
   const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
@@ -216,9 +242,13 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
     },
     cases: {
       total: totalCases,
+      totalAttempts,
+      validEvaluations,
+      invalidEvaluations,
+      outcomeRateDenominator,
       passed: passedCases,
       failed: failedCases,
-      successRate: totalCases > 0 ? passedCases / totalCases : 0,
+      successRate: outcomeRateDenominator > 0 ? passedCases / outcomeRateDenominator : 0,
     },
     duration: {
       totalMs: totalDuration,
@@ -241,6 +271,12 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       passedCases: r.manifest.metrics?.passed_cases || 0,
       failedCases: r.manifest.metrics?.failed_cases || 0,
       totalCases: r.manifest.metrics?.total_cases || 0,
+      totalAttempts: r.manifest.metrics?.total_attempts ?? r.manifest.metrics?.total_cases ?? 0,
+      validEvaluations:
+        r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0,
+      invalidEvaluations: r.manifest.metrics?.invalid_evaluations ?? 0,
+      outcomeRateDenominator:
+        r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0,
       durationMs: r.manifest.duration_ms || 0,
       estimatedCostUsd: r.manifest.metrics?.cost?.total_usd,
     })),
@@ -252,8 +288,13 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
  */
 function buildSecuritySummary(results: ScenarioRunResult[]): SecuritySummary {
   const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const validEvaluations = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
   const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
-  const successRate = totalCases > 0 ? passedCases / totalCases : 0;
+  const successRate = validEvaluations > 0 ? passedCases / validEvaluations : 0;
 
   // Categorize risk based on success rate (for standard runs, invert for security context)
   let overallRisk: 'low' | 'medium' | 'high' | 'critical';
@@ -451,7 +492,8 @@ async function runSingleScenario(
     onCaseComplete: (caseResult) => {
       completedCases++;
 
-      const statusIcon = caseResult.ok ? icons.passed : icons.failed;
+      const caseStatus = caseResult.status ?? (caseResult.ok ? 'passed' : 'failed');
+      const statusIcon = caseStatus === 'passed' ? icons.passed : icons.failed;
       const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
       const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
 
@@ -469,7 +511,7 @@ async function runSingleScenario(
       } else {
         // CI/CD friendly output - no progress bar, just count
         console.log(
-          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+          `${statusIcon} ${paddedId}  ${chalk.dim(caseStatus.toUpperCase())} ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
         );
       }
 
@@ -800,7 +842,7 @@ export function runCommand(): Command {
                 : '';
               console.log(
                 chalk.dim(
-                  `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
+                  `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid/Incomplete: ${result.manifest.metrics.invalid_evaluations ?? 0}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
                 )
               );
 
@@ -931,6 +973,12 @@ export function runCommand(): Command {
             console.log(`ARTEMISKIT_SCENARIOS_PASSED=${ciSummary.scenarios.passed}`);
             console.log(`ARTEMISKIT_SCENARIOS_FAILED=${ciSummary.scenarios.failed}`);
             console.log(`ARTEMISKIT_CASES_TOTAL=${totalCases}`);
+            console.log(`ARTEMISKIT_TOTAL_ATTEMPTS=${ciSummary.cases.totalAttempts}`);
+            console.log(`ARTEMISKIT_VALID_EVALUATIONS=${ciSummary.cases.validEvaluations}`);
+            console.log(`ARTEMISKIT_INVALID_EVALUATIONS=${ciSummary.cases.invalidEvaluations}`);
+            console.log(
+              `ARTEMISKIT_OUTCOME_RATE_DENOMINATOR=${ciSummary.cases.outcomeRateDenominator}`
+            );
             console.log(`ARTEMISKIT_CASES_PASSED=${passedCases}`);
             console.log(`ARTEMISKIT_CASES_FAILED=${failedCases}`);
             console.log(`ARTEMISKIT_SUCCESS_RATE=${successRate}`);

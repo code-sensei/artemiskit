@@ -2,7 +2,13 @@
  * Storage types and interfaces
  */
 
-import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '../artifacts/types';
+import type {
+  AnyManifest,
+  CaseEvaluationEvidence,
+  RedTeamManifest,
+  RunManifest,
+  StressManifest,
+} from '../artifacts/types';
 
 /**
  * Run listing item
@@ -197,6 +203,8 @@ export interface CaseResultRecord {
   caseName?: string;
   /** Result status */
   status: CaseResultStatus;
+  /** Number of execution attempts represented by this terminal result. */
+  attempts?: number;
   /** Score from 0.0 to 1.0 */
   score: number;
   /** Type of matcher used */
@@ -215,6 +223,8 @@ export interface CaseResultRecord {
   totalTokens: number;
   /** Error message if status is 'error' */
   error?: string;
+  /** Sanitized evaluator evidence retained for review. */
+  evidence?: CaseEvaluationEvidence;
   /** Tags for categorization */
   tags?: string[];
   /** ISO timestamp when created */

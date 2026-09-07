@@ -2,6 +2,13 @@
 
 ## 0.3.1
 
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+
+## 0.3.1
+
 ### Minor Changes
 
 - **Agent-Specific Mutations** - New mutations targeting agentic AI vulnerabilities:

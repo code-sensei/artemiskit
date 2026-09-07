@@ -1,5 +1,15 @@
 # @artemiskit/core
 
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
 ## 0.3.0
 
 ### Minor Changes

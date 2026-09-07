@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-trueforge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TrueForge agent-harness adapter for ArtemisKit",
   "type": "module",
   "license": "Apache-2.0",

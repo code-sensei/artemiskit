@@ -1,5 +1,27 @@
 # @artemiskit/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+  - @artemiskit/reports@0.4.0
+  - @artemiskit/adapter-deepagents@0.2.2
+  - @artemiskit/adapter-langchain@0.2.2
+  - @artemiskit/adapter-ling@0.1.1
+  - @artemiskit/adapter-openai@0.1.13
+  - @artemiskit/adapter-vercel-ai@0.1.13
+  - @artemiskit/redteam@0.3.1
+
 ## 0.3.2
 
 ### Patch Changes

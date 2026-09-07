@@ -70,28 +70,21 @@ echo ""
 # Step 1: Check prerequisites
 echo -e "${YELLOW}[1/8] Checking prerequisites...${NC}"
 
-# Check if .env exists and has NPM_API_KEY
-if [ ! -f .env ]; then
-  echo -e "${RED}Error: .env file not found${NC}"
+# Accept the GitHub Actions convention first, while retaining the local
+# NPM_API_KEY convention documented for maintainers.
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
+NPM_AUTH_TOKEN="${NPM_TOKEN:-${NPM_API_KEY:-}}"
+if [ -z "$NPM_AUTH_TOKEN" ]; then
+  echo -e "${RED}Error: set NPM_TOKEN or NPM_API_KEY before publishing${NC}"
   exit 1
 fi
 
-if ! grep -q "NPM_API_KEY" .env; then
-  echo -e "${RED}Error: NPM_API_KEY not found in .env${NC}"
-  exit 1
-fi
-
-# Load environment variables
-set -a
-source .env
-set +a
-
-if [ -z "$NPM_API_KEY" ]; then
-  echo -e "${RED}Error: NPM_API_KEY is empty${NC}"
-  exit 1
-fi
-
-echo -e "${GREEN}✓ NPM_API_KEY found${NC}"
+echo -e "${GREEN}✓ npm publish token found${NC}"
 
 # Check for clean git state
 if [ "$FORCE" = false ]; then
@@ -229,7 +222,7 @@ echo ""
 echo -e "${YELLOW}[9/9] Publishing to npm...${NC}"
 
 # Configure npm with token
-npm config set //registry.npmjs.org/:_authToken=$NPM_API_KEY
+npm config set //registry.npmjs.org/:_authToken=$NPM_AUTH_TOKEN
 
 # Verify npm authentication
 echo "Verifying npm authentication..."

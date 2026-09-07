@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.4.0] - 2026-09-07
+
+### Highlights
+
+- **Evaluation Integrity** - Assurance runs now distinguish valid passed/failed outcomes from
+  invalid evaluator measurements and target execution errors.
+- **Inspectable Evidence** - Artifacts retain bounded evaluator evidence and reports disclose the
+  measurement denominator rather than silently treating incomplete cases as failures.
+- **Release Validation** - Fixture-backed customer service, logistics, security, language, and
+  structured-output workflows provide a reusable release gate.
+
+### Added
+
+- Manifest v1.1 status, attempts, valid/invalid counts, and outcome-rate denominator.
+- Strict optional LLM judge mode that accepts only exact, valid JSON score/reason objects.
+- Sanitized evaluator evidence in artifacts, Supabase case storage, reports, and JUnit output.
+- Supabase migration for queryable integrity counts, status, attempts, and bounded case evidence.
+
+### Changed
+
+- CLI, SDK, JSON, HTML, Markdown, and JUnit outputs consistently expose measurement validity.
+- Historical manifests remain readable under a documented legacy status mapping.
+
 ### Added
 
 - Native Ant Ling Studio adapter for `Ling-3.0-flash` and `Ling-3.0-tiny`

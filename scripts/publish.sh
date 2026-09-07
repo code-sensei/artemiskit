@@ -5,7 +5,7 @@
 # Usage: ./scripts/publish.sh [--dry-run] [--skip-tests] [--skip-changeset]
 #
 # Prerequisites:
-#   - NPM_API_KEY in .env file
+#   - NPM_TOKEN or NPM_API_KEY in the environment or a local .env file
 #   - Clean git working directory (or use --force)
 #   - All packages buildable
 #

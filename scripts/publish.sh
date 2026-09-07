@@ -2,7 +2,7 @@
 #
 # ArtemisKit Publishing Script
 #
-# Usage: ./scripts/publish.sh [--dry-run] [--skip-tests] [--skip-changeset]
+# Usage: ./scripts/publish.sh [--dry-run] [--skip-tests] [--publish-only]
 #
 # Prerequisites:
 #   - NPM_TOKEN or NPM_API_KEY in the environment or a local .env file
@@ -23,6 +23,7 @@ NC='\033[0m' # No Color
 DRY_RUN=false
 SKIP_TESTS=false
 SKIP_CHANGESET=false
+PUBLISH_ONLY=false
 FORCE=false
 
 # Parse arguments
@@ -40,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_CHANGESET=true
       shift
       ;;
+    --publish-only)
+      PUBLISH_ONLY=true
+      shift
+      ;;
     --force)
       FORCE=true
       shift
@@ -51,6 +56,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --dry-run        Run without actually publishing"
       echo "  --skip-tests     Skip running tests"
       echo "  --skip-changeset Skip changeset creation (use existing)"
+      echo "  --publish-only   Publish already-versioned packages without creating a changeset"
       echo "  --force          Continue even with uncommitted changes"
       echo "  -h, --help       Show this help message"
       exit 0
@@ -153,7 +159,13 @@ echo -e "${YELLOW}[7/8] Processing changesets...${NC}"
 # Check for pending changesets
 PENDING_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
 
-if [ "$SKIP_CHANGESET" = false ]; then
+if [ "$PUBLISH_ONLY" = true ]; then
+  if [ "$PENDING_CHANGESETS" -ne 0 ]; then
+    echo -e "${RED}Error: --publish-only requires no pending changesets${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}✓ Publish-only mode: using committed package versions${NC}"
+elif [ "$SKIP_CHANGESET" = false ]; then
   if [ "$PENDING_CHANGESETS" -eq 0 ]; then
     if [ "${CI:-}" = "true" ]; then
       echo "No pending changesets found; CI will publish committed package versions."
@@ -182,7 +194,7 @@ else
 fi
 
 APPLY_VERSION_BUMPS=true
-if [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; then
+if [ "$PUBLISH_ONLY" = true ] || { [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; }; then
   # changesets/action calls the publish command after it has already committed
   # version changes. Never start an interactive changeset prompt in that path.
   APPLY_VERSION_BUMPS=false

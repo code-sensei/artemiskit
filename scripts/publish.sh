@@ -155,15 +155,20 @@ PENDING_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l 
 
 if [ "$SKIP_CHANGESET" = false ]; then
   if [ "$PENDING_CHANGESETS" -eq 0 ]; then
-    echo "No pending changesets found. Creating one now..."
-    echo ""
-    bun run changeset
+    if [ "${CI:-}" = "true" ]; then
+      echo "No pending changesets found; CI will publish committed package versions."
+    else
+      echo "No pending changesets found. Creating one now..."
+      echo ""
+      bun run changeset
 
-    # Check if changeset was created
-    NEW_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
-    if [ "$NEW_CHANGESETS" -eq 0 ]; then
-      echo -e "${YELLOW}No changeset created. Exiting.${NC}"
-      exit 0
+      # Check if changeset was created
+      NEW_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
+      if [ "$NEW_CHANGESETS" -eq 0 ]; then
+        echo -e "${YELLOW}No changeset created. Exiting.${NC}"
+        exit 0
+      fi
+      PENDING_CHANGESETS=$NEW_CHANGESETS
     fi
   else
     echo -e "${GREEN}✓ Found $PENDING_CHANGESETS pending changeset(s)${NC}"
@@ -176,23 +181,33 @@ else
   fi
 fi
 
-# Apply version bumps
-echo ""
-echo "Applying version bumps..."
-bun run version
+APPLY_VERSION_BUMPS=true
+if [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; then
+  # changesets/action calls the publish command after it has already committed
+  # version changes. Never start an interactive changeset prompt in that path.
+  APPLY_VERSION_BUMPS=false
+  echo -e "${GREEN}✓ CI publish mode: using committed package versions${NC}"
+fi
 
-# Show what changed
-echo ""
-echo -e "${BLUE}Version changes:${NC}"
-git diff --stat package.json packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true
-
-# Commit version changes if there are any
-if [ -n "$(git status --porcelain)" ]; then
+if [ "$APPLY_VERSION_BUMPS" = true ]; then
+  # Apply version bumps
   echo ""
-  echo "Committing version changes..."
-  git add -A
-  git commit -m "chore: version packages for release"
-  echo -e "${GREEN}✓ Version changes committed${NC}"
+  echo "Applying version bumps..."
+  bun run version
+
+  # Show what changed
+  echo ""
+  echo -e "${BLUE}Version changes:${NC}"
+  git diff --stat package.json packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true
+
+  # Commit version changes if there are any
+  if [ -n "$(git status --porcelain)" ]; then
+    echo ""
+    echo "Committing version changes..."
+    git add -A
+    git commit -m "chore: version packages for release"
+    echo -e "${GREEN}✓ Version changes committed${NC}"
+  fi
 fi
 
 # Step 8: Fix workspace dependencies

@@ -452,6 +452,11 @@ identity, per-dimension outcomes, control status, and limitations. Publish a pub
 format that exposes compatible results by scenario and profile rather than assigning a universal
 model rank.
 
+After deterministic reports are established, add an optional AI-assisted narrative layer that works
+only from sanitized saved evidence. It must label generated interpretation, cite manifest evidence,
+record its own model/configuration, and never alter measurement status, assurance decisions, or
+comparison eligibility.
+
 ### Release checklist
 
 | Work item | Status |

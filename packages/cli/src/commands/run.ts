@@ -845,52 +845,50 @@ export function runCommand(): Command {
           results = [];
           for (const path of scenarioPaths) {
             try {
-              const result = await runSingleScenario(
-                path,
-                options,
-                config,
-                spinner,
-                isMultiScenario
-              );
+              const result = isCIMode
+                ? await runSingleScenarioQuiet(path, options, config)
+                : await runSingleScenario(path, options, config, spinner, isMultiScenario);
               results.push(result);
 
-              // Display per-scenario summary
-              const summaryData = {
-                passed: result.manifest.metrics.passed_cases,
-                failed: result.manifest.metrics.failed_cases,
-                skipped: 0,
-                successRate: result.manifest.metrics.success_rate * 100,
-                duration: result.manifest.duration_ms,
-                title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
-              };
-              console.log();
-              console.log(renderSummaryPanel(summaryData));
+              if (!isCIMode) {
+                // Display per-scenario summary
+                const summaryData = {
+                  passed: result.manifest.metrics.passed_cases,
+                  failed: result.manifest.metrics.failed_cases,
+                  skipped: 0,
+                  successRate: result.manifest.metrics.success_rate * 100,
+                  duration: result.manifest.duration_ms,
+                  title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
+                };
+                console.log();
+                console.log(renderSummaryPanel(summaryData));
 
-              // Show additional metrics
-              console.log();
-              const costInfo = result.manifest.metrics.cost
-                ? `  |  Est. Cost: ${formatCost(result.manifest.metrics.cost.total_usd)}`
-                : '';
-              console.log(
-                chalk.dim(
-                  `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid measurements: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid').length}  |  Execution errors: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error').length}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
-                )
-              );
-
-              // Show redaction info if enabled
-              if (result.manifest.redaction?.enabled) {
-                const r = result.manifest.redaction;
+                // Show additional metrics
+                console.log();
+                const costInfo = result.manifest.metrics.cost
+                  ? `  |  Est. Cost: ${formatCost(result.manifest.metrics.cost.total_usd)}`
+                  : '';
                 console.log(
                   chalk.dim(
-                    `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                    `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid measurements: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid').length}  |  Execution errors: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error').length}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
                   )
                 );
+
+                // Show redaction info if enabled
+                if (result.manifest.redaction?.enabled) {
+                  const r = result.manifest.redaction;
+                  console.log(
+                    chalk.dim(
+                      `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                    )
+                  );
+                }
               }
 
               // Save results
               if (options.save) {
                 const savedPath = await storage.save(result.manifest);
-                console.log(chalk.dim(`Saved: ${savedPath}`));
+                if (!isCIMode) console.log(chalk.dim(`Saved: ${savedPath}`));
               }
 
               // Export if requested
@@ -902,20 +900,22 @@ export function runCommand(): Command {
                   const markdown = generateMarkdownReport(result.manifest);
                   const mdPath = join(exportDir, `${result.manifest.run_id}.md`);
                   await writeFile(mdPath, markdown);
-                  console.log(chalk.dim(`Exported: ${mdPath}`));
+                  if (!isCIMode) console.log(chalk.dim(`Exported: ${mdPath}`));
                 } else if (options.export === 'junit') {
                   const junit = generateJUnitReport(result.manifest);
                   const junitPath = join(exportDir, `${result.manifest.run_id}.xml`);
                   await writeFile(junitPath, junit);
-                  console.log(chalk.dim(`Exported: ${junitPath}`));
+                  if (!isCIMode) console.log(chalk.dim(`Exported: ${junitPath}`));
                 }
               }
             } catch (error) {
               // Record failed scenario
-              console.log();
-              console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
-              if (options.verbose) {
-                console.log(chalk.dim((error as Error).message));
+              if (!isCIMode) {
+                console.log();
+                console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
+                if (options.verbose) {
+                  console.log(chalk.dim((error as Error).message));
+                }
               }
               results.push({
                 scenarioPath: path,

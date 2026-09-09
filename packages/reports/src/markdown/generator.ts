@@ -4,7 +4,12 @@
  * Generates documentation-friendly markdown reports for compliance and audit trails.
  */
 
-import { type RedTeamManifest, type RunManifest, getCaseEvaluationStatus } from '@artemiskit/core';
+import {
+  type RedTeamManifest,
+  type RunManifest,
+  getCaseEvaluationStatus,
+  getCaseEvaluationStatusLabel,
+} from '@artemiskit/core';
 
 export interface MarkdownReportOptions {
   /** Include full prompt/response details for failed cases */
@@ -80,7 +85,12 @@ export function generateMarkdownReport(
   lines.push(
     `| Valid Evaluations | ${manifest.metrics.valid_evaluations ?? manifest.metrics.total_cases} |`
   );
-  lines.push(`| Invalid or Incomplete | ${manifest.metrics.invalid_evaluations ?? 0} |`);
+  const invalidMeasurements = manifest.cases.filter(
+    (c) => getCaseEvaluationStatus(c) === 'invalid'
+  );
+  const executionErrors = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'error');
+  lines.push(`| Invalid Measurements | ${invalidMeasurements.length} |`);
+  lines.push(`| Execution Errors | ${executionErrors.length} |`);
   lines.push(
     `| Outcome Rate Denominator | ${manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases} |`
   );
@@ -176,15 +186,11 @@ export function generateMarkdownReport(
     lines.push('');
   }
 
-  const incomplete = manifest.cases.filter((c) => {
-    const status = getCaseEvaluationStatus(c);
-    return status === 'invalid' || status === 'error';
-  });
-  lines.push(`### Invalid or Incomplete (${incomplete.length})`);
+  lines.push(`### Invalid Measurements (${invalidMeasurements.length})`);
   lines.push('');
-  if (incomplete.length > 0) {
-    for (const c of incomplete) {
-      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatus(c).toUpperCase()}`);
+  if (invalidMeasurements.length > 0) {
+    for (const c of invalidMeasurements) {
+      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatusLabel(c)}`);
       lines.push('');
       lines.push(`**Reason:** ${c.reason || c.error || 'Unknown'}`);
       if (c.evidence?.validation) {
@@ -195,7 +201,21 @@ export function generateMarkdownReport(
       lines.push('');
     }
   } else {
-    lines.push('_No invalid or incomplete measurements_');
+    lines.push('_No invalid measurements_');
+    lines.push('');
+  }
+
+  lines.push(`### Execution Errors (${executionErrors.length})`);
+  lines.push('');
+  if (executionErrors.length > 0) {
+    for (const c of executionErrors) {
+      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatusLabel(c)}`);
+      lines.push('');
+      lines.push(`**Reason:** ${c.reason || c.error || 'Unknown'}`);
+      lines.push('');
+    }
+  } else {
+    lines.push('_No execution errors_');
     lines.push('');
   }
 

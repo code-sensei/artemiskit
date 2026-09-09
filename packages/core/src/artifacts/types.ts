@@ -54,6 +54,14 @@ export interface ManifestRedactionInfo {
  */
 export type CaseEvaluationStatus = 'passed' | 'failed' | 'invalid' | 'error';
 
+/** Human-readable status labels shared by CLI and report consumers. */
+export const CASE_EVALUATION_STATUS_LABELS: Record<CaseEvaluationStatus, string> = {
+  passed: 'Passed',
+  failed: 'Failed criteria',
+  invalid: 'Invalid measurement',
+  error: 'Execution error',
+};
+
 /** Reviewed, bounded evaluator evidence retained in a run artifact. */
 export interface CaseEvaluationEvidence {
   evaluator: string;
@@ -298,6 +306,11 @@ export function getCaseEvaluationStatus(caseResult: CaseResult): CaseEvaluationS
   }
   if (caseResult.ok) return 'passed';
   return caseResult.error ? 'error' : 'failed';
+}
+
+/** Return the stable human-readable label for a case measurement status. */
+export function getCaseEvaluationStatusLabel(caseResult: CaseResult): string {
+  return CASE_EVALUATION_STATUS_LABELS[getCaseEvaluationStatus(caseResult)];
 }
 
 /**

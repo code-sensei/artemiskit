@@ -2,7 +2,12 @@
  * HTML Report Generator
  */
 
-import { type CaseResult, type RunManifest, getCaseEvaluationStatus } from '@artemiskit/core';
+import {
+  type CaseResult,
+  type RunManifest,
+  getCaseEvaluationStatus,
+  getCaseEvaluationStatusLabel,
+} from '@artemiskit/core';
 import Handlebars from 'handlebars';
 
 const HTML_TEMPLATE = `
@@ -50,7 +55,7 @@ const HTML_TEMPLATE = `
     .status.passed { background: #dcfce7; color: #166534; }
     .status.failed { background: #fee2e2; color: #991b1b; }
     .status.invalid { background: #fef3c7; color: #92400e; }
-    .status.error { background: #fee2e2; color: #991b1b; }
+    .status.error { background: #f3e8ff; color: #6b21a8; }
     .score { font-family: monospace; }
     .details { margin-top: 0.5rem; padding: 1rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem; }
     .details pre { white-space: pre-wrap; word-break: break-word; }
@@ -160,6 +165,14 @@ const HTML_TEMPLATE = `
       background: #991b1b;
       border-color: #991b1b;
     }
+    .filter-btn.invalid.active {
+      background: #92400e;
+      border-color: #92400e;
+    }
+    .filter-btn.error.active {
+      background: #6b21a8;
+      border-color: #6b21a8;
+    }
     .search-box {
       flex: 1;
       min-width: 200px;
@@ -247,8 +260,12 @@ const HTML_TEMPLATE = `
             <div class="value">{{manifest.metrics.passed_cases}} / {{outcomeDenominator manifest}}</div>
           </div>
           <div class="card">
-            <h3>Invalid / Incomplete</h3>
-            <div class="value warning">{{invalidCount manifest}}</div>
+            <h3>Invalid Measurements</h3>
+            <div class="value warning">{{invalidOnlyCount manifest}}</div>
+          </div>
+          <div class="card">
+            <h3>Execution Errors</h3>
+            <div class="value error">{{errorCount manifest}}</div>
           </div>
           <div class="card">
             <h3>Median Latency</h3>
@@ -275,8 +292,8 @@ const HTML_TEMPLATE = `
             <button class="filter-btn active" data-filter="all" onclick="filterCases('all')">All ({{manifest.metrics.total_cases}})</button>
             <button class="filter-btn passed" data-filter="passed" onclick="filterCases('passed')">Passed ({{manifest.metrics.passed_cases}})</button>
             <button class="filter-btn failed" data-filter="failed" onclick="filterCases('failed')">Failed ({{manifest.metrics.failed_cases}})</button>
-            <button class="filter-btn failed" data-filter="invalid" onclick="filterCases('invalid')">Invalid ({{invalidOnlyCount manifest}})</button>
-            <button class="filter-btn failed" data-filter="error" onclick="filterCases('error')">Errors ({{errorCount manifest}})</button>
+            <button class="filter-btn invalid" data-filter="invalid" onclick="filterCases('invalid')">Invalid measurements ({{invalidOnlyCount manifest}})</button>
+            <button class="filter-btn error" data-filter="error" onclick="filterCases('error')">Execution errors ({{errorCount manifest}})</button>
           </div>
           <div class="search-box">
             <input type="text" class="search-input" id="search-input" placeholder="Search by ID, name, response..." oninput="searchCases(this.value)">
@@ -299,7 +316,7 @@ const HTML_TEMPLATE = `
             {{#each manifest.cases}}
             <tr class="expandable case-row" data-status="{{caseStatus this}}" data-id="{{id}}" data-name="{{name}}" data-response="{{response}}" data-reason="{{reason}}" onclick="toggleDetails('{{id}}')">
               <td><strong>{{id}}</strong>{{#if name}}<br><small>{{name}}</small>{{/if}}{{#if redaction.redacted}}<span class="redacted-badge">redacted</span>{{/if}}</td>
-              <td><span class="status {{caseStatus this}}">{{caseStatus this}}</span></td>
+              <td><span class="status {{caseStatus this}}">{{caseStatusLabel this}}</span></td>
               <td class="score">{{formatPercent score}}</td>
               <td>{{matcherType}}</td>
               <td>{{latencyMs}}ms</td>
@@ -554,12 +571,12 @@ export function generateHTMLReport(manifest: RunManifest): string {
     return getCaseEvaluationStatus(caseResult);
   });
 
-  Handlebars.registerHelper('outcomeDenominator', (manifest: RunManifest) => {
-    return manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases;
+  Handlebars.registerHelper('caseStatusLabel', (caseResult: CaseResult) => {
+    return getCaseEvaluationStatusLabel(caseResult);
   });
 
-  Handlebars.registerHelper('invalidCount', (manifest: RunManifest) => {
-    return manifest.metrics.invalid_evaluations ?? 0;
+  Handlebars.registerHelper('outcomeDenominator', (manifest: RunManifest) => {
+    return manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases;
   });
 
   Handlebars.registerHelper('invalidOnlyCount', (manifest: RunManifest) => {

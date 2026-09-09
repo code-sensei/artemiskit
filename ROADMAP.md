@@ -61,7 +61,7 @@ verification checklist are complete.
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
-| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released in 0.4.0; hardening continues through 0.4.x |
+| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released in 0.4.0; remaining hardening is implemented locally and pending a user-facing release decision. |
 | 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4 |
 | 0.6.x | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
 | 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
@@ -289,7 +289,8 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 ## 0.4 — Evaluation integrity
 
-**Status:** Released in 0.4.0; 0.4.1 evidence-boundary hardening complete
+**Status:** Released in 0.4.0; 0.4.1 evidence-boundary hardening complete; the remaining
+0.4.x hardening is packaged together as the validated 0.4.2 release candidate.
 **Goal:** prevent invalid or incomplete measurements from looking like ordinary failed cases or
 improving reported rates.
 
@@ -321,9 +322,9 @@ evaluator evidence, and document a compatibility mapping for historical artifact
 | 0.4.1 | Runtime-validate integrity-bearing status/evidence fields at standard storage boundaries | ✅ |
 | 0.4.1 | Publish strict LLM-judge assurance example and release-validation record | ✅ |
 | 0.4.1 | Make successful non-interactive publish completion exit cleanly | ✅ |
-| 0.4.2 | Exercise Supabase integrity migration against a disposable database | 📋 |
-| 0.4.3 | Distinct CLI/report treatment for every measurement status | 📋 |
-| 0.4.4 | npm credential/ownership preflight and temporary token handling | 📋 |
+| 0.4.2 | Exercise Supabase integrity migration against a disposable database | ✅ Release candidate validated |
+| 0.4.2 | Distinct CLI/report treatment for every measurement status | ✅ Release candidate validated |
+| 0.4.2 | npm credential/ownership preflight and temporary token handling | ✅ Release candidate validated |
 
 The complete 0.4.x checklist and acceptance criteria live in
 [docs/v0.4-assurance-improvements.md](docs/v0.4-assurance-improvements.md).

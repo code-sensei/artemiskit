@@ -108,6 +108,12 @@ export function generateJUnitReport(
     `    <property name="artemis.invalid_evaluations" value="${manifest.metrics.invalid_evaluations ?? 0}" />`
   );
   lines.push(
+    `    <property name="artemis.invalid_measurements" value="${manifest.cases.filter((testCase) => getCaseEvaluationStatus(testCase) === 'invalid').length}" />`
+  );
+  lines.push(
+    `    <property name="artemis.execution_errors" value="${manifest.cases.filter((testCase) => getCaseEvaluationStatus(testCase) === 'error').length}" />`
+  );
+  lines.push(
     `    <property name="artemis.outcome_rate_denominator" value="${manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases}" />`
   );
   lines.push(

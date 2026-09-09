@@ -101,11 +101,18 @@ describe('measurement-integrity reports', () => {
     const html = generateHTMLReport(manifest);
 
     expect(markdown).toContain('| Valid Evaluations | 2 |');
-    expect(markdown).toContain('| Invalid or Incomplete | 2 |');
+    expect(markdown).toContain('| Invalid Measurements | 1 |');
+    expect(markdown).toContain('| Execution Errors | 1 |');
     expect(markdown).toContain('| Outcome Rate Denominator | 2 |');
     expect(markdown).toContain('### Failed (1)');
-    expect(markdown).toContain('### Invalid or Incomplete (2)');
-    expect(html).toContain('Invalid / Incomplete');
+    expect(markdown).toContain('### Invalid Measurements (1)');
+    expect(markdown).toContain('### Execution Errors (1)');
+    expect(html).toContain('Invalid Measurements');
+    expect(html).toContain('Execution Errors');
+    expect(html).toContain('Passed');
+    expect(html).toContain('Failed criteria');
+    expect(html).toContain('Invalid measurement');
+    expect(html).toContain('Execution error');
     expect(html).toContain('data-status="invalid"');
     expect(html).toContain('data-status="error"');
   });
@@ -118,6 +125,8 @@ describe('measurement-integrity reports', () => {
 
     expect(junit).toContain('tests="4" failures="1" errors="2"');
     expect(junit).toContain('artemis.outcome_rate_denominator" value="2"');
+    expect(junit).toContain('artemis.invalid_measurements" value="1"');
+    expect(junit).toContain('artemis.execution_errors" value="1"');
     expect(junit).toContain('<failure message="criterion failed" type="contains">');
     expect(junit).toContain('<error message="Grader failed: malformed output" type="invalid">');
     expect(junit).toContain('<error message="provider unavailable" type="error">');

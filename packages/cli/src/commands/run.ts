@@ -11,6 +11,7 @@ import {
   type RunManifest,
   createAdapter,
   formatCost,
+  getCaseEvaluationStatus,
   parseScenarioFile,
   resolveScenarioPaths,
   runScenario,
@@ -23,10 +24,12 @@ import type { ArtemisConfig } from '../config/schema.js';
 import {
   createSpinner,
   formatDuration,
+  formatMeasurementStatus,
   getProviderErrorContext,
   icons,
   isInteractive,
   isTTY,
+  measurementStatusIcon,
   padText,
   promptModel,
   promptProvider,
@@ -108,6 +111,8 @@ interface CISummary {
     totalAttempts: number;
     validEvaluations: number;
     invalidEvaluations: number;
+    invalidMeasurements: number;
+    executionErrors: number;
     outcomeRateDenominator: number;
     passed: number;
     failed: number;
@@ -137,6 +142,8 @@ interface CISummary {
     totalAttempts: number;
     validEvaluations: number;
     invalidEvaluations: number;
+    invalidMeasurements: number;
+    executionErrors: number;
     outcomeRateDenominator: number;
     durationMs: number;
     estimatedCostUsd?: number;
@@ -209,6 +216,21 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
     (sum, r) => sum + (r.manifest.metrics?.invalid_evaluations ?? 0),
     0
   );
+  const invalidMeasurements = results.reduce(
+    (sum, result) =>
+      sum +
+      result.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid'
+      ).length,
+    0
+  );
+  const executionErrors = results.reduce(
+    (sum, result) =>
+      sum +
+      result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error')
+        .length,
+    0
+  );
   const outcomeRateDenominator = results.reduce(
     (sum, r) =>
       sum + (r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0),
@@ -245,6 +267,8 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       totalAttempts,
       validEvaluations,
       invalidEvaluations,
+      invalidMeasurements,
+      executionErrors,
       outcomeRateDenominator,
       passed: passedCases,
       failed: failedCases,
@@ -275,6 +299,12 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       validEvaluations:
         r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0,
       invalidEvaluations: r.manifest.metrics?.invalid_evaluations ?? 0,
+      invalidMeasurements: r.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid'
+      ).length,
+      executionErrors: r.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'error'
+      ).length,
       outcomeRateDenominator:
         r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0,
       durationMs: r.manifest.duration_ms || 0,
@@ -492,8 +522,9 @@ async function runSingleScenario(
     onCaseComplete: (caseResult) => {
       completedCases++;
 
-      const caseStatus = caseResult.status ?? (caseResult.ok ? 'passed' : 'failed');
-      const statusIcon = caseStatus === 'passed' ? icons.passed : icons.failed;
+      const caseStatus = getCaseEvaluationStatus(caseResult);
+      const statusIcon = measurementStatusIcon(caseStatus);
+      const statusLabel = formatMeasurementStatus(caseStatus);
       const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
       const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
 
@@ -506,12 +537,12 @@ async function runSingleScenario(
       if (isTTY) {
         const progressBar = renderProgressBar(completedCases, totalCases, { width: 15 });
         console.log(
-          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
+          `${statusIcon} ${paddedId}  ${statusLabel}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
         );
       } else {
         // CI/CD friendly output - no progress bar, just count
         console.log(
-          `${statusIcon} ${paddedId}  ${chalk.dim(caseStatus.toUpperCase())} ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+          `${statusIcon} ${paddedId}  ${statusLabel} ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
         );
       }
 
@@ -842,7 +873,7 @@ export function runCommand(): Command {
                 : '';
               console.log(
                 chalk.dim(
-                  `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid/Incomplete: ${result.manifest.metrics.invalid_evaluations ?? 0}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
+                  `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid measurements: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid').length}  |  Execution errors: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error').length}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
                 )
               );
 

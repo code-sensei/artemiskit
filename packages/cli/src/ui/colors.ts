@@ -2,6 +2,7 @@
  * Consistent color scheme for CLI output
  */
 
+import type { CaseEvaluationStatus } from '@artemiskit/core';
 import chalk from 'chalk';
 
 export const colors = {
@@ -15,6 +16,8 @@ export const colors = {
   // Semantic colors for test results
   passed: chalk.green,
   failed: chalk.red,
+  invalid: chalk.yellow,
+  executionError: chalk.magenta,
   skipped: chalk.gray,
   running: chalk.blue,
 
@@ -53,6 +56,8 @@ export function formatPercentage(value: number): string {
 export const icons = {
   passed: chalk.green('✓'),
   failed: chalk.red('✗'),
+  invalid: chalk.yellow('⚠'),
+  error: chalk.magenta('!'),
   skipped: chalk.gray('○'),
   running: chalk.blue('◉'),
   warning: chalk.yellow('⚠'),
@@ -60,3 +65,22 @@ export const icons = {
   arrow: chalk.cyan('→'),
   bullet: chalk.gray('•'),
 };
+
+/** Render every terminal measurement status distinctly in human-facing CLI output. */
+export function formatMeasurementStatus(status: CaseEvaluationStatus): string {
+  switch (status) {
+    case 'passed':
+      return colors.passed('PASSED');
+    case 'failed':
+      return colors.failed('FAILED');
+    case 'invalid':
+      return colors.invalid('INVALID MEASUREMENT');
+    case 'error':
+      return colors.executionError('EXECUTION ERROR');
+  }
+}
+
+/** Return the icon associated with a terminal measurement status. */
+export function measurementStatusIcon(status: CaseEvaluationStatus): string {
+  return icons[status];
+}

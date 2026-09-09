@@ -26,6 +26,7 @@
     "clean": "bun run --filter '*' clean",
     "dev": "bun run --filter '@artemiskit/cli' dev",
     "db:migrate": "bunx supabase db push",
+    "test:migration:integrity": "./scripts/test-evaluation-integrity-migration.sh",
     "db:generate-types": "bunx supabase gen types typescript --local > packages/core/src/storage/database.types.ts",
     "changeset": "changeset",
     "version": "changeset version",

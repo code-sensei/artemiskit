@@ -1,5 +1,13 @@
 # @artemiskit/core
 
+## 0.4.2
+
+### Patch Changes
+
+- 8716ca6: Harden assessment evidence handling with a disposable database migration proof,
+  explicit invalid-measurement and execution-error presentation, and consistent
+  integrity counts across supported report formats.
+
 ## 0.4.1
 
 ### Patch Changes

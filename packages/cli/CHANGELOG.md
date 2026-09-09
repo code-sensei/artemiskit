@@ -1,5 +1,22 @@
 # @artemiskit/cli
 
+## 0.4.2
+
+### Patch Changes
+
+- 8716ca6: Harden assessment evidence handling with a disposable database migration proof,
+  explicit invalid-measurement and execution-error presentation, and consistent
+  integrity counts across supported report formats.
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+  - @artemiskit/reports@0.4.2
+  - @artemiskit/adapter-deepagents@0.2.4
+  - @artemiskit/adapter-langchain@0.2.4
+  - @artemiskit/adapter-ling@0.1.3
+  - @artemiskit/adapter-openai@0.1.15
+  - @artemiskit/adapter-vercel-ai@0.1.15
+  - @artemiskit/redteam@0.3.3
+
 ## 0.4.1
 
 ### Patch Changes

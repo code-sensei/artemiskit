@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-deepagents",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "DeepAgents.js adapter for ArtemisKit - Test DeepAgents multi-agent systems",
   "type": "module",
   "license": "Apache-2.0",

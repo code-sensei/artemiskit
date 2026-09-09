@@ -1,5 +1,12 @@
 # @artemiskit/redteam
 
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+
 ## 0.3.2
 
 ### Patch Changes

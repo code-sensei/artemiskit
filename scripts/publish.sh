@@ -25,6 +25,20 @@ SKIP_TESTS=false
 SKIP_CHANGESET=false
 PUBLISH_ONLY=false
 FORCE=false
+WORKSPACE_DEPS_FIXED=false
+
+restore_workspace_deps() {
+  if [ "$WORKSPACE_DEPS_FIXED" = true ]; then
+    echo ""
+    echo "Restoring workspace:* dependencies..."
+    ./scripts/fix-workspace-deps.sh --restore
+    WORKSPACE_DEPS_FIXED=false
+  fi
+}
+
+# Workspace dependency rewrites are temporary release preparation. Restore them
+# even if authentication or package publication fails.
+trap restore_workspace_deps EXIT
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -194,7 +208,9 @@ else
 fi
 
 APPLY_VERSION_BUMPS=true
-if [ "$PUBLISH_ONLY" = true ] || { [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; }; then
+if [ "$PUBLISH_ONLY" = true ]; then
+  APPLY_VERSION_BUMPS=false
+elif [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; then
   # changesets/action calls the publish command after it has already committed
   # version changes. Never start an interactive changeset prompt in that path.
   APPLY_VERSION_BUMPS=false
@@ -228,6 +244,7 @@ echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
 
 # Replace workspace:* with actual version numbers for npm compatibility
 ./scripts/fix-workspace-deps.sh
+WORKSPACE_DEPS_FIXED=true
 
 # Validate no workspace:* remains (prevents publishing broken packages)
 echo ""
@@ -278,10 +295,6 @@ if [ "$DRY_RUN" = true ]; then
   echo ""
   echo -e "${YELLOW}Run without --dry-run to actually publish${NC}"
 
-  # Restore workspace:* in dry-run mode too
-  echo ""
-  echo "Restoring workspace:* dependencies..."
-  ./scripts/fix-workspace-deps.sh --restore
 else
   # Actually publish
   echo ""
@@ -289,12 +302,6 @@ else
 
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"
-
-  # Restore workspace:* dependencies
-  echo ""
-  echo "Restoring workspace:* dependencies..."
-  ./scripts/fix-workspace-deps.sh --restore
-  echo -e "${GREEN}✓ Workspace dependencies restored${NC}"
 
   # Create git tag
   echo ""

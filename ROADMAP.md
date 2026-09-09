@@ -289,8 +289,8 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 ## 0.4 — Evaluation integrity
 
-**Status:** Released in 0.4.0; 0.4.1 evidence-boundary hardening complete; the remaining
-0.4.x hardening is packaged together as the validated 0.4.2 release candidate.
+**Status:** Released through 0.4.2. Evaluation Integrity hardening is complete for the
+current 0.4.x scope.
 **Goal:** prevent invalid or incomplete measurements from looking like ordinary failed cases or
 improving reported rates.
 
@@ -322,9 +322,9 @@ evaluator evidence, and document a compatibility mapping for historical artifact
 | 0.4.1 | Runtime-validate integrity-bearing status/evidence fields at standard storage boundaries | ✅ |
 | 0.4.1 | Publish strict LLM-judge assurance example and release-validation record | ✅ |
 | 0.4.1 | Make successful non-interactive publish completion exit cleanly | ✅ |
-| 0.4.2 | Exercise Supabase integrity migration against a disposable database | ✅ Release candidate validated |
-| 0.4.2 | Distinct CLI/report treatment for every measurement status | ✅ Release candidate validated |
-| 0.4.2 | npm credential/ownership preflight and temporary token handling | ✅ Release candidate validated |
+| 0.4.2 | Exercise Supabase integrity migration against a disposable database | ✅ Released |
+| 0.4.2 | Distinct CLI/report treatment for every measurement status | ✅ Released |
+| 0.4.2 | npm credential/ownership preflight and temporary token handling | ✅ Released |
 
 The complete 0.4.x checklist and acceptance criteria live in
 [docs/v0.4-assurance-improvements.md](docs/v0.4-assurance-improvements.md).

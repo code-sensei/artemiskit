@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-langchain",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "LangChain.js adapter for ArtemisKit - Test LangChain chains and agents",
   "type": "module",
   "license": "Apache-2.0",
@@ -14,7 +14,15 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": ["llm", "langchain", "agents", "chains", "adapter", "artemiskit", "testing"],
+  "keywords": [
+    "llm",
+    "langchain",
+    "agents",
+    "chains",
+    "adapter",
+    "artemiskit",
+    "testing"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

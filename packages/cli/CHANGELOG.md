@@ -1,5 +1,21 @@
 # @artemiskit/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- Harden evaluation-integrity artifacts: redact bounded evaluator evidence, validate status and
+  evidence at storage and JSON-report boundaries, and make non-interactive publishes exit cleanly.
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+  - @artemiskit/reports@0.4.1
+  - @artemiskit/adapter-deepagents@0.2.3
+  - @artemiskit/adapter-langchain@0.2.3
+  - @artemiskit/adapter-ling@0.1.2
+  - @artemiskit/adapter-openai@0.1.14
+  - @artemiskit/adapter-vercel-ai@0.1.14
+  - @artemiskit/redteam@0.3.2
+
 ## 0.4.0
 
 ### Minor Changes

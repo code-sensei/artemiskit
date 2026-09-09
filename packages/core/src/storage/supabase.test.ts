@@ -241,6 +241,22 @@ describe('SupabaseStorageAdapter', () => {
 
       await expect(adapter.save(manifest)).rejects.toThrow('Failed to save run metadata');
     });
+
+    it('rejects malformed evaluator evidence before uploading a manifest', async () => {
+      const manifest = createMockManifest({
+        cases: [
+          {
+            ...createMockCaseResult('case-invalid-evidence', false),
+            evidence: { evaluator: 'custom', validation: { status: 'unknown' } },
+          } as never,
+        ],
+      });
+      const upload = mock(() => Promise.resolve({ error: null }));
+      mockStorage.mockReturnValue({ upload });
+
+      await expect(adapter.save(manifest)).rejects.toThrow('invalid evidence validation');
+      expect(upload).not.toHaveBeenCalled();
+    });
   });
 
   describe('load', () => {
@@ -287,6 +303,36 @@ describe('SupabaseStorageAdapter', () => {
       });
 
       await expect(adapter.load('non-existent')).rejects.toThrow('Run not found');
+    });
+
+    it('rejects a downloaded manifest with malformed evaluator evidence', async () => {
+      const manifest = createMockManifest({
+        cases: [
+          {
+            ...createMockCaseResult('case-invalid-evidence', false),
+            evidence: { evaluator: 'custom', score: Number.NaN },
+          } as never,
+        ],
+      });
+      mockFrom.mockReturnValue({
+        select: mock(() => ({
+          eq: mock(() => ({
+            single: mock(() =>
+              Promise.resolve({
+                data: { manifest_path: 'test-project/test-run-123.json' },
+                error: null,
+              })
+            ),
+          })),
+        })),
+      });
+      mockStorage.mockReturnValue({
+        download: mock(() =>
+          Promise.resolve({ data: new Blob([JSON.stringify(manifest)]), error: null })
+        ),
+      });
+
+      await expect(adapter.load('test-run-123')).rejects.toThrow('invalid evidence score');
     });
   });
 

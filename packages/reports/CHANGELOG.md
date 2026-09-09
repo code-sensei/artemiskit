@@ -1,5 +1,14 @@
 # @artemiskit/reports
 
+## 0.4.1
+
+### Patch Changes
+
+- Harden evaluation-integrity artifacts: redact bounded evaluator evidence, validate status and
+  evidence at storage and JSON-report boundaries, and make non-interactive publishes exit cleanly.
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

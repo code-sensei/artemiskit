@@ -77,6 +77,30 @@ describe('LocalStorageAdapter', () => {
     expect(loaded.metrics.success_rate).toBe(0.8);
   });
 
+  test('rejects malformed evaluator evidence before writing a standard run', async () => {
+    const malformed = {
+      ...mockManifest,
+      run_id: 'invalid-evidence',
+      cases: [
+        {
+          id: 'case-1',
+          ok: false,
+          score: 0,
+          matcherType: 'custom',
+          latencyMs: 1,
+          tokens: { prompt: 0, completion: 0, total: 0 },
+          prompt: 'prompt',
+          response: 'response',
+          expected: {},
+          tags: [],
+          evidence: { evaluator: 'custom', threshold: 2 },
+        },
+      ],
+    } as RunManifest;
+
+    await expect(storage.save(malformed)).rejects.toThrow('invalid evidence threshold');
+  });
+
   test('throws error for non-existent run', async () => {
     await expect(storage.load('non-existent-run')).rejects.toThrow('Run not found');
   });

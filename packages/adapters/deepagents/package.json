@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-deepagents",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "DeepAgents.js adapter for ArtemisKit - Test DeepAgents multi-agent systems",
   "type": "module",
   "license": "Apache-2.0",
@@ -14,7 +14,15 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": ["llm", "deepagents", "multi-agent", "agents", "adapter", "artemiskit", "testing"],
+  "keywords": [
+    "llm",
+    "deepagents",
+    "multi-agent",
+    "agents",
+    "adapter",
+    "artemiskit",
+    "testing"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

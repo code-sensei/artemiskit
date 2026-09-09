@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-ling",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Ant Ling adapter for ArtemisKit",
   "type": "module",
   "main": "./dist/index.js",

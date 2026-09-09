@@ -4,7 +4,14 @@
 
 import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '../artifacts/types';
+import {
+  type AnyManifest,
+  type RedTeamManifest,
+  type RunManifest,
+  type StressManifest,
+  assertRunManifestIntegrity,
+  isRunManifest,
+} from '../artifacts/types';
 import type {
   BaselineMetadata,
   BaselineStorageAdapter,
@@ -78,6 +85,9 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
   }
 
   async save(manifest: AnyManifest): Promise<string> {
+    if (isRunManifest(manifest)) {
+      assertRunManifestIntegrity(manifest);
+    }
     const dir = join(this.basePath, manifest.project);
     await mkdir(dir, { recursive: true });
 
@@ -106,7 +116,8 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
     if (getManifestType(manifest) !== 'run') {
       throw new Error(`Run ${runId} is not a standard run manifest`);
     }
-    return manifest as RunManifest;
+    assertRunManifestIntegrity(manifest);
+    return manifest;
   }
 
   async loadRedTeam(runId: string): Promise<RedTeamManifest> {

@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { createRunManifest } from './manifest';
+import { assertRunManifestIntegrity } from './types';
 import type { CaseResult } from './types';
 
 describe('createRunManifest', () => {
@@ -249,5 +250,28 @@ describe('createRunManifest', () => {
       outcome_rate_denominator: 1,
       success_rate: 1,
     });
+  });
+
+  test('accepts historical cases without integrity fields but rejects malformed new evidence', () => {
+    const historical = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'legacy', provider: 'openai' },
+      cases: [{ ...mockCases[0], status: undefined, evidence: undefined }],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+    expect(() => assertRunManifestIntegrity(historical)).not.toThrow();
+
+    const malformed = {
+      ...historical,
+      cases: [
+        {
+          ...mockCases[0],
+          status: 'passed',
+          evidence: { evaluator: 'custom', validation: { status: 'unknown' } },
+        },
+      ],
+    };
+    expect(() => assertRunManifestIntegrity(malformed)).toThrow('invalid evidence validation');
   });
 });

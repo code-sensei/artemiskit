@@ -303,19 +303,20 @@ else
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"
 
-  # Create git tag
+  # Changesets creates package tags. Only prompt for a push when stdin is a
+  # terminal; an unattended successful publication must still exit cleanly.
   echo ""
-  echo "Creating git tags..."
-
-  # Push commits and tags
-  echo ""
-  read -p "Push commits and tags to origin? (y/N) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    git push origin main --follow-tags
-    echo -e "${GREEN}✓ Pushed to origin${NC}"
+  if [ -t 0 ]; then
+    read -p "Push commits and tags to origin? (y/N) " -n 1 -r || true
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      git push origin main --follow-tags
+      echo -e "${GREEN}✓ Pushed to origin${NC}"
+    else
+      echo -e "${YELLOW}Skipped push. Run 'git push origin main --follow-tags' manually.${NC}"
+    fi
   else
-    echo -e "${YELLOW}Skipped push. Run 'git push origin main --follow-tags' manually.${NC}"
+    echo -e "${YELLOW}Non-interactive session: skipping git push.${NC}"
   fi
 fi
 

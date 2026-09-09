@@ -1,6 +1,6 @@
 # ArtemisKit public roadmap
 
-**Last updated:** 7 September 2026
+**Last updated:** 9 September 2026
 **Status:** Active development
 **License:** Apache-2.0
 
@@ -61,7 +61,7 @@ verification checklist are complete.
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
-| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Existing foundation |
+| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released in 0.4.0; hardening continues through 0.4.x |
 | 0.5 | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4 |
 | 0.6 | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
 | 0.7 | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
@@ -71,7 +71,7 @@ verification checklist are complete.
 
 ## 0.4 — Evaluation integrity
 
-**Status:** Release candidate
+**Status:** Released in 0.4.0; 0.4.1 evidence-boundary hardening complete
 **Goal:** prevent invalid or incomplete measurements from looking like ordinary failed cases or
 improving reported rates.
 
@@ -94,6 +94,21 @@ evaluator evidence, and document a compatibility mapping for historical artifact
 | CLI, SDK, JSON, HTML, Markdown, and JUnit consumers agree on status and metrics | ✅ |
 | Focused unit tests, typecheck, lint, and report rendering verification pass | ✅ |
 | Fixture-backed release validation covers RV-01 through RV-10 in [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md) | ✅ |
+
+### 0.4.x hardening checklist
+
+| Target | Work item | Status |
+| --- | --- | --- |
+| 0.4.1 | Redact evaluator reasons and bounded evidence under enabled run redaction | ✅ |
+| 0.4.1 | Runtime-validate integrity-bearing status/evidence fields at standard storage boundaries | ✅ |
+| 0.4.1 | Publish strict LLM-judge assurance example and release-validation record | ✅ |
+| 0.4.1 | Make successful non-interactive publish completion exit cleanly | ✅ |
+| 0.4.2 | Exercise Supabase integrity migration against a disposable database | 📋 |
+| 0.4.3 | Distinct CLI/report treatment for every measurement status | 📋 |
+| 0.4.4 | npm credential/ownership preflight and temporary token handling | 📋 |
+
+The complete 0.4.x checklist and acceptance criteria live in
+[docs/v0.4-assurance-improvements.md](docs/v0.4-assurance-improvements.md).
 
 ## 0.5 — Reproducible evidence and workload identity
 

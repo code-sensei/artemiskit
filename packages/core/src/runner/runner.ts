@@ -93,6 +93,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     const redactor = new Redactor(effectiveRedaction);
     const promptsRedacted = results.filter((r) => r.redaction?.promptRedacted).length;
     const responsesRedacted = results.filter((r) => r.redaction?.responseRedacted).length;
+    const reasonsRedacted = results.filter((r) => r.redaction?.reasonRedacted).length;
     const totalRedactions = results.reduce((sum, r) => sum + (r.redaction?.redactionCount ?? 0), 0);
 
     redactionInfo = {
@@ -102,6 +103,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       summary: {
         promptsRedacted,
         responsesRedacted,
+        reasonsRedacted,
         totalRedactions,
       },
     };

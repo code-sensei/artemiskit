@@ -3,7 +3,12 @@
  */
 
 import { type SupabaseClient, createClient } from '@supabase/supabase-js';
-import { type CaseResult, type RunManifest, getCaseEvaluationStatus } from '../artifacts/types';
+import {
+  type CaseResult,
+  type RunManifest,
+  assertRunManifestIntegrity,
+  getCaseEvaluationStatus,
+} from '../artifacts/types';
 import type {
   AnalyticsStorageAdapter,
   BaselineMetadata,
@@ -63,6 +68,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
   // ============================================================================
 
   async save(manifest: RunManifest): Promise<string> {
+    assertRunManifestIntegrity(manifest);
     const filePath = `${manifest.project}/${manifest.run_id}.json`;
 
     const { error: uploadError } = await this.client.storage
@@ -137,7 +143,9 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
     }
 
     const text = await data.text();
-    return JSON.parse(text);
+    const manifest: unknown = JSON.parse(text);
+    assertRunManifestIntegrity(manifest);
+    return manifest;
   }
 
   async list(options?: ListOptions): Promise<RunListItem[]> {

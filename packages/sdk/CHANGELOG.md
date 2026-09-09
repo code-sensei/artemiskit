@@ -1,5 +1,13 @@
 # @artemiskit/sdk
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+  - @artemiskit/redteam@0.3.2
+
 ## 0.4.0
 
 ### Minor Changes

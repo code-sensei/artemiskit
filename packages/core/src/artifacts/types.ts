@@ -16,6 +16,8 @@ export interface CaseRedactionInfo {
   promptRedacted: boolean;
   /** Whether response was redacted */
   responseRedacted: boolean;
+  /** Whether evaluator reason text was redacted */
+  reasonRedacted?: boolean;
   /** Number of redactions in this case */
   redactionCount: number;
 }
@@ -34,6 +36,8 @@ export interface ManifestRedactionInfo {
   summary: {
     promptsRedacted: number;
     responsesRedacted: number;
+    /** Cases whose evaluator reason text was redacted. */
+    reasonsRedacted?: number;
     totalRedactions: number;
   };
 }
@@ -284,9 +288,89 @@ export interface RunManifest {
  * criteria unless they set the legacy `error` field.
  */
 export function getCaseEvaluationStatus(caseResult: CaseResult): CaseEvaluationStatus {
-  if (caseResult.status) return caseResult.status;
+  if (
+    caseResult.status === 'passed' ||
+    caseResult.status === 'failed' ||
+    caseResult.status === 'invalid' ||
+    caseResult.status === 'error'
+  ) {
+    return caseResult.status;
+  }
   if (caseResult.ok) return 'passed';
   return caseResult.error ? 'error' : 'failed';
+}
+
+/**
+ * Reject untrusted integrity-bearing fields before a run manifest is persisted
+ * or treated as a standard run. Historical manifests remain supported because
+ * status and evidence are optional in the v1.0 contract.
+ */
+export function assertRunManifestIntegrity(manifest: unknown): asserts manifest is RunManifest {
+  if (!isRecord(manifest) || !Array.isArray(manifest.cases)) {
+    throw new Error('Invalid run manifest: expected an object with a cases array');
+  }
+
+  for (const [index, caseResult] of manifest.cases.entries()) {
+    if (!isRecord(caseResult)) {
+      throw new Error(`Invalid run manifest: case ${index} is not an object`);
+    }
+
+    if (
+      caseResult.status !== undefined &&
+      caseResult.status !== 'passed' &&
+      caseResult.status !== 'failed' &&
+      caseResult.status !== 'invalid' &&
+      caseResult.status !== 'error'
+    ) {
+      throw new Error(`Invalid run manifest: case ${index} has an unknown status`);
+    }
+
+    if (caseResult.evidence !== undefined) {
+      assertCaseEvaluationEvidence(caseResult.evidence, index);
+    }
+  }
+}
+
+function assertCaseEvaluationEvidence(evidence: unknown, caseIndex: number): void {
+  if (
+    !isRecord(evidence) ||
+    typeof evidence.evaluator !== 'string' ||
+    evidence.evaluator.length > 100
+  ) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has malformed evaluator evidence`);
+  }
+
+  if (evidence.score !== undefined && !isUnitIntervalNumber(evidence.score)) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence score`);
+  }
+  if (evidence.threshold !== undefined && !isUnitIntervalNumber(evidence.threshold)) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence threshold`);
+  }
+  if (
+    evidence.model !== undefined &&
+    (typeof evidence.model !== 'string' || evidence.model.length > 200)
+  ) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence model`);
+  }
+
+  if (evidence.validation !== undefined) {
+    if (
+      !isRecord(evidence.validation) ||
+      (evidence.validation.status !== 'valid' && evidence.validation.status !== 'invalid') ||
+      (evidence.validation.code !== undefined &&
+        (typeof evidence.validation.code !== 'string' || evidence.validation.code.length > 100))
+    ) {
+      throw new Error(`Invalid run manifest: case ${caseIndex} has invalid evidence validation`);
+    }
+  }
+}
+
+function isUnitIntervalNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // ============================================================================

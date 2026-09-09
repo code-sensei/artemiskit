@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { RunManifest } from '@artemiskit/core';
 import { generateHTMLReport } from './html/generator';
+import { generateJSONReport } from './json/generator';
 import { generateJUnitReport } from './junit/generator';
 import { generateMarkdownReport } from './markdown/generator';
 
@@ -120,5 +121,15 @@ describe('measurement-integrity reports', () => {
     expect(junit).toContain('<failure message="criterion failed" type="contains">');
     expect(junit).toContain('<error message="Grader failed: malformed output" type="invalid">');
     expect(junit).toContain('<error message="provider unavailable" type="error">');
+  });
+
+  test('rejects malformed integrity evidence before serializing a JSON run artifact', () => {
+    const malformed = structuredClone(manifest);
+    malformed.cases[0].evidence = {
+      evaluator: 'contains',
+      score: Number.NaN,
+    };
+
+    expect(() => generateJSONReport(malformed)).toThrow('invalid evidence score');
   });
 });

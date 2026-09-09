@@ -337,4 +337,38 @@ describe('executeCase measurement integrity', () => {
     expect(JSON.stringify(result)).not.toContain('secret judge transcript');
     expect(JSON.stringify(result)).not.toContain('secret rubric');
   });
+
+  it('redacts evaluator reason text and discards malformed runtime evidence', async () => {
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () =>
+        ({
+          passed: false,
+          score: 0.4,
+          status: 'invalid-status',
+          reason: 'judge_error: token=super-secret-token',
+          evidence: {
+            threshold: '0.7',
+            model: 'reviewer@example.com',
+            validation: { status: 'unknown', code: 'token=super-secret-token' },
+          },
+        }) as never,
+    });
+    const redactedScenario = ScenarioSchema.parse({
+      ...scenario,
+      redaction: { enabled: true, patterns: ['email', 'secrets'] },
+    });
+
+    const result = await executeCase(redactedScenario.cases[0], {
+      client,
+      scenario: redactedScenario,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.reason).toContain('[REDACTED]');
+    expect(result.evidence).toEqual({ evaluator: 'custom', score: 0.4, model: '[REDACTED]' });
+    expect(result.redaction).toMatchObject({ redacted: true, reasonRedacted: true });
+    expect(JSON.stringify(result)).not.toContain('super-secret-token');
+    expect(JSON.stringify(result)).not.toContain('reviewer@example.com');
+  });
 });

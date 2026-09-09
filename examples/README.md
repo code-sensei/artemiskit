@@ -204,6 +204,7 @@ Master the different ways to evaluate LLM responses.
 | `fuzzy` | Similarity tolerance |
 | `json-schema` | Structured output |
 | `llm-grader` | AI-powered judgment |
+| `llm-grader-strict.yaml` | Assurance-mode JSON-only LLM grading |
 | `similarity` | Semantic comparison |
 | `combined` | AND/OR logic |
 

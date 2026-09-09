@@ -353,6 +353,8 @@ async function executeCaseAttempt(
   // Apply redaction if enabled
   let finalPrompt: string | object = testCase.prompt;
   let finalResponse = result.text;
+  let finalReason = sanitizeArtifactText(evalResult.reason, 1000);
+  let finalEvidence = sanitizeEvidence(testCase.expected.type, evalResult);
   let redactionInfo: CaseRedactionInfo | undefined;
 
   if (effectiveRedaction.enabled) {
@@ -360,6 +362,7 @@ async function executeCaseAttempt(
 
     let promptRedacted = false;
     let responseRedacted = false;
+    let reasonRedacted = false;
     let totalRedactions = 0;
 
     // Redact prompt if configured
@@ -393,10 +396,25 @@ async function executeCaseAttempt(
       totalRedactions += responseResult.redactionCount;
     }
 
+    // Evaluator reasons can contain judge output or provider error text. They
+    // are retained evidence, so they are always redacted when run redaction is
+    // enabled, independent of the legacy metadata toggle.
+    if (finalReason) {
+      const reasonResult = redactor.redact(finalReason);
+      finalReason = reasonResult.text;
+      reasonRedacted = reasonResult.wasRedacted;
+      totalRedactions += reasonResult.redactionCount;
+    }
+    finalEvidence = redactEvidence(finalEvidence, redactor, (count) => {
+      if (count > 0) reasonRedacted = true;
+      totalRedactions += count;
+    });
+
     redactionInfo = {
-      redacted: promptRedacted || responseRedacted,
+      redacted: promptRedacted || responseRedacted || reasonRedacted,
       promptRedacted,
       responseRedacted,
+      reasonRedacted,
       redactionCount: totalRedactions,
     };
   }
@@ -408,7 +426,7 @@ async function executeCaseAttempt(
     status: evaluationStatus(evalResult),
     score: validScore(evalResult.score),
     matcherType: testCase.expected.type,
-    reason: evalResult.reason,
+    reason: finalReason,
     latencyMs: generationMetrics.latencyMs,
     tokens: generationMetrics.tokens,
     prompt: finalPrompt,
@@ -416,7 +434,7 @@ async function executeCaseAttempt(
     expected: testCase.expected,
     tags: testCase.tags,
     redaction: redactionInfo,
-    evidence: sanitizeEvidence(testCase.expected.type, evalResult),
+    evidence: finalEvidence,
     toolTrace: toolTrace.length ? toolTrace : undefined,
     toolLoop,
   };
@@ -451,9 +469,12 @@ function createToolLoopError(
 
 function evaluationStatus(result: {
   passed: boolean;
-  status?: 'passed' | 'failed' | 'invalid';
+  status?: unknown;
 }): CaseEvaluationStatus {
-  return result.status ?? (result.passed ? 'passed' : 'failed');
+  if (result.status === 'passed' || result.status === 'failed' || result.status === 'invalid') {
+    return result.status;
+  }
+  return result.passed ? 'passed' : 'failed';
 }
 
 function validScore(score: number): number {
@@ -463,35 +484,72 @@ function validScore(score: number): number {
 function sanitizeEvidence(
   evaluator: string,
   result: {
-    score: number;
-    evidence?: {
-      threshold?: number;
-      model?: string;
-      validation?: { status: 'valid' | 'invalid'; code?: string };
-    };
+    score: unknown;
+    evidence?: unknown;
   }
 ): CaseEvaluationEvidence {
-  const evidence: CaseEvaluationEvidence = { evaluator };
-  const score = validScore(result.score);
-  if (Number.isFinite(result.score) && result.score >= 0 && result.score <= 1) {
-    evidence.score = score;
+  const evidence: CaseEvaluationEvidence = {
+    evaluator: sanitizeArtifactText(evaluator, 100) ?? 'unknown',
+  };
+  if (isUnitIntervalNumber(result.score)) {
+    evidence.score = result.score;
   }
-  if (
-    result.evidence?.threshold !== undefined &&
-    validScore(result.evidence.threshold) === result.evidence.threshold
-  ) {
+  if (!isRecord(result.evidence)) return evidence;
+
+  if (isUnitIntervalNumber(result.evidence.threshold)) {
     evidence.threshold = result.evidence.threshold;
   }
-  if (result.evidence?.model) evidence.model = result.evidence.model.slice(0, 200);
-  if (result.evidence?.validation) {
+  if (typeof result.evidence.model === 'string' && result.evidence.model) {
+    evidence.model = sanitizeArtifactText(result.evidence.model, 200);
+  }
+  if (isRecord(result.evidence.validation)) {
+    const status = result.evidence.validation.status;
+    const code = result.evidence.validation.code;
+    if (status !== 'valid' && status !== 'invalid') return evidence;
     evidence.validation = {
-      status: result.evidence.validation.status,
-      ...(result.evidence.validation.code
-        ? { code: result.evidence.validation.code.slice(0, 100) }
-        : {}),
+      status,
+      ...(typeof code === 'string' && code ? { code: sanitizeArtifactText(code, 100) } : {}),
     };
   }
   return evidence;
+}
+
+function redactEvidence(
+  evidence: CaseEvaluationEvidence,
+  redactor: Redactor,
+  onRedactions: (count: number) => void
+): CaseEvaluationEvidence {
+  const redactValue = (value: string | undefined): string | undefined => {
+    if (!value) return value;
+    const result = redactor.redact(value);
+    onRedactions(result.redactionCount);
+    return result.text;
+  };
+
+  return {
+    ...evidence,
+    ...(evidence.model ? { model: redactValue(evidence.model) } : {}),
+    ...(evidence.validation
+      ? {
+          validation: {
+            ...evidence.validation,
+            ...(evidence.validation.code ? { code: redactValue(evidence.validation.code) } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+function sanitizeArtifactText(value: unknown, maxLength: number): string | undefined {
+  return typeof value === 'string' ? value.slice(0, maxLength) : undefined;
+}
+
+function isUnitIntervalNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 class ToolLoopError extends Error {

@@ -14,15 +14,7 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": [
-    "llm",
-    "langchain",
-    "agents",
-    "chains",
-    "adapter",
-    "artemiskit",
-    "testing"
-  ],
+  "keywords": ["llm", "langchain", "agents", "chains", "adapter", "artemiskit", "testing"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

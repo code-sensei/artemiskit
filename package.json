@@ -29,7 +29,7 @@
     "db:generate-types": "bunx supabase gen types typescript --local > packages/core/src/storage/database.types.ts",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "bun format && ./scripts/publish.sh"
+    "release": "./scripts/publish.sh"
   },
   "devDependencies": {
     "@artemiskit/cli": "workspace:*",

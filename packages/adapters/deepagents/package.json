@@ -14,15 +14,7 @@
     "url": "https://github.com/code-sensei/artemiskit/issues"
   },
   "homepage": "https://artemiskit.vercel.app",
-  "keywords": [
-    "llm",
-    "deepagents",
-    "multi-agent",
-    "agents",
-    "adapter",
-    "artemiskit",
-    "testing"
-  ],
+  "keywords": ["llm", "deepagents", "multi-agent", "agents", "adapter", "artemiskit", "testing"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

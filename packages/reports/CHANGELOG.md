@@ -1,5 +1,12 @@
 # @artemiskit/reports
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+
 ## 0.4.2
 
 ### Patch Changes

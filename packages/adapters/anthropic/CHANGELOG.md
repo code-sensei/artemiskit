@@ -1,5 +1,12 @@
 # @artemiskit/adapter-anthropic
 
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+
 ## 0.1.15
 
 ### Patch Changes

@@ -178,4 +178,33 @@ describe('release validation: fixture-backed workflow cases', () => {
       toolTrace: [{ toolCall: { id: 'capacity-1' }, result: { available: true } }],
     });
   });
+
+  test('records a CLI-resolved model for each case when the scenario does not declare one', async () => {
+    const scenario = ScenarioSchema.parse({
+      name: 'resolved model evidence',
+      cases: [
+        {
+          id: 'cli-model-override',
+          prompt: 'Respond with assured',
+          expected: { type: 'exact', value: 'assured' },
+        },
+      ],
+    });
+
+    const result = await runScenario({
+      scenario,
+      client: fixtureClient(['assured']),
+      resolvedConfig: {
+        provider: 'fixture',
+        model: 'fixture-cli-model',
+        source: { provider: 'cli', model: 'cli' },
+      },
+    });
+
+    expect(result.cases[0].target).toEqual({
+      provider: 'fixture',
+      requested_model: 'fixture-cli-model',
+      observed_models: ['fixture-model'],
+    });
+  });
 });

@@ -56,6 +56,8 @@ export interface RunResult {
 export interface ExecutorContext {
   client: ModelClient;
   scenario: Scenario;
+  /** Effective model selected outside the scenario, such as a CLI override. */
+  requestedModel?: string;
   timeout?: number;
   retries?: number;
   /** Redaction configuration for this execution */

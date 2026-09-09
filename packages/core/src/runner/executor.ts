@@ -100,7 +100,7 @@ export async function executeCase(
 ): Promise<CaseResult> {
   const { timeout, retries = 0 } = context;
   const caseStartTime = Date.now();
-  const requestedModel = testCase.model || context.scenario.model;
+  const requestedModel = testCase.model || context.requestedModel || context.scenario.model;
 
   let lastError: Error | null = null;
 
@@ -145,7 +145,7 @@ async function executeCaseAttempt(
   context: ExecutorContext,
   timeout?: number
 ): Promise<CaseResult> {
-  const { client, scenario, redaction: cliRedaction, toolExecutor } = context;
+  const { client, scenario, requestedModel, redaction: cliRedaction, toolExecutor } = context;
 
   // Merge scenario-level and case-level variables (case overrides scenario)
   const variables = mergeVariables(scenario.variables, testCase.variables);
@@ -173,7 +173,7 @@ async function executeCaseAttempt(
   const generate = () =>
     client.generate({
       prompt: loopPrompt,
-      model: testCase.model || scenario.model,
+      model: testCase.model || requestedModel || scenario.model,
       temperature: scenario.temperature,
       maxTokens: scenario.maxTokens,
       seed: scenario.seed,
@@ -202,7 +202,11 @@ async function executeCaseAttempt(
         },
         generationMetrics,
         'TOOL_EXECUTOR_REQUIRED',
-        targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+        targetEvidence(
+          client.provider,
+          testCase.model || requestedModel || scenario.model,
+          observedModels
+        )
       );
     }
     const executor =
@@ -230,7 +234,11 @@ async function executeCaseAttempt(
             },
             generationMetrics,
             'TOOL_DUPLICATE_CALL',
-            targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+            targetEvidence(
+              client.provider,
+              testCase.model || requestedModel || scenario.model,
+              observedModels
+            )
           );
         }
         seenCalls.add(fingerprint);
@@ -269,7 +277,11 @@ async function executeCaseAttempt(
             },
             generationMetrics,
             execution.error?.code ?? 'TOOL_EXECUTION_FAILED',
-            targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+            targetEvidence(
+              client.provider,
+              testCase.model || requestedModel || scenario.model,
+              observedModels
+            )
           );
         }
         const content = JSON.stringify(execution.result ?? {});
@@ -288,7 +300,11 @@ async function executeCaseAttempt(
           { status: 'error', steps: step + 1, terminationReason: 'timeout' },
           generationMetrics,
           'TOOL_LOOP_TIMEOUT',
-          targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+          targetEvidence(
+            client.provider,
+            testCase.model || requestedModel || scenario.model,
+            observedModels
+          )
         );
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
@@ -306,7 +322,11 @@ async function executeCaseAttempt(
           },
           generationMetrics,
           timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED',
-          targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+          targetEvidence(
+            client.provider,
+            testCase.model || requestedModel || scenario.model,
+            observedModels
+          )
         );
       }
       observedModels.push(result.model);
@@ -326,7 +346,11 @@ async function executeCaseAttempt(
         },
         generationMetrics,
         'TOOL_LOOP_MAX_STEPS',
-        targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
+        targetEvidence(
+          client.provider,
+          testCase.model || requestedModel || scenario.model,
+          observedModels
+        )
       );
     }
     toolLoop = { status: 'completed', steps: toolTrace.length, terminationReason: 'completed' };
@@ -445,7 +469,11 @@ async function executeCaseAttempt(
     tags: testCase.tags,
     redaction: redactionInfo,
     evidence: finalEvidence,
-    target: targetEvidence(client.provider, testCase.model || scenario.model, observedModels),
+    target: targetEvidence(
+      client.provider,
+      testCase.model || requestedModel || scenario.model,
+      observedModels
+    ),
     toolTrace: toolTrace.length ? toolTrace : undefined,
     toolLoop,
   };

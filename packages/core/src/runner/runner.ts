@@ -51,6 +51,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       const result = await executeCase(testCase, {
         client,
         scenario,
+        requestedModel: resolvedConfig?.model,
         timeout: testCase.timeout || timeout,
         retries: testCase.retries ?? retries,
         redaction,
@@ -70,6 +71,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
           const result = await executeCase(testCase, {
             client,
             scenario,
+            requestedModel: resolvedConfig?.model,
             timeout: testCase.timeout || timeout,
             retries: testCase.retries ?? retries,
             redaction,

@@ -37,7 +37,7 @@ describe('run command', () => {
     const scenarioPath = join(testDir, 'scenario.yaml');
     await writeFile(
       scenarioPath,
-      'name: CLI execution provenance smoke\nprovider: openai\nmodel: fixture-requested-model\ncases:\n  - id: assurance-case\n    prompt: Return assured\n    expected:\n      type: exact\n      value: assured\n'
+      'name: CLI execution provenance smoke\nprovider: openai\ncases:\n  - id: assurance-case\n    prompt: Return assured\n    expected:\n      type: exact\n      value: assured\n'
     );
     await writeFile(
       join(testDir, 'artemis.config.yaml'),
@@ -45,7 +45,17 @@ describe('run command', () => {
     );
 
     const child = Bun.spawn(
-      [process.execPath, cliEntryPoint, 'run', scenarioPath, '--ci', '--summary', 'json'],
+      [
+        process.execPath,
+        cliEntryPoint,
+        'run',
+        scenarioPath,
+        '--model',
+        'fixture-requested-model',
+        '--ci',
+        '--summary',
+        'json',
+      ],
       { cwd: testDir, stdout: 'pipe', stderr: 'pipe' }
     );
     const [exitCode, stdout, stderr] = await Promise.all([

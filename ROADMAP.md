@@ -62,12 +62,230 @@ verification checklist are complete.
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released in 0.4.0; hardening continues through 0.4.x |
-| 0.5 | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4 |
-| 0.6 | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
-| 0.7 | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
-| 0.8 | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |
-| 0.9 | Reports, leaderboard, and release gates | Decision-ready reports and scenario-specific public results use the same evidence contract. | 0.4–0.8 |
-| 1.0 | Stable assurance contracts | Public stability commitment for the core evidence, profile, and execution contracts. | 0.4–0.9 |
+| 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4 |
+| 0.6.x | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
+| 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
+| 0.8.x | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |
+| 0.9.x | Reports, leaderboard, and release gates | Decision-ready reports and scenario-specific public results use the same evidence contract. | 0.4–0.8 |
+| 1.0.x | Stable assurance contracts | Public stability commitment for the core evidence, profile, and execution contracts. | 0.4–0.9 |
+
+## Planned capability increments
+
+The following is the working release sequence. Each version is a user-facing capability increment,
+not a claim about ArtemisKit's overall product maturity, certification, or completeness. Later
+increments can be re-ordered when evidence from real assessment work identifies a safer dependency.
+
+| Target | Capability increment | Primary deliverable |
+| --- | --- | --- |
+| 0.5.0 | Workload identity | Versioned/content-derived identities for scenarios, rubrics, profiles, packs, and fixtures. |
+| 0.5.1 | Execution provenance | Requested/observed model identity, generation settings, adapter/runner version, and target-versus-grader evidence. |
+| 0.5.2 | Attempt and cost evidence | Retry/repetition identity plus explicit known, user-supplied, or unavailable cost provenance. |
+| 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, policies, profiles, and re-execution limits. |
+| 0.6.0 | Agent-harness contract | Provider-neutral agent target interface and declarative scenario controls. |
+| 0.6.1 | Controlled environments | Disposable multi-turn environments, declared tools/permissions, budgets, and fail-closed authority. |
+| 0.6.2 | Observable outcome scoring | Independent checks for artifacts, state changes, traces, and acceptance conditions. |
+| 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
+| 0.7.0 | Comparative experiment contract | Provider-neutral workload/model/repetition orchestration for scenario and agent runs. |
+| 0.7.1 | Comparison eligibility | Explicit unsupported/incomplete work and compatibility qualification before any comparison. |
+| 0.7.2 | Scenario-specific aggregates | Per-model, task, policy, language, and operational summaries with documented uncertainty assumptions. |
+| 0.7.3 | Live-run controls | Explicit approval, concurrency, and paid-provider cost budgets for comparative execution. |
+| 0.8.0 | Assessment profile contract | Executable requirements, thresholds, critical failures, and human-review requirements. |
+| 0.8.1 | Reviewed workflow packs | Versioned customer-service, logistics, and other regulated-sector scenario packs with ownership and coverage metadata. |
+| 0.8.2 | Organizational policy controls | Approved-source, data-handling, escalation, approval, tool-authority, and recovery controls. |
+| 0.8.3 | Framework mapping evidence | Technical-control mappings for selected frameworks, with explicit legal/privacy/domain-review limits. |
+| 0.9.0 | Evidence-based assessment reports | Regenerable reports with methodology, coverage, validity, exclusions, dimensions, and limitations. |
+| 0.9.1 | Continuous assurance gates | Profile-aware baselines, regression checks, critical-failure rules, and CI decisions. |
+| 0.9.2 | Leaderboard publication contract | Public-entry schema for compatible, scenario-specific results, sample size, method, and limits. |
+| 0.9.3 | Scenario-first leaderboard surfaces | Filters and presentation by workflow, sector, language, policy outcome, capability, and model configuration. |
+| 1.0.0 | Stable assurance-contract baseline | Stable contracts, compatibility fixtures, migration guidance, public reference documentation, and contribution rules. |
+
+### 0.5.x — Reproducible evidence
+
+#### 0.5.0 — Workload and rubric identity
+
+- Define a versioned identity envelope for scenarios, evaluator/rubric settings, fixtures,
+  profiles, policy controls, and reviewed packs.
+- Derive stable content digests from canonical inputs while excluding credentials, personal data,
+  raw prompts/responses, timestamps, and other volatile fields.
+- Persist identities in standard run artifacts and expose them through the CLI and SDK.
+- Exit only when a reviewer can tell whether two runs used the same declared workload and rubric.
+
+#### 0.5.1 — Target and execution provenance
+
+- Record requested provider/model configuration and observed model identity when a provider returns it.
+- Record generation settings, adapter version, runner version, environment constraints, tool policy,
+  and fixture version in bounded schemas.
+- Separate target-model evidence from evaluator/judge-model evidence, including usage where available.
+- Exit only when a report can distinguish a target result from the configuration and judge that produced it.
+
+#### 0.5.2 — Attempt, repetition, and cost evidence
+
+- Add durable identifiers for run, case attempt, retry chain, and independent repetition.
+- Make retry policy, timeout behavior, and excluded attempts inspectable without treating retries as
+  independent samples.
+- Record cost inputs with source, currency, timestamp, and a clear `known`, `user-supplied`, or
+  `unavailable` state.
+- Exit only when aggregate rates and costs cannot silently mix retries, repetitions, or guessed pricing.
+
+#### 0.5.3 — Re-execution and comparison eligibility
+
+- Define compatibility decisions for changed workloads, rubrics, profiles, policies, language,
+  target configuration, and execution mode.
+- Refuse or visibly qualify invalid baseline/comparison requests rather than calculating a bare delta.
+- Document reproducibility limits: a digest proves matching declared inputs, not provider behavior,
+  and does not constitute a signature or certification.
+- Exit only when the toolkit can explain why two runs are comparable, qualified, or incomparable.
+
+### 0.6.x — Native agent harness
+
+#### 0.6.0 — Provider-neutral agent contract
+
+- Define a public agent-target interface that can adapt at least two supported agent/model targets.
+- Add scenario fields for initial state, system instructions, multi-turn inputs, required final state,
+  permitted tools, and expected observable outputs.
+- Preserve the distinction between simple scenario evaluation and agent-workflow evaluation while
+  allowing both to share core evidence contracts.
+- Exit only when a provider-specific benchmark can be expressed without making that provider the harness contract.
+
+#### 0.6.1 — Controlled execution environments
+
+- Declare tool schemas, filesystem/network/container/MCP authority, side-effect policy, and
+  time/step/token/cost budgets in each agent scenario.
+- Provide fresh disposable fixture-backed environments as the default execution mode.
+- Fail closed for undeclared tools, paths, commands, network access, or authority escalation.
+- Exit only when a multi-turn workflow can run repeatedly without discovering tools or touching a live system by default.
+
+#### 0.6.2 — Independent outcome verification
+
+- Add independent assertions for produced artifacts, validated schemas, simulated state transitions,
+  tool traces, policy decisions, and required final state.
+- Ensure an agent's self-report is never accepted as sole evidence that work was completed.
+- Classify task failure, policy violation, target/execution error, unsupported capability, and invalid
+  evaluation separately.
+- Exit only when success is demonstrated by observable outcomes rather than generated prose.
+
+#### 0.6.3 — Fault, recovery, and bounded agent evidence
+
+- Support declared fault injections: unavailable tools, stale/incomplete data, malformed results,
+  timeouts, conflicting instructions, and bounded retries.
+- Retain bounded, redacted trace, policy, state, and recovery evidence suitable for review.
+- Add fixture cases for safe recovery and for failure when recovery would exceed declared authority.
+- Exit only when an assessment can show both how an agent performs normally and how it fails or recovers under controlled faults.
+
+### 0.7.x — Comparative execution
+
+#### 0.7.0 — Comparative experiment contract
+
+- Generalize task/model/repetition orchestration into a provider-neutral experiment definition.
+- Support compatible one-shot scenario workloads and multi-turn agent workloads without conflating them.
+- Declare targets, workload identities, repetition count, retry policy, concurrency, seed where
+  applicable, execution budget, and exclusions before a run begins.
+- Exit only when the same declared experiment can execute against at least two configured targets.
+
+#### 0.7.1 — Eligibility and completeness controls
+
+- Mark unsupported capabilities and deliberately unavailable measurements explicitly rather than skipping them.
+- Preserve incomplete experiments, cancelled coordinates, target errors, and invalid evaluations in aggregates.
+- Apply 0.5.3 compatibility decisions before computing comparisons or baselines.
+- Exit only when a comparison cannot become more favorable by omitting hard, failed, or unavailable work.
+
+#### 0.7.2 — Scenario-specific aggregation
+
+- Produce summaries by model/configuration, workflow, task, language/region, policy/control,
+  capability, latency, and cost dimension where evidence exists.
+- Separate valid-outcome rates from invalid/error/unavailable counts and show sample sizes.
+- Add uncertainty/confidence methods only with documented assumptions, minimum sample requirements,
+  and explicit non-applicability rules.
+- Exit only when no default aggregate presents a universal, context-free model rank.
+
+#### 0.7.3 — Live comparative-run controls
+
+- Require explicit operator approval, target list, concurrency ceiling, maximum attempts, and spend budget for paid-provider runs.
+- Record approval identity/reason, budget consumption, stop conditions, and run-time exclusions.
+- Keep fixture and offline runs available for deterministic development and release validation.
+- Exit only when a paid comparative engagement has a bounded, auditable execution envelope.
+
+### 0.8.x — Assessment profiles, policies, and reviewed packs
+
+#### 0.8.0 — Assessment profile contract
+
+- Define profiles that express required capabilities, thresholds, latency/cost limits, critical
+  failures, language/region needs, and mandatory human-review points.
+- Let a profile declare which scenario packs, policy controls, and evidence dimensions apply.
+- Ensure critical failures and unmet mandatory controls cannot be obscured by an average score.
+- Exit only when a customer workflow can be translated into an executable, reviewable assessment definition.
+
+#### 0.8.1 — Reviewed workflow packs
+
+- Establish reviewed-pack metadata: owner, version, source/rights, intended use, prohibited claims,
+  rubric, language/region coverage, known gaps, review history, and deprecation status.
+- Publish initial packs for policy-bound customer service and logistics management, then prioritize
+  financial services, health, insurance, public sector, education, telecommunications, and energy.
+- Keep customer-proprietary datasets and evidence separate from public pack schemas and examples.
+- Exit only when a public pack makes its coverage and limits as visible as its test cases.
+
+#### 0.8.2 — Organizational policy controls
+
+- Add reusable controls for approved sources, data handling, escalation, approval boundaries,
+  tool authority, recordkeeping, and safe recovery.
+- Allow controls to define testable requirements, severity/criticality, and expected evidence—not
+  only prompt wording.
+- Test control enforcement across both prompt-only and agent-harness workflows where applicable.
+- Exit only when an assessment can report organizational-rule adherence alongside task performance.
+
+#### 0.8.3 — Framework-mapping evidence
+
+- Add mapping metadata for selected technical controls under frameworks such as GDPR, NDPR,
+  NIST AI RMF, Nigeria's NAIS, and other customer-selected regional requirements.
+- State the tested technical behavior, applicable evidence, coverage limits, and required legal,
+  privacy, security, and domain review for every mapping.
+- Prohibit reports and packs from describing a technical test pass as legal or regulatory certification.
+- Exit only when framework-oriented evidence is precise, reviewable, and bounded by its actual authority.
+
+### 0.9.x — Reports, release gates, and leaderboard
+
+#### 0.9.0 — Evidence-based assessment reports
+
+- Generate decision-ready reports solely from saved, sanitized evidence, without a new model call.
+- Include methodology, workload/profile identity, model/configuration, coverage, validity counts,
+  exclusions, per-dimension results, control status, costs, and limitations.
+- Make every report surface agree with the status and denominator contract established in 0.4.
+- Exit only when a reviewer can reproduce the report's claims from retained assessment evidence.
+
+#### 0.9.1 — Continuous assurance and release gates
+
+- Enable profile-aware baselines and regression checks that first confirm workload/profile compatibility.
+- Add CI decisions for thresholds, critical failures, approved exceptions, and missing required evidence.
+- Make gate output explain the policy/profile requirement and evidence behind a block, warning, or pass.
+- Exit only when the same contract supports both a customer assessment and a safe release decision.
+
+#### 0.9.2 — Public leaderboard publication contract
+
+- Define the minimum public entry: model/configuration, scenario/profile/pack identity, method,
+  sample size, valid-outcome denominator, invalid/error/unavailable counts, date, and limitations.
+- Require reproducible public workload identities and authorized public data before an entry can be published.
+- Declare incompatibility, conflicts of interest, sponsorship, and known coverage gaps rather than hiding them.
+- Exit only when a public result can be independently interpreted without treating it as a universal rank.
+
+#### 0.9.3 — Scenario-first leaderboard surfaces
+
+- Provide filters for workflow, sector, language/region, capability, policy/control outcome,
+  operational constraint, provider, and model configuration where data exists.
+- Show comparable entries together; label qualified or incomparable entries rather than forcing a score table.
+- Present strengths, weaknesses, incomplete evidence, and measurement limits alongside outcome rates.
+- Exit only when a reader can find a model's fit for a defined scenario without inferring a flat global score.
+
+### 1.0.0 — Stable public assurance contracts
+
+- Freeze and document the supported compatibility policy for core result, evidence, manifest,
+  profile, policy-control, harness, and comparison contracts.
+- Publish migration guides and compatibility fixtures for supported historical artifact versions.
+- Complete public reference documentation, examples, disclosure/redaction/retention guidance, and
+  a contribution path for adapters and reviewed public packs.
+- Require the complete deterministic test, typecheck, lint, build, documentation, migration, and
+  artifact-redaction validation gates before making the stability commitment.
+- Exit only when downstream users can depend on the documented contracts and evolve safely through
+  explicit compatibility rules.
 
 ## 0.4 — Evaluation integrity
 

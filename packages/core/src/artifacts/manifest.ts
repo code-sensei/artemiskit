@@ -14,6 +14,7 @@ import type {
   RunConfig,
   RunManifest,
   RunMetrics,
+  WorkloadIdentity,
 } from './types';
 import { getCaseEvaluationStatus } from './types';
 
@@ -24,6 +25,7 @@ export function createRunManifest(options: {
   project: string;
   config: RunConfig;
   resolvedConfig?: ResolvedConfig;
+  workloadIdentity?: WorkloadIdentity;
   cases: CaseResult[];
   startTime: Date;
   endTime: Date;
@@ -35,6 +37,7 @@ export function createRunManifest(options: {
     project,
     config,
     resolvedConfig,
+    workloadIdentity,
     cases,
     startTime,
     endTime,
@@ -50,7 +53,7 @@ export function createRunManifest(options: {
   const environment = getEnvironmentInfo();
 
   return {
-    version: '1.1',
+    version: '1.2',
     run_id: nanoid(12),
     project,
     start_time: startTime.toISOString(),
@@ -58,6 +61,7 @@ export function createRunManifest(options: {
     duration_ms: endTime.getTime() - startTime.getTime(),
     config,
     resolved_config: resolvedConfig,
+    workload_identity: workloadIdentity,
     metrics,
     git,
     provenance: {

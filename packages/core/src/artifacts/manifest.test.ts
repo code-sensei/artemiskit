@@ -55,7 +55,7 @@ describe('createRunManifest', () => {
       endTime,
     });
 
-    expect(manifest.version).toBe('1.1');
+    expect(manifest.version).toBe('1.2');
     expect(manifest.project).toBe('test-project');
     expect(manifest.run_id).toBeTruthy();
     expect(manifest.run_id.length).toBe(12);
@@ -161,6 +161,32 @@ describe('createRunManifest', () => {
     expect(manifest.resolved_config?.provider).toBe('openai');
     expect(manifest.resolved_config?.source.provider).toBe('cli');
     expect(manifest.resolved_config?.source.model).toBe('config');
+  });
+
+  test('retains a validated workload identity when provided', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'test-scenario', provider: 'openai' },
+      workloadIdentity: {
+        schema_version: '1',
+        workload: {
+          schema_version: '1',
+          algorithm: 'sha256',
+          digest: 'a'.repeat(64),
+        },
+        rubric: {
+          schema_version: '1',
+          algorithm: 'sha256',
+          digest: 'b'.repeat(64),
+        },
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.workload_identity?.workload.digest).toBe('a'.repeat(64));
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
   });
 
   test('includes provenance information', () => {
@@ -273,5 +299,9 @@ describe('createRunManifest', () => {
       ],
     };
     expect(() => assertRunManifestIntegrity(malformed)).toThrow('invalid evidence validation');
+
+    expect(() =>
+      assertRunManifestIntegrity({ ...historical, workload_identity: { schema_version: '1' } })
+    ).toThrow('malformed workload identity');
   });
 });

@@ -4,6 +4,7 @@
 
 import { createRunManifest } from '../artifacts/manifest';
 import type { CaseResult, ManifestRedactionInfo } from '../artifacts/types';
+import { createWorkloadIdentity } from '../provenance';
 import { Redactor } from '../redaction';
 import { executeCase } from './executor';
 import type { RunOptions, RunResult } from './types';
@@ -120,6 +121,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       seed: scenario.seed,
     },
     resolvedConfig,
+    workloadIdentity: createWorkloadIdentity(scenario),
     cases: results,
     startTime,
     endTime,

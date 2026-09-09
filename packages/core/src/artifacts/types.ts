@@ -43,6 +43,29 @@ export interface ManifestRedactionInfo {
 }
 
 // ============================================================================
+// Reproducible Evidence Types
+// ============================================================================
+
+/** A versioned SHA-256 digest of canonical, redacted assessment material. */
+export interface ContentIdentity {
+  schema_version: '1';
+  algorithm: 'sha256';
+  digest: string;
+}
+
+/**
+ * Separates the scenario workload from the criteria used to judge it.
+ *
+ * The digests prove matching declared, sanitized inputs. They are not a
+ * signature or an attestation of provider behaviour.
+ */
+export interface WorkloadIdentity {
+  schema_version: '1';
+  workload: ContentIdentity;
+  rubric: ContentIdentity;
+}
+
+// ============================================================================
 // Case Result Types
 // ============================================================================
 
@@ -277,6 +300,8 @@ export interface RunManifest {
   config: RunConfig;
   /** Resolved configuration with full provider details and source tracking */
   resolved_config?: ResolvedConfig;
+  /** Versioned identities for the declared workload and evaluation rubric. */
+  workload_identity?: WorkloadIdentity;
   metrics: RunMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -323,6 +348,10 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
     throw new Error('Invalid run manifest: expected an object with a cases array');
   }
 
+  if (manifest.workload_identity !== undefined) {
+    assertWorkloadIdentity(manifest.workload_identity);
+  }
+
   for (const [index, caseResult] of manifest.cases.entries()) {
     if (!isRecord(caseResult)) {
       throw new Error(`Invalid run manifest: case ${index} is not an object`);
@@ -342,6 +371,27 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
       assertCaseEvaluationEvidence(caseResult.evidence, index);
     }
   }
+}
+
+function assertWorkloadIdentity(identity: unknown): void {
+  if (
+    !isRecord(identity) ||
+    identity.schema_version !== '1' ||
+    !isContentIdentity(identity.workload) ||
+    !isContentIdentity(identity.rubric)
+  ) {
+    throw new Error('Invalid run manifest: malformed workload identity');
+  }
+}
+
+function isContentIdentity(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    value.schema_version === '1' &&
+    value.algorithm === 'sha256' &&
+    typeof value.digest === 'string' &&
+    /^[a-f0-9]{64}$/.test(value.digest)
+  );
 }
 
 function assertCaseEvaluationEvidence(evidence: unknown, caseIndex: number): void {

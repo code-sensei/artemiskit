@@ -91,6 +91,11 @@ describe('release validation: fixture-backed workflow cases', () => {
       failed_cases: 2,
       success_rate: 0.6,
     });
+    expect(result.manifest.workload_identity).toMatchObject({
+      schema_version: '1',
+      workload: { algorithm: 'sha256' },
+      rubric: { algorithm: 'sha256' },
+    });
   });
 
   test('RV-02 retains independent logistics tool evidence through a fixture-backed workflow', async () => {

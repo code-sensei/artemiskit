@@ -331,7 +331,7 @@ The complete 0.4.x checklist and acceptance criteria live in
 
 ## 0.5 — Reproducible evidence and workload identity
 
-**Status:** Planned
+**Status:** 0.5.0 workload-identity foundation in development
 **Goal:** let a reviewer understand precisely what was tested, how it was judged, and what
 execution configuration produced the result.
 
@@ -340,12 +340,14 @@ execution configuration produced the result.
 Add versioned identities or content digests for scenarios, rubrics, profiles, and reviewed packs.
 Record requested and observed model identity where available, generation settings, target versus
 grader usage, repetition identity, execution constraints, and explicit price-data provenance.
+See [reproducible evidence](docs/reproducible-evidence.md) for the current public contract.
 
 ### Release checklist
 
 | Work item | Status |
 | --- | --- |
-| Versioned workload, rubric, and profile identities | 📋 |
+| Versioned workload and rubric identities | ⏳ 0.5.0 foundation |
+| Versioned profile identities | 📋 |
 | Requested and observed provider/model configuration evidence | 📋 |
 | Attempt, retry, and independent-repetition identities | 📋 |
 | Target and grader usage separated in artifacts | 📋 |

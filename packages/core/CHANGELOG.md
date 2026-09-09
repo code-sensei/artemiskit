@@ -1,5 +1,13 @@
 # @artemiskit/core
 
+## 0.5.1
+
+### Patch Changes
+
+- Preserve bounded requested and observed target-model evidence per case and per run, separately from
+  evaluator identities. Normal manifests now use v1.3 execution provenance while retaining readable
+  historical artifacts. CI JSON output is machine-readable without progress text.
+
 ## 0.5.0
 
 ### Minor Changes

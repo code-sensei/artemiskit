@@ -331,7 +331,7 @@ The complete 0.4.x checklist and acceptance criteria live in
 
 ## 0.5 — Reproducible evidence and workload identity
 
-**Status:** 0.5.0 workload-identity foundation released; 0.5.1 execution provenance in development
+**Status:** 0.5.0 workload-identity foundation released; 0.5.1 execution-provenance candidate prepared
 **Goal:** let a reviewer understand precisely what was tested, how it was judged, and what
 execution configuration produced the result.
 
@@ -348,7 +348,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 | --- | --- |
 | Versioned workload and rubric identities | ✅ 0.5.0 |
 | Versioned profile identities | 📋 |
-| Requested and observed provider/model configuration evidence | ⏳ 0.5.1 foundation |
+| Requested and observed provider/model configuration evidence | ⏳ 0.5.1 release candidate |
 | Attempt, retry, and independent-repetition identities | 📋 |
 | Target and grader usage separated in artifacts | 📋 |
 | Cost evidence identifies known, user-supplied, or unavailable pricing | 📋 |

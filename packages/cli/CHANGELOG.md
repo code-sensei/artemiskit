@@ -1,5 +1,22 @@
 # @artemiskit/cli
 
+## 0.4.4
+
+### Patch Changes
+
+- Preserve bounded requested and observed target-model evidence per case and per run, separately from
+  evaluator identities. Normal manifests now use v1.3 execution provenance while retaining readable
+  historical artifacts. CI JSON output is machine-readable without progress text.
+- Updated dependencies
+  - @artemiskit/core@0.5.1
+  - @artemiskit/adapter-deepagents@0.2.6
+  - @artemiskit/adapter-langchain@0.2.6
+  - @artemiskit/adapter-ling@0.1.5
+  - @artemiskit/adapter-openai@0.1.17
+  - @artemiskit/adapter-vercel-ai@0.1.17
+  - @artemiskit/redteam@0.3.5
+  - @artemiskit/reports@0.4.4
+
 ## 0.4.3
 
 ### Patch Changes

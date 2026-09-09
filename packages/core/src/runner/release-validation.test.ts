@@ -96,6 +96,13 @@ describe('release validation: fixture-backed workflow cases', () => {
       workload: { algorithm: 'sha256' },
       rubric: { algorithm: 'sha256' },
     });
+    expect(result.manifest.execution_provenance).toMatchObject({
+      schema_version: '1',
+      target: {
+        provider: 'fixture',
+        observed_models: ['fixture-model'],
+      },
+    });
   });
 
   test('RV-02 retains independent logistics tool evidence through a fixture-backed workflow', async () => {

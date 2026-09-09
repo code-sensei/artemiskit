@@ -65,6 +65,33 @@ export interface WorkloadIdentity {
   rubric: ContentIdentity;
 }
 
+/** Bounded target identity captured from a case execution. */
+export interface CaseTargetEvidence {
+  provider: string;
+  requested_model?: string;
+  /** Model identifiers returned by the target provider during this case. */
+  observed_models?: string[];
+}
+
+/** Requested and observed execution configuration for a complete run. */
+export interface ExecutionProvenance {
+  schema_version: '1';
+  target: {
+    provider: string;
+    requested_models?: string[];
+    observed_models?: string[];
+    generation?: {
+      temperature?: number;
+      max_tokens?: number;
+      seed?: number;
+    };
+  };
+  /** Judge/evaluator model identities, never combined with target identity. */
+  evaluator?: {
+    models?: string[];
+  };
+}
+
 // ============================================================================
 // Case Result Types
 // ============================================================================
@@ -124,6 +151,8 @@ export interface CaseResult {
   error?: string;
   /** Sanitized evaluator evidence; arbitrary evaluator details are never stored here. */
   evidence?: CaseEvaluationEvidence;
+  /** Requested and observed target identity for this case. */
+  target?: CaseTargetEvidence;
   /** Redaction information for this case */
   redaction?: CaseRedactionInfo;
   /** Ordered tool activity captured for an enabled tool loop. */
@@ -302,6 +331,8 @@ export interface RunManifest {
   resolved_config?: ResolvedConfig;
   /** Versioned identities for the declared workload and evaluation rubric. */
   workload_identity?: WorkloadIdentity;
+  /** Requested and observed target/evaluator configuration for this run. */
+  execution_provenance?: ExecutionProvenance;
   metrics: RunMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -351,6 +382,9 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
   if (manifest.workload_identity !== undefined) {
     assertWorkloadIdentity(manifest.workload_identity);
   }
+  if (manifest.execution_provenance !== undefined) {
+    assertExecutionProvenance(manifest.execution_provenance);
+  }
 
   for (const [index, caseResult] of manifest.cases.entries()) {
     if (!isRecord(caseResult)) {
@@ -370,7 +404,62 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
     if (caseResult.evidence !== undefined) {
       assertCaseEvaluationEvidence(caseResult.evidence, index);
     }
+    if (caseResult.target !== undefined) {
+      assertCaseTargetEvidence(caseResult.target);
+    }
   }
+}
+
+function assertCaseTargetEvidence(target: unknown): void {
+  if (
+    !isRecord(target) ||
+    typeof target.provider !== 'string' ||
+    target.provider.length === 0 ||
+    target.provider.length > 100 ||
+    (target.requested_model !== undefined &&
+      (typeof target.requested_model !== 'string' || target.requested_model.length > 200)) ||
+    !isBoundedStringList(target.observed_models)
+  ) {
+    throw new Error('Invalid run manifest: malformed target evidence');
+  }
+}
+
+function assertExecutionProvenance(provenance: unknown): void {
+  if (!isRecord(provenance) || provenance.schema_version !== '1' || !isRecord(provenance.target)) {
+    throw new Error('Invalid run manifest: malformed execution provenance');
+  }
+  const target = provenance.target;
+  if (
+    typeof target.provider !== 'string' ||
+    target.provider.length === 0 ||
+    target.provider.length > 100 ||
+    !isBoundedStringList(target.requested_models) ||
+    !isBoundedStringList(target.observed_models) ||
+    (target.generation !== undefined && !isGenerationConfig(target.generation))
+  ) {
+    throw new Error('Invalid run manifest: malformed execution provenance');
+  }
+  if (provenance.evaluator !== undefined) {
+    if (!isRecord(provenance.evaluator) || !isBoundedStringList(provenance.evaluator.models)) {
+      throw new Error('Invalid run manifest: malformed execution provenance');
+    }
+  }
+}
+
+function isBoundedStringList(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length <= 100 &&
+      value.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 200))
+  );
+}
+
+function isGenerationConfig(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return [value.temperature, value.max_tokens, value.seed].every(
+    (item) => item === undefined || (typeof item === 'number' && Number.isFinite(item))
+  );
 }
 
 function assertWorkloadIdentity(identity: unknown): void {

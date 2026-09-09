@@ -100,6 +100,7 @@ export async function executeCase(
 ): Promise<CaseResult> {
   const { timeout, retries = 0 } = context;
   const caseStartTime = Date.now();
+  const requestedModel = testCase.model || context.scenario.model;
 
   let lastError: Error | null = null;
 
@@ -135,6 +136,7 @@ export async function executeCase(
     expected: testCase.expected,
     tags: testCase.tags,
     error: lastError?.message,
+    target: targetEvidence(context.client.provider, requestedModel),
   };
 }
 
@@ -182,6 +184,7 @@ async function executeCaseAttempt(
   let result = timeout
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
+  const observedModels = [result.model];
   const generationMetrics = {
     latencyMs: result.latencyMs,
     tokens: { ...result.tokens },
@@ -198,7 +201,8 @@ async function executeCaseAttempt(
           terminationReason: 'tool_error',
         },
         generationMetrics,
-        'TOOL_EXECUTOR_REQUIRED'
+        'TOOL_EXECUTOR_REQUIRED',
+        targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
       );
     }
     const executor =
@@ -225,7 +229,8 @@ async function executeCaseAttempt(
               terminationReason: 'duplicate_call',
             },
             generationMetrics,
-            'TOOL_DUPLICATE_CALL'
+            'TOOL_DUPLICATE_CALL',
+            targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
           );
         }
         seenCalls.add(fingerprint);
@@ -263,7 +268,8 @@ async function executeCaseAttempt(
                     : 'tool_error',
             },
             generationMetrics,
-            execution.error?.code ?? 'TOOL_EXECUTION_FAILED'
+            execution.error?.code ?? 'TOOL_EXECUTION_FAILED',
+            targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
           );
         }
         const content = JSON.stringify(execution.result ?? {});
@@ -281,7 +287,8 @@ async function executeCaseAttempt(
           toolTrace,
           { status: 'error', steps: step + 1, terminationReason: 'timeout' },
           generationMetrics,
-          'TOOL_LOOP_TIMEOUT'
+          'TOOL_LOOP_TIMEOUT',
+          targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
         );
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
@@ -298,9 +305,11 @@ async function executeCaseAttempt(
             terminationReason: timedOut ? 'timeout' : 'tool_error',
           },
           generationMetrics,
-          timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED'
+          timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED',
+          targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
         );
       }
+      observedModels.push(result.model);
       generationMetrics.latencyMs += result.latencyMs;
       generationMetrics.tokens.prompt += result.tokens.prompt;
       generationMetrics.tokens.completion += result.tokens.completion;
@@ -316,7 +325,8 @@ async function executeCaseAttempt(
           terminationReason: 'max_steps',
         },
         generationMetrics,
-        'TOOL_LOOP_MAX_STEPS'
+        'TOOL_LOOP_MAX_STEPS',
+        targetEvidence(client.provider, testCase.model || scenario.model, observedModels)
       );
     }
     toolLoop = { status: 'completed', steps: toolTrace.length, terminationReason: 'completed' };
@@ -435,8 +445,30 @@ async function executeCaseAttempt(
     tags: testCase.tags,
     redaction: redactionInfo,
     evidence: finalEvidence,
+    target: targetEvidence(client.provider, testCase.model || scenario.model, observedModels),
     toolTrace: toolTrace.length ? toolTrace : undefined,
     toolLoop,
+  };
+}
+
+function targetEvidence(
+  provider: string,
+  requestedModel?: string,
+  observedModels?: unknown[]
+): NonNullable<CaseResult['target']> {
+  const observed = [
+    ...new Set(
+      (observedModels ?? []).filter(
+        (model): model is string => typeof model === 'string' && model.length > 0
+      )
+    ),
+  ]
+    .map((model) => sanitizeArtifactText(model, 200))
+    .filter((model): model is string => Boolean(model));
+  return {
+    provider: sanitizeArtifactText(provider, 100) ?? 'unknown',
+    ...(requestedModel ? { requested_model: sanitizeArtifactText(requestedModel, 200) } : {}),
+    ...(observed.length ? { observed_models: observed } : {}),
   };
 }
 
@@ -445,7 +477,8 @@ function createToolLoopError(
   toolTrace: ToolTraceEntry[],
   toolLoop: ToolLoopSummary,
   generationMetrics: Pick<CaseResult, 'latencyMs' | 'tokens'>,
-  code: string
+  code: string,
+  target?: CaseResult['target']
 ): ToolLoopError {
   return new ToolLoopError(code, {
     id: testCase.id,
@@ -462,6 +495,7 @@ function createToolLoopError(
     expected: testCase.expected,
     tags: testCase.tags,
     error: code,
+    target,
     toolTrace,
     toolLoop,
   });

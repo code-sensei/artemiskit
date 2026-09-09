@@ -55,7 +55,7 @@ describe('createRunManifest', () => {
       endTime,
     });
 
-    expect(manifest.version).toBe('1.2');
+    expect(manifest.version).toBe('1.3');
     expect(manifest.project).toBe('test-project');
     expect(manifest.run_id).toBeTruthy();
     expect(manifest.run_id.length).toBe(12);
@@ -189,6 +189,30 @@ describe('createRunManifest', () => {
     expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
   });
 
+  test('retains target and evaluator execution provenance separately', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'test-scenario', provider: 'openai' },
+      executionProvenance: {
+        schema_version: '1',
+        target: {
+          provider: 'openai',
+          requested_models: ['gpt-requested'],
+          observed_models: ['gpt-observed'],
+          generation: { temperature: 0, max_tokens: 100, seed: 42 },
+        },
+        evaluator: { models: ['judge-model'] },
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.execution_provenance?.target.observed_models).toEqual(['gpt-observed']);
+    expect(manifest.execution_provenance?.evaluator?.models).toEqual(['judge-model']);
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+  });
+
   test('includes provenance information', () => {
     const manifest = createRunManifest({
       project: 'test-project',
@@ -303,5 +327,17 @@ describe('createRunManifest', () => {
     expect(() =>
       assertRunManifestIntegrity({ ...historical, workload_identity: { schema_version: '1' } })
     ).toThrow('malformed workload identity');
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...historical,
+        execution_provenance: { schema_version: '1', target: { provider: '' } },
+      })
+    ).toThrow('malformed execution provenance');
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...historical,
+        cases: [{ ...historical.cases[0], target: { provider: '', observed_models: ['x'] } }],
+      })
+    ).toThrow('malformed target evidence');
   });
 });

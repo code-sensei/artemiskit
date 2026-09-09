@@ -4,7 +4,7 @@
 
 import { createRunManifest } from '../artifacts/manifest';
 import type { CaseResult, ManifestRedactionInfo } from '../artifacts/types';
-import { createWorkloadIdentity } from '../provenance';
+import { createExecutionProvenance, createWorkloadIdentity } from '../provenance';
 import { Redactor } from '../redaction';
 import { executeCase } from './executor';
 import type { RunOptions, RunResult } from './types';
@@ -122,6 +122,14 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     },
     resolvedConfig,
     workloadIdentity: createWorkloadIdentity(scenario),
+    executionProvenance: createExecutionProvenance({
+      provider: client.provider,
+      requestedModel: resolvedConfig?.model || scenario.model,
+      temperature: resolvedConfig?.temperature ?? scenario.temperature,
+      maxTokens: resolvedConfig?.max_tokens ?? scenario.maxTokens,
+      seed: scenario.seed,
+      cases: results,
+    }),
     cases: results,
     startTime,
     endTime,

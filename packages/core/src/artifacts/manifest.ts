@@ -9,6 +9,7 @@ import { getGitInfo } from '../provenance/git';
 import type {
   CaseResult,
   CostEstimateInfo,
+  ExecutionProvenance,
   ManifestRedactionInfo,
   ResolvedConfig,
   RunConfig,
@@ -26,6 +27,7 @@ export function createRunManifest(options: {
   config: RunConfig;
   resolvedConfig?: ResolvedConfig;
   workloadIdentity?: WorkloadIdentity;
+  executionProvenance?: ExecutionProvenance;
   cases: CaseResult[];
   startTime: Date;
   endTime: Date;
@@ -38,6 +40,7 @@ export function createRunManifest(options: {
     config,
     resolvedConfig,
     workloadIdentity,
+    executionProvenance,
     cases,
     startTime,
     endTime,
@@ -53,7 +56,7 @@ export function createRunManifest(options: {
   const environment = getEnvironmentInfo();
 
   return {
-    version: '1.2',
+    version: '1.3',
     run_id: nanoid(12),
     project,
     start_time: startTime.toISOString(),
@@ -62,6 +65,7 @@ export function createRunManifest(options: {
     config,
     resolved_config: resolvedConfig,
     workload_identity: workloadIdentity,
+    execution_provenance: executionProvenance,
     metrics,
     git,
     provenance: {

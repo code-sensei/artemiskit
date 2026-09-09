@@ -170,6 +170,11 @@ describe('executeCase tool loop', () => {
     expect(result.error).toBe('TOOL_EXECUTOR_REQUIRED');
     expect(result.latencyMs).toBe(4);
     expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
+    expect(result.target).toEqual({
+      provider: 'ling',
+      requested_model: 'Ling-3.0-flash',
+      observed_models: ['Ling-3.0-flash'],
+    });
   });
 
   it('retains prior generation metrics when a later generation rejects', async () => {
@@ -201,6 +206,7 @@ describe('executeCase tool loop', () => {
       steps: 1,
       terminationReason: 'tool_error',
     });
+    expect(result.target?.observed_models).toEqual(['Ling-3.0-flash']);
   });
 
   it('retains prior generation metrics when a later generation times out', async () => {
@@ -304,7 +310,11 @@ describe('executeCase measurement integrity', () => {
       status: 'error',
       response: '',
       error: 'provider unavailable',
+      target: {
+        provider: 'test',
+      },
     });
+    expect(result.target?.observed_models).toBeUndefined();
   });
 
   it('retains only the bounded evidence contract rather than evaluator details', async () => {

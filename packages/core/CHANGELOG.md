@@ -1,5 +1,13 @@
 # @artemiskit/core
 
+## 0.5.2
+
+### Patch Changes
+
+- Record bounded attempt, retry, repetition, and cost-provenance evidence in run artifacts. Outcome
+  rates now retain their terminal-attempt denominator, and costs are explicitly known,
+  user-supplied, or unavailable rather than inferred from generic token pricing.
+
 ## 0.5.1
 
 ### Patch Changes

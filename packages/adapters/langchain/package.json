@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-langchain",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "LangChain.js adapter for ArtemisKit - Test LangChain chains and agents",
   "type": "module",
   "license": "Apache-2.0",

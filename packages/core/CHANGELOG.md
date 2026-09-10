@@ -1,5 +1,13 @@
 # @artemiskit/core
 
+## 0.5.3
+
+### Patch Changes
+
+- Qualify standard-run comparisons from bounded workload, rubric, and execution evidence. Changed
+  workloads or rubrics withhold deltas, while incomplete historical evidence and changed target
+  configuration remain explicitly qualified across storage, CLI, SDK, and reports.
+
 ## 0.5.2
 
 ### Patch Changes

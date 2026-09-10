@@ -1,5 +1,19 @@
 # @artemiskit/cli
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.3
+  - @artemiskit/adapter-deepagents@0.2.8
+  - @artemiskit/adapter-langchain@0.2.8
+  - @artemiskit/adapter-ling@0.1.7
+  - @artemiskit/adapter-openai@0.1.19
+  - @artemiskit/adapter-vercel-ai@0.1.19
+  - @artemiskit/redteam@0.3.7
+  - @artemiskit/reports@0.4.6
+
 ## 0.4.5
 
 ### Patch Changes

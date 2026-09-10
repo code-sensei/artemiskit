@@ -62,7 +62,7 @@ verification checklist are complete.
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released. |
-| 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4; 0.5.0 and 0.5.1 released, with 0.5.2 next. |
+| 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4; 0.5.0–0.5.2 released, with 0.5.3 next. |
 | 0.6.x | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
 | 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
 | 0.8.x | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |
@@ -331,7 +331,7 @@ The complete 0.4.x checklist and acceptance criteria live in
 
 ## 0.5 — Reproducible evidence and workload identity
 
-**Status:** 0.5.0 workload-identity foundation released; 0.5.1 execution-provenance candidate prepared
+**Status:** 0.5.0 workload identity, 0.5.1 execution provenance, and 0.5.2 attempt and cost evidence released; 0.5.3 comparison eligibility is next.
 **Goal:** let a reviewer understand precisely what was tested, how it was judged, and what
 execution configuration produced the result.
 
@@ -348,12 +348,12 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 | --- | --- |
 | Versioned workload and rubric identities | ✅ 0.5.0 |
 | Versioned profile identities | 📋 |
-| Requested and observed provider/model configuration evidence | ⏳ 0.5.1 release candidate |
-| Attempt, retry, and independent-repetition identities | 📋 |
-| Target and grader usage separated in artifacts | 📋 |
-| Cost evidence identifies known, user-supplied, or unavailable pricing | 📋 |
-| Secrets excluded from artifact and digest inputs | 📋 |
-| Compatibility checks reject or qualify changed workloads and rubrics | 📋 |
+| Requested and observed provider/model configuration evidence | ✅ 0.5.1 |
+| Attempt, retry, and independent-repetition identities | ✅ 0.5.2 |
+| Target and grader usage separated in artifacts | ✅ 0.5.1 |
+| Cost evidence identifies known, user-supplied, or unavailable pricing | ✅ 0.5.2 |
+| Secrets excluded from artifact and digest inputs | ✅ 0.5.0–0.5.2 |
+| Compatibility checks reject or qualify changed workloads and rubrics | ⏳ 0.5.3 release candidate |
 | Re-execution limits documented; digests are not presented as signatures | 📋 |
 
 ## 0.6 — Native agent harness and controlled workflow execution

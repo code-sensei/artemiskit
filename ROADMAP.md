@@ -26,15 +26,6 @@ Public comparison results will be benchmark-like but scenario-specific. ArtemisK
 a universal “best model” score that hides trade-offs between customer service, logistics, coding,
 security, language, or regulated workflows.
 
-## Assessment engagement standard
-
-ArtemisKit's roadmap is designed to support repeatable, paid AI-assurance engagements for model
-labs and customers. A valuable engagement deliverable must be more than an exported test log: it
-needs an unambiguous scope, inspectable methodology, scenario-specific findings, strengths and
-failure modes, measurement limits, and practical next actions. The public toolkit supplies the
-technical evidence and reproducibility layer; an engagement report must not overstate that evidence
-as a certification or legal conclusion.
-
 ## Product principles
 
 | Principle | What it means in ArtemisKit |
@@ -46,7 +37,7 @@ as a certification or legal conclusion.
 | Safe by default | Use bounded tools, declared permissions, fixtures, and disposable environments. |
 | Comparable only when compatible | Do not compare runs that use incompatible workloads, policies, or rubrics without qualification. |
 | Context over a flat rank | Show results by scenario, profile, language, policy, and operational dimension. |
-| Decision-grade delivery | Turn retained evidence into clear findings, limitations, and practical recommendations—not raw logs. |
+| Clear reporting | Turn retained evidence into clear findings, limitations, and practical recommendations—not raw logs. |
 | Human judgment where needed | Technical evidence can support governance work; it does not replace legal, privacy, security, or domain review. |
 
 ## Released foundation
@@ -95,7 +86,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.6.1 | Controlled environments | Disposable multi-turn environments, declared tools/permissions, budgets, and fail-closed authority. |
 | 0.6.2 | Observable outcome scoring | Independent checks for artifacts, state changes, traces, and acceptance conditions. |
 | 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
-| 0.6.4 | Professional assessment reports | Deterministic, decision-grade engagement reports from sanitized saved evidence. |
+| 0.6.4 | Professional assessment reports | Deterministic, decision-grade reports from sanitized saved evidence. |
 | 0.7.0 | Comparative experiment contract | Provider-neutral workload/model/repetition orchestration for scenario and agent runs. |
 | 0.7.1 | Comparison eligibility | Explicit unsupported/incomplete work and compatibility qualification before any comparison. |
 | 0.7.2 | Scenario-specific aggregates | Per-model, task, policy, language, and operational summaries with documented uncertainty assumptions. |
@@ -192,7 +183,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
   and practical recommendations tied to evidence.
 - Provide professional HTML and Markdown layouts plus a technical appendix that links findings to
   manifest evidence, rather than presenting raw test logs as the assessment deliverable.
-- Exit only when an independently reviewing lab can understand what was tested, what was found,
+- Exit only when an independent reviewer can understand what was tested, what was found,
   what remains uncertain, and what should be retested or mitigated.
 
 ### 0.7.x — Comparative execution
@@ -226,7 +217,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 - Require explicit operator approval, target list, concurrency ceiling, maximum attempts, and spend budget for paid-provider runs.
 - Record approval identity/reason, budget consumption, stop conditions, and run-time exclusions.
 - Keep fixture and offline runs available for deterministic development and release validation.
-- Exit only when a paid comparative engagement has a bounded, auditable execution envelope.
+- Exit only when a paid-provider run has a bounded, auditable execution envelope.
 
 ### 0.8.x — Assessment profiles, policies, and reviewed packs
 
@@ -399,8 +390,8 @@ and independent acceptance checks. Fixture-backed execution remains the safe def
 customer-system integration requires explicit authorization and bounded credentials.
 
 Once this evidence exists, ArtemisKit should turn it into a professional, deterministic assessment
-report that an AI lab or customer can use to understand scope, findings, limitations, and next
-actions. This is an engagement deliverable, not a raw test-log export and not a certification.
+report that explains scope, findings, limitations, and next actions. It is not a raw test-log export
+or a certification.
 
 ### Release checklist
 

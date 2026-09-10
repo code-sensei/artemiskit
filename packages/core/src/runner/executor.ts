@@ -3,6 +3,7 @@
  */
 
 import type {
+  CaseAttemptEvidence,
   CaseEvaluationEvidence,
   CaseEvaluationStatus,
   CaseRedactionInfo,
@@ -99,18 +100,50 @@ export async function executeCase(
   context: ExecutorContext
 ): Promise<CaseResult> {
   const { timeout, retries = 0 } = context;
+  if (!Number.isSafeInteger(retries) || retries < 0 || retries > 99) {
+    throw new RangeError('retries must be a whole number between 0 and 99');
+  }
   const caseStartTime = Date.now();
   const requestedModel = testCase.model || context.requestedModel || context.scenario.model;
+  const retryChainId = `${context.runId ?? 'untracked'}:${testCase.id}`;
+  const repetitionIndex = context.repetition?.index ?? 1;
+  const attemptEvidence: CaseAttemptEvidence[] = [];
 
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const attemptStartTime = Date.now();
     try {
       const result = await executeCaseAttempt(testCase, context, timeout);
-      return { ...result, attempts: attempt + 1 };
+      return withAttemptEvidence(result, attemptEvidence, {
+        retryChainId,
+        repetitionIndex,
+        attemptNumber: attempt + 1,
+        includedInOutcome: true,
+        latencyMs: result.latencyMs,
+      });
     } catch (error) {
       lastError = error as Error;
-      if (error instanceof ToolLoopError) return { ...error.caseResult, attempts: attempt + 1 };
+      if (error instanceof ToolLoopError) {
+        return withAttemptEvidence(error.caseResult, attemptEvidence, {
+          retryChainId,
+          repetitionIndex,
+          attemptNumber: attempt + 1,
+          includedInOutcome: true,
+          latencyMs: error.caseResult.latencyMs,
+          errorCode: 'tool_error',
+        });
+      }
+      attemptEvidence.push({
+        attempt_id: `${retryChainId}:${attempt + 1}`,
+        retry_chain_id: retryChainId,
+        repetition_index: repetitionIndex,
+        attempt_number: attempt + 1,
+        status: 'error',
+        included_in_outcome: false,
+        latency_ms: Date.now() - attemptStartTime,
+        error_code: error instanceof TimeoutError ? 'timeout' : 'target_error',
+      });
       if (attempt < retries) {
         // Wait before retry with exponential backoff
         await sleep(2 ** attempt * 1000);
@@ -126,6 +159,10 @@ export async function executeCase(
     ok: false,
     status: 'error',
     attempts: retries + 1,
+    attempt_evidence: attemptEvidence.map((entry, index) => ({
+      ...entry,
+      included_in_outcome: index === attemptEvidence.length - 1,
+    })),
     score: 0,
     matcherType: testCase.expected.type,
     reason: `Failed after ${retries + 1} attempts: ${lastError?.message}`,
@@ -138,6 +175,41 @@ export async function executeCase(
     error: lastError?.message,
     target: targetEvidence(context.client.provider, requestedModel),
   };
+}
+
+function withAttemptEvidence(
+  result: CaseResult,
+  priorAttempts: CaseAttemptEvidence[],
+  input: {
+    retryChainId: string;
+    repetitionIndex: number;
+    attemptNumber: number;
+    includedInOutcome: boolean;
+    latencyMs: number;
+    errorCode?: CaseAttemptEvidence['error_code'];
+  }
+): CaseResult {
+  return {
+    ...result,
+    attempts: input.attemptNumber,
+    attempt_evidence: [
+      ...priorAttempts,
+      {
+        attempt_id: `${input.retryChainId}:${input.attemptNumber}`,
+        retry_chain_id: input.retryChainId,
+        repetition_index: input.repetitionIndex,
+        attempt_number: input.attemptNumber,
+        status: getTerminalStatus(result),
+        included_in_outcome: input.includedInOutcome,
+        latency_ms: input.latencyMs,
+        ...(input.errorCode ? { error_code: input.errorCode } : {}),
+      },
+    ],
+  };
+}
+
+function getTerminalStatus(result: CaseResult): CaseEvaluationStatus {
+  return result.status ?? (result.ok ? 'passed' : result.error ? 'error' : 'failed');
 }
 
 async function executeCaseAttempt(

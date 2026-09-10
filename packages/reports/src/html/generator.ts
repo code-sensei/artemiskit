@@ -275,6 +275,10 @@ const HTML_TEMPLATE = `
             <h3>Total Tokens</h3>
             <div class="value">{{formatNumber manifest.metrics.total_tokens}}</div>
           </div>
+          <div class="card">
+            <h3>Cost Evidence</h3>
+            <div class="value">{{costEvidence manifest}}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -587,6 +591,15 @@ export function generateHTMLReport(manifest: RunManifest): string {
   Handlebars.registerHelper('errorCount', (manifest: RunManifest) => {
     return manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error')
       .length;
+  });
+
+  Handlebars.registerHelper('costEvidence', (manifest: RunManifest) => {
+    const cost = manifest.metrics.cost_provenance;
+    if (cost?.status === 'known' || cost?.status === 'user_supplied') {
+      return `${cost.currency} ${cost.amount?.toFixed(4)} (${cost.status.replace('_', ' ')})`;
+    }
+    if (cost?.status === 'unavailable') return 'Unavailable';
+    return 'Not recorded';
   });
 
   const template = Handlebars.compile(HTML_TEMPLATE);

@@ -3,7 +3,7 @@
  */
 
 import type { ModelClient } from '../adapters/types';
-import type { CaseResult, ResolvedConfig, RunManifest } from '../artifacts/types';
+import type { CaseResult, CostProvenance, ResolvedConfig, RunManifest } from '../artifacts/types';
 import type { RedactionConfig } from '../redaction/types';
 import type { Scenario } from '../scenario/schema';
 import type { ToolExecutor } from '../tools';
@@ -28,6 +28,10 @@ export interface RunOptions {
   timeout?: number;
   /** Number of retries per case */
   retries?: number;
+  /** One-based coordinate for an independently planned repetition. */
+  repetition?: { index: number; total: number };
+  /** Attested or operator-supplied monetary evidence; omitted means unavailable. */
+  costProvenance?: CostProvenance;
   /** Redaction configuration (CLI overrides scenario) */
   redaction?: RedactionConfig;
   /** SDK-only executor for explicitly supplied real tools. */
@@ -60,6 +64,8 @@ export interface ExecutorContext {
   requestedModel?: string;
   timeout?: number;
   retries?: number;
+  runId?: string;
+  repetition?: { index: number; total: number };
   /** Redaction configuration for this execution */
   redaction?: RedactionConfig;
   toolExecutor?: ToolExecutor;

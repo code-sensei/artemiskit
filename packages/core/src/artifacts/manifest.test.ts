@@ -55,13 +55,19 @@ describe('createRunManifest', () => {
       endTime,
     });
 
-    expect(manifest.version).toBe('1.3');
+    expect(manifest.version).toBe('1.4');
     expect(manifest.project).toBe('test-project');
     expect(manifest.run_id).toBeTruthy();
     expect(manifest.run_id.length).toBe(12);
     expect(manifest.config.scenario).toBe('test-scenario');
     expect(manifest.config.provider).toBe('openai');
     expect(manifest.config.model).toBe('gpt-4');
+    expect(manifest.metrics.cost).toBeUndefined();
+    expect(manifest.metrics.cost_provenance).toEqual({
+      schema_version: '1',
+      status: 'unavailable',
+      unavailable_reason: 'provider_billing_not_recorded',
+    });
   });
 
   test('calculates metrics correctly', () => {
@@ -339,5 +345,85 @@ describe('createRunManifest', () => {
         cases: [{ ...historical.cases[0], target: { provider: '', observed_models: ['x'] } }],
       })
     ).toThrow('malformed target evidence');
+  });
+
+  test('retains attested cost evidence but rejects malformed monetary claims', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'cost', provider: 'openai' },
+      costProvenance: {
+        schema_version: '1',
+        status: 'known',
+        amount: 1.25,
+        currency: 'USD',
+        source: 'provider_billing',
+        recorded_at: '2026-09-10T00:00:00.000Z',
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.metrics.cost_provenance?.status).toBe('known');
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...manifest,
+        metrics: {
+          ...manifest.metrics,
+          cost_provenance: { schema_version: '1', status: 'known', amount: 1 },
+        },
+      })
+    ).toThrow('malformed cost provenance');
+  });
+
+  test('validates bounded retry-chain evidence without requiring it from historical manifests', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'retry', provider: 'fixture' },
+      attemptEvidence: {
+        schema_version: '1',
+        repetition: { index: 1, total: 2 },
+        retry_policy: { default_max_retries: 1, backoff: 'exponential', initial_delay_ms: 1000 },
+        timeout: { default_ms: 5000 },
+      },
+      cases: [
+        {
+          ...mockCases[0],
+          attempts: 2,
+          attempt_evidence: [
+            {
+              attempt_id: 'run:case-1:1',
+              retry_chain_id: 'run:case-1',
+              repetition_index: 1,
+              attempt_number: 1,
+              status: 'error',
+              included_in_outcome: false,
+              latency_ms: 3,
+              error_code: 'target_error',
+            },
+            {
+              attempt_id: 'run:case-1:2',
+              retry_chain_id: 'run:case-1',
+              repetition_index: 1,
+              attempt_number: 2,
+              status: 'passed',
+              included_in_outcome: true,
+              latency_ms: 4,
+            },
+          ],
+        },
+      ],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...manifest,
+        cases: [{ ...manifest.cases[0], attempt_evidence: [] }],
+      })
+    ).toThrow('malformed attempt evidence');
   });
 });

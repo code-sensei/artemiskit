@@ -3,15 +3,15 @@
  */
 
 import { nanoid } from 'nanoid';
-import { estimateCost, getModelPricing } from '../cost/pricing';
 import { getEnvironmentInfo } from '../provenance/environment';
 import { getGitInfo } from '../provenance/git';
 import type {
   CaseResult,
-  CostEstimateInfo,
+  CostProvenance,
   ExecutionProvenance,
   ManifestRedactionInfo,
   ResolvedConfig,
+  RunAttemptEvidence,
   RunConfig,
   RunManifest,
   RunMetrics,
@@ -28,6 +28,9 @@ export function createRunManifest(options: {
   resolvedConfig?: ResolvedConfig;
   workloadIdentity?: WorkloadIdentity;
   executionProvenance?: ExecutionProvenance;
+  attemptEvidence?: RunAttemptEvidence;
+  costProvenance?: CostProvenance;
+  runId?: string;
   cases: CaseResult[];
   startTime: Date;
   endTime: Date;
@@ -41,6 +44,9 @@ export function createRunManifest(options: {
     resolvedConfig,
     workloadIdentity,
     executionProvenance,
+    attemptEvidence,
+    costProvenance,
+    runId,
     cases,
     startTime,
     endTime,
@@ -49,15 +55,13 @@ export function createRunManifest(options: {
     redaction,
   } = options;
 
-  // Get model for cost calculation - prefer resolvedConfig, then config
-  const modelForCost = resolvedConfig?.model || config.model;
-  const metrics = calculateMetrics(cases, modelForCost);
+  const metrics = calculateMetrics(cases, costProvenance);
   const git = getGitInfo();
   const environment = getEnvironmentInfo();
 
   return {
-    version: '1.3',
-    run_id: nanoid(12),
+    version: '1.4',
+    run_id: runId ?? nanoid(12),
     project,
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
@@ -66,6 +70,7 @@ export function createRunManifest(options: {
     resolved_config: resolvedConfig,
     workload_identity: workloadIdentity,
     execution_provenance: executionProvenance,
+    attempt_evidence: attemptEvidence,
     metrics,
     git,
     provenance: {
@@ -82,7 +87,7 @@ export function createRunManifest(options: {
 /**
  * Calculate metrics from case results
  */
-function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
+function calculateMetrics(cases: CaseResult[], costProvenance?: CostProvenance): RunMetrics {
   const passedCases = cases.filter((c) => getCaseEvaluationStatus(c) === 'passed');
   const validCases = cases.filter((c) => {
     const status = getCaseEvaluationStatus(c);
@@ -98,26 +103,13 @@ function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
   const totalPromptTokens = cases.reduce((sum, c) => sum + c.tokens.prompt, 0);
   const totalCompletionTokens = cases.reduce((sum, c) => sum + c.tokens.completion, 0);
 
-  // Calculate cost if model is provided
-  let cost: CostEstimateInfo | undefined;
-  if (
-    model &&
-    !model.toLowerCase().includes('ling-') &&
-    (totalPromptTokens > 0 || totalCompletionTokens > 0)
-  ) {
-    const costEstimate = estimateCost(totalPromptTokens, totalCompletionTokens, model);
-    const pricing = getModelPricing(model);
-    cost = {
-      total_usd: costEstimate.totalUsd,
-      prompt_cost_usd: costEstimate.promptCostUsd,
-      completion_cost_usd: costEstimate.completionCostUsd,
-      model: costEstimate.model,
-      pricing: {
-        prompt_per_1k: pricing.promptPer1K,
-        completion_per_1k: pricing.completionPer1K,
-      },
-    };
-  }
+  // Token counts are not provider billing records. Never turn a generic price
+  // table into assurance cost evidence.
+  const cost_provenance: CostProvenance = costProvenance ?? {
+    schema_version: '1',
+    status: 'unavailable',
+    unavailable_reason: 'provider_billing_not_recorded',
+  };
 
   return {
     success_rate: validCases.length > 0 ? passedCases.length / validCases.length : 0,
@@ -133,7 +125,7 @@ function calculateMetrics(cases: CaseResult[], model?: string): RunMetrics {
     total_tokens: totalPromptTokens + totalCompletionTokens,
     total_prompt_tokens: totalPromptTokens,
     total_completion_tokens: totalCompletionTokens,
-    cost,
+    cost_provenance,
   };
 }
 

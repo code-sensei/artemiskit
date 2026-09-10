@@ -124,6 +124,39 @@ export interface CaseEvaluationEvidence {
   };
 }
 
+/** A bounded record of one execution in a retry chain. */
+export interface CaseAttemptEvidence {
+  attempt_id: string;
+  retry_chain_id: string;
+  /** One-based coordinate within a deliberately independent repetition. */
+  repetition_index: number;
+  /** One-based coordinate within this retry chain. */
+  attempt_number: number;
+  status: CaseEvaluationStatus;
+  /** Only the terminal measurement can contribute to an outcome rate. */
+  included_in_outcome: boolean;
+  latency_ms: number;
+  /** Sanitized classification, never arbitrary provider error text. */
+  error_code?: 'timeout' | 'target_error' | 'tool_error';
+}
+
+/** Declared retry and repetition context for a run. */
+export interface RunAttemptEvidence {
+  schema_version: '1';
+  repetition: {
+    index: number;
+    total: number;
+  };
+  retry_policy: {
+    default_max_retries: number;
+    backoff: 'exponential';
+    initial_delay_ms: number;
+  };
+  timeout?: {
+    default_ms: number;
+  };
+}
+
 /**
  * Individual test case result
  */
@@ -135,6 +168,8 @@ export interface CaseResult {
   status?: CaseEvaluationStatus;
   /** Number of execution attempts represented by this terminal result. */
   attempts?: number;
+  /** Bounded retry-chain evidence for this terminal case result. */
+  attempt_evidence?: CaseAttemptEvidence[];
   score: number;
   matcherType: string;
   reason?: string;
@@ -180,6 +215,28 @@ export interface CostEstimateInfo {
   };
 }
 
+/** Whether a monetary value is attested, supplied by an operator, or unavailable. */
+export type CostProvenanceStatus = 'known' | 'user_supplied' | 'unavailable';
+
+/**
+ * Cost evidence suitable for assurance reporting. Generic token-price estimates
+ * are intentionally not cost evidence.
+ */
+export interface CostProvenance {
+  schema_version: '1';
+  status: CostProvenanceStatus;
+  /** Required for known and user-supplied amounts. */
+  amount?: number;
+  /** ISO 4217 currency required with an amount. */
+  currency?: string;
+  /** Origin of a recorded monetary value. */
+  source?: 'provider_billing' | 'operator_input';
+  /** ISO timestamp for a recorded monetary value. */
+  recorded_at?: string;
+  /** Stable reason code when no attested amount is available. */
+  unavailable_reason?: 'provider_billing_not_recorded' | 'unsupported_provider' | 'not_requested';
+}
+
 /**
  * Run metrics
  */
@@ -202,7 +259,10 @@ export interface RunMetrics {
   total_prompt_tokens: number;
   total_completion_tokens: number;
   /** Estimated cost information */
+  /** @deprecated Generic pricing estimates are not assurance cost evidence. */
   cost?: CostEstimateInfo;
+  /** Explicit monetary evidence for assurance reporting. */
+  cost_provenance?: CostProvenance;
 }
 
 /**
@@ -333,6 +393,8 @@ export interface RunManifest {
   workload_identity?: WorkloadIdentity;
   /** Requested and observed target/evaluator configuration for this run. */
   execution_provenance?: ExecutionProvenance;
+  /** Retry-chain and repetition context. Present in manifest v1.4+. */
+  attempt_evidence?: RunAttemptEvidence;
   metrics: RunMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -385,6 +447,12 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
   if (manifest.execution_provenance !== undefined) {
     assertExecutionProvenance(manifest.execution_provenance);
   }
+  if (manifest.attempt_evidence !== undefined) {
+    assertRunAttemptEvidence(manifest.attempt_evidence);
+  }
+  if (isRecord(manifest.metrics) && manifest.metrics.cost_provenance !== undefined) {
+    assertCostProvenance(manifest.metrics.cost_provenance);
+  }
 
   for (const [index, caseResult] of manifest.cases.entries()) {
     if (!isRecord(caseResult)) {
@@ -407,7 +475,112 @@ export function assertRunManifestIntegrity(manifest: unknown): asserts manifest 
     if (caseResult.target !== undefined) {
       assertCaseTargetEvidence(caseResult.target);
     }
+    if (caseResult.attempt_evidence !== undefined) {
+      assertCaseAttemptEvidence(caseResult.attempt_evidence, index);
+    }
   }
+}
+
+function assertRunAttemptEvidence(evidence: unknown): void {
+  if (
+    !isRecord(evidence) ||
+    evidence.schema_version !== '1' ||
+    !isRecord(evidence.repetition) ||
+    !isPositiveSafeInteger(evidence.repetition.index) ||
+    !isPositiveSafeInteger(evidence.repetition.total) ||
+    evidence.repetition.index > evidence.repetition.total ||
+    !isRecord(evidence.retry_policy) ||
+    !isNonnegativeSafeInteger(evidence.retry_policy.default_max_retries) ||
+    evidence.retry_policy.backoff !== 'exponential' ||
+    !isNonnegativeFiniteNumber(evidence.retry_policy.initial_delay_ms) ||
+    (evidence.timeout !== undefined &&
+      (!isRecord(evidence.timeout) || !isPositiveFiniteNumber(evidence.timeout.default_ms)))
+  ) {
+    throw new Error('Invalid run manifest: malformed attempt evidence');
+  }
+}
+
+function assertCaseAttemptEvidence(evidence: unknown, index: number): void {
+  if (!Array.isArray(evidence) || evidence.length === 0 || evidence.length > 100) {
+    throw new Error(`Invalid run manifest: case ${index} has malformed attempt evidence`);
+  }
+  for (const attempt of evidence) {
+    if (
+      !isRecord(attempt) ||
+      !isBoundedNonemptyString(attempt.attempt_id, 200) ||
+      !isBoundedNonemptyString(attempt.retry_chain_id, 200) ||
+      !isPositiveSafeInteger(attempt.repetition_index) ||
+      !isPositiveSafeInteger(attempt.attempt_number) ||
+      !isCaseEvaluationStatus(attempt.status) ||
+      typeof attempt.included_in_outcome !== 'boolean' ||
+      !isNonnegativeFiniteNumber(attempt.latency_ms) ||
+      (attempt.error_code !== undefined &&
+        attempt.error_code !== 'timeout' &&
+        attempt.error_code !== 'target_error' &&
+        attempt.error_code !== 'tool_error')
+    ) {
+      throw new Error(`Invalid run manifest: case ${index} has malformed attempt evidence`);
+    }
+  }
+}
+
+function assertCostProvenance(cost: unknown): void {
+  if (!isRecord(cost) || cost.schema_version !== '1') {
+    throw new Error('Invalid run manifest: malformed cost provenance');
+  }
+  if (cost.status === 'unavailable') {
+    if (
+      cost.amount !== undefined ||
+      cost.currency !== undefined ||
+      cost.source !== undefined ||
+      cost.recorded_at !== undefined ||
+      (cost.unavailable_reason !== 'provider_billing_not_recorded' &&
+        cost.unavailable_reason !== 'unsupported_provider' &&
+        cost.unavailable_reason !== 'not_requested')
+    ) {
+      throw new Error('Invalid run manifest: malformed cost provenance');
+    }
+    return;
+  }
+  if (
+    (cost.status !== 'known' && cost.status !== 'user_supplied') ||
+    !isNonnegativeFiniteNumber(cost.amount) ||
+    !isBoundedNonemptyString(cost.currency, 3) ||
+    (cost.status === 'known' && cost.source !== 'provider_billing') ||
+    (cost.status === 'user_supplied' && cost.source !== 'operator_input') ||
+    !isIsoTimestamp(cost.recorded_at) ||
+    cost.unavailable_reason !== undefined
+  ) {
+    throw new Error('Invalid run manifest: malformed cost provenance');
+  }
+}
+
+function isCaseEvaluationStatus(value: unknown): value is CaseEvaluationStatus {
+  return value === 'passed' || value === 'failed' || value === 'invalid' || value === 'error';
+}
+
+function isBoundedNonemptyString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
+}
+
+function isNonnegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+  return isNonnegativeFiniteNumber(value) && value > 0;
+}
+
+function isNonnegativeSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return isNonnegativeSafeInteger(value) && value > 0;
+}
+
+function isIsoTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
 function assertCaseTargetEvidence(target: unknown): void {

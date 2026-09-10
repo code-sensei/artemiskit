@@ -2,6 +2,7 @@
  * Scenario runner - main entry point for running test scenarios
  */
 
+import { nanoid } from 'nanoid';
 import { createRunManifest } from '../artifacts/manifest';
 import type { CaseResult, ManifestRedactionInfo } from '../artifacts/types';
 import { createExecutionProvenance, createWorkloadIdentity } from '../provenance';
@@ -22,6 +23,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     concurrency = 1,
     timeout,
     retries,
+    repetition = { index: 1, total: 1 },
+    costProvenance,
     redaction,
     toolExecutor,
     onCaseComplete,
@@ -42,6 +45,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
   onProgress?.(`Running ${cases.length} test cases...`);
 
   const startTime = new Date();
+  const runId = nanoid(12);
   const results: CaseResult[] = [];
 
   if (concurrency === 1) {
@@ -54,6 +58,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
         requestedModel: resolvedConfig?.model,
         timeout: testCase.timeout || timeout,
         retries: testCase.retries ?? retries,
+        runId,
+        repetition,
         redaction,
         toolExecutor,
       });
@@ -74,6 +80,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
             requestedModel: resolvedConfig?.model,
             timeout: testCase.timeout || timeout,
             retries: testCase.retries ?? retries,
+            runId,
+            repetition,
             redaction,
             toolExecutor,
           });
@@ -132,9 +140,21 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       seed: scenario.seed,
       cases: results,
     }),
+    attemptEvidence: {
+      schema_version: '1',
+      repetition,
+      retry_policy: {
+        default_max_retries: retries ?? 0,
+        backoff: 'exponential',
+        initial_delay_ms: 1000,
+      },
+      ...(timeout ? { timeout: { default_ms: timeout } } : {}),
+    },
+    costProvenance,
     cases: results,
     startTime,
     endTime,
+    runId,
     redaction: redactionInfo,
   });
 

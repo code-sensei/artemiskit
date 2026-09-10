@@ -141,4 +141,21 @@ describe('measurement-integrity reports', () => {
 
     expect(() => generateJSONReport(malformed)).toThrow('invalid evidence score');
   });
+
+  test('labels unavailable cost evidence instead of rendering a token-price estimate', () => {
+    const costAware = structuredClone(manifest);
+    costAware.version = '1.4';
+    costAware.metrics.cost_provenance = {
+      schema_version: '1',
+      status: 'unavailable',
+      unavailable_reason: 'provider_billing_not_recorded',
+    };
+
+    expect(generateMarkdownReport(costAware)).toContain(
+      '| Cost | Unavailable (provider_billing_not_recorded) |'
+    );
+    expect(generateHTMLReport(costAware)).toContain('Cost Evidence');
+    expect(generateHTMLReport(costAware)).toContain('Unavailable');
+    expect(generateJUnitReport(costAware)).toContain('artemis.cost_status" value="unavailable"');
+  });
 });

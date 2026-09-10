@@ -61,8 +61,8 @@ verification checklist are complete.
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
-| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released in 0.4.0; remaining hardening is implemented locally and pending a user-facing release decision. |
-| 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4 |
+| 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released. |
+| 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4; 0.5.0 and 0.5.1 released, with 0.5.2 next. |
 | 0.6.x | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
 | 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
 | 0.8.x | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |

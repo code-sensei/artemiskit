@@ -119,9 +119,19 @@ export function generateJUnitReport(
   lines.push(
     `    <property name="artemis.total_tokens" value="${manifest.metrics.total_tokens}" />`
   );
-  if (manifest.metrics.cost) {
+  const cost = manifest.metrics.cost_provenance;
+  if (
+    (cost?.status === 'known' || cost?.status === 'user_supplied') &&
+    cost.amount !== undefined &&
+    cost.currency !== undefined
+  ) {
+    lines.push(`    <property name="artemis.cost_amount" value="${cost.amount.toFixed(6)}" />`);
+    lines.push(`    <property name="artemis.cost_currency" value="${cost.currency}" />`);
+    lines.push(`    <property name="artemis.cost_status" value="${cost.status}" />`);
+  } else if (cost?.status === 'unavailable') {
+    lines.push(`    <property name="artemis.cost_status" value="unavailable" />`);
     lines.push(
-      `    <property name="artemis.cost_usd" value="${manifest.metrics.cost.total_usd.toFixed(6)}" />`
+      `    <property name="artemis.cost_unavailable_reason" value="${cost.unavailable_reason}" />`
     );
   }
   lines.push('  </properties>');

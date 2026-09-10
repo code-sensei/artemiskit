@@ -128,8 +128,9 @@ interface CISummary {
     total: number;
   };
   cost: {
-    estimatedUsd: number;
-    formatted: string;
+    status: 'known' | 'unavailable' | 'mixed';
+    amount?: number;
+    currency?: string;
   };
   runs: Array<{
     runId: string;
@@ -146,7 +147,9 @@ interface CISummary {
     executionErrors: number;
     outcomeRateDenominator: number;
     durationMs: number;
-    estimatedCostUsd?: number;
+    costStatus?: 'known' | 'user_supplied' | 'unavailable';
+    costAmount?: number;
+    costCurrency?: string;
   }>;
   baseline?: {
     compared: boolean;
@@ -250,10 +253,21 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
     0
   );
   const totalTokens = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_tokens || 0), 0);
-  const totalCostUsd = results.reduce(
-    (sum, r) => sum + (r.manifest.metrics?.cost?.total_usd || 0),
-    0
+  const costRecords = results.map((result) => result.manifest.metrics.cost_provenance);
+  const recordedCosts = costRecords.filter(
+    (cost): cost is NonNullable<typeof cost> =>
+      cost?.status === 'known' || cost?.status === 'user_supplied'
   );
+  const sameCurrency =
+    recordedCosts.length > 0 &&
+    recordedCosts.every((cost) => cost.currency === recordedCosts[0].currency);
+  const costStatus =
+    recordedCosts.length === results.length && sameCurrency
+      ? 'known'
+      : recordedCosts.length === 0
+        ? 'unavailable'
+        : 'mixed';
+  const totalRecordedCost = recordedCosts.reduce((sum, cost) => sum + (cost.amount ?? 0), 0);
 
   return {
     success: failedScenarios === 0,
@@ -284,8 +298,13 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       total: totalTokens,
     },
     cost: {
-      estimatedUsd: totalCostUsd,
-      formatted: formatCost(totalCostUsd),
+      status: costStatus,
+      ...(costStatus === 'known'
+        ? {
+            amount: totalRecordedCost,
+            currency: recordedCosts[0].currency,
+          }
+        : {}),
     },
     runs: results.map((r) => ({
       runId: r.manifest.run_id || '',
@@ -308,7 +327,14 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       outcomeRateDenominator:
         r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0,
       durationMs: r.manifest.duration_ms || 0,
-      estimatedCostUsd: r.manifest.metrics?.cost?.total_usd,
+      costStatus: r.manifest.metrics.cost_provenance?.status,
+      ...(r.manifest.metrics.cost_provenance?.status === 'known' ||
+      r.manifest.metrics.cost_provenance?.status === 'user_supplied'
+        ? {
+            costAmount: r.manifest.metrics.cost_provenance.amount,
+            costCurrency: r.manifest.metrics.cost_provenance.currency,
+          }
+        : {}),
     })),
   };
 }
@@ -865,9 +891,13 @@ export function runCommand(): Command {
 
                 // Show additional metrics
                 console.log();
-                const costInfo = result.manifest.metrics.cost
-                  ? `  |  Est. Cost: ${formatCost(result.manifest.metrics.cost.total_usd)}`
-                  : '';
+                const cost = result.manifest.metrics.cost_provenance;
+                const costInfo =
+                  cost?.status === 'known' || cost?.status === 'user_supplied'
+                    ? `  |  Cost (${cost.status}): ${cost.currency} ${cost.amount?.toFixed(4)}`
+                    : cost?.status === 'unavailable'
+                      ? `  |  Cost: unavailable (${cost.unavailable_reason})`
+                      : '';
                 console.log(
                   chalk.dim(
                     `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid measurements: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid').length}  |  Execution errors: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error').length}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
@@ -1015,7 +1045,11 @@ export function runCommand(): Command {
             console.log(`ARTEMISKIT_SUCCESS_RATE=${successRate}`);
             console.log(`ARTEMISKIT_DURATION_MS=${ciSummary.duration.totalMs}`);
             console.log(`ARTEMISKIT_TOKENS_TOTAL=${ciSummary.tokens.total}`);
-            console.log(`ARTEMISKIT_COST_USD=${ciSummary.cost.estimatedUsd.toFixed(4)}`);
+            console.log(`ARTEMISKIT_COST_STATUS=${ciSummary.cost.status}`);
+            if (ciSummary.cost.status === 'known') {
+              console.log(`ARTEMISKIT_COST_AMOUNT=${ciSummary.cost.amount?.toFixed(4)}`);
+              console.log(`ARTEMISKIT_COST_CURRENCY=${ciSummary.cost.currency}`);
+            }
 
             if (baselineResult) {
               console.log('ARTEMISKIT_BASELINE_COMPARED=true');
@@ -1105,9 +1139,23 @@ export function runCommand(): Command {
         let budgetExceeded = false;
         if (options.budget !== undefined) {
           const budgetLimit = Number.parseFloat(String(options.budget));
-          const totalCost = ciSummary.cost.estimatedUsd;
+          const totalCost = ciSummary.cost.amount;
 
-          if (totalCost > budgetLimit) {
+          if (
+            ciSummary.cost.status !== 'known' ||
+            ciSummary.cost.currency !== 'USD' ||
+            totalCost === undefined
+          ) {
+            budgetExceeded = true;
+            ciSummary.budget = { limit: budgetLimit, exceeded: true, overBy: 0 };
+            const message =
+              'Cost evidence is unavailable or incompatible; budget cannot be verified.';
+            if (isCIMode) {
+              console.log('ARTEMISKIT_BUDGET_UNVERIFIED=true');
+            } else {
+              console.log(`${icons.failed} ${chalk.red(message)}`);
+            }
+          } else if (totalCost > budgetLimit) {
             budgetExceeded = true;
             const overBy = totalCost - budgetLimit;
 
@@ -1138,7 +1186,7 @@ export function runCommand(): Command {
             }
           } else if (!isCIMode) {
             console.log(
-              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`($${budgetLimit.toFixed(2)} limit, ${formatCost(totalCost)} used)`)}`
+              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`(${ciSummary.cost.currency} ${budgetLimit.toFixed(2)} limit, ${ciSummary.cost.currency} ${totalCost.toFixed(4)} used)`)}`
             );
           }
         }

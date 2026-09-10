@@ -29,14 +29,8 @@ function truncate(text: string, maxLength: number): string {
 /**
  * Format cost for display
  */
-function formatCostMd(costUsd: number): string {
-  if (costUsd < 0.01) {
-    return `$${(costUsd * 100).toFixed(4)} cents`;
-  }
-  if (costUsd < 1) {
-    return `$${costUsd.toFixed(4)}`;
-  }
-  return `$${costUsd.toFixed(2)}`;
+function formatCostMd(amount: number, currency: string): string {
+  return `${currency} ${amount.toFixed(4)}`;
 }
 
 /**
@@ -103,8 +97,17 @@ export function generateMarkdownReport(
   lines.push(`| P95 Latency | ${manifest.metrics.p95_latency_ms}ms |`);
   lines.push(`| Total Tokens | ${manifest.metrics.total_tokens.toLocaleString()} |`);
 
-  if (manifest.metrics.cost) {
-    lines.push(`| Estimated Cost | ${formatCostMd(manifest.metrics.cost.total_usd)} |`);
+  const cost = manifest.metrics.cost_provenance;
+  if (
+    (cost?.status === 'known' || cost?.status === 'user_supplied') &&
+    cost.amount !== undefined &&
+    cost.currency !== undefined
+  ) {
+    lines.push(
+      `| Cost (${cost.status.replace('_', ' ')}) | ${formatCostMd(cost.amount, cost.currency)} |`
+    );
+  } else if (cost?.status === 'unavailable') {
+    lines.push(`| Cost | Unavailable (${cost.unavailable_reason}) |`);
   }
 
   lines.push('');

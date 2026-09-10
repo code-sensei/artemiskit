@@ -79,7 +79,25 @@ describe('run command', () => {
     const runDirectory = join(testDir, 'artemis-runs', 'cli-smoke');
     const [manifestFile] = await readdir(runDirectory);
     const manifest = JSON.parse(await readFile(join(runDirectory, manifestFile), 'utf8'));
-    expect(manifest.version).toBe('1.3');
+    expect(manifest.version).toBe('1.4');
+    expect(manifest.attempt_evidence).toMatchObject({
+      schema_version: '1',
+      repetition: { index: 1, total: 1 },
+      retry_policy: { default_max_retries: 0, backoff: 'exponential', initial_delay_ms: 1000 },
+    });
+    expect(manifest.cases[0].attempt_evidence).toEqual([
+      expect.objectContaining({
+        retry_chain_id: `${manifest.run_id}:assurance-case`,
+        attempt_number: 1,
+        included_in_outcome: true,
+        status: 'passed',
+      }),
+    ]);
+    expect(manifest.metrics.cost_provenance).toEqual({
+      schema_version: '1',
+      status: 'unavailable',
+      unavailable_reason: 'provider_billing_not_recorded',
+    });
     expect(manifest.execution_provenance).toMatchObject({
       schema_version: '1',
       target: {

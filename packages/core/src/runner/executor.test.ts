@@ -317,6 +317,56 @@ describe('executeCase measurement integrity', () => {
     expect(result.target?.observed_models).toBeUndefined();
   });
 
+  it('records retried target failures as excluded retry-chain attempts', async () => {
+    let calls = 0;
+    const retryClient: ModelClient = {
+      ...client,
+      generate: async () => {
+        calls++;
+        if (calls === 1) throw new Error('temporary provider failure');
+        return {
+          id: 'response',
+          model: 'target-model',
+          text: 'target response',
+          tokens: { prompt: 1, completion: 1, total: 2 },
+          latencyMs: 1,
+          finishReason: 'stop',
+        };
+      },
+    };
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () => ({ passed: true, score: 1 }),
+    });
+
+    const result = await executeCase(scenario.cases[0], {
+      client: retryClient,
+      scenario,
+      retries: 1,
+      runId: 'assurance-run',
+      repetition: { index: 2, total: 3 },
+    });
+
+    expect(result.attempts).toBe(2);
+    expect(result.attempt_evidence).toEqual([
+      expect.objectContaining({
+        attempt_id: 'assurance-run:custom-evaluation:1',
+        retry_chain_id: 'assurance-run:custom-evaluation',
+        repetition_index: 2,
+        attempt_number: 1,
+        status: 'error',
+        included_in_outcome: false,
+        error_code: 'target_error',
+      }),
+      expect.objectContaining({
+        attempt_id: 'assurance-run:custom-evaluation:2',
+        attempt_number: 2,
+        status: 'passed',
+        included_in_outcome: true,
+      }),
+    ]);
+  });
+
   it('retains only the bounded evidence contract rather than evaluator details', async () => {
     const evaluator: Evaluator = {
       type: 'custom',

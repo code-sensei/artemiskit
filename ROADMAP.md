@@ -82,9 +82,9 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.5.1 | Execution provenance | Requested/observed model identity, generation settings, adapter/runner version, and target-versus-grader evidence. |
 | 0.5.2 | Attempt and cost evidence | Retry/repetition identity plus explicit known, user-supplied, or unavailable cost provenance. |
 | 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, and execution configuration; profiles and policy controls follow their dedicated contracts. |
-| 0.6.0 | Agent-harness contract | Provider-neutral agent target interface and declarative scenario controls. |
-| 0.6.1 | Controlled environments | Disposable multi-turn environments, declared tools/permissions, budgets, and fail-closed authority. |
-| 0.6.2 | Observable outcome scoring | Independent checks for artifacts, state changes, traces, and acceptance conditions. |
+| 0.6.0 | Agent-workflow and tool contract | Provider-neutral target interface, readable workflow scenarios, general built-in tools, and guided CLI authoring. |
+| 0.6.1 | Controlled environments | Simulated and sandbox environments share one policy vocabulary, budgets, and fail-closed authority. |
+| 0.6.2 | Observable outcome scoring | Deterministic checks first; strict LLM judging only for declared semantic dimensions. |
 | 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
 | 0.6.4 | Professional assessment reports | Deterministic, decision-grade reports from sanitized saved evidence. |
 | 0.7.0 | Comparative experiment contract | Provider-neutral workload/model/repetition orchestration for scenario and agent runs. |
@@ -140,20 +140,27 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 ### 0.6.x — Native agent harness
 
-#### 0.6.0 — Provider-neutral agent contract
+#### 0.6.0 — Provider-neutral agent workflow and tool contract
 
 - Define a public agent-target interface that can adapt at least two supported agent/model targets.
-- Add scenario fields for initial state, system instructions, multi-turn inputs, required final state,
-  permitted tools, and expected observable outputs.
+- Define a versioned, readable `agent_workflow` scenario contract with initial state, system
+  instructions, multi-turn inputs, required final state, permitted tools, and expected observable
+  outputs.
+- Ship a small general-purpose tool catalog for retrieval, documents, structured records, files,
+  computation, workflow state, approvals, communication, and task coordination. Sector-specific
+  tools remain scenario extensions or reviewed packs.
+- Add `artemiskit init agent-workflow` plus non-interactive equivalents that generate plain,
+  reviewable YAML and validate it without hidden CLI-only state.
 - Preserve the distinction between simple scenario evaluation and agent-workflow evaluation while
   allowing both to share core evidence contracts.
 - Exit only when a provider-specific benchmark can be expressed without making that provider the harness contract.
 
 #### 0.6.1 — Controlled execution environments
 
-- Declare tool schemas, filesystem/network/container/MCP authority, side-effect policy, and
-  time/step/token/cost budgets in each agent scenario.
-- Provide fresh disposable fixture-backed environments as the default execution mode.
+- Define one policy vocabulary—tools, permissions, network, side effects, budgets, faults, and
+  evidence—for `simulated`, `sandbox`, and future explicitly authorized `external` environments.
+- Provide fresh simulated environments as the default execution mode and disposable sandbox
+  environments for real artifact or state work.
 - Fail closed for undeclared tools, paths, commands, network access, or authority escalation.
 - Exit only when a multi-turn workflow can run repeatedly without discovering tools or touching a live system by default.
 
@@ -161,7 +168,9 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 - Add independent assertions for produced artifacts, validated schemas, simulated state transitions,
   tool traces, policy decisions, and required final state.
-- Ensure an agent's self-report is never accepted as sole evidence that work was completed.
+- Prefer deterministic assertions whenever the outcome is objectively checkable. Permit strict,
+  bounded LLM judging only for declared semantic dimensions such as clarity or appropriateness.
+- Ensure an agent's self-report or an LLM judge is never accepted as the sole evidence that work was completed.
 - Classify task failure, policy violation, target/execution error, unsupported capability, and invalid
   evaluation separately.
 - Exit only when success is demonstrated by observable outcomes rather than generated prose.
@@ -178,9 +187,10 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 - Generate a deterministic, decision-grade assessment report from sanitized saved evidence without
   a new model call.
-- Include executive scope, target configuration, methodology, coverage and exclusions, valid and
-  invalid measurement counts, scenario-level strengths and weaknesses, failure modes, limitations,
-  and practical recommendations tied to evidence.
+- Support technical, executive, and comprehensive report views from the same canonical evidence.
+  The comprehensive view combines scope, target configuration, methodology, coverage and
+  exclusions, valid and invalid measurement counts, scenario-level strengths and weaknesses,
+  failure modes, limitations, recommendations, and a technical appendix.
 - Provide professional HTML and Markdown layouts plus a technical appendix that links findings to
   manifest evidence, rather than presenting raw test logs as the assessment deliverable.
 - Exit only when an independent reviewer can understand what was tested, what was found,
@@ -398,15 +408,19 @@ or a certification.
 | Work item | Status |
 | --- | --- |
 | Provider-neutral agent-execution interface supports at least two configured targets | 📋 |
+| Versioned `agent_workflow` scenarios and a small general-purpose tool catalog | 📋 |
+| Guided CLI generator and non-interactive validation produce readable, reviewable YAML | 📋 |
 | Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | 📋 |
+| Simulated and sandbox environments use the same policy vocabulary and authority model | 📋 |
 | Undeclared tool authority fails closed | 📋 |
 | Fresh disposable environments support multi-turn workflows | 📋 |
 | Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 |
-| Independent checks verify artifacts, state changes, traces, and acceptance conditions | 📋 |
+| Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 |
+| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 📋 |
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 |
 | No default execution path discovers tools or performs live side effects | 📋 |
-| Deterministic report presents scope, methodology, findings, limitations, and recommendations from saved evidence | 📋 |
+| Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 |
 
 ## 0.7 — Comparative benchmark execution
 

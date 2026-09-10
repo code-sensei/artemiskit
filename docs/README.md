@@ -9,6 +9,7 @@ Welcome to the ArtemisKit documentation. This guide covers configuration, storag
 | [Providers](./providers/README.md) | LLM provider adapters (OpenAI, Azure, Anthropic, Vercel AI) |
 | [Storage](./storage/README.md) | Storage backends for evaluation results |
 | [Assurance improvements](./v0.4-assurance-improvements.md) | Post-v0.4 technical plan for trustworthy scenario-based assessments |
+| [Agent-workflow design](./agent-workflow.md) | Planned 0.6 contract for controlled tool-using agent workflows |
 
 ## Getting Started
 
@@ -54,6 +55,7 @@ For installation and basic usage, see the main [README](../README.md).
 ```
 docs/
 ├── README.md              # This file
+├── agent-workflow.md      # Planned 0.6 agent-workflow contract
 ├── v0.4-assurance-improvements.md # Post-v0.4 assurance implementation plan
 ├── providers/
 │   ├── README.md          # Provider overview and comparison
@@ -133,6 +135,7 @@ Built-in evaluators for assessing LLM outputs:
 - [Contributing Guide](../CONTRIBUTING.md) - Development setup
 - [Roadmap](../ROADMAP.md) - Planned features
 - [Assurance improvements](./v0.4-assurance-improvements.md) - Detailed post-v0.4 technical plan
+- [Agent-workflow design](./agent-workflow.md) - Planned controlled agent-workflow contract
 - [Examples](../examples/README.md) - Sample scenarios
 
 ## Package Documentation

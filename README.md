@@ -91,6 +91,9 @@ For a real coding-agent workflow, see the
 [`scenario-repair` evaluation](examples/agent-evaluation/scenario-repair/) and the
 [TrueForge integration guide](docs/agent-evaluation/trueforge.md). It gives Ling a bounded MCP
 toolset in a disposable, network-disabled Docker workspace and independently verifies the result.
+For the planned provider-neutral `agent_workflow` contract, general tool catalog, shared
+environment policies, CLI authoring flow, and report views, see the
+[agent-workflow design guide](docs/agent-workflow.md).
 
 ---
 

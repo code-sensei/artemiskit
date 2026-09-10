@@ -26,6 +26,15 @@ Public comparison results will be benchmark-like but scenario-specific. ArtemisK
 a universal “best model” score that hides trade-offs between customer service, logistics, coding,
 security, language, or regulated workflows.
 
+## Assessment engagement standard
+
+ArtemisKit's roadmap is designed to support repeatable, paid AI-assurance engagements for model
+labs and customers. A valuable engagement deliverable must be more than an exported test log: it
+needs an unambiguous scope, inspectable methodology, scenario-specific findings, strengths and
+failure modes, measurement limits, and practical next actions. The public toolkit supplies the
+technical evidence and reproducibility layer; an engagement report must not overstate that evidence
+as a certification or legal conclusion.
+
 ## Product principles
 
 | Principle | What it means in ArtemisKit |
@@ -37,6 +46,7 @@ security, language, or regulated workflows.
 | Safe by default | Use bounded tools, declared permissions, fixtures, and disposable environments. |
 | Comparable only when compatible | Do not compare runs that use incompatible workloads, policies, or rubrics without qualification. |
 | Context over a flat rank | Show results by scenario, profile, language, policy, and operational dimension. |
+| Decision-grade delivery | Turn retained evidence into clear findings, limitations, and practical recommendations—not raw logs. |
 | Human judgment where needed | Technical evidence can support governance work; it does not replace legal, privacy, security, or domain review. |
 
 ## Released foundation
@@ -63,10 +73,10 @@ verification checklist are complete.
 | --- | --- | --- | --- |
 | 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released. |
 | 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4; 0.5.0–0.5.3 released. |
-| 0.6.x | Native agent harness | Real tool-using agents run in declared, controlled environments with independent outcome checks. | 0.4, 0.5 |
+| 0.6.x | Native harness and assessment-report foundation | Real tool-using agents run in declared environments; evidence becomes a professional assessment report. | 0.4, 0.5 |
 | 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
 | 0.8.x | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |
-| 0.9.x | Reports, leaderboard, and release gates | Decision-ready reports and scenario-specific public results use the same evidence contract. | 0.4–0.8 |
+| 0.9.x | Continuous gates and leaderboard | Profile-aware release decisions and scenario-specific public results use the same evidence contract. | 0.4–0.8 |
 | 1.0.x | Stable assurance contracts | Public stability commitment for the core evidence, profile, and execution contracts. | 0.4–0.9 |
 
 ## Planned capability increments
@@ -85,6 +95,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.6.1 | Controlled environments | Disposable multi-turn environments, declared tools/permissions, budgets, and fail-closed authority. |
 | 0.6.2 | Observable outcome scoring | Independent checks for artifacts, state changes, traces, and acceptance conditions. |
 | 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
+| 0.6.4 | Professional assessment reports | Deterministic, decision-grade engagement reports from sanitized saved evidence. |
 | 0.7.0 | Comparative experiment contract | Provider-neutral workload/model/repetition orchestration for scenario and agent runs. |
 | 0.7.1 | Comparison eligibility | Explicit unsupported/incomplete work and compatibility qualification before any comparison. |
 | 0.7.2 | Scenario-specific aggregates | Per-model, task, policy, language, and operational summaries with documented uncertainty assumptions. |
@@ -93,10 +104,10 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.8.1 | Reviewed workflow packs | Versioned customer-service, logistics, and other regulated-sector scenario packs with ownership and coverage metadata. |
 | 0.8.2 | Organizational policy controls | Approved-source, data-handling, escalation, approval, tool-authority, and recovery controls. |
 | 0.8.3 | Framework mapping evidence | Technical-control mappings for selected frameworks, with explicit legal/privacy/domain-review limits. |
-| 0.9.0 | Evidence-based assessment reports | Regenerable reports with methodology, coverage, validity, exclusions, dimensions, and limitations. |
-| 0.9.1 | Continuous assurance gates | Profile-aware baselines, regression checks, critical-failure rules, and CI decisions. |
-| 0.9.2 | Leaderboard publication contract | Public-entry schema for compatible, scenario-specific results, sample size, method, and limits. |
-| 0.9.3 | Scenario-first leaderboard surfaces | Filters and presentation by workflow, sector, language, policy outcome, capability, and model configuration. |
+| 0.9.0 | Continuous assurance gates | Profile-aware baselines, regression checks, critical-failure rules, and CI decisions. |
+| 0.9.1 | Leaderboard publication contract | Public-entry schema for compatible, scenario-specific results, sample size, method, and limits. |
+| 0.9.2 | Scenario-first leaderboard surfaces | Filters and presentation by workflow, sector, language, policy outcome, capability, and model configuration. |
+| 0.9.3 | Optional AI-assisted report narrative | Clearly labelled narrative assistance grounded only in sanitized, retained report evidence. |
 | 1.0.0 | Stable assurance-contract baseline | Stable contracts, compatibility fixtures, migration guidance, public reference documentation, and contribution rules. |
 
 ### 0.5.x — Reproducible evidence
@@ -172,6 +183,18 @@ increments can be re-ordered when evidence from real assessment work identifies 
 - Add fixture cases for safe recovery and for failure when recovery would exceed declared authority.
 - Exit only when an assessment can show both how an agent performs normally and how it fails or recovers under controlled faults.
 
+#### 0.6.4 — Professional assessment-report foundation
+
+- Generate a deterministic, decision-grade assessment report from sanitized saved evidence without
+  a new model call.
+- Include executive scope, target configuration, methodology, coverage and exclusions, valid and
+  invalid measurement counts, scenario-level strengths and weaknesses, failure modes, limitations,
+  and practical recommendations tied to evidence.
+- Provide professional HTML and Markdown layouts plus a technical appendix that links findings to
+  manifest evidence, rather than presenting raw test logs as the assessment deliverable.
+- Exit only when an independently reviewing lab can understand what was tested, what was found,
+  what remains uncertain, and what should be retested or mitigated.
+
 ### 0.7.x — Comparative execution
 
 #### 0.7.0 — Comparative experiment contract
@@ -242,24 +265,16 @@ increments can be re-ordered when evidence from real assessment work identifies 
 - Prohibit reports and packs from describing a technical test pass as legal or regulatory certification.
 - Exit only when framework-oriented evidence is precise, reviewable, and bounded by its actual authority.
 
-### 0.9.x — Reports, release gates, and leaderboard
+### 0.9.x — Continuous gates and scenario-first leaderboard
 
-#### 0.9.0 — Evidence-based assessment reports
-
-- Generate decision-ready reports solely from saved, sanitized evidence, without a new model call.
-- Include methodology, workload/profile identity, model/configuration, coverage, validity counts,
-  exclusions, per-dimension results, control status, costs, and limitations.
-- Make every report surface agree with the status and denominator contract established in 0.4.
-- Exit only when a reviewer can reproduce the report's claims from retained assessment evidence.
-
-#### 0.9.1 — Continuous assurance and release gates
+#### 0.9.0 — Continuous assurance and release gates
 
 - Enable profile-aware baselines and regression checks that first confirm workload/profile compatibility.
 - Add CI decisions for thresholds, critical failures, approved exceptions, and missing required evidence.
 - Make gate output explain the policy/profile requirement and evidence behind a block, warning, or pass.
 - Exit only when the same contract supports both a customer assessment and a safe release decision.
 
-#### 0.9.2 — Public leaderboard publication contract
+#### 0.9.1 — Public leaderboard publication contract
 
 - Define the minimum public entry: model/configuration, scenario/profile/pack identity, method,
   sample size, valid-outcome denominator, invalid/error/unavailable counts, date, and limitations.
@@ -267,13 +282,23 @@ increments can be re-ordered when evidence from real assessment work identifies 
 - Declare incompatibility, conflicts of interest, sponsorship, and known coverage gaps rather than hiding them.
 - Exit only when a public result can be independently interpreted without treating it as a universal rank.
 
-#### 0.9.3 — Scenario-first leaderboard surfaces
+#### 0.9.2 — Scenario-first leaderboard surfaces
 
 - Provide filters for workflow, sector, language/region, capability, policy/control outcome,
   operational constraint, provider, and model configuration where data exists.
 - Show comparable entries together; label qualified or incomparable entries rather than forcing a score table.
 - Present strengths, weaknesses, incomplete evidence, and measurement limits alongside outcome rates.
 - Exit only when a reader can find a model's fit for a defined scenario without inferring a flat global score.
+
+#### 0.9.3 — Optional AI-assisted report narrative
+
+- Add an optional narrative layer only after deterministic report content is established.
+- Restrict it to sanitized saved evidence; label the model, configuration, and generated sections,
+  and cite the underlying report or manifest evidence.
+- Prohibit it from changing status, rates, comparison eligibility, findings, or recommendations that
+  have not been explicitly derived from retained evidence.
+- Exit only when generated prose is auditable editorial assistance rather than a new measurement or
+  untraceable assurance claim.
 
 ### 1.0.0 — Stable public assurance contracts
 
@@ -356,7 +381,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 | Compatibility checks reject or qualify changed workloads and rubrics | ✅ 0.5.3 |
 | Re-execution limits documented; digests are not presented as signatures | 📋 |
 
-## 0.6 — Native agent harness and controlled workflow execution
+## 0.6 — Native agent harness and professional assessment reports
 
 **Status:** Planned
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
@@ -373,6 +398,10 @@ permitted tools, schemas, policy rules, budgets, controlled fault conditions, re
 and independent acceptance checks. Fixture-backed execution remains the safe default; live or
 customer-system integration requires explicit authorization and bounded credentials.
 
+Once this evidence exists, ArtemisKit should turn it into a professional, deterministic assessment
+report that an AI lab or customer can use to understand scope, findings, limitations, and next
+actions. This is an engagement deliverable, not a raw test-log export and not a certification.
+
 ### Release checklist
 
 | Work item | Status |
@@ -386,6 +415,7 @@ customer-system integration requires explicit authorization and bounded credenti
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 |
 | No default execution path discovers tools or performs live side effects | 📋 |
+| Deterministic report presents scope, methodology, findings, limitations, and recommendations from saved evidence | 📋 |
 
 ## 0.7 — Comparative benchmark execution
 
@@ -440,35 +470,32 @@ certify compliance or replace legal, privacy, security, or domain review.
 | Representative and authorized regional/language data requirements documented | 📋 |
 | Proprietary customer content remains separate from public pack schemas and examples | 📋 |
 
-## 0.9 — Assessment reports, leaderboard, and continuous gates
+## 0.9 — Continuous gates and scenario-first leaderboard
 
 **Status:** Planned
-**Goal:** turn saved evidence into reports, CI decisions, and public scenario-specific discovery.
+**Goal:** use the same evidence contract for safe release decisions and public scenario-specific discovery.
 
 ### Scope
 
-Extend reports and baselines with methodology, coverage, validity, exclusions, model and workload
-identity, per-dimension outcomes, control status, and limitations. Publish a public leaderboard
-format that exposes compatible results by scenario and profile rather than assigning a universal
-model rank.
+Extend baselines with profile-aware regression and critical-failure decisions. Publish a public
+leaderboard format that exposes compatible results by scenario and profile rather than assigning a
+universal model rank.
 
-After deterministic reports are established, add an optional AI-assisted narrative layer that works
-only from sanitized saved evidence. It must label generated interpretation, cite manifest evidence,
-record its own model/configuration, and never alter measurement status, assurance decisions, or
-comparison eligibility.
+An optional AI-assisted narrative layer follows only after deterministic reports are established. It
+works only from sanitized saved evidence, labels generated interpretation and its model/configuration,
+and never alters measurement status, assurance decisions, comparison eligibility, or findings.
 
 ### Release checklist
 
 | Work item | Status |
 | --- | --- |
-| Reports regenerate from saved evidence without model calls | 📋 |
-| CLI, SDK, JSON, HTML, Markdown, and JUnit agree on decisions and measurement status | 📋 |
 | Baseline/regression checks qualify changed workloads and profiles | 📋 |
 | Missing cost, coverage, or control evidence is visible | 📋 |
 | Leaderboard entry identifies model/configuration, pack/profile, method, sample size, and limitations | 📋 |
 | Leaderboard exposes valid-outcome denominator and invalid/unavailable measurements | 📋 |
 | Filters support scenario, workflow, language, capability, policy outcome, and model where data exists | 📋 |
 | CI release gates can enforce approved profile thresholds | 📋 |
+| Optional AI narrative is labelled, evidence-grounded, and cannot alter measurements or decisions | 📋 |
 
 ## 1.0 — Stable assurance contracts
 

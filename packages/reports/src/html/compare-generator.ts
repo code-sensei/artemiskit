@@ -3,7 +3,12 @@
  * Generates a visual comparison between two runs
  */
 
-import type { CaseResult, RunManifest } from '@artemiskit/core';
+import {
+  type CaseResult,
+  type ComparisonEligibility,
+  type RunManifest,
+  assessComparisonEligibility,
+} from '@artemiskit/core';
 import Handlebars from 'handlebars';
 
 /**
@@ -31,7 +36,10 @@ export interface CaseComparison {
 export interface ComparisonData {
   baseline: RunManifest;
   current: RunManifest;
-  metrics: {
+  /** Compatibility decision made before metrics are calculated. */
+  eligibility: ComparisonEligibility;
+  /** Omitted when the runs have incompatible workloads or rubrics. */
+  metrics?: {
     successRateDelta: number;
     medianLatencyDelta: number;
     totalTokensDelta: number;
@@ -257,6 +265,16 @@ const COMPARE_HTML_TEMPLATE = `
   <div class="container">
     <h1>Run Comparison</h1>
     <p class="meta">{{data.baseline.config.scenario}} | Comparing two evaluation runs</p>
+
+    <div class="card">
+      <h3>Comparison eligibility</h3>
+      <div class="value">{{uppercase data.eligibility.status}}</div>
+      {{#if data.eligibility.reasons.length}}
+        <div class="run-meta">{{#each data.eligibility.reasons}}{{code}}{{#unless @last}}, {{/unless}}{{/each}}</div>
+      {{else}}
+        <div class="run-meta">Declared workload, rubric, and execution configuration match.</div>
+      {{/if}}
+    </div>
 
     <!-- Run Info -->
     <div class="run-info">
@@ -552,6 +570,23 @@ const COMPARE_HTML_TEMPLATE = `
  * Build comparison data from two manifests
  */
 export function buildComparisonData(baseline: RunManifest, current: RunManifest): ComparisonData {
+  const eligibility = assessComparisonEligibility(baseline, current);
+  if (eligibility.status === 'incomparable') {
+    return {
+      baseline,
+      current,
+      eligibility,
+      caseComparisons: [],
+      summary: {
+        totalRegressions: 0,
+        totalImprovements: 0,
+        totalUnchanged: 0,
+        casesRemoved: 0,
+        casesAdded: 0,
+      },
+    };
+  }
+
   // Build case lookup maps
   const baselineCases = new Map<string, CaseResult>();
   const currentCases = new Map<string, CaseResult>();
@@ -639,6 +674,7 @@ export function buildComparisonData(baseline: RunManifest, current: RunManifest)
   return {
     baseline,
     current,
+    eligibility,
     metrics: {
       successRateDelta,
       medianLatencyDelta,
@@ -660,6 +696,10 @@ export function buildComparisonData(baseline: RunManifest, current: RunManifest)
  */
 export function generateCompareHTMLReport(baseline: RunManifest, current: RunManifest): string {
   const data = buildComparisonData(baseline, current);
+
+  if (data.eligibility.status === 'incomparable') {
+    return generateIncomparableComparisonHTML(data);
+  }
 
   // Register helpers
   Handlebars.registerHelper('formatPercent', (value: number | null) => {
@@ -780,4 +820,23 @@ export function generateCompareHTMLReport(baseline: RunManifest, current: RunMan
 
   const template = Handlebars.compile(COMPARE_HTML_TEMPLATE);
   return template({ data });
+}
+
+function generateIncomparableComparisonHTML(data: ComparisonData): string {
+  const reasons = data.eligibility.reasons.map((reason) => reason.code).join(', ');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Artemis Comparison Ineligible</title></head><body><main><h1>Run comparison unavailable</h1><p>ArtemisKit did not calculate metric or case deltas because the declared workload or rubric is incompatible.</p><p><strong>Status:</strong> ${data.eligibility.status}</p><p><strong>Reasons:</strong> ${escapeHtml(reasons)}</p><p><strong>Baseline:</strong> ${escapeHtml(data.baseline.run_id)}<br><strong>Current:</strong> ${escapeHtml(data.current.run_id)}</p></main></body></html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character] ?? character
+  );
 }

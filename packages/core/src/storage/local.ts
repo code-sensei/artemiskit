@@ -12,6 +12,7 @@ import {
   assertRunManifestIntegrity,
   isRunManifest,
 } from '../artifacts/types';
+import { assessComparisonEligibility, isComparisonAvailable } from '../comparison';
 import type {
   BaselineMetadata,
   BaselineStorageAdapter,
@@ -212,9 +213,15 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
       this.loadRun(currentId),
     ]);
 
+    const eligibility = assessComparisonEligibility(baseline, current);
+    if (!isComparisonAvailable(eligibility)) {
+      return { baseline, current, eligibility };
+    }
+
     return {
       baseline,
       current,
+      eligibility,
       delta: {
         successRate: current.metrics.success_rate - baseline.metrics.success_rate,
         latency: current.metrics.median_latency_ms - baseline.metrics.median_latency_ms,
@@ -375,7 +382,8 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
     const comparison = await this.compare(baseline.runId, runId);
 
     // Check for regression (negative delta in success rate)
-    const hasRegression = comparison.delta.successRate < -regressionThreshold;
+    const hasRegression =
+      comparison.delta !== undefined && comparison.delta.successRate < -regressionThreshold;
 
     return {
       baseline,

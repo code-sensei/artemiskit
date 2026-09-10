@@ -62,9 +62,33 @@ keep secret material outside declarative scenario files.
 ## Interpretation and compatibility
 
 Matching digests mean the declared, sanitized inputs match under this contract. They are not a
-digital signature, an attestation of target-provider behaviour, or proof that two executions are
-otherwise comparable. Until 0.5.4 adds compatibility decisions, users must also inspect model,
-generation settings, environment, repetitions, policy controls, and validity counts.
+digital signature or an attestation of target-provider behaviour.
+
+## 0.5.3 comparison eligibility contract
+
+Every standard-run comparison now emits a versioned eligibility decision before a metric or
+case-level delta is calculated:
+
+| Status | Meaning | Delta behavior |
+| --- | --- | --- |
+| `compatible` | Declared scenario, workload, rubric, and execution configuration match. | Available. |
+| `qualified` | A delta is available, but historical evidence is missing or declared target/execution configuration changed. | Available only with visible reason codes. |
+| `incomparable` | Scenario, workload, or rubric differs. | Withheld. No regression decision is made. |
+
+Reason codes are bounded and machine-readable. Current codes cover missing workload/rubric or
+execution provenance, scenario/workload/rubric mismatch, and target provider/model or generation
+setting changes. CLI output, SDK comparison results, storage comparisons, JSON output, and HTML
+comparison reports carry the same eligibility decision.
+
+The target model is intentionally treated as a qualification rather than a workload mismatch: a
+model-to-model assessment is useful, but it must not be confused with a same-configuration
+regression claim. Historical v1.0–v1.2 manifests remain readable and are `qualified`, never
+silently upgraded to `compatible`.
+
+This contract only decides compatibility from currently declared evidence. Assessment profiles,
+organizational policies, reviewed packs, language/region applicability, repetitions, retries, and
+cost provenance gain their own explicit contracts in later releases. Absence of those future fields
+does not mean they were reviewed or equivalent.
 
 Historical v1.0, v1.1, and v1.2 manifests remain readable. They do not gain inferred workload
 identity or execution provenance; a missing field means the historical record cannot make that

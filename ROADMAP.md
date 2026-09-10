@@ -1,6 +1,6 @@
 # ArtemisKit public roadmap
 
-**Last updated:** 9 September 2026
+**Last updated:** 10 September 2026
 **Status:** Active development
 **License:** Apache-2.0
 
@@ -80,7 +80,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.5.0 | Workload identity | Versioned/content-derived identities for scenarios, rubrics, profiles, packs, and fixtures. |
 | 0.5.1 | Execution provenance | Requested/observed model identity, generation settings, adapter/runner version, and target-versus-grader evidence. |
 | 0.5.2 | Attempt and cost evidence | Retry/repetition identity plus explicit known, user-supplied, or unavailable cost provenance. |
-| 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, policies, profiles, and re-execution limits. |
+| 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, and execution configuration; profiles and policy controls follow their dedicated contracts. |
 | 0.6.0 | Agent-harness contract | Provider-neutral agent target interface and declarative scenario controls. |
 | 0.6.1 | Controlled environments | Disposable multi-turn environments, declared tools/permissions, budgets, and fail-closed authority. |
 | 0.6.2 | Observable outcome scoring | Independent checks for artifacts, state changes, traces, and acceptance conditions. |

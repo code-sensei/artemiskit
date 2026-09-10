@@ -9,6 +9,7 @@ import {
   assertRunManifestIntegrity,
   getCaseEvaluationStatus,
 } from '../artifacts/types';
+import { assessComparisonEligibility, isComparisonAvailable } from '../comparison';
 import type {
   AnalyticsStorageAdapter,
   BaselineMetadata,
@@ -199,9 +200,15 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
   async compare(baselineId: string, currentId: string): Promise<ComparisonResult> {
     const [baseline, current] = await Promise.all([this.load(baselineId), this.load(currentId)]);
 
+    const eligibility = assessComparisonEligibility(baseline, current);
+    if (!isComparisonAvailable(eligibility)) {
+      return { baseline, current, eligibility };
+    }
+
     return {
       baseline,
       current,
+      eligibility,
       delta: {
         successRate: current.metrics.success_rate - baseline.metrics.success_rate,
         latency: current.metrics.median_latency_ms - baseline.metrics.median_latency_ms,
@@ -400,7 +407,8 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
     const comparison = await this.compare(baseline.runId, runId);
 
     // Check for regression (success rate dropped by more than threshold)
-    const hasRegression = comparison.delta.successRate < -regressionThreshold;
+    const hasRegression =
+      comparison.delta !== undefined && comparison.delta.successRate < -regressionThreshold;
 
     return {
       baseline,

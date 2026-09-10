@@ -966,7 +966,7 @@ export function runCommand(): Command {
                     delta: comparison.comparison.delta,
                   };
 
-                  if (!isCIMode && comparison.hasRegression) {
+                  if (!isCIMode && comparison.hasRegression && comparison.comparison.delta) {
                     console.log();
                     console.log(
                       `${icons.failed} ${chalk.red('Regression detected!')} for ${chalk.bold(result.scenarioName)}`

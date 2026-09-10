@@ -9,6 +9,7 @@ import type {
   RunManifest,
   StressManifest,
 } from '../artifacts/types';
+import type { ComparisonEligibility } from '../comparison';
 
 /**
  * Run listing item
@@ -30,7 +31,10 @@ export interface RunListItem {
 export interface ComparisonResult {
   baseline: RunManifest;
   current: RunManifest;
-  delta: {
+  /** Compatibility decision made before any metric delta is calculated. */
+  eligibility: ComparisonEligibility;
+  /** Absent when workloads or rubrics are incomparable. */
+  delta?: {
     successRate: number;
     latency: number;
     tokens: number;

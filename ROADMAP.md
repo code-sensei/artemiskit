@@ -78,7 +78,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 | Target | Capability increment | Primary deliverable |
 | --- | --- | --- |
-| 0.5.0 | Workload identity | Versioned/content-derived identities for scenarios, rubrics, profiles, packs, and fixtures. |
+| 0.5.0 | Workload identity | Versioned/content-derived identities for scenarios, rubrics, and fixtures. |
 | 0.5.1 | Execution provenance | Requested/observed model identity, generation settings, adapter/runner version, and target-versus-grader evidence. |
 | 0.5.2 | Attempt and cost evidence | Retry/repetition identity plus explicit known, user-supplied, or unavailable cost provenance. |
 | 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, and execution configuration; profiles and policy controls follow their dedicated contracts. |
@@ -105,8 +105,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 #### 0.5.0 — Workload and rubric identity
 
-- Define a versioned identity envelope for scenarios, evaluator/rubric settings, fixtures,
-  profiles, policy controls, and reviewed packs.
+- Define a versioned identity envelope for scenarios, evaluator/rubric settings, and fixtures.
 - Derive stable content digests from canonical inputs while excluding credentials, personal data,
   raw prompts/responses, timestamps, and other volatile fields.
 - Persist identities in standard run artifacts and expose them through the CLI and SDK.
@@ -131,8 +130,8 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 #### 0.5.3 — Re-execution and comparison eligibility
 
-- Define compatibility decisions for changed workloads, rubrics, profiles, policies, language,
-  target configuration, and execution mode.
+- Define compatibility decisions for changed workloads, rubrics, target configuration, and
+  execution mode. Profiles and policy controls follow their dedicated contracts.
 - Refuse or visibly qualify invalid baseline/comparison requests rather than calculating a bare delta.
 - Document reproducibility limits: a digest proves matching declared inputs, not provider behavior,
   and does not constitute a signature or certification.
@@ -236,6 +235,8 @@ increments can be re-ordered when evidence from real assessment work identifies 
 - Define profiles that express required capabilities, thresholds, latency/cost limits, critical
   failures, language/region needs, and mandatory human-review points.
 - Let a profile declare which scenario packs, policy controls, and evidence dimensions apply.
+- Assign versioned profile and reviewed-pack identities using the established workload-identity
+  envelope, without retroactively claiming that pre-profile runs had profile evidence.
 - Ensure critical failures and unmet mandatory controls cannot be obscured by an average score.
 - Exit only when a customer workflow can be translated into an executable, reviewable assessment definition.
 
@@ -363,7 +364,7 @@ execution configuration produced the result.
 
 ### Scope
 
-Add versioned identities or content digests for scenarios, rubrics, profiles, and reviewed packs.
+Add versioned identities or content digests for scenarios, rubrics, and fixtures.
 Record requested and observed model identity where available, generation settings, target versus
 grader usage, repetition identity, execution constraints, and explicit price-data provenance.
 See [reproducible evidence](docs/reproducible-evidence.md) for the current public contract.
@@ -373,14 +374,13 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 | Work item | Status |
 | --- | --- |
 | Versioned workload and rubric identities | ✅ 0.5.0 |
-| Versioned profile identities | 📋 |
 | Requested and observed provider/model configuration evidence | ✅ 0.5.1 |
 | Attempt, retry, and independent-repetition identities | ✅ 0.5.2 |
 | Target and grader usage separated in artifacts | ✅ 0.5.1 |
 | Cost evidence identifies known, user-supplied, or unavailable pricing | ✅ 0.5.2 |
 | Secrets excluded from artifact and digest inputs | ✅ 0.5.0–0.5.2 |
 | Compatibility checks reject or qualify changed workloads and rubrics | ✅ 0.5.3 |
-| Re-execution limits documented; digests are not presented as signatures | 📋 |
+| Re-execution limits documented; digests are not presented as signatures | ✅ 0.5.3 |
 
 ## 0.6 — Native agent harness and professional assessment reports
 
@@ -467,6 +467,7 @@ certify compliance or replace legal, privacy, security, or domain review.
 | Work item | Status |
 | --- | --- |
 | Profile contract for requirements, thresholds, critical failures, and human-review needs | 📋 |
+| Versioned profile and reviewed-pack identities use the workload-identity envelope | 📋 |
 | Policy controls for approved sources, data handling, escalation, approval, tool authority, and recovery | 📋 |
 | Reviewed pack metadata: owner, version, source, rights, language coverage, rubric, intended use | 📋 |
 | Framework-mapping metadata with explicit technical-evidence and human-review boundaries | 📋 |

@@ -32,39 +32,39 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./matchers": {
-      "import": "./dist/matchers/index.js",
-      "types": "./dist/matchers/index.d.ts"
+      "types": "./dist/matchers/index.d.ts",
+      "import": "./dist/matchers/index.js"
     },
     "./vitest": {
-      "import": "./dist/matchers/vitest.js",
-      "types": "./dist/matchers/vitest.d.ts"
+      "types": "./dist/matchers/vitest.d.ts",
+      "import": "./dist/matchers/vitest.js"
     },
     "./jest": {
-      "import": "./dist/matchers/jest.js",
-      "types": "./dist/matchers/jest.d.ts"
+      "types": "./dist/matchers/jest.d.ts",
+      "import": "./dist/matchers/jest.js"
     },
     "./builders": {
-      "import": "./dist/builders/index.js",
-      "types": "./dist/builders/index.d.ts"
+      "types": "./dist/builders/index.d.ts",
+      "import": "./dist/builders/index.js"
     },
     "./contracts": {
-      "import": "./dist/contracts/index.js",
-      "types": "./dist/contracts/index.d.ts"
+      "types": "./dist/contracts/index.d.ts",
+      "import": "./dist/contracts/index.js"
     },
     "./utils": {
-      "import": "./dist/utils/index.js",
-      "types": "./dist/utils/index.d.ts"
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js"
     },
     "./types": {
       "types": "./dist/types-only.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc --emitDeclarationOnly && bun build ./src/index.ts ./src/matchers/index.ts ./src/matchers/vitest.ts ./src/matchers/jest.ts ./src/builders/index.ts ./src/contracts/index.ts ./src/utils/index.ts ./src/types-only.ts --outdir ./dist --target bun",
+    "build": "tsc --emitDeclarationOnly && bun build ./src/index.ts ./src/matchers/index.ts ./src/matchers/vitest.ts ./src/matchers/jest.ts ./src/builders/index.ts ./src/contracts/index.ts ./src/utils/index.ts ./src/types-only.ts --outdir ./dist --target node --external '@artemiskit/*' && node ../../scripts/finalize-declarations.mjs ./dist",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "bun test",

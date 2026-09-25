@@ -28,12 +28,12 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "tsc && bun build ./src/index.ts --outdir ./dist --target node --external '@artemiskit/*' && node ../../scripts/finalize-declarations.mjs ./dist",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "bun test"

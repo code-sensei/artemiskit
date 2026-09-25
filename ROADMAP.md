@@ -60,6 +60,12 @@ Release numbers below organize the assurance work into independently reviewable 
 They are targets, not committed dates. A release moves only when its contract, documentation, and
 verification checklist are complete.
 
+For 0.6.x, publish and verify each completed milestone in order: **0.6.0 → 0.6.1 → 0.6.2 →
+0.6.3 → 0.6.4**. npm packages retain independent versions; a release manifest maps those exact
+versions to the milestone's `v0.6.x` Git tag. Do not skip a milestone, relabel unimplemented work,
+or mark a release complete before npm installation and remote tag verification pass. See the
+[0.6.x release and acceptance plan](docs/releases/0.6.x-release-plan.md).
+
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released. |
@@ -83,7 +89,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.5.2 | Attempt and cost evidence | Retry/repetition identity plus explicit known, user-supplied, or unavailable cost provenance. |
 | 0.5.3 | Reproducibility eligibility | Compatibility checks for changed workloads, rubrics, and execution configuration; profiles and policy controls follow their dedicated contracts. |
 | 0.6.0 | Agent-workflow and tool contract | Provider-neutral target interface, readable workflow scenarios, general built-in tools, and guided CLI authoring. |
-| 0.6.1 | Controlled environments | Simulated and sandbox environments share one policy vocabulary, budgets, and fail-closed authority. |
+| 0.6.1 | Controlled workflow execution | Native multi-turn CLI/SDK execution, preflight, simulated/sandbox environments, budgets, and fail-closed authority. |
 | 0.6.2 | Observable outcome scoring | Deterministic checks first; strict LLM judging only for declared semantic dimensions. |
 | 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
 | 0.6.4 | Professional assessment reports | Deterministic, decision-grade reports from sanitized saved evidence. |
@@ -157,35 +163,81 @@ Full workflow execution, cumulative budgets, scoring, and reports remain in the 
   reviewable YAML and validate it without hidden CLI-only state.
 - Preserve the distinction between simple scenario evaluation and agent-workflow evaluation while
   allowing both to share core evidence contracts.
-- Exit only when a provider-specific benchmark can be expressed without making that provider the harness contract.
+- Verify packed CLI/SDK/core and affected adapter packages in clean consumer projects, including
+  declared Node and Bun entry points, TypeScript declarations, CLI authoring/validation, and SDK
+  imports. Resolve runtime incompatibilities before claiming support; workspace builds alone do
+  not prove the published packages work.
+- Exit only when the neutral contract works with at least two adapters, the shipped tool and
+  authoring behavior is tested, and fresh npm consumers can use the published contract. Record
+  package versions, validation, limitations, npm availability, and matching remote tags.
 
-#### 0.6.1 — Controlled execution environments
+#### 0.6.1 — Controlled workflow execution and environments
 
-- Define one policy vocabulary—tools, permissions, network, side effects, budgets, faults, and
-  evidence—for `simulated`, `sandbox`, and future explicitly authorized `external` environments.
-- Provide fresh simulated environments as the default execution mode and disposable sandbox
-  environments for real artifact or state work.
-- Fail closed for undeclared tools, paths, commands, network access, or authority escalation.
-- Exit only when a multi-turn workflow can run repeatedly without discovering tools or touching a live system by default.
+- Build the native multi-turn runner and reusable SDK session/event interface first. Production
+  CLI workflow execution must use the same engine and controls, while preserving legacy scenarios.
+  A full harness session is distinct from the 0.6.0 single-turn `AgentTarget` contract.
+- Provide fresh simulated environments by default and disposable sandbox environments for real
+  artifact/state work. Use one declared policy vocabulary and explicit capability negotiation;
+  unsupported restrictions must fail closed, never silently fall back to host execution.
+- Enforce declared tools, resource permissions, path/command/network limits, side effects, and
+  authority at the host boundary. Validate original arguments before mutation; do not execute
+  tool-shaped prose or silently coerce/repair invalid calls. Keep approval requested, pending,
+  denied, and granted distinct; a simulated request cannot authorize an external action.
+- Enforce cumulative action, tool-call, model-request, token and elapsed-time limits across the
+  run, including delegated work or retries when supported. Attribute attempts and usage explicitly;
+  unavailable usage is not zero cost. Declare any in-flight token overshoot and stop safely when
+  a required budget cannot be verified. Do not advertise a hard spend cap from token estimates.
+- Add an explicit bounded tool round-trip preflight with provider/model identity and failure reason.
+  Keep offline scenario validation free of provider calls. Account for preflight usage separately
+  within the operator's total budget; paid calls require an explicitly bounded authorized run.
+- Capture requested call IDs, validation/authority decisions, execution start and terminal events
+  in bounded, sanitized evidence. Cancellation must stop new work, track/drain host-owned callbacks,
+  and preserve an interrupted result. Propagate transport abort where supported and disclose any
+  request/effect that cannot be cancelled; timeout alone is not transport cancellation.
+- Expose typed execution, policy, budget, capability and measurement-availability fields in the SDK
+  and equivalent CLI summaries/exit semantics. A normally terminated conversation is not a verified
+  task pass. Independent outcome scoring is 0.6.2; show it as unavailable until implemented.
+- Exit only when CLI and SDK fixtures prove multi-turn completion, fresh-state isolation, denied
+  authority, malformed calls, budget exhaustion, missing usage, tool-protocol failure, cancellation
+  cleanup, and sandbox lifecycle/isolation boundaries. Include true disposable-sandbox checks;
+  an untested sandbox or fixture-only substitute does not complete this milestone.
 
 #### 0.6.2 — Independent outcome verification
 
 - Add independent assertions for produced artifacts, validated schemas, simulated state transitions,
-  tool traces, policy decisions, and required final state.
+  tool traces, policy decisions, and required final state across supported environments.
 - Prefer deterministic assertions whenever the outcome is objectively checkable. Permit strict,
-  bounded LLM judging only for declared semantic dimensions such as clarity or appropriateness.
-- Ensure an agent's self-report or an LLM judge is never accepted as the sole evidence that work was completed.
-- Classify task failure, policy violation, target/execution error, unsupported capability, and invalid
-  evaluation separately.
-- Exit only when success is demonstrated by observable outcomes rather than generated prose.
+  bounded LLM judging only for declared semantic dimensions such as clarity or appropriateness;
+  retain target and judge identities/usage separately and mark unavailable attribution explicitly.
+- Ensure self-report, normal harness termination, and semantic scores cannot override failed
+  deterministic requirements or a policy violation. Approval handoff success means the declared
+  pending/requested state, not approval granted.
+- Keep task outcome, runtime termination, policy outcome, target/environment errors, unsupported
+  capability and invalid/unavailable evaluation distinct through manifests, CLI and typed SDK results.
+  Document exit codes, validity denominators, and compatibility with historical artifacts.
+- Exit only when missing artifacts, false success text, malformed judge output, partial execution,
+  policy violations and valid failures have independent fixture evidence and identical meanings in
+  CLI, SDK and saved results. Scoring must not require a new model call for deterministic assertions.
 
 #### 0.6.3 — Fault, recovery, and bounded agent evidence
 
 - Support declared fault injections: unavailable tools, stale/incomplete data, malformed results,
   timeouts, conflicting instructions, and bounded retries.
-- Retain bounded, redacted trace, policy, state, and recovery evidence suitable for review.
-- Add fixture cases for safe recovery and for failure when recovery would exceed declared authority.
-- Exit only when an assessment can show both how an agent performs normally and how it fails or recovers under controlled faults.
+- Add durable resume through CLI and SDK using a versioned checkpoint envelope: conversation or
+  harness checkpoint, environment state/artifacts, remaining budgets, attempt IDs, pending operations,
+  and scenario/tool/policy/harness/configuration identities. Restore only compatible authorized
+  state; resuming must not reset budgets, grant authority, or create an independent repetition.
+- Define atomic checkpoint boundaries, concurrent-restore handling and idempotency for supported
+  effects. Do not replay an ambiguous mid-action write automatically or promise exactly-once effects
+  without proof. Fresh execution stays the default; external-system recovery remains out of scope.
+- Treat operational checkpoints as potentially sensitive working data, separate from public report
+  evidence. Bound and redact retained trace, policy, state-change and recovery summaries; define
+  checkpoint storage/access/retention behavior and reject corrupt or incompatible checkpoints.
+- Add fixtures for safe recovery and refusal when recovery exceeds authority or budgets. Test restart
+  in a separate process, interrupted tool execution, stale/corrupt checkpoints, duplicate restore,
+  missing usage, retry exhaustion and evidence redaction/truncation.
+- Exit only when an assessment explains normal performance and controlled failure/recovery, and CLI
+  and SDK resume preserve identity, authority and consumed budgets with documented crash limits.
 
 #### 0.6.4 — Professional assessment-report foundation
 
@@ -197,8 +249,30 @@ Full workflow execution, cumulative budgets, scoring, and reports remain in the 
   failure modes, limitations, recommendations, and a technical appendix.
 - Provide professional HTML and Markdown layouts plus a technical appendix that links findings to
   manifest evidence, rather than presenting raw test logs as the assessment deliverable.
-- Exit only when an independent reviewer can understand what was tested, what was found,
-  what remains uncertain, and what should be retested or mitigated.
+- Use the same canonical report model for CLI exports and SDK generation. Show runtime versus task
+  outcome, policy breaches, missing/invalid measurements, target versus judge usage, unavailable cost,
+  harness/configuration identity, repair policy, recovery limits and evidence omissions explicitly.
+- Verify deterministic regeneration from saved evidence without provider credentials/network/model
+  calls, stable finding-to-evidence references, historical/unsupported manifest handling, and redaction.
+  Inspect technical, executive and comprehensive HTML at desktop/mobile widths and exported Markdown.
+- Exit only when an independent reviewer can understand scope, findings, uncertainty and next actions
+  without reading raw logs. AI-generated narrative, SaaS/Loki integration, public leaderboards and
+  certification claims are outside this milestone.
+
+#### Optional harness integrations — after the shared execution interface
+
+The [matched experiment](docs/agent-harness-experiment.md) informs implementation, not a general
+model-quality ranking. Keep the native runner the default. Add AI SDK first, then Pi with the tested
+strict-argument hook; keep fx experimental until provider transport and callback cleanup are qualified.
+No fork is required by current evidence. Deep Agents/LangGraph and OpenHands follow demonstrated
+customer workload needs and were not runtime-qualified by this experiment.
+
+Release integrations separately when ready without blocking 0.6.1's native acceptance gate. Every
+integration must pass the common policy/budget/event/cancellation conformance suite, qualify its
+stock provider path, and declare unsupported behavior. Record harness version and configuration,
+instructions and repair policy for comparison eligibility. Harness selection is separate from
+provider selection; optional dependencies load only when selected. An experimental comparison bridge
+or existing provider adapter is not a production harness integration.
 
 ### 0.7.x — Comparative execution
 
@@ -417,16 +491,23 @@ or a certification.
 | Versioned `agent_workflow` scenarios and a small general-purpose tool catalog | ✅ 0.6.0 source |
 | Guided CLI generator and non-interactive validation produce readable, reviewable YAML | ✅ 0.6.0 source |
 | Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | ✅ 0.6.0 source; cumulative enforcement follows |
-| Simulated and sandbox environments use the same policy vocabulary and authority model | 📋 |
+| Clean packed/npm consumer checks, declared Node/Bun imports and TypeScript declarations | 📋 0.6.0 publication gate |
+| Native multi-turn execution and shared CLI/SDK session/event contract | 📋 0.6.1 |
+| Simulated and sandbox environments use the same policy vocabulary and authority model | 📋 0.6.1 |
 | Undeclared tool authority fails closed | ✅ Simulated primitives; full environment enforcement follows |
-| Fresh disposable environments support multi-turn workflows | 📋 |
-| Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 |
-| Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 |
-| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 📋 |
-| Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 |
-| Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 |
-| No default execution path discovers tools or performs live side effects | 📋 |
-| Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 |
+| Fresh disposable environments support multi-turn workflows | 📋 0.6.1 |
+| Original-argument validation, cumulative budgets, bounded preflight and truthful usage | 📋 0.6.1 |
+| Cancellation tracks pending host work and preserves interrupted execution evidence | 📋 0.6.1 |
+| Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 0.6.3 |
+| Durable CLI/SDK resume preserves state, identity, authority and consumed budgets | 📋 0.6.3 |
+| Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 0.6.2 |
+| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 📋 0.6.2 |
+| Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 Execution fields 0.6.1; independent outcomes 0.6.2 |
+| Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 Basic execution 0.6.1; recovery/checkpoints 0.6.3 |
+| No default execution path discovers tools or performs live side effects | 📋 0.6.1 |
+| Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 0.6.4 |
+| Optional AI SDK then Pi integrations pass shared controls; fx stays experimental pending qualification | 📋 After shared 0.6.1 interface; separately releasable |
+| Exact npm package map and remote package/milestone tags verified sequentially | 📋 Every 0.6.x publication |
 
 ## 0.7 — Comparative benchmark execution
 

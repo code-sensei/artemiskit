@@ -89,6 +89,15 @@ for (const { manifest } of packages) {
       `Untranslated workspace dependency: ${manifest.name}`
     );
   }
+  for (const [name, specifier] of Object.entries(manifest.dependencies ?? {})) {
+    if (specifier !== 'workspace:*') continue;
+    const expected = packages.find((pkg) => pkg.manifest.name === name)?.manifest.version;
+    assert.equal(
+      installed.dependencies[name],
+      expected,
+      `Stale packed workspace dependency: ${manifest.name} -> ${name}; synchronize bun.lock versions`
+    );
+  }
 }
 for (const file of ['runtime.mjs', 'types.mts']) {
   copyFileSync(join(fixtures, file), join(directory, file));

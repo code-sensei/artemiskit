@@ -29,7 +29,7 @@
     "test:migration:integrity": "./scripts/test-evaluation-integrity-migration.sh",
     "db:generate-types": "bunx supabase gen types typescript --local > packages/core/src/storage/database.types.ts",
     "changeset": "changeset",
-    "version": "changeset version",
+    "version": "changeset version && node scripts/sync-workspace-versions.mjs",
     "release": "./scripts/publish.sh"
   },
   "devDependencies": {

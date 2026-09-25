@@ -61,6 +61,12 @@ describe('agent workflow v1 contract', () => {
   test('parses reviewable multi-turn YAML and keeps fixture references unresolved', () => {
     expect(parseAgentWorkflow(stringify(fixture()))).toEqual(fixture());
   });
+  test('preserves readable Unicode and punctuation in names without accepting blank names', () => {
+    for (const name of ['review: [draft]', 'Àyẹ̀wò ìwé', 'مراجعة المستند']) {
+      expect(parseAgentWorkflow(stringify({ ...fixture(), name })).name).toBe(name);
+    }
+    expect(AgentWorkflowSchema.safeParse({ ...fixture(), name: '   ' }).success).toBe(false);
+  });
   test('accepts inline controlled JSON state', () => {
     const value = {
       ...fixture(),

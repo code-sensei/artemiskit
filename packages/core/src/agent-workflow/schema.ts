@@ -153,7 +153,7 @@ const definition = z
       .string()
       .min(1)
       .max(128)
-      .regex(/^[A-Za-z0-9][A-Za-z0-9 _.-]*$/),
+      .refine((value) => value.trim().length > 0, 'Expected nonblank workflow name'),
     description: z.string().max(4096).optional(),
     target: z
       .object({

@@ -181,6 +181,41 @@ describe('SupabaseStorageAdapter', () => {
       const result = await adapter.save(manifest);
 
       expect(result).toBe('test-project/test-run-123.json');
+      expect(mockUpsert.mock.calls[0][0]).toMatchObject({
+        total_attempts: 10,
+        valid_evaluations: 10,
+        invalid_evaluations: 0,
+        outcome_rate_denominator: 10,
+      });
+    });
+
+    it('should save manifest integrity counts without using invalid measurements as outcomes', async () => {
+      const manifest = createMockManifest({
+        cases: [],
+        metrics: {
+          ...createMockManifest().metrics,
+          total_attempts: 7,
+          valid_evaluations: 4,
+          invalid_evaluations: 2,
+          outcome_rate_denominator: 4,
+          passed_cases: 3,
+          failed_cases: 1,
+          success_rate: 0.75,
+        },
+      });
+      mockStorage.mockReturnValue({ upload: mock(() => Promise.resolve({ error: null })) });
+      const mockUpsert = mock(() => Promise.resolve({ error: null }));
+      mockFrom.mockReturnValue({ upsert: mockUpsert });
+
+      await adapter.save(manifest);
+
+      expect(mockUpsert.mock.calls[0][0]).toMatchObject({
+        total_attempts: 7,
+        valid_evaluations: 4,
+        invalid_evaluations: 2,
+        outcome_rate_denominator: 4,
+        success_rate: 0.75,
+      });
     });
 
     it('should throw error on storage upload failure', async () => {
@@ -205,6 +240,22 @@ describe('SupabaseStorageAdapter', () => {
       });
 
       await expect(adapter.save(manifest)).rejects.toThrow('Failed to save run metadata');
+    });
+
+    it('rejects malformed evaluator evidence before uploading a manifest', async () => {
+      const manifest = createMockManifest({
+        cases: [
+          {
+            ...createMockCaseResult('case-invalid-evidence', false),
+            evidence: { evaluator: 'custom', validation: { status: 'unknown' } },
+          } as never,
+        ],
+      });
+      const upload = mock(() => Promise.resolve({ error: null }));
+      mockStorage.mockReturnValue({ upload });
+
+      await expect(adapter.save(manifest)).rejects.toThrow('invalid evidence validation');
+      expect(upload).not.toHaveBeenCalled();
     });
   });
 
@@ -252,6 +303,36 @@ describe('SupabaseStorageAdapter', () => {
       });
 
       await expect(adapter.load('non-existent')).rejects.toThrow('Run not found');
+    });
+
+    it('rejects a downloaded manifest with malformed evaluator evidence', async () => {
+      const manifest = createMockManifest({
+        cases: [
+          {
+            ...createMockCaseResult('case-invalid-evidence', false),
+            evidence: { evaluator: 'custom', score: Number.NaN },
+          } as never,
+        ],
+      });
+      mockFrom.mockReturnValue({
+        select: mock(() => ({
+          eq: mock(() => ({
+            single: mock(() =>
+              Promise.resolve({
+                data: { manifest_path: 'test-project/test-run-123.json' },
+                error: null,
+              })
+            ),
+          })),
+        })),
+      });
+      mockStorage.mockReturnValue({
+        download: mock(() =>
+          Promise.resolve({ data: new Blob([JSON.stringify(manifest)]), error: null })
+        ),
+      });
+
+      await expect(adapter.load('test-run-123')).rejects.toThrow('invalid evidence score');
     });
   });
 
@@ -575,6 +656,34 @@ describe('SupabaseStorageAdapter', () => {
       const result = await adapter.saveCaseResult(caseResult);
 
       expect(result).toBe('uuid-123');
+    });
+
+    it('should retain an invalid case status with bounded evidence and attempts', async () => {
+      const caseResult = createMockCaseResultRecord({
+        status: 'invalid',
+        attempts: 2,
+        evidence: {
+          evaluator: 'llm_grader',
+          validation: { status: 'invalid', code: 'grader_failure' },
+        },
+      });
+      const mockUpsert = mock(() => ({
+        select: mock(() => ({
+          single: mock(() => Promise.resolve({ data: { id: 'uuid-123' }, error: null })),
+        })),
+      }));
+      mockFrom.mockReturnValue({ upsert: mockUpsert });
+
+      await adapter.saveCaseResult(caseResult);
+
+      expect(mockUpsert.mock.calls[0][0]).toMatchObject({
+        status: 'invalid',
+        attempts: 2,
+        evidence: {
+          evaluator: 'llm_grader',
+          validation: { status: 'invalid', code: 'grader_failure' },
+        },
+      });
     });
 
     it('should throw error on save failure', async () => {
@@ -980,9 +1089,10 @@ describe('Type Safety', () => {
   });
 
   it('should have valid CaseResultStatus types', () => {
-    const statuses: CaseResultRecord['status'][] = ['passed', 'failed', 'error'];
+    const statuses: CaseResultRecord['status'][] = ['passed', 'failed', 'invalid', 'error'];
     expect(statuses).toContain('passed');
     expect(statuses).toContain('failed');
+    expect(statuses).toContain('invalid');
     expect(statuses).toContain('error');
   });
 });

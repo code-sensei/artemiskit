@@ -58,18 +58,18 @@ export class LLMGraderEvaluator implements Evaluator {
         maxTokens: 1000,
       });
 
-      const parsed = this.parseGraderResponse(result.text);
+      const parsed = this.parseGraderResponse(result.text, expected.strict);
       const passed = parsed.score >= expected.threshold;
 
       return {
         passed,
         score: parsed.score,
         reason: parsed.reason || `Score: ${parsed.score.toFixed(2)}`,
-        details: {
-          graderResponse: result.text,
-          rubric: expected.rubric,
+        status: passed ? 'passed' : 'failed',
+        evidence: {
           threshold: expected.threshold,
           model: result.model,
+          validation: { status: 'valid' },
         },
       };
     } catch (error) {
@@ -77,12 +77,50 @@ export class LLMGraderEvaluator implements Evaluator {
         passed: false,
         score: 0,
         reason: `Grader failed: ${(error as Error).message}`,
-        details: { error: (error as Error).message },
+        status: 'invalid',
+        evidence: {
+          threshold: expected.threshold,
+          validation: { status: 'invalid', code: 'grader_failure' },
+        },
       };
     }
   }
 
-  private parseGraderResponse(text: string): { score: number; reason?: string } {
+  private parseGraderResponse(text: string, strict: boolean): { score: number; reason?: string } {
+    if (strict) {
+      return this.parseStrictGraderResponse(text);
+    }
+
+    return this.parseLegacyGraderResponse(text);
+  }
+
+  private parseStrictGraderResponse(text: string): { score: number; reason: string } {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error('Grader response must be an exact JSON object');
+    }
+
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      Array.isArray(parsed) ||
+      typeof (parsed as { score?: unknown }).score !== 'number' ||
+      !Number.isFinite((parsed as { score: number }).score) ||
+      (parsed as { score: number }).score < 0 ||
+      (parsed as { score: number }).score > 1 ||
+      typeof (parsed as { reason?: unknown }).reason !== 'string'
+    ) {
+      throw new Error(
+        'Grader response must contain a finite numeric score from 0 to 1 and a string reason'
+      );
+    }
+
+    return parsed as { score: number; reason: string };
+  }
+
+  private parseLegacyGraderResponse(text: string): { score: number; reason?: string } {
     // Clean up the response - remove markdown code blocks if present
     const cleanedText = text
       .replace(/```json\s*/gi, '')

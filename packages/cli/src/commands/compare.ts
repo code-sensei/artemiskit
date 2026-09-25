@@ -170,7 +170,7 @@ export function compareCommand(): Command {
         console.log();
 
         const comparison = await storage.compare(baselineId, currentId);
-        const { baseline, current, delta } = comparison;
+        const { baseline, current, delta, eligibility } = comparison;
 
         // Generate HTML report if requested
         if (options.html) {
@@ -188,6 +188,26 @@ export function compareCommand(): Command {
           writeFileSync(jsonPath, JSON.stringify(comparisonData, null, 2), 'utf-8');
           console.log(`${icons.passed} JSON comparison report saved to: ${chalk.cyan(jsonPath)}`);
           console.log();
+        }
+
+        const eligibilityReasons = eligibility.reasons.map((reason) => reason.code).join(', ');
+        console.log(
+          chalk.bold('Comparison eligibility: ') +
+            (eligibility.status === 'compatible'
+              ? chalk.green(eligibility.status)
+              : eligibility.status === 'qualified'
+                ? chalk.yellow(eligibility.status)
+                : chalk.red(eligibility.status))
+        );
+        if (eligibilityReasons) console.log(chalk.dim(`Reasons: ${eligibilityReasons}`));
+
+        if (!delta) {
+          console.log();
+          console.log(
+            `${icons.failed} ${chalk.red('No deltas calculated.')} Workload or rubric evidence is incompatible.`
+          );
+          process.exitCode = 2;
+          return;
         }
 
         // Show comparison panel

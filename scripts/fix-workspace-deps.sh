@@ -30,6 +30,8 @@ PACKAGES=(
   "packages/adapters/vercel-ai"
   "packages/adapters/deepagents"
   "packages/adapters/langchain"
+  "packages/adapters/ling"
+  "packages/adapters/trueforge"
   "packages/redteam"
   "packages/reports"
   "packages/sdk"

@@ -2,10 +2,10 @@
 #
 # ArtemisKit Publishing Script
 #
-# Usage: ./scripts/publish.sh [--dry-run] [--skip-tests] [--skip-changeset]
+# Usage: ./scripts/publish.sh [--dry-run] [--skip-tests] [--publish-only] [--preflight]
 #
 # Prerequisites:
-#   - NPM_API_KEY in .env file
+#   - NPM_TOKEN or NPM_API_KEY in the environment or a local .env file
 #   - Clean git working directory (or use --force)
 #   - All packages buildable
 #
@@ -23,7 +23,81 @@ NC='\033[0m' # No Color
 DRY_RUN=false
 SKIP_TESTS=false
 SKIP_CHANGESET=false
+PUBLISH_ONLY=false
+PREFLIGHT_ONLY=false
 FORCE=false
+WORKSPACE_DEPS_FIXED=false
+TEMP_NPM_CONFIG=""
+
+restore_workspace_deps() {
+  if [ "$WORKSPACE_DEPS_FIXED" = true ]; then
+    echo ""
+    echo "Restoring workspace:* dependencies..."
+    ./scripts/fix-workspace-deps.sh --restore
+    WORKSPACE_DEPS_FIXED=false
+  fi
+}
+
+cleanup_release_resources() {
+  # Workspace dependency rewrites are temporary release preparation. Restore
+  # them even if authentication or package publication fails.
+  restore_workspace_deps
+
+  # Publish credentials must never be left in a persistent npm configuration.
+  if [ -n "$TEMP_NPM_CONFIG" ]; then
+    rm -f "$TEMP_NPM_CONFIG"
+    TEMP_NPM_CONFIG=""
+  fi
+}
+
+trap cleanup_release_resources EXIT
+
+setup_temporary_npm_config() {
+  TEMP_NPM_CONFIG="$(mktemp "${TMPDIR:-/tmp}/artemiskit-npmrc.XXXXXX")"
+  chmod 600 "$TEMP_NPM_CONFIG"
+  printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_AUTH_TOKEN" >"$TEMP_NPM_CONFIG"
+  export NPM_CONFIG_USERCONFIG="$TEMP_NPM_CONFIG"
+}
+
+package_names=(
+  '@artemiskit/core'
+  '@artemiskit/adapter-openai'
+  '@artemiskit/adapter-anthropic'
+  '@artemiskit/adapter-vercel-ai'
+  '@artemiskit/adapter-deepagents'
+  '@artemiskit/adapter-langchain'
+  '@artemiskit/adapter-ling'
+  '@artemiskit/adapter-trueforge'
+  '@artemiskit/redteam'
+  '@artemiskit/reports'
+  '@artemiskit/sdk'
+  '@artemiskit/cli'
+  '@artemiskit/mcp-docker-sandbox'
+)
+
+run_npm_access_preflight() {
+  echo "Verifying npm authentication..."
+  NPM_USER="$(npm whoami 2>/dev/null || true)"
+  if [ -z "$NPM_USER" ]; then
+    echo -e "${RED}Error: npm authentication failed${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}✓ Authenticated as: $NPM_USER${NC}"
+
+  echo "Checking npm ownership for publishable packages..."
+  local package_name package_owners
+  for package_name in "${package_names[@]}"; do
+    if ! package_owners="$(npm owner ls "$package_name" 2>/dev/null)"; then
+      echo -e "${RED}Error: unable to read npm ownership for $package_name${NC}"
+      exit 1
+    fi
+    if ! printf '%s\n' "$package_owners" | awk -v user="$NPM_USER" '$1 == user { found = 1 } END { exit !found }'; then
+      echo -e "${RED}Error: $NPM_USER is not an npm owner of $package_name${NC}"
+      exit 1
+    fi
+  done
+  echo -e "${GREEN}✓ Ownership confirmed for ${#package_names[@]} package(s)${NC}"
+}
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -40,6 +114,14 @@ while [[ $# -gt 0 ]]; do
       SKIP_CHANGESET=true
       shift
       ;;
+    --publish-only)
+      PUBLISH_ONLY=true
+      shift
+      ;;
+    --preflight)
+      PREFLIGHT_ONLY=true
+      shift
+      ;;
     --force)
       FORCE=true
       shift
@@ -51,6 +133,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --dry-run        Run without actually publishing"
       echo "  --skip-tests     Skip running tests"
       echo "  --skip-changeset Skip changeset creation (use existing)"
+      echo "  --publish-only   Publish already-versioned packages without creating a changeset"
+      echo "  --preflight      Verify npm credentials and package ownership without publishing"
       echo "  --force          Continue even with uncommitted changes"
       echo "  -h, --help       Show this help message"
       exit 0
@@ -70,28 +154,28 @@ echo ""
 # Step 1: Check prerequisites
 echo -e "${YELLOW}[1/8] Checking prerequisites...${NC}"
 
-# Check if .env exists and has NPM_API_KEY
-if [ ! -f .env ]; then
-  echo -e "${RED}Error: .env file not found${NC}"
+# Accept the GitHub Actions convention first, while retaining the local
+# NPM_API_KEY convention documented for maintainers.
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
+NPM_AUTH_TOKEN="${NPM_TOKEN:-${NPM_API_KEY:-}}"
+if [ -z "$NPM_AUTH_TOKEN" ]; then
+  echo -e "${RED}Error: set NPM_TOKEN or NPM_API_KEY before publishing${NC}"
   exit 1
 fi
 
-if ! grep -q "NPM_API_KEY" .env; then
-  echo -e "${RED}Error: NPM_API_KEY not found in .env${NC}"
-  exit 1
+echo -e "${GREEN}✓ npm publish token found${NC}"
+setup_temporary_npm_config
+run_npm_access_preflight
+
+if [ "$PREFLIGHT_ONLY" = true ]; then
+  echo -e "${GREEN}✓ Non-publishing preflight complete${NC}"
+  exit 0
 fi
-
-# Load environment variables
-set -a
-source .env
-set +a
-
-if [ -z "$NPM_API_KEY" ]; then
-  echo -e "${RED}Error: NPM_API_KEY is empty${NC}"
-  exit 1
-fi
-
-echo -e "${GREEN}✓ NPM_API_KEY found${NC}"
 
 # Check for clean git state
 if [ "$FORCE" = false ]; then
@@ -160,17 +244,28 @@ echo -e "${YELLOW}[7/8] Processing changesets...${NC}"
 # Check for pending changesets
 PENDING_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
 
-if [ "$SKIP_CHANGESET" = false ]; then
+if [ "$PUBLISH_ONLY" = true ]; then
+  if [ "$PENDING_CHANGESETS" -ne 0 ]; then
+    echo -e "${RED}Error: --publish-only requires no pending changesets${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}✓ Publish-only mode: using committed package versions${NC}"
+elif [ "$SKIP_CHANGESET" = false ]; then
   if [ "$PENDING_CHANGESETS" -eq 0 ]; then
-    echo "No pending changesets found. Creating one now..."
-    echo ""
-    bun run changeset
+    if [ "${CI:-}" = "true" ]; then
+      echo "No pending changesets found; CI will publish committed package versions."
+    else
+      echo "No pending changesets found. Creating one now..."
+      echo ""
+      bun run changeset
 
-    # Check if changeset was created
-    NEW_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
-    if [ "$NEW_CHANGESETS" -eq 0 ]; then
-      echo -e "${YELLOW}No changeset created. Exiting.${NC}"
-      exit 0
+      # Check if changeset was created
+      NEW_CHANGESETS=$(ls .changeset/*.md 2>/dev/null | grep -v README.md | wc -l | tr -d ' ')
+      if [ "$NEW_CHANGESETS" -eq 0 ]; then
+        echo -e "${YELLOW}No changeset created. Exiting.${NC}"
+        exit 0
+      fi
+      PENDING_CHANGESETS=$NEW_CHANGESETS
     fi
   else
     echo -e "${GREEN}✓ Found $PENDING_CHANGESETS pending changeset(s)${NC}"
@@ -183,23 +278,37 @@ else
   fi
 fi
 
-# Apply version bumps
-echo ""
-echo "Applying version bumps..."
-bun run version
+APPLY_VERSION_BUMPS=true
+if [ "$PUBLISH_ONLY" = true ]; then
+  APPLY_VERSION_BUMPS=false
+elif [ "$PENDING_CHANGESETS" -eq 0 ] && [ "${CI:-}" = "true" ]; then
+  # changesets/action calls the publish command after it has already committed
+  # version changes. Never start an interactive changeset prompt in that path.
+  APPLY_VERSION_BUMPS=false
+  echo -e "${GREEN}✓ CI publish mode: using committed package versions${NC}"
+fi
 
-# Show what changed
-echo ""
-echo -e "${BLUE}Version changes:${NC}"
-git diff --stat package.json packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true
-
-# Commit version changes if there are any
-if [ -n "$(git status --porcelain)" ]; then
+if [ "$APPLY_VERSION_BUMPS" = true ]; then
+  # Apply version bumps
   echo ""
-  echo "Committing version changes..."
-  git add -A
-  git commit -m "chore: version packages for release"
-  echo -e "${GREEN}✓ Version changes committed${NC}"
+  echo "Applying version bumps..."
+  bun run version
+
+  # Show what changed
+  echo ""
+  echo -e "${BLUE}Version changes:${NC}"
+  git diff --stat package.json packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true
+
+  # Commit only version/changelog files generated by Changesets. Release
+  # automation must never sweep unrelated local work into a commit.
+  if [ -n "$(git status --porcelain)" ]; then
+    echo ""
+    echo "Committing version changes..."
+    git add package.json packages/*/package.json packages/*/CHANGELOG.md \
+      packages/adapters/*/package.json packages/adapters/*/CHANGELOG.md
+    git commit -m "chore: version packages for release"
+    echo -e "${GREEN}✓ Version changes committed${NC}"
+  fi
 fi
 
 # Step 8: Fix workspace dependencies
@@ -208,6 +317,7 @@ echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
 
 # Replace workspace:* with actual version numbers for npm compatibility
 ./scripts/fix-workspace-deps.sh
+WORKSPACE_DEPS_FIXED=true
 
 # Validate no workspace:* remains (prevents publishing broken packages)
 echo ""
@@ -228,18 +338,6 @@ echo -e "${GREEN}✓ Workspace dependencies fixed and validated${NC}"
 echo ""
 echo -e "${YELLOW}[9/9] Publishing to npm...${NC}"
 
-# Configure npm with token
-npm config set //registry.npmjs.org/:_authToken=$NPM_API_KEY
-
-# Verify npm authentication
-echo "Verifying npm authentication..."
-NPM_USER=$(npm whoami 2>/dev/null || echo "")
-if [ -z "$NPM_USER" ]; then
-  echo -e "${RED}Error: npm authentication failed${NC}"
-  exit 1
-fi
-echo -e "${GREEN}✓ Authenticated as: $NPM_USER${NC}"
-
 if [ "$DRY_RUN" = true ]; then
   echo ""
   echo -e "${YELLOW}=== DRY RUN MODE ===${NC}"
@@ -258,10 +356,6 @@ if [ "$DRY_RUN" = true ]; then
   echo ""
   echo -e "${YELLOW}Run without --dry-run to actually publish${NC}"
 
-  # Restore workspace:* in dry-run mode too
-  echo ""
-  echo "Restoring workspace:* dependencies..."
-  ./scripts/fix-workspace-deps.sh --restore
 else
   # Actually publish
   echo ""
@@ -270,25 +364,20 @@ else
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"
 
-  # Restore workspace:* dependencies
+  # Changesets creates package tags. Only prompt for a push when stdin is a
+  # terminal; an unattended successful publication must still exit cleanly.
   echo ""
-  echo "Restoring workspace:* dependencies..."
-  ./scripts/fix-workspace-deps.sh --restore
-  echo -e "${GREEN}✓ Workspace dependencies restored${NC}"
-
-  # Create git tag
-  echo ""
-  echo "Creating git tags..."
-
-  # Push commits and tags
-  echo ""
-  read -p "Push commits and tags to origin? (y/N) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    git push origin main --follow-tags
-    echo -e "${GREEN}✓ Pushed to origin${NC}"
+  if [ -t 0 ]; then
+    read -p "Push commits and tags to origin? (y/N) " -n 1 -r || true
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      git push origin main --follow-tags
+      echo -e "${GREEN}✓ Pushed to origin${NC}"
+    else
+      echo -e "${YELLOW}Skipped push. Run 'git push origin main --follow-tags' manually.${NC}"
+    fi
   else
-    echo -e "${YELLOW}Skipped push. Run 'git push origin main --follow-tags' manually.${NC}"
+    echo -e "${YELLOW}Non-interactive session: skipping git push.${NC}"
   fi
 fi
 

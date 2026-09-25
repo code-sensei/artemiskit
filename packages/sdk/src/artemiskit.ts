@@ -15,10 +15,12 @@ import {
   type StressManifest,
   type StressMetrics,
   type StressRequestResult,
+  assessComparisonEligibility,
   runScenario as coreRunScenario,
   createAdapter,
   createStorageAdapter,
   getGitInfo,
+  isComparisonAvailable,
   parseScenarioFile,
   resolveScenarioPaths,
 } from '@artemiskit/core';
@@ -1025,6 +1027,34 @@ export class ArtemisKit {
     // Extract metrics from manifests
     const baselineMetrics = this.extractRunMetrics(baselineManifest, baselineRunId);
     const currentMetrics = this.extractRunMetrics(currentManifest, current);
+    const eligibility = assessComparisonEligibility(
+      baselineManifest as RunManifest,
+      currentManifest as RunManifest
+    );
+
+    if (!isComparisonAvailable(eligibility)) {
+      this.emit('progress', {
+        message: `Comparison unavailable: ${eligibility.reasons.map((reason) => reason.code).join(', ')}`,
+        phase: 'teardown',
+        progress: 100,
+      });
+
+      return {
+        baseline: baselineMetrics,
+        current: currentMetrics,
+        comparison: {
+          comparisonAvailable: false,
+          newFailures: [],
+          newPasses: [],
+          unchanged: [],
+          addedCases: [],
+          removedCases: [],
+        },
+        eligibility,
+        hasRegression: false,
+        threshold,
+      };
+    }
 
     // Calculate success rate delta
     const successRateDelta = currentMetrics.successRate - baselineMetrics.successRate;
@@ -1054,9 +1084,11 @@ export class ArtemisKit {
       baseline: baselineMetrics,
       current: currentMetrics,
       comparison: {
+        comparisonAvailable: true,
         successRateDelta,
         ...caseComparison,
       },
+      eligibility,
       hasRegression,
       threshold,
     };

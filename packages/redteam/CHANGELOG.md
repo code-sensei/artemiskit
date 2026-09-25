@@ -1,5 +1,54 @@
 # @artemiskit/redteam
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.3
+
+## 0.3.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.2
+
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.1
+
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+
+## 0.3.3
+
+### Patch Changes
+
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+
 ## 0.3.1
 
 ### Minor Changes

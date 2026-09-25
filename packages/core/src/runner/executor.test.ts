@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { GenerateOptions, ModelClient } from '../adapters/types';
+import { registerEvaluator } from '../evaluators';
+import type { Evaluator } from '../evaluators';
 import { ScenarioSchema } from '../scenario/schema';
 import { executeCase } from './executor';
 
@@ -168,6 +170,11 @@ describe('executeCase tool loop', () => {
     expect(result.error).toBe('TOOL_EXECUTOR_REQUIRED');
     expect(result.latencyMs).toBe(4);
     expect(result.tokens).toEqual({ prompt: 7, completion: 2, total: 9 });
+    expect(result.target).toEqual({
+      provider: 'ling',
+      requested_model: 'Ling-3.0-flash',
+      observed_models: ['Ling-3.0-flash'],
+    });
   });
 
   it('retains prior generation metrics when a later generation rejects', async () => {
@@ -199,6 +206,7 @@ describe('executeCase tool loop', () => {
       steps: 1,
       terminationReason: 'tool_error',
     });
+    expect(result.target?.observed_models).toEqual(['Ling-3.0-flash']);
   });
 
   it('retains prior generation metrics when a later generation times out', async () => {
@@ -230,5 +238,197 @@ describe('executeCase tool loop', () => {
       steps: 1,
       terminationReason: 'timeout',
     });
+  });
+});
+
+describe('executeCase measurement integrity', () => {
+  const scenario = ScenarioSchema.parse({
+    name: 'measurement integrity',
+    cases: [
+      {
+        id: 'custom-evaluation',
+        prompt: 'Evaluate this',
+        expected: { type: 'custom', evaluator: 'test' },
+      },
+    ],
+  });
+
+  const client: ModelClient = {
+    provider: 'test',
+    generate: async () => ({
+      id: 'response',
+      model: 'target-model',
+      text: 'target response',
+      tokens: { prompt: 1, completion: 1, total: 2 },
+      latencyMs: 1,
+      finishReason: 'stop',
+    }),
+    capabilities: async () => ({
+      streaming: false,
+      functionCalling: false,
+      toolUse: false,
+      maxContext: 1,
+    }),
+  };
+
+  it('marks an evaluator exception invalid after a target response is received', async () => {
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () => {
+        throw new Error('judge offline');
+      },
+    });
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'invalid',
+      response: 'target response',
+      evidence: {
+        evaluator: 'custom',
+        validation: { status: 'invalid', code: 'evaluator_failure' },
+      },
+    });
+  });
+
+  it('marks a target generation failure as an execution error', async () => {
+    const unavailableClient: ModelClient = {
+      ...client,
+      generate: async () => {
+        throw new Error('provider unavailable');
+      },
+    };
+
+    const result = await executeCase(scenario.cases[0], {
+      client: unavailableClient,
+      scenario,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 'error',
+      response: '',
+      error: 'provider unavailable',
+      target: {
+        provider: 'test',
+      },
+    });
+    expect(result.target?.observed_models).toBeUndefined();
+  });
+
+  it('records retried target failures as excluded retry-chain attempts', async () => {
+    let calls = 0;
+    const retryClient: ModelClient = {
+      ...client,
+      generate: async () => {
+        calls++;
+        if (calls === 1) throw new Error('temporary provider failure');
+        return {
+          id: 'response',
+          model: 'target-model',
+          text: 'target response',
+          tokens: { prompt: 1, completion: 1, total: 2 },
+          latencyMs: 1,
+          finishReason: 'stop',
+        };
+      },
+    };
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () => ({ passed: true, score: 1 }),
+    });
+
+    const result = await executeCase(scenario.cases[0], {
+      client: retryClient,
+      scenario,
+      retries: 1,
+      runId: 'assurance-run',
+      repetition: { index: 2, total: 3 },
+    });
+
+    expect(result.attempts).toBe(2);
+    expect(result.attempt_evidence).toEqual([
+      expect.objectContaining({
+        attempt_id: 'assurance-run:custom-evaluation:1',
+        retry_chain_id: 'assurance-run:custom-evaluation',
+        repetition_index: 2,
+        attempt_number: 1,
+        status: 'error',
+        included_in_outcome: false,
+        error_code: 'target_error',
+      }),
+      expect.objectContaining({
+        attempt_id: 'assurance-run:custom-evaluation:2',
+        attempt_number: 2,
+        status: 'passed',
+        included_in_outcome: true,
+      }),
+    ]);
+  });
+
+  it('retains only the bounded evidence contract rather than evaluator details', async () => {
+    const evaluator: Evaluator = {
+      type: 'custom',
+      evaluate: async () => ({
+        passed: true,
+        score: 1,
+        status: 'passed',
+        evidence: {
+          threshold: 0.7,
+          model: 'reviewer-model',
+          validation: { status: 'valid', code: 'accepted' },
+        },
+        details: { rawJudgeOutput: 'secret judge transcript', rubric: 'secret rubric' },
+      }),
+    };
+    registerEvaluator('custom', evaluator);
+
+    const result = await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(result.status).toBe('passed');
+    expect(result.evidence).toEqual({
+      evaluator: 'custom',
+      score: 1,
+      threshold: 0.7,
+      model: 'reviewer-model',
+      validation: { status: 'valid', code: 'accepted' },
+    });
+    expect(JSON.stringify(result)).not.toContain('secret judge transcript');
+    expect(JSON.stringify(result)).not.toContain('secret rubric');
+  });
+
+  it('redacts evaluator reason text and discards malformed runtime evidence', async () => {
+    registerEvaluator('custom', {
+      type: 'custom',
+      evaluate: async () =>
+        ({
+          passed: false,
+          score: 0.4,
+          status: 'invalid-status',
+          reason: 'judge_error: token=super-secret-token',
+          evidence: {
+            threshold: '0.7',
+            model: 'reviewer@example.com',
+            validation: { status: 'unknown', code: 'token=super-secret-token' },
+          },
+        }) as never,
+    });
+    const redactedScenario = ScenarioSchema.parse({
+      ...scenario,
+      redaction: { enabled: true, patterns: ['email', 'secrets'] },
+    });
+
+    const result = await executeCase(redactedScenario.cases[0], {
+      client,
+      scenario: redactedScenario,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.reason).toContain('[REDACTED]');
+    expect(result.evidence).toEqual({ evaluator: 'custom', score: 0.4, model: '[REDACTED]' });
+    expect(result.redaction).toMatchObject({ redacted: true, reasonRedacted: true });
+    expect(JSON.stringify(result)).not.toContain('super-secret-token');
+    expect(JSON.stringify(result)).not.toContain('reviewer@example.com');
   });
 });

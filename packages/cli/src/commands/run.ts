@@ -11,6 +11,7 @@ import {
   type RunManifest,
   createAdapter,
   formatCost,
+  getCaseEvaluationStatus,
   parseScenarioFile,
   resolveScenarioPaths,
   runScenario,
@@ -23,10 +24,12 @@ import type { ArtemisConfig } from '../config/schema.js';
 import {
   createSpinner,
   formatDuration,
+  formatMeasurementStatus,
   getProviderErrorContext,
   icons,
   isInteractive,
   isTTY,
+  measurementStatusIcon,
   padText,
   promptModel,
   promptProvider,
@@ -105,6 +108,12 @@ interface CISummary {
   };
   cases: {
     total: number;
+    totalAttempts: number;
+    validEvaluations: number;
+    invalidEvaluations: number;
+    invalidMeasurements: number;
+    executionErrors: number;
+    outcomeRateDenominator: number;
     passed: number;
     failed: number;
     successRate: number;
@@ -119,8 +128,9 @@ interface CISummary {
     total: number;
   };
   cost: {
-    estimatedUsd: number;
-    formatted: string;
+    status: 'known' | 'unavailable' | 'mixed';
+    amount?: number;
+    currency?: string;
   };
   runs: Array<{
     runId: string;
@@ -130,8 +140,16 @@ interface CISummary {
     passedCases: number;
     failedCases: number;
     totalCases: number;
+    totalAttempts: number;
+    validEvaluations: number;
+    invalidEvaluations: number;
+    invalidMeasurements: number;
+    executionErrors: number;
+    outcomeRateDenominator: number;
     durationMs: number;
-    estimatedCostUsd?: number;
+    costStatus?: 'known' | 'user_supplied' | 'unavailable';
+    costAmount?: number;
+    costCurrency?: string;
   }>;
   baseline?: {
     compared: boolean;
@@ -188,6 +206,39 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
   const failedScenarios = totalScenarios - passedScenarios;
 
   const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const totalAttempts = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.total_attempts ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
+  const validEvaluations = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
+  const invalidEvaluations = results.reduce(
+    (sum, r) => sum + (r.manifest.metrics?.invalid_evaluations ?? 0),
+    0
+  );
+  const invalidMeasurements = results.reduce(
+    (sum, result) =>
+      sum +
+      result.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid'
+      ).length,
+    0
+  );
+  const executionErrors = results.reduce(
+    (sum, result) =>
+      sum +
+      result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error')
+        .length,
+    0
+  );
+  const outcomeRateDenominator = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
   const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
   const failedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.failed_cases || 0), 0);
   const totalDuration = results.reduce((sum, r) => sum + (r.manifest.duration_ms || 0), 0);
@@ -202,10 +253,21 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
     0
   );
   const totalTokens = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_tokens || 0), 0);
-  const totalCostUsd = results.reduce(
-    (sum, r) => sum + (r.manifest.metrics?.cost?.total_usd || 0),
-    0
+  const costRecords = results.map((result) => result.manifest.metrics.cost_provenance);
+  const recordedCosts = costRecords.filter(
+    (cost): cost is NonNullable<typeof cost> =>
+      cost?.status === 'known' || cost?.status === 'user_supplied'
   );
+  const sameCurrency =
+    recordedCosts.length > 0 &&
+    recordedCosts.every((cost) => cost.currency === recordedCosts[0].currency);
+  const costStatus =
+    recordedCosts.length === results.length && sameCurrency
+      ? 'known'
+      : recordedCosts.length === 0
+        ? 'unavailable'
+        : 'mixed';
+  const totalRecordedCost = recordedCosts.reduce((sum, cost) => sum + (cost.amount ?? 0), 0);
 
   return {
     success: failedScenarios === 0,
@@ -216,9 +278,15 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
     },
     cases: {
       total: totalCases,
+      totalAttempts,
+      validEvaluations,
+      invalidEvaluations,
+      invalidMeasurements,
+      executionErrors,
+      outcomeRateDenominator,
       passed: passedCases,
       failed: failedCases,
-      successRate: totalCases > 0 ? passedCases / totalCases : 0,
+      successRate: outcomeRateDenominator > 0 ? passedCases / outcomeRateDenominator : 0,
     },
     duration: {
       totalMs: totalDuration,
@@ -230,8 +298,13 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       total: totalTokens,
     },
     cost: {
-      estimatedUsd: totalCostUsd,
-      formatted: formatCost(totalCostUsd),
+      status: costStatus,
+      ...(costStatus === 'known'
+        ? {
+            amount: totalRecordedCost,
+            currency: recordedCosts[0].currency,
+          }
+        : {}),
     },
     runs: results.map((r) => ({
       runId: r.manifest.run_id || '',
@@ -241,8 +314,27 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
       passedCases: r.manifest.metrics?.passed_cases || 0,
       failedCases: r.manifest.metrics?.failed_cases || 0,
       totalCases: r.manifest.metrics?.total_cases || 0,
+      totalAttempts: r.manifest.metrics?.total_attempts ?? r.manifest.metrics?.total_cases ?? 0,
+      validEvaluations:
+        r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0,
+      invalidEvaluations: r.manifest.metrics?.invalid_evaluations ?? 0,
+      invalidMeasurements: r.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid'
+      ).length,
+      executionErrors: r.manifest.cases.filter(
+        (caseResult) => getCaseEvaluationStatus(caseResult) === 'error'
+      ).length,
+      outcomeRateDenominator:
+        r.manifest.metrics?.outcome_rate_denominator ?? r.manifest.metrics?.total_cases ?? 0,
       durationMs: r.manifest.duration_ms || 0,
-      estimatedCostUsd: r.manifest.metrics?.cost?.total_usd,
+      costStatus: r.manifest.metrics.cost_provenance?.status,
+      ...(r.manifest.metrics.cost_provenance?.status === 'known' ||
+      r.manifest.metrics.cost_provenance?.status === 'user_supplied'
+        ? {
+            costAmount: r.manifest.metrics.cost_provenance.amount,
+            costCurrency: r.manifest.metrics.cost_provenance.currency,
+          }
+        : {}),
     })),
   };
 }
@@ -252,8 +344,13 @@ function buildCISummary(results: ScenarioRunResult[]): CISummary {
  */
 function buildSecuritySummary(results: ScenarioRunResult[]): SecuritySummary {
   const totalCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.total_cases || 0), 0);
+  const validEvaluations = results.reduce(
+    (sum, r) =>
+      sum + (r.manifest.metrics?.valid_evaluations ?? r.manifest.metrics?.total_cases ?? 0),
+    0
+  );
   const passedCases = results.reduce((sum, r) => sum + (r.manifest.metrics?.passed_cases || 0), 0);
-  const successRate = totalCases > 0 ? passedCases / totalCases : 0;
+  const successRate = validEvaluations > 0 ? passedCases / validEvaluations : 0;
 
   // Categorize risk based on success rate (for standard runs, invert for security context)
   let overallRisk: 'low' | 'medium' | 'high' | 'critical';
@@ -451,7 +548,9 @@ async function runSingleScenario(
     onCaseComplete: (caseResult) => {
       completedCases++;
 
-      const statusIcon = caseResult.ok ? icons.passed : icons.failed;
+      const caseStatus = getCaseEvaluationStatus(caseResult);
+      const statusIcon = measurementStatusIcon(caseStatus);
+      const statusLabel = formatMeasurementStatus(caseStatus);
       const scoreStr = `(${(caseResult.score * 100).toFixed(0)}%)`;
       const durationStr = caseResult.latencyMs ? formatDuration(caseResult.latencyMs) : '';
 
@@ -464,12 +563,12 @@ async function runSingleScenario(
       if (isTTY) {
         const progressBar = renderProgressBar(completedCases, totalCases, { width: 15 });
         console.log(
-          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
+          `${statusIcon} ${paddedId}  ${statusLabel}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  ${progressBar}`
         );
       } else {
         // CI/CD friendly output - no progress bar, just count
         console.log(
-          `${statusIcon} ${paddedId}  ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
+          `${statusIcon} ${paddedId}  ${statusLabel} ${chalk.dim(paddedScore)}  ${chalk.dim(paddedDuration)}  [${completedCases}/${totalCases}]`
         );
       }
 
@@ -772,52 +871,54 @@ export function runCommand(): Command {
           results = [];
           for (const path of scenarioPaths) {
             try {
-              const result = await runSingleScenario(
-                path,
-                options,
-                config,
-                spinner,
-                isMultiScenario
-              );
+              const result = isCIMode
+                ? await runSingleScenarioQuiet(path, options, config)
+                : await runSingleScenario(path, options, config, spinner, isMultiScenario);
               results.push(result);
 
-              // Display per-scenario summary
-              const summaryData = {
-                passed: result.manifest.metrics.passed_cases,
-                failed: result.manifest.metrics.failed_cases,
-                skipped: 0,
-                successRate: result.manifest.metrics.success_rate * 100,
-                duration: result.manifest.duration_ms,
-                title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
-              };
-              console.log();
-              console.log(renderSummaryPanel(summaryData));
+              if (!isCIMode) {
+                // Display per-scenario summary
+                const summaryData = {
+                  passed: result.manifest.metrics.passed_cases,
+                  failed: result.manifest.metrics.failed_cases,
+                  skipped: 0,
+                  successRate: result.manifest.metrics.success_rate * 100,
+                  duration: result.manifest.duration_ms,
+                  title: isMultiScenario ? result.scenarioName.toUpperCase() : 'TEST RESULTS',
+                };
+                console.log();
+                console.log(renderSummaryPanel(summaryData));
 
-              // Show additional metrics
-              console.log();
-              const costInfo = result.manifest.metrics.cost
-                ? `  |  Est. Cost: ${formatCost(result.manifest.metrics.cost.total_usd)}`
-                : '';
-              console.log(
-                chalk.dim(
-                  `Run ID: ${result.manifest.run_id}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
-                )
-              );
-
-              // Show redaction info if enabled
-              if (result.manifest.redaction?.enabled) {
-                const r = result.manifest.redaction;
+                // Show additional metrics
+                console.log();
+                const cost = result.manifest.metrics.cost_provenance;
+                const costInfo =
+                  cost?.status === 'known' || cost?.status === 'user_supplied'
+                    ? `  |  Cost (${cost.status}): ${cost.currency} ${cost.amount?.toFixed(4)}`
+                    : cost?.status === 'unavailable'
+                      ? `  |  Cost: unavailable (${cost.unavailable_reason})`
+                      : '';
                 console.log(
                   chalk.dim(
-                    `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                    `Run ID: ${result.manifest.run_id}  |  Attempts: ${result.manifest.metrics.total_attempts ?? result.manifest.metrics.total_cases}  |  Valid: ${result.manifest.metrics.valid_evaluations ?? result.manifest.metrics.total_cases}  |  Invalid measurements: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'invalid').length}  |  Execution errors: ${result.manifest.cases.filter((caseResult) => getCaseEvaluationStatus(caseResult) === 'error').length}  |  Rate denominator: ${result.manifest.metrics.outcome_rate_denominator ?? result.manifest.metrics.total_cases}  |  Median Latency: ${result.manifest.metrics.median_latency_ms}ms  |  Tokens: ${result.manifest.metrics.total_tokens.toLocaleString()}${costInfo}`
                   )
                 );
+
+                // Show redaction info if enabled
+                if (result.manifest.redaction?.enabled) {
+                  const r = result.manifest.redaction;
+                  console.log(
+                    chalk.dim(
+                      `Redactions: ${r.summary.totalRedactions} (${r.summary.promptsRedacted} prompts, ${r.summary.responsesRedacted} responses)`
+                    )
+                  );
+                }
               }
 
               // Save results
               if (options.save) {
                 const savedPath = await storage.save(result.manifest);
-                console.log(chalk.dim(`Saved: ${savedPath}`));
+                if (!isCIMode) console.log(chalk.dim(`Saved: ${savedPath}`));
               }
 
               // Export if requested
@@ -829,20 +930,22 @@ export function runCommand(): Command {
                   const markdown = generateMarkdownReport(result.manifest);
                   const mdPath = join(exportDir, `${result.manifest.run_id}.md`);
                   await writeFile(mdPath, markdown);
-                  console.log(chalk.dim(`Exported: ${mdPath}`));
+                  if (!isCIMode) console.log(chalk.dim(`Exported: ${mdPath}`));
                 } else if (options.export === 'junit') {
                   const junit = generateJUnitReport(result.manifest);
                   const junitPath = join(exportDir, `${result.manifest.run_id}.xml`);
                   await writeFile(junitPath, junit);
-                  console.log(chalk.dim(`Exported: ${junitPath}`));
+                  if (!isCIMode) console.log(chalk.dim(`Exported: ${junitPath}`));
                 }
               }
             } catch (error) {
               // Record failed scenario
-              console.log();
-              console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
-              if (options.verbose) {
-                console.log(chalk.dim((error as Error).message));
+              if (!isCIMode) {
+                console.log();
+                console.log(chalk.red(`${icons.failed} Failed to run: ${basename(path)}`));
+                if (options.verbose) {
+                  console.log(chalk.dim((error as Error).message));
+                }
               }
               results.push({
                 scenarioPath: path,
@@ -893,7 +996,7 @@ export function runCommand(): Command {
                     delta: comparison.comparison.delta,
                   };
 
-                  if (!isCIMode && comparison.hasRegression) {
+                  if (!isCIMode && comparison.hasRegression && comparison.comparison.delta) {
                     console.log();
                     console.log(
                       `${icons.failed} ${chalk.red('Regression detected!')} for ${chalk.bold(result.scenarioName)}`
@@ -931,12 +1034,22 @@ export function runCommand(): Command {
             console.log(`ARTEMISKIT_SCENARIOS_PASSED=${ciSummary.scenarios.passed}`);
             console.log(`ARTEMISKIT_SCENARIOS_FAILED=${ciSummary.scenarios.failed}`);
             console.log(`ARTEMISKIT_CASES_TOTAL=${totalCases}`);
+            console.log(`ARTEMISKIT_TOTAL_ATTEMPTS=${ciSummary.cases.totalAttempts}`);
+            console.log(`ARTEMISKIT_VALID_EVALUATIONS=${ciSummary.cases.validEvaluations}`);
+            console.log(`ARTEMISKIT_INVALID_EVALUATIONS=${ciSummary.cases.invalidEvaluations}`);
+            console.log(
+              `ARTEMISKIT_OUTCOME_RATE_DENOMINATOR=${ciSummary.cases.outcomeRateDenominator}`
+            );
             console.log(`ARTEMISKIT_CASES_PASSED=${passedCases}`);
             console.log(`ARTEMISKIT_CASES_FAILED=${failedCases}`);
             console.log(`ARTEMISKIT_SUCCESS_RATE=${successRate}`);
             console.log(`ARTEMISKIT_DURATION_MS=${ciSummary.duration.totalMs}`);
             console.log(`ARTEMISKIT_TOKENS_TOTAL=${ciSummary.tokens.total}`);
-            console.log(`ARTEMISKIT_COST_USD=${ciSummary.cost.estimatedUsd.toFixed(4)}`);
+            console.log(`ARTEMISKIT_COST_STATUS=${ciSummary.cost.status}`);
+            if (ciSummary.cost.status === 'known') {
+              console.log(`ARTEMISKIT_COST_AMOUNT=${ciSummary.cost.amount?.toFixed(4)}`);
+              console.log(`ARTEMISKIT_COST_CURRENCY=${ciSummary.cost.currency}`);
+            }
 
             if (baselineResult) {
               console.log('ARTEMISKIT_BASELINE_COMPARED=true');
@@ -1026,9 +1139,23 @@ export function runCommand(): Command {
         let budgetExceeded = false;
         if (options.budget !== undefined) {
           const budgetLimit = Number.parseFloat(String(options.budget));
-          const totalCost = ciSummary.cost.estimatedUsd;
+          const totalCost = ciSummary.cost.amount;
 
-          if (totalCost > budgetLimit) {
+          if (
+            ciSummary.cost.status !== 'known' ||
+            ciSummary.cost.currency !== 'USD' ||
+            totalCost === undefined
+          ) {
+            budgetExceeded = true;
+            ciSummary.budget = { limit: budgetLimit, exceeded: true, overBy: 0 };
+            const message =
+              'Cost evidence is unavailable or incompatible; budget cannot be verified.';
+            if (isCIMode) {
+              console.log('ARTEMISKIT_BUDGET_UNVERIFIED=true');
+            } else {
+              console.log(`${icons.failed} ${chalk.red(message)}`);
+            }
+          } else if (totalCost > budgetLimit) {
             budgetExceeded = true;
             const overBy = totalCost - budgetLimit;
 
@@ -1059,7 +1186,7 @@ export function runCommand(): Command {
             }
           } else if (!isCIMode) {
             console.log(
-              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`($${budgetLimit.toFixed(2)} limit, ${formatCost(totalCost)} used)`)}`
+              `${icons.passed} ${chalk.green('Within budget')} ${chalk.dim(`(${ciSummary.cost.currency} ${budgetLimit.toFixed(2)} limit, ${ciSummary.cost.currency} ${totalCost.toFixed(4)} used)`)}`
             );
           }
         }

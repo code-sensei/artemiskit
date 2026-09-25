@@ -138,7 +138,7 @@ export class TestCaseBuilder {
    */
   expectLLMGrade(
     rubric: string,
-    options?: { threshold?: number; model?: string; provider?: Provider }
+    options?: { threshold?: number; model?: string; provider?: Provider; strict?: boolean }
   ): this {
     this._expected = {
       type: 'llm_grader',
@@ -146,6 +146,7 @@ export class TestCaseBuilder {
       threshold: options?.threshold ?? 0.7,
       model: options?.model,
       provider: options?.provider,
+      strict: options?.strict ?? false,
     };
     return this;
   }
@@ -639,7 +640,7 @@ export function jsonSchema(schema: Record<string, unknown>): Expected {
  */
 export function llmGrade(
   rubric: string,
-  options?: { threshold?: number; model?: string; provider?: Provider }
+  options?: { threshold?: number; model?: string; provider?: Provider; strict?: boolean }
 ): Expected {
   return {
     type: 'llm_grader',
@@ -647,6 +648,7 @@ export function llmGrade(
     threshold: options?.threshold ?? 0.7,
     model: options?.model,
     provider: options?.provider,
+    strict: options?.strict ?? false,
   };
 }
 

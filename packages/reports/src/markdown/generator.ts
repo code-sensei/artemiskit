@@ -4,7 +4,12 @@
  * Generates documentation-friendly markdown reports for compliance and audit trails.
  */
 
-import type { RedTeamManifest, RunManifest } from '@artemiskit/core';
+import {
+  type RedTeamManifest,
+  type RunManifest,
+  getCaseEvaluationStatus,
+  getCaseEvaluationStatusLabel,
+} from '@artemiskit/core';
 
 export interface MarkdownReportOptions {
   /** Include full prompt/response details for failed cases */
@@ -24,14 +29,8 @@ function truncate(text: string, maxLength: number): string {
 /**
  * Format cost for display
  */
-function formatCostMd(costUsd: number): string {
-  if (costUsd < 0.01) {
-    return `$${(costUsd * 100).toFixed(4)} cents`;
-  }
-  if (costUsd < 1) {
-    return `$${costUsd.toFixed(4)}`;
-  }
-  return `$${costUsd.toFixed(2)}`;
+function formatCostMd(amount: number, currency: string): string {
+  return `${currency} ${amount.toFixed(4)}`;
 }
 
 /**
@@ -75,7 +74,22 @@ export function generateMarkdownReport(
   lines.push('|--------|-------|');
   lines.push(`| Total Cases | ${manifest.metrics.total_cases} |`);
   lines.push(
-    `| Passed | ${manifest.metrics.passed_cases} (${(manifest.metrics.success_rate * 100).toFixed(1)}%) |`
+    `| Total Attempts | ${manifest.metrics.total_attempts ?? manifest.metrics.total_cases} |`
+  );
+  lines.push(
+    `| Valid Evaluations | ${manifest.metrics.valid_evaluations ?? manifest.metrics.total_cases} |`
+  );
+  const invalidMeasurements = manifest.cases.filter(
+    (c) => getCaseEvaluationStatus(c) === 'invalid'
+  );
+  const executionErrors = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'error');
+  lines.push(`| Invalid Measurements | ${invalidMeasurements.length} |`);
+  lines.push(`| Execution Errors | ${executionErrors.length} |`);
+  lines.push(
+    `| Outcome Rate Denominator | ${manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases} |`
+  );
+  lines.push(
+    `| Passed (valid only) | ${manifest.metrics.passed_cases} (${(manifest.metrics.success_rate * 100).toFixed(1)}%) |`
   );
   lines.push(`| Failed | ${manifest.metrics.failed_cases} |`);
   lines.push(`| Duration | ${formatDuration(manifest.duration_ms)} |`);
@@ -83,8 +97,17 @@ export function generateMarkdownReport(
   lines.push(`| P95 Latency | ${manifest.metrics.p95_latency_ms}ms |`);
   lines.push(`| Total Tokens | ${manifest.metrics.total_tokens.toLocaleString()} |`);
 
-  if (manifest.metrics.cost) {
-    lines.push(`| Estimated Cost | ${formatCostMd(manifest.metrics.cost.total_usd)} |`);
+  const cost = manifest.metrics.cost_provenance;
+  if (
+    (cost?.status === 'known' || cost?.status === 'user_supplied') &&
+    cost.amount !== undefined &&
+    cost.currency !== undefined
+  ) {
+    lines.push(
+      `| Cost (${cost.status.replace('_', ' ')}) | ${formatCostMd(cost.amount, cost.currency)} |`
+    );
+  } else if (cost?.status === 'unavailable') {
+    lines.push(`| Cost | Unavailable (${cost.unavailable_reason}) |`);
   }
 
   lines.push('');
@@ -96,7 +119,7 @@ export function generateMarkdownReport(
   lines.push('');
 
   // Passed cases (collapsed)
-  const passed = manifest.cases.filter((c) => c.ok);
+  const passed = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'passed');
   lines.push(`### Passed (${passed.length})`);
   lines.push('');
 
@@ -120,7 +143,7 @@ export function generateMarkdownReport(
   lines.push('');
 
   // Failed cases (expanded with details)
-  const failed = manifest.cases.filter((c) => !c.ok);
+  const failed = manifest.cases.filter((c) => getCaseEvaluationStatus(c) === 'failed');
   lines.push(`### Failed (${failed.length})`);
   lines.push('');
 
@@ -163,6 +186,39 @@ export function generateMarkdownReport(
     }
   } else {
     lines.push('_No failed cases_');
+    lines.push('');
+  }
+
+  lines.push(`### Invalid Measurements (${invalidMeasurements.length})`);
+  lines.push('');
+  if (invalidMeasurements.length > 0) {
+    for (const c of invalidMeasurements) {
+      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatusLabel(c)}`);
+      lines.push('');
+      lines.push(`**Reason:** ${c.reason || c.error || 'Unknown'}`);
+      if (c.evidence?.validation) {
+        lines.push(
+          `**Measurement Validation:** ${c.evidence.validation.status}${c.evidence.validation.code ? ` (${c.evidence.validation.code})` : ''}`
+        );
+      }
+      lines.push('');
+    }
+  } else {
+    lines.push('_No invalid measurements_');
+    lines.push('');
+  }
+
+  lines.push(`### Execution Errors (${executionErrors.length})`);
+  lines.push('');
+  if (executionErrors.length > 0) {
+    for (const c of executionErrors) {
+      lines.push(`#### \`${c.id}\` — ${getCaseEvaluationStatusLabel(c)}`);
+      lines.push('');
+      lines.push(`**Reason:** ${c.reason || c.error || 'Unknown'}`);
+      lines.push('');
+    }
+  } else {
+    lines.push('_No execution errors_');
     lines.push('');
   }
 

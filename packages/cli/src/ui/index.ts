@@ -5,7 +5,14 @@
  */
 
 // Color scheme and icons
-export { colors, icons, colorByPercentage, formatPercentage } from './colors.js';
+export {
+  colors,
+  icons,
+  colorByPercentage,
+  formatPercentage,
+  formatMeasurementStatus,
+  measurementStatusIcon,
+} from './colors.js';
 
 // Utility functions
 export {

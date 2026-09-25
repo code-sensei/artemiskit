@@ -3,7 +3,13 @@
  */
 
 import { type SupabaseClient, createClient } from '@supabase/supabase-js';
-import type { CaseResult, RunManifest } from '../artifacts/types';
+import {
+  type CaseResult,
+  type RunManifest,
+  assertRunManifestIntegrity,
+  getCaseEvaluationStatus,
+} from '../artifacts/types';
+import { assessComparisonEligibility, isComparisonAvailable } from '../comparison';
 import type {
   AnalyticsStorageAdapter,
   BaselineMetadata,
@@ -31,7 +37,8 @@ function mapCaseToRecord(runId: string, caseResult: CaseResult): CaseResultRecor
     runId,
     caseId: caseResult.id,
     caseName: caseResult.name,
-    status: caseResult.error ? 'error' : caseResult.ok ? 'passed' : 'failed',
+    status: getCaseEvaluationStatus(caseResult),
+    attempts: caseResult.attempts ?? 1,
     score: caseResult.score,
     matcherType: caseResult.matcherType,
     reason: caseResult.reason,
@@ -41,6 +48,7 @@ function mapCaseToRecord(runId: string, caseResult: CaseResult): CaseResultRecor
     completionTokens: caseResult.tokens.completion,
     totalTokens: caseResult.tokens.total,
     error: caseResult.error,
+    evidence: caseResult.evidence,
     tags: caseResult.tags,
   };
 }
@@ -61,6 +69,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
   // ============================================================================
 
   async save(manifest: RunManifest): Promise<string> {
+    assertRunManifestIntegrity(manifest);
     const filePath = `${manifest.project}/${manifest.run_id}.json`;
 
     const { error: uploadError } = await this.client.storage
@@ -84,6 +93,11 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       total_cases: manifest.metrics.total_cases,
       passed_cases: manifest.metrics.passed_cases,
       failed_cases: manifest.metrics.failed_cases,
+      total_attempts: manifest.metrics.total_attempts ?? manifest.metrics.total_cases,
+      valid_evaluations: manifest.metrics.valid_evaluations ?? manifest.metrics.total_cases,
+      invalid_evaluations: manifest.metrics.invalid_evaluations ?? 0,
+      outcome_rate_denominator:
+        manifest.metrics.outcome_rate_denominator ?? manifest.metrics.total_cases,
       median_latency_ms: manifest.metrics.median_latency_ms,
       p95_latency_ms: manifest.metrics.p95_latency_ms,
       total_tokens: manifest.metrics.total_tokens,
@@ -130,7 +144,9 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
     }
 
     const text = await data.text();
-    return JSON.parse(text);
+    const manifest: unknown = JSON.parse(text);
+    assertRunManifestIntegrity(manifest);
+    return manifest;
   }
 
   async list(options?: ListOptions): Promise<RunListItem[]> {
@@ -184,9 +200,15 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
   async compare(baselineId: string, currentId: string): Promise<ComparisonResult> {
     const [baseline, current] = await Promise.all([this.load(baselineId), this.load(currentId)]);
 
+    const eligibility = assessComparisonEligibility(baseline, current);
+    if (!isComparisonAvailable(eligibility)) {
+      return { baseline, current, eligibility };
+    }
+
     return {
       baseline,
       current,
+      eligibility,
       delta: {
         successRate: current.metrics.success_rate - baseline.metrics.success_rate,
         latency: current.metrics.median_latency_ms - baseline.metrics.median_latency_ms,
@@ -385,7 +407,8 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
     const comparison = await this.compare(baseline.runId, runId);
 
     // Check for regression (success rate dropped by more than threshold)
-    const hasRegression = comparison.delta.successRate < -regressionThreshold;
+    const hasRegression =
+      comparison.delta !== undefined && comparison.delta.successRate < -regressionThreshold;
 
     return {
       baseline,
@@ -405,6 +428,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       case_id: result.caseId,
       case_name: result.caseName,
       status: result.status,
+      attempts: result.attempts ?? 1,
       score: result.score,
       matcher_type: result.matcherType,
       reason: result.reason,
@@ -414,6 +438,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       completion_tokens: result.completionTokens,
       total_tokens: result.totalTokens,
       error: result.error,
+      evidence: result.evidence,
       tags: result.tags || [],
     };
 
@@ -440,6 +465,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       case_id: r.caseId,
       case_name: r.caseName,
       status: r.status,
+      attempts: r.attempts ?? 1,
       score: r.score,
       matcher_type: r.matcherType,
       reason: r.reason,
@@ -449,6 +475,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       completion_tokens: r.completionTokens,
       total_tokens: r.totalTokens,
       error: r.error,
+      evidence: r.evidence,
       tags: r.tags || [],
     }));
 
@@ -481,6 +508,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       caseId: r.case_id,
       caseName: r.case_name,
       status: r.status,
+      attempts: r.attempts,
       score: r.score,
       matcherType: r.matcher_type,
       reason: r.reason,
@@ -490,6 +518,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       completionTokens: r.completion_tokens,
       totalTokens: r.total_tokens,
       error: r.error,
+      evidence: r.evidence,
       tags: r.tags,
       createdAt: r.created_at,
     }));
@@ -531,6 +560,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       caseId: r.case_id,
       caseName: r.case_name,
       status: r.status,
+      attempts: r.attempts,
       score: r.score,
       matcherType: r.matcher_type,
       reason: r.reason,
@@ -540,6 +570,7 @@ export class SupabaseStorageAdapter implements AnalyticsStorageAdapter {
       completionTokens: r.completion_tokens,
       totalTokens: r.total_tokens,
       error: r.error,
+      evidence: r.evidence,
       tags: r.tags,
       createdAt: r.created_at,
     }));

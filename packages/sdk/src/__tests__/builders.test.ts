@@ -135,12 +135,15 @@ describe('Builders - TestCaseBuilder', () => {
         .expectLLMGrade('Response should be helpful and accurate', {
           threshold: 0.8,
           model: 'gpt-4',
+          strict: true,
         })
         .build();
 
       expect(tc.expected.type).toBe('llm_grader');
-      expect((tc.expected as any).rubric).toBe('Response should be helpful and accurate');
-      expect((tc.expected as any).threshold).toBe(0.8);
+      if (tc.expected.type !== 'llm_grader') throw new Error('Expected LLM grader expectation');
+      expect(tc.expected.rubric).toBe('Response should be helpful and accurate');
+      expect(tc.expected.threshold).toBe(0.8);
+      expect(tc.expected.strict).toBe(true);
     });
 
     it('should create similarity expectation', () => {
@@ -380,9 +383,11 @@ describe('Builders - Expectation Helpers', () => {
   });
 
   it('llmGrade() should create llm_grader expectation', () => {
-    const exp = llmGrade('Be accurate', { threshold: 0.8 });
+    const exp = llmGrade('Be accurate', { threshold: 0.8, strict: true });
     expect(exp.type).toBe('llm_grader');
-    expect((exp as any).rubric).toBe('Be accurate');
+    if (exp.type !== 'llm_grader') throw new Error('Expected LLM grader expectation');
+    expect(exp.rubric).toBe('Be accurate');
+    expect(exp.strict).toBe(true);
   });
 
   it('similarity() should create similarity expectation', () => {

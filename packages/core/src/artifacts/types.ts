@@ -16,6 +16,8 @@ export interface CaseRedactionInfo {
   promptRedacted: boolean;
   /** Whether response was redacted */
   responseRedacted: boolean;
+  /** Whether evaluator reason text was redacted */
+  reasonRedacted?: boolean;
   /** Number of redactions in this case */
   redactionCount: number;
 }
@@ -34,7 +36,59 @@ export interface ManifestRedactionInfo {
   summary: {
     promptsRedacted: number;
     responsesRedacted: number;
+    /** Cases whose evaluator reason text was redacted. */
+    reasonsRedacted?: number;
     totalRedactions: number;
+  };
+}
+
+// ============================================================================
+// Reproducible Evidence Types
+// ============================================================================
+
+/** A versioned SHA-256 digest of canonical, redacted assessment material. */
+export interface ContentIdentity {
+  schema_version: '1';
+  algorithm: 'sha256';
+  digest: string;
+}
+
+/**
+ * Separates the scenario workload from the criteria used to judge it.
+ *
+ * The digests prove matching declared, sanitized inputs. They are not a
+ * signature or an attestation of provider behaviour.
+ */
+export interface WorkloadIdentity {
+  schema_version: '1';
+  workload: ContentIdentity;
+  rubric: ContentIdentity;
+}
+
+/** Bounded target identity captured from a case execution. */
+export interface CaseTargetEvidence {
+  provider: string;
+  requested_model?: string;
+  /** Model identifiers returned by the target provider during this case. */
+  observed_models?: string[];
+}
+
+/** Requested and observed execution configuration for a complete run. */
+export interface ExecutionProvenance {
+  schema_version: '1';
+  target: {
+    provider: string;
+    requested_models?: string[];
+    observed_models?: string[];
+    generation?: {
+      temperature?: number;
+      max_tokens?: number;
+      seed?: number;
+    };
+  };
+  /** Judge/evaluator model identities, never combined with target identity. */
+  evaluator?: {
+    models?: string[];
   };
 }
 
@@ -43,12 +97,79 @@ export interface ManifestRedactionInfo {
 // ============================================================================
 
 /**
+ * Terminal status of a case measurement.
+ *
+ * `invalid` means a target response was available but could not be evaluated
+ * reliably. `error` means execution did not produce a usable target response.
+ */
+export type CaseEvaluationStatus = 'passed' | 'failed' | 'invalid' | 'error';
+
+/** Human-readable status labels shared by CLI and report consumers. */
+export const CASE_EVALUATION_STATUS_LABELS: Record<CaseEvaluationStatus, string> = {
+  passed: 'Passed',
+  failed: 'Failed criteria',
+  invalid: 'Invalid measurement',
+  error: 'Execution error',
+};
+
+/** Reviewed, bounded evaluator evidence retained in a run artifact. */
+export interface CaseEvaluationEvidence {
+  evaluator: string;
+  score?: number;
+  threshold?: number;
+  model?: string;
+  validation?: {
+    status: 'valid' | 'invalid';
+    code?: string;
+  };
+}
+
+/** A bounded record of one execution in a retry chain. */
+export interface CaseAttemptEvidence {
+  attempt_id: string;
+  retry_chain_id: string;
+  /** One-based coordinate within a deliberately independent repetition. */
+  repetition_index: number;
+  /** One-based coordinate within this retry chain. */
+  attempt_number: number;
+  status: CaseEvaluationStatus;
+  /** Only the terminal measurement can contribute to an outcome rate. */
+  included_in_outcome: boolean;
+  latency_ms: number;
+  /** Sanitized classification, never arbitrary provider error text. */
+  error_code?: 'timeout' | 'target_error' | 'tool_error';
+}
+
+/** Declared retry and repetition context for a run. */
+export interface RunAttemptEvidence {
+  schema_version: '1';
+  repetition: {
+    index: number;
+    total: number;
+  };
+  retry_policy: {
+    default_max_retries: number;
+    backoff: 'exponential';
+    initial_delay_ms: number;
+  };
+  timeout?: {
+    default_ms: number;
+  };
+}
+
+/**
  * Individual test case result
  */
 export interface CaseResult {
   id: string;
   name?: string;
   ok: boolean;
+  /** Present in manifest v1.1+. Missing values use the documented legacy mapping. */
+  status?: CaseEvaluationStatus;
+  /** Number of execution attempts represented by this terminal result. */
+  attempts?: number;
+  /** Bounded retry-chain evidence for this terminal case result. */
+  attempt_evidence?: CaseAttemptEvidence[];
   score: number;
   matcherType: string;
   reason?: string;
@@ -63,6 +184,10 @@ export interface CaseResult {
   expected: object;
   tags: string[];
   error?: string;
+  /** Sanitized evaluator evidence; arbitrary evaluator details are never stored here. */
+  evidence?: CaseEvaluationEvidence;
+  /** Requested and observed target identity for this case. */
+  target?: CaseTargetEvidence;
   /** Redaction information for this case */
   redaction?: CaseRedactionInfo;
   /** Ordered tool activity captured for an enabled tool loop. */
@@ -90,12 +215,42 @@ export interface CostEstimateInfo {
   };
 }
 
+/** Whether a monetary value is attested, supplied by an operator, or unavailable. */
+export type CostProvenanceStatus = 'known' | 'user_supplied' | 'unavailable';
+
+/**
+ * Cost evidence suitable for assurance reporting. Generic token-price estimates
+ * are intentionally not cost evidence.
+ */
+export interface CostProvenance {
+  schema_version: '1';
+  status: CostProvenanceStatus;
+  /** Required for known and user-supplied amounts. */
+  amount?: number;
+  /** ISO 4217 currency required with an amount. */
+  currency?: string;
+  /** Origin of a recorded monetary value. */
+  source?: 'provider_billing' | 'operator_input';
+  /** ISO timestamp for a recorded monetary value. */
+  recorded_at?: string;
+  /** Stable reason code when no attested amount is available. */
+  unavailable_reason?: 'provider_billing_not_recorded' | 'unsupported_provider' | 'not_requested';
+}
+
 /**
  * Run metrics
  */
 export interface RunMetrics {
   success_rate: number;
+  /** Number of execution attempts, including retries. */
+  total_attempts?: number;
   total_cases: number;
+  /** Case results with a valid evaluator outcome (passed or failed). */
+  valid_evaluations?: number;
+  /** Case results excluded from outcome rates (invalid or error). */
+  invalid_evaluations?: number;
+  /** Denominator used for success_rate; zero produces a success_rate of zero. */
+  outcome_rate_denominator?: number;
   passed_cases: number;
   failed_cases: number;
   median_latency_ms: number;
@@ -104,7 +259,10 @@ export interface RunMetrics {
   total_prompt_tokens: number;
   total_completion_tokens: number;
   /** Estimated cost information */
+  /** @deprecated Generic pricing estimates are not assurance cost evidence. */
   cost?: CostEstimateInfo;
+  /** Explicit monetary evidence for assurance reporting. */
+  cost_provenance?: CostProvenance;
 }
 
 /**
@@ -231,6 +389,12 @@ export interface RunManifest {
   config: RunConfig;
   /** Resolved configuration with full provider details and source tracking */
   resolved_config?: ResolvedConfig;
+  /** Versioned identities for the declared workload and evaluation rubric. */
+  workload_identity?: WorkloadIdentity;
+  /** Requested and observed target/evaluator configuration for this run. */
+  execution_provenance?: ExecutionProvenance;
+  /** Retry-chain and repetition context. Present in manifest v1.4+. */
+  attempt_evidence?: RunAttemptEvidence;
   metrics: RunMetrics;
   git: GitInfo;
   provenance: ProvenanceInfo;
@@ -242,6 +406,296 @@ export interface RunManifest {
   };
   /** Redaction information for this run */
   redaction?: ManifestRedactionInfo;
+}
+
+/**
+ * Read a case status from both v1.1 artifacts and historical v1.0 artifacts.
+ * Historical records cannot distinguish evaluator failures from ordinary failed
+ * criteria unless they set the legacy `error` field.
+ */
+export function getCaseEvaluationStatus(caseResult: CaseResult): CaseEvaluationStatus {
+  if (
+    caseResult.status === 'passed' ||
+    caseResult.status === 'failed' ||
+    caseResult.status === 'invalid' ||
+    caseResult.status === 'error'
+  ) {
+    return caseResult.status;
+  }
+  if (caseResult.ok) return 'passed';
+  return caseResult.error ? 'error' : 'failed';
+}
+
+/** Return the stable human-readable label for a case measurement status. */
+export function getCaseEvaluationStatusLabel(caseResult: CaseResult): string {
+  return CASE_EVALUATION_STATUS_LABELS[getCaseEvaluationStatus(caseResult)];
+}
+
+/**
+ * Reject untrusted integrity-bearing fields before a run manifest is persisted
+ * or treated as a standard run. Historical manifests remain supported because
+ * status and evidence are optional in the v1.0 contract.
+ */
+export function assertRunManifestIntegrity(manifest: unknown): asserts manifest is RunManifest {
+  if (!isRecord(manifest) || !Array.isArray(manifest.cases)) {
+    throw new Error('Invalid run manifest: expected an object with a cases array');
+  }
+
+  if (manifest.workload_identity !== undefined) {
+    assertWorkloadIdentity(manifest.workload_identity);
+  }
+  if (manifest.execution_provenance !== undefined) {
+    assertExecutionProvenance(manifest.execution_provenance);
+  }
+  if (manifest.attempt_evidence !== undefined) {
+    assertRunAttemptEvidence(manifest.attempt_evidence);
+  }
+  if (isRecord(manifest.metrics) && manifest.metrics.cost_provenance !== undefined) {
+    assertCostProvenance(manifest.metrics.cost_provenance);
+  }
+
+  for (const [index, caseResult] of manifest.cases.entries()) {
+    if (!isRecord(caseResult)) {
+      throw new Error(`Invalid run manifest: case ${index} is not an object`);
+    }
+
+    if (
+      caseResult.status !== undefined &&
+      caseResult.status !== 'passed' &&
+      caseResult.status !== 'failed' &&
+      caseResult.status !== 'invalid' &&
+      caseResult.status !== 'error'
+    ) {
+      throw new Error(`Invalid run manifest: case ${index} has an unknown status`);
+    }
+
+    if (caseResult.evidence !== undefined) {
+      assertCaseEvaluationEvidence(caseResult.evidence, index);
+    }
+    if (caseResult.target !== undefined) {
+      assertCaseTargetEvidence(caseResult.target);
+    }
+    if (caseResult.attempt_evidence !== undefined) {
+      assertCaseAttemptEvidence(caseResult.attempt_evidence, index);
+    }
+  }
+}
+
+function assertRunAttemptEvidence(evidence: unknown): void {
+  if (
+    !isRecord(evidence) ||
+    evidence.schema_version !== '1' ||
+    !isRecord(evidence.repetition) ||
+    !isPositiveSafeInteger(evidence.repetition.index) ||
+    !isPositiveSafeInteger(evidence.repetition.total) ||
+    evidence.repetition.index > evidence.repetition.total ||
+    !isRecord(evidence.retry_policy) ||
+    !isNonnegativeSafeInteger(evidence.retry_policy.default_max_retries) ||
+    evidence.retry_policy.backoff !== 'exponential' ||
+    !isNonnegativeFiniteNumber(evidence.retry_policy.initial_delay_ms) ||
+    (evidence.timeout !== undefined &&
+      (!isRecord(evidence.timeout) || !isPositiveFiniteNumber(evidence.timeout.default_ms)))
+  ) {
+    throw new Error('Invalid run manifest: malformed attempt evidence');
+  }
+}
+
+function assertCaseAttemptEvidence(evidence: unknown, index: number): void {
+  if (!Array.isArray(evidence) || evidence.length === 0 || evidence.length > 100) {
+    throw new Error(`Invalid run manifest: case ${index} has malformed attempt evidence`);
+  }
+  for (const attempt of evidence) {
+    if (
+      !isRecord(attempt) ||
+      !isBoundedNonemptyString(attempt.attempt_id, 200) ||
+      !isBoundedNonemptyString(attempt.retry_chain_id, 200) ||
+      !isPositiveSafeInteger(attempt.repetition_index) ||
+      !isPositiveSafeInteger(attempt.attempt_number) ||
+      !isCaseEvaluationStatus(attempt.status) ||
+      typeof attempt.included_in_outcome !== 'boolean' ||
+      !isNonnegativeFiniteNumber(attempt.latency_ms) ||
+      (attempt.error_code !== undefined &&
+        attempt.error_code !== 'timeout' &&
+        attempt.error_code !== 'target_error' &&
+        attempt.error_code !== 'tool_error')
+    ) {
+      throw new Error(`Invalid run manifest: case ${index} has malformed attempt evidence`);
+    }
+  }
+}
+
+function assertCostProvenance(cost: unknown): void {
+  if (!isRecord(cost) || cost.schema_version !== '1') {
+    throw new Error('Invalid run manifest: malformed cost provenance');
+  }
+  if (cost.status === 'unavailable') {
+    if (
+      cost.amount !== undefined ||
+      cost.currency !== undefined ||
+      cost.source !== undefined ||
+      cost.recorded_at !== undefined ||
+      (cost.unavailable_reason !== 'provider_billing_not_recorded' &&
+        cost.unavailable_reason !== 'unsupported_provider' &&
+        cost.unavailable_reason !== 'not_requested')
+    ) {
+      throw new Error('Invalid run manifest: malformed cost provenance');
+    }
+    return;
+  }
+  if (
+    (cost.status !== 'known' && cost.status !== 'user_supplied') ||
+    !isNonnegativeFiniteNumber(cost.amount) ||
+    !isBoundedNonemptyString(cost.currency, 3) ||
+    (cost.status === 'known' && cost.source !== 'provider_billing') ||
+    (cost.status === 'user_supplied' && cost.source !== 'operator_input') ||
+    !isIsoTimestamp(cost.recorded_at) ||
+    cost.unavailable_reason !== undefined
+  ) {
+    throw new Error('Invalid run manifest: malformed cost provenance');
+  }
+}
+
+function isCaseEvaluationStatus(value: unknown): value is CaseEvaluationStatus {
+  return value === 'passed' || value === 'failed' || value === 'invalid' || value === 'error';
+}
+
+function isBoundedNonemptyString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
+}
+
+function isNonnegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+  return isNonnegativeFiniteNumber(value) && value > 0;
+}
+
+function isNonnegativeSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return isNonnegativeSafeInteger(value) && value > 0;
+}
+
+function isIsoTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value));
+}
+
+function assertCaseTargetEvidence(target: unknown): void {
+  if (
+    !isRecord(target) ||
+    typeof target.provider !== 'string' ||
+    target.provider.length === 0 ||
+    target.provider.length > 100 ||
+    (target.requested_model !== undefined &&
+      (typeof target.requested_model !== 'string' || target.requested_model.length > 200)) ||
+    !isBoundedStringList(target.observed_models)
+  ) {
+    throw new Error('Invalid run manifest: malformed target evidence');
+  }
+}
+
+function assertExecutionProvenance(provenance: unknown): void {
+  if (!isRecord(provenance) || provenance.schema_version !== '1' || !isRecord(provenance.target)) {
+    throw new Error('Invalid run manifest: malformed execution provenance');
+  }
+  const target = provenance.target;
+  if (
+    typeof target.provider !== 'string' ||
+    target.provider.length === 0 ||
+    target.provider.length > 100 ||
+    !isBoundedStringList(target.requested_models) ||
+    !isBoundedStringList(target.observed_models) ||
+    (target.generation !== undefined && !isGenerationConfig(target.generation))
+  ) {
+    throw new Error('Invalid run manifest: malformed execution provenance');
+  }
+  if (provenance.evaluator !== undefined) {
+    if (!isRecord(provenance.evaluator) || !isBoundedStringList(provenance.evaluator.models)) {
+      throw new Error('Invalid run manifest: malformed execution provenance');
+    }
+  }
+}
+
+function isBoundedStringList(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length <= 100 &&
+      value.every((item) => typeof item === 'string' && item.length > 0 && item.length <= 200))
+  );
+}
+
+function isGenerationConfig(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return [value.temperature, value.max_tokens, value.seed].every(
+    (item) => item === undefined || (typeof item === 'number' && Number.isFinite(item))
+  );
+}
+
+function assertWorkloadIdentity(identity: unknown): void {
+  if (
+    !isRecord(identity) ||
+    identity.schema_version !== '1' ||
+    !isContentIdentity(identity.workload) ||
+    !isContentIdentity(identity.rubric)
+  ) {
+    throw new Error('Invalid run manifest: malformed workload identity');
+  }
+}
+
+function isContentIdentity(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    value.schema_version === '1' &&
+    value.algorithm === 'sha256' &&
+    typeof value.digest === 'string' &&
+    /^[a-f0-9]{64}$/.test(value.digest)
+  );
+}
+
+function assertCaseEvaluationEvidence(evidence: unknown, caseIndex: number): void {
+  if (
+    !isRecord(evidence) ||
+    typeof evidence.evaluator !== 'string' ||
+    evidence.evaluator.length > 100
+  ) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has malformed evaluator evidence`);
+  }
+
+  if (evidence.score !== undefined && !isUnitIntervalNumber(evidence.score)) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence score`);
+  }
+  if (evidence.threshold !== undefined && !isUnitIntervalNumber(evidence.threshold)) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence threshold`);
+  }
+  if (
+    evidence.model !== undefined &&
+    (typeof evidence.model !== 'string' || evidence.model.length > 200)
+  ) {
+    throw new Error(`Invalid run manifest: case ${caseIndex} has an invalid evidence model`);
+  }
+
+  if (evidence.validation !== undefined) {
+    if (
+      !isRecord(evidence.validation) ||
+      (evidence.validation.status !== 'valid' && evidence.validation.status !== 'invalid') ||
+      (evidence.validation.code !== undefined &&
+        (typeof evidence.validation.code !== 'string' || evidence.validation.code.length > 100))
+    ) {
+      throw new Error(`Invalid run manifest: case ${caseIndex} has invalid evidence validation`);
+    }
+  }
+}
+
+function isUnitIntervalNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // ============================================================================

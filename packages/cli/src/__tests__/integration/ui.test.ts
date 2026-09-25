@@ -7,7 +7,9 @@ import {
   colors,
   createSpinner,
   formatDuration,
+  formatMeasurementStatus,
   icons,
+  measurementStatusIcon,
   padText,
   renderError,
   renderInfoBox,
@@ -168,6 +170,19 @@ describe('UI Components', () => {
       expect(icons.running).toBeDefined();
       expect(icons.info).toBeDefined();
       expect(icons.warning).toBeDefined();
+      expect(icons.invalid).toBeDefined();
+      expect(icons.error).toBeDefined();
+    });
+  });
+
+  describe('measurement status presentation', () => {
+    it('renders every terminal status with a distinct human-readable label and icon', () => {
+      expect(formatMeasurementStatus('passed')).toContain('PASSED');
+      expect(formatMeasurementStatus('failed')).toContain('FAILED');
+      expect(formatMeasurementStatus('invalid')).toContain('INVALID MEASUREMENT');
+      expect(formatMeasurementStatus('error')).toContain('EXECUTION ERROR');
+      expect(measurementStatusIcon('passed')).not.toBe(measurementStatusIcon('failed'));
+      expect(measurementStatusIcon('invalid')).not.toBe(measurementStatusIcon('error'));
     });
   });
 

@@ -2,8 +2,15 @@
  * Test case executor
  */
 
-import type { CaseRedactionInfo, CaseResult } from '../artifacts/types';
+import type {
+  CaseAttemptEvidence,
+  CaseEvaluationEvidence,
+  CaseEvaluationStatus,
+  CaseRedactionInfo,
+  CaseResult,
+} from '../artifacts/types';
 import { getEvaluator } from '../evaluators';
+import type { EvaluatorResult } from '../evaluators';
 import { type RedactionConfig, Redactor } from '../redaction';
 import type { TestCase } from '../scenario/schema';
 import { mergeVariables, substituteVariables } from '../scenario/variables';
@@ -93,17 +100,50 @@ export async function executeCase(
   context: ExecutorContext
 ): Promise<CaseResult> {
   const { timeout, retries = 0 } = context;
+  if (!Number.isSafeInteger(retries) || retries < 0 || retries > 99) {
+    throw new RangeError('retries must be a whole number between 0 and 99');
+  }
   const caseStartTime = Date.now();
+  const requestedModel = testCase.model || context.requestedModel || context.scenario.model;
+  const retryChainId = `${context.runId ?? 'untracked'}:${testCase.id}`;
+  const repetitionIndex = context.repetition?.index ?? 1;
+  const attemptEvidence: CaseAttemptEvidence[] = [];
 
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const attemptStartTime = Date.now();
     try {
       const result = await executeCaseAttempt(testCase, context, timeout);
-      return result;
+      return withAttemptEvidence(result, attemptEvidence, {
+        retryChainId,
+        repetitionIndex,
+        attemptNumber: attempt + 1,
+        includedInOutcome: true,
+        latencyMs: result.latencyMs,
+      });
     } catch (error) {
       lastError = error as Error;
-      if (error instanceof ToolLoopError) return error.caseResult;
+      if (error instanceof ToolLoopError) {
+        return withAttemptEvidence(error.caseResult, attemptEvidence, {
+          retryChainId,
+          repetitionIndex,
+          attemptNumber: attempt + 1,
+          includedInOutcome: true,
+          latencyMs: error.caseResult.latencyMs,
+          errorCode: 'tool_error',
+        });
+      }
+      attemptEvidence.push({
+        attempt_id: `${retryChainId}:${attempt + 1}`,
+        retry_chain_id: retryChainId,
+        repetition_index: repetitionIndex,
+        attempt_number: attempt + 1,
+        status: 'error',
+        included_in_outcome: false,
+        latency_ms: Date.now() - attemptStartTime,
+        error_code: error instanceof TimeoutError ? 'timeout' : 'target_error',
+      });
       if (attempt < retries) {
         // Wait before retry with exponential backoff
         await sleep(2 ** attempt * 1000);
@@ -117,6 +157,12 @@ export async function executeCase(
     id: testCase.id,
     name: testCase.name,
     ok: false,
+    status: 'error',
+    attempts: retries + 1,
+    attempt_evidence: attemptEvidence.map((entry, index) => ({
+      ...entry,
+      included_in_outcome: index === attemptEvidence.length - 1,
+    })),
     score: 0,
     matcherType: testCase.expected.type,
     reason: `Failed after ${retries + 1} attempts: ${lastError?.message}`,
@@ -127,7 +173,43 @@ export async function executeCase(
     expected: testCase.expected,
     tags: testCase.tags,
     error: lastError?.message,
+    target: targetEvidence(context.client.provider, requestedModel),
   };
+}
+
+function withAttemptEvidence(
+  result: CaseResult,
+  priorAttempts: CaseAttemptEvidence[],
+  input: {
+    retryChainId: string;
+    repetitionIndex: number;
+    attemptNumber: number;
+    includedInOutcome: boolean;
+    latencyMs: number;
+    errorCode?: CaseAttemptEvidence['error_code'];
+  }
+): CaseResult {
+  return {
+    ...result,
+    attempts: input.attemptNumber,
+    attempt_evidence: [
+      ...priorAttempts,
+      {
+        attempt_id: `${input.retryChainId}:${input.attemptNumber}`,
+        retry_chain_id: input.retryChainId,
+        repetition_index: input.repetitionIndex,
+        attempt_number: input.attemptNumber,
+        status: getTerminalStatus(result),
+        included_in_outcome: input.includedInOutcome,
+        latency_ms: input.latencyMs,
+        ...(input.errorCode ? { error_code: input.errorCode } : {}),
+      },
+    ],
+  };
+}
+
+function getTerminalStatus(result: CaseResult): CaseEvaluationStatus {
+  return result.status ?? (result.ok ? 'passed' : result.error ? 'error' : 'failed');
 }
 
 async function executeCaseAttempt(
@@ -135,7 +217,7 @@ async function executeCaseAttempt(
   context: ExecutorContext,
   timeout?: number
 ): Promise<CaseResult> {
-  const { client, scenario, redaction: cliRedaction, toolExecutor } = context;
+  const { client, scenario, requestedModel, redaction: cliRedaction, toolExecutor } = context;
 
   // Merge scenario-level and case-level variables (case overrides scenario)
   const variables = mergeVariables(scenario.variables, testCase.variables);
@@ -163,7 +245,7 @@ async function executeCaseAttempt(
   const generate = () =>
     client.generate({
       prompt: loopPrompt,
-      model: testCase.model || scenario.model,
+      model: testCase.model || requestedModel || scenario.model,
       temperature: scenario.temperature,
       maxTokens: scenario.maxTokens,
       seed: scenario.seed,
@@ -174,6 +256,7 @@ async function executeCaseAttempt(
   let result = timeout
     ? await Promise.race([generatePromise, createTimeout(timeout)])
     : await generatePromise;
+  const observedModels = [result.model];
   const generationMetrics = {
     latencyMs: result.latencyMs,
     tokens: { ...result.tokens },
@@ -190,7 +273,12 @@ async function executeCaseAttempt(
           terminationReason: 'tool_error',
         },
         generationMetrics,
-        'TOOL_EXECUTOR_REQUIRED'
+        'TOOL_EXECUTOR_REQUIRED',
+        targetEvidence(
+          client.provider,
+          testCase.model || requestedModel || scenario.model,
+          observedModels
+        )
       );
     }
     const executor =
@@ -217,7 +305,12 @@ async function executeCaseAttempt(
               terminationReason: 'duplicate_call',
             },
             generationMetrics,
-            'TOOL_DUPLICATE_CALL'
+            'TOOL_DUPLICATE_CALL',
+            targetEvidence(
+              client.provider,
+              testCase.model || requestedModel || scenario.model,
+              observedModels
+            )
           );
         }
         seenCalls.add(fingerprint);
@@ -255,7 +348,12 @@ async function executeCaseAttempt(
                     : 'tool_error',
             },
             generationMetrics,
-            execution.error?.code ?? 'TOOL_EXECUTION_FAILED'
+            execution.error?.code ?? 'TOOL_EXECUTION_FAILED',
+            targetEvidence(
+              client.provider,
+              testCase.model || requestedModel || scenario.model,
+              observedModels
+            )
           );
         }
         const content = JSON.stringify(execution.result ?? {});
@@ -273,7 +371,12 @@ async function executeCaseAttempt(
           toolTrace,
           { status: 'error', steps: step + 1, terminationReason: 'timeout' },
           generationMetrics,
-          'TOOL_LOOP_TIMEOUT'
+          'TOOL_LOOP_TIMEOUT',
+          targetEvidence(
+            client.provider,
+            testCase.model || requestedModel || scenario.model,
+            observedModels
+          )
         );
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
@@ -290,9 +393,15 @@ async function executeCaseAttempt(
             terminationReason: timedOut ? 'timeout' : 'tool_error',
           },
           generationMetrics,
-          timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED'
+          timedOut ? 'TOOL_LOOP_TIMEOUT' : 'TOOL_GENERATION_FAILED',
+          targetEvidence(
+            client.provider,
+            testCase.model || requestedModel || scenario.model,
+            observedModels
+          )
         );
       }
+      observedModels.push(result.model);
       generationMetrics.latencyMs += result.latencyMs;
       generationMetrics.tokens.prompt += result.tokens.prompt;
       generationMetrics.tokens.completion += result.tokens.completion;
@@ -308,7 +417,12 @@ async function executeCaseAttempt(
           terminationReason: 'max_steps',
         },
         generationMetrics,
-        'TOOL_LOOP_MAX_STEPS'
+        'TOOL_LOOP_MAX_STEPS',
+        targetEvidence(
+          client.provider,
+          testCase.model || requestedModel || scenario.model,
+          observedModels
+        )
       );
     }
     toolLoop = { status: 'completed', steps: toolTrace.length, terminationReason: 'completed' };
@@ -316,11 +430,24 @@ async function executeCaseAttempt(
 
   // Evaluate response
   const evaluator = getEvaluator(testCase.expected.type);
-  const evalResult = await evaluator.evaluate(result.text, testCase.expected, {
-    client,
-    testCase,
-    toolTrace,
-  });
+  let evalResult: EvaluatorResult;
+  try {
+    evalResult = await evaluator.evaluate(result.text, testCase.expected, {
+      client,
+      testCase,
+      toolTrace,
+    });
+  } catch (error) {
+    evalResult = {
+      passed: false,
+      score: 0,
+      reason: `Evaluator failed: ${(error as Error).message}`,
+      status: 'invalid' as const,
+      evidence: {
+        validation: { status: 'invalid' as const, code: 'evaluator_failure' },
+      },
+    };
+  }
 
   // Determine effective redaction config (CLI > case > scenario)
   const effectiveRedaction = mergeRedactionConfig(
@@ -332,6 +459,8 @@ async function executeCaseAttempt(
   // Apply redaction if enabled
   let finalPrompt: string | object = testCase.prompt;
   let finalResponse = result.text;
+  let finalReason = sanitizeArtifactText(evalResult.reason, 1000);
+  let finalEvidence = sanitizeEvidence(testCase.expected.type, evalResult);
   let redactionInfo: CaseRedactionInfo | undefined;
 
   if (effectiveRedaction.enabled) {
@@ -339,6 +468,7 @@ async function executeCaseAttempt(
 
     let promptRedacted = false;
     let responseRedacted = false;
+    let reasonRedacted = false;
     let totalRedactions = 0;
 
     // Redact prompt if configured
@@ -372,10 +502,25 @@ async function executeCaseAttempt(
       totalRedactions += responseResult.redactionCount;
     }
 
+    // Evaluator reasons can contain judge output or provider error text. They
+    // are retained evidence, so they are always redacted when run redaction is
+    // enabled, independent of the legacy metadata toggle.
+    if (finalReason) {
+      const reasonResult = redactor.redact(finalReason);
+      finalReason = reasonResult.text;
+      reasonRedacted = reasonResult.wasRedacted;
+      totalRedactions += reasonResult.redactionCount;
+    }
+    finalEvidence = redactEvidence(finalEvidence, redactor, (count) => {
+      if (count > 0) reasonRedacted = true;
+      totalRedactions += count;
+    });
+
     redactionInfo = {
-      redacted: promptRedacted || responseRedacted,
+      redacted: promptRedacted || responseRedacted || reasonRedacted,
       promptRedacted,
       responseRedacted,
+      reasonRedacted,
       redactionCount: totalRedactions,
     };
   }
@@ -383,10 +528,11 @@ async function executeCaseAttempt(
   return {
     id: testCase.id,
     name: testCase.name,
-    ok: evalResult.passed,
-    score: evalResult.score,
+    ok: evaluationStatus(evalResult) === 'passed',
+    status: evaluationStatus(evalResult),
+    score: validScore(evalResult.score),
     matcherType: testCase.expected.type,
-    reason: evalResult.reason,
+    reason: finalReason,
     latencyMs: generationMetrics.latencyMs,
     tokens: generationMetrics.tokens,
     prompt: finalPrompt,
@@ -394,8 +540,35 @@ async function executeCaseAttempt(
     expected: testCase.expected,
     tags: testCase.tags,
     redaction: redactionInfo,
+    evidence: finalEvidence,
+    target: targetEvidence(
+      client.provider,
+      testCase.model || requestedModel || scenario.model,
+      observedModels
+    ),
     toolTrace: toolTrace.length ? toolTrace : undefined,
     toolLoop,
+  };
+}
+
+function targetEvidence(
+  provider: string,
+  requestedModel?: string,
+  observedModels?: unknown[]
+): NonNullable<CaseResult['target']> {
+  const observed = [
+    ...new Set(
+      (observedModels ?? []).filter(
+        (model): model is string => typeof model === 'string' && model.length > 0
+      )
+    ),
+  ]
+    .map((model) => sanitizeArtifactText(model, 200))
+    .filter((model): model is string => Boolean(model));
+  return {
+    provider: sanitizeArtifactText(provider, 100) ?? 'unknown',
+    ...(requestedModel ? { requested_model: sanitizeArtifactText(requestedModel, 200) } : {}),
+    ...(observed.length ? { observed_models: observed } : {}),
   };
 }
 
@@ -404,12 +577,14 @@ function createToolLoopError(
   toolTrace: ToolTraceEntry[],
   toolLoop: ToolLoopSummary,
   generationMetrics: Pick<CaseResult, 'latencyMs' | 'tokens'>,
-  code: string
+  code: string,
+  target?: CaseResult['target']
 ): ToolLoopError {
   return new ToolLoopError(code, {
     id: testCase.id,
     name: testCase.name,
     ok: false,
+    status: 'error',
     score: 0,
     matcherType: testCase.expected.type,
     reason: code,
@@ -420,9 +595,95 @@ function createToolLoopError(
     expected: testCase.expected,
     tags: testCase.tags,
     error: code,
+    target,
     toolTrace,
     toolLoop,
   });
+}
+
+function evaluationStatus(result: {
+  passed: boolean;
+  status?: unknown;
+}): CaseEvaluationStatus {
+  if (result.status === 'passed' || result.status === 'failed' || result.status === 'invalid') {
+    return result.status;
+  }
+  return result.passed ? 'passed' : 'failed';
+}
+
+function validScore(score: number): number {
+  return Number.isFinite(score) && score >= 0 && score <= 1 ? score : 0;
+}
+
+function sanitizeEvidence(
+  evaluator: string,
+  result: {
+    score: unknown;
+    evidence?: unknown;
+  }
+): CaseEvaluationEvidence {
+  const evidence: CaseEvaluationEvidence = {
+    evaluator: sanitizeArtifactText(evaluator, 100) ?? 'unknown',
+  };
+  if (isUnitIntervalNumber(result.score)) {
+    evidence.score = result.score;
+  }
+  if (!isRecord(result.evidence)) return evidence;
+
+  if (isUnitIntervalNumber(result.evidence.threshold)) {
+    evidence.threshold = result.evidence.threshold;
+  }
+  if (typeof result.evidence.model === 'string' && result.evidence.model) {
+    evidence.model = sanitizeArtifactText(result.evidence.model, 200);
+  }
+  if (isRecord(result.evidence.validation)) {
+    const status = result.evidence.validation.status;
+    const code = result.evidence.validation.code;
+    if (status !== 'valid' && status !== 'invalid') return evidence;
+    evidence.validation = {
+      status,
+      ...(typeof code === 'string' && code ? { code: sanitizeArtifactText(code, 100) } : {}),
+    };
+  }
+  return evidence;
+}
+
+function redactEvidence(
+  evidence: CaseEvaluationEvidence,
+  redactor: Redactor,
+  onRedactions: (count: number) => void
+): CaseEvaluationEvidence {
+  const redactValue = (value: string | undefined): string | undefined => {
+    if (!value) return value;
+    const result = redactor.redact(value);
+    onRedactions(result.redactionCount);
+    return result.text;
+  };
+
+  return {
+    ...evidence,
+    ...(evidence.model ? { model: redactValue(evidence.model) } : {}),
+    ...(evidence.validation
+      ? {
+          validation: {
+            ...evidence.validation,
+            ...(evidence.validation.code ? { code: redactValue(evidence.validation.code) } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+function sanitizeArtifactText(value: unknown, maxLength: number): string | undefined {
+  return typeof value === 'string' ? value.slice(0, maxLength) : undefined;
+}
+
+function isUnitIntervalNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 class ToolLoopError extends Error {

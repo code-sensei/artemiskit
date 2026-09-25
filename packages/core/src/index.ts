@@ -24,6 +24,9 @@ export * from './artifacts';
 // Provenance
 export * from './provenance';
 
+// Comparison eligibility
+export * from './comparison';
+
 // Utilities
 export * from './utils';
 

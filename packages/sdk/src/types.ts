@@ -6,6 +6,7 @@
 import type {
   AdapterConfig,
   CaseResult,
+  ComparisonEligibility,
   ModelClient,
   RedTeamManifest,
   RunManifest,
@@ -393,8 +394,10 @@ export interface RunSummary {
  * Comparison details between two runs
  */
 export interface ComparisonDetails {
-  /** Change in success rate (current - baseline) */
-  successRateDelta: number;
+  /** True when the runs are eligible for a metric/case delta. */
+  comparisonAvailable: boolean;
+  /** Change in success rate (current - baseline), absent for incomparable runs. */
+  successRateDelta?: number;
   /** Cases that passed in baseline but failed in current */
   newFailures: Array<{
     caseId: string;
@@ -438,7 +441,9 @@ export interface CompareResult {
   current: RunSummary;
   /** Detailed comparison */
   comparison: ComparisonDetails;
-  /** Whether a regression was detected */
+  /** Versioned compatibility decision that governs the comparison. */
+  eligibility: ComparisonEligibility;
+  /** Whether a regression was detected; always false for incomparable runs. */
   hasRegression: boolean;
   /** Threshold used for regression detection */
   threshold: number;

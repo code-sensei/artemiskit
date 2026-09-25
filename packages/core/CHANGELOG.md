@@ -1,5 +1,62 @@
 # @artemiskit/core
 
+## 0.5.3
+
+### Patch Changes
+
+- Qualify standard-run comparisons from bounded workload, rubric, and execution evidence. Changed
+  workloads or rubrics withhold deltas, while incomplete historical evidence and changed target
+  configuration remain explicitly qualified across storage, CLI, SDK, and reports.
+
+## 0.5.2
+
+### Patch Changes
+
+- Record bounded attempt, retry, repetition, and cost-provenance evidence in run artifacts. Outcome
+  rates now retain their terminal-attempt denominator, and costs are explicitly known,
+  user-supplied, or unavailable rather than inferred from generic token pricing.
+
+## 0.5.1
+
+### Patch Changes
+
+- Preserve bounded requested and observed target-model evidence per case and per run, separately from
+  evaluator identities. Normal manifests now use v1.3 execution provenance while retaining readable
+  historical artifacts. CI JSON output is machine-readable without progress text.
+
+## 0.5.0
+
+### Minor Changes
+
+- b826698: Add versioned, redacted SHA-256 workload and rubric identities to normal scenario-run manifests.
+  The new manifest v1.2 field distinguishes changed declared inputs from changed evaluation criteria
+  without inferring identity for historical artifacts.
+
+## 0.4.2
+
+### Patch Changes
+
+- 8716ca6: Harden assessment evidence handling with a disposable database migration proof,
+  explicit invalid-measurement and execution-error presentation, and consistent
+  integrity counts across supported report formats.
+
+## 0.4.1
+
+### Patch Changes
+
+- Harden evaluation-integrity artifacts: redact bounded evaluator evidence, validate status and
+  evidence at storage and JSON-report boundaries, and make non-interactive publishes exit cleanly.
+
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
 ## 0.3.0
 
 ### Minor Changes

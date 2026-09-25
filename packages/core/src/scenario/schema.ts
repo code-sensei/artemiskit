@@ -95,6 +95,8 @@ const BaseExpectedSchema = z.discriminatedUnion('type', [
     model: z.string().optional(),
     provider: ProviderSchema.optional(),
     threshold: z.number().min(0).max(1).default(0.7),
+    /** Require exact, validated JSON from the judge for assurance assessments. */
+    strict: z.boolean().optional().default(false),
   }),
 
   z.object({
@@ -223,7 +225,7 @@ export const TestCaseSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
   metadata: z.record(z.unknown()).optional().default({}),
   timeout: z.number().optional(),
-  retries: z.number().optional().default(0),
+  retries: z.number().int().min(0).max(99).optional().default(0),
   provider: ProviderSchema.optional(),
   model: z.string().optional(),
   variables: VariablesSchema.optional(),

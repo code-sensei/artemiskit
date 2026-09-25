@@ -1,5 +1,69 @@
 # @artemiskit/sdk
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.3
+  - @artemiskit/redteam@0.3.7
+
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.2
+  - @artemiskit/redteam@0.3.6
+
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.1
+  - @artemiskit/redteam@0.3.5
+
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+  - @artemiskit/redteam@0.3.4
+
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+  - @artemiskit/redteam@0.3.3
+
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+  - @artemiskit/redteam@0.3.2
+
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+  - @artemiskit/redteam@0.3.1
+
 ## 0.3.3
 
 ### Patch Changes

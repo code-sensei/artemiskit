@@ -77,6 +77,30 @@ describe('LocalStorageAdapter', () => {
     expect(loaded.metrics.success_rate).toBe(0.8);
   });
 
+  test('rejects malformed evaluator evidence before writing a standard run', async () => {
+    const malformed = {
+      ...mockManifest,
+      run_id: 'invalid-evidence',
+      cases: [
+        {
+          id: 'case-1',
+          ok: false,
+          score: 0,
+          matcherType: 'custom',
+          latencyMs: 1,
+          tokens: { prompt: 0, completion: 0, total: 0 },
+          prompt: 'prompt',
+          response: 'response',
+          expected: {},
+          tags: [],
+          evidence: { evaluator: 'custom', threshold: 2 },
+        },
+      ],
+    } as RunManifest;
+
+    await expect(storage.save(malformed)).rejects.toThrow('invalid evidence threshold');
+  });
+
   test('throws error for non-existent run', async () => {
     await expect(storage.load('non-existent-run')).rejects.toThrow('Run not found');
   });
@@ -155,6 +179,45 @@ describe('LocalStorageAdapter', () => {
     expect(comparison.delta.successRate).toBeCloseTo(0.1, 2);
     expect(comparison.delta.latency).toBe(-30);
     expect(comparison.delta.tokens).toBe(100);
+    expect(comparison.eligibility.status).toBe('qualified');
+  });
+
+  test('withholds deltas for incompatible workload evidence', async () => {
+    const baseline = {
+      ...mockManifest,
+      run_id: 'incompatible-baseline',
+      workload_identity: {
+        schema_version: '1' as const,
+        workload: {
+          schema_version: '1' as const,
+          algorithm: 'sha256' as const,
+          digest: 'a'.repeat(64),
+        },
+        rubric: {
+          schema_version: '1' as const,
+          algorithm: 'sha256' as const,
+          digest: 'b'.repeat(64),
+        },
+      },
+      execution_provenance: { schema_version: '1' as const, target: { provider: 'openai' } },
+    };
+    const current = {
+      ...baseline,
+      run_id: 'incompatible-current',
+      workload_identity: {
+        ...baseline.workload_identity,
+        workload: { ...baseline.workload_identity.workload, digest: 'c'.repeat(64) },
+      },
+    };
+
+    await storage.save(baseline);
+    await storage.save(current);
+
+    const comparison = await storage.compare('incompatible-baseline', 'incompatible-current');
+
+    expect(comparison.eligibility.status).toBe('incomparable');
+    expect(comparison.eligibility.reasons).toEqual([{ code: 'workload_mismatch' }]);
+    expect(comparison.delta).toBeUndefined();
   });
 
   test('handles empty storage gracefully', async () => {

@@ -1,5 +1,119 @@
 # @artemiskit/cli
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.3
+  - @artemiskit/adapter-deepagents@0.2.8
+  - @artemiskit/adapter-langchain@0.2.8
+  - @artemiskit/adapter-ling@0.1.7
+  - @artemiskit/adapter-openai@0.1.19
+  - @artemiskit/adapter-vercel-ai@0.1.19
+  - @artemiskit/redteam@0.3.7
+  - @artemiskit/reports@0.4.6
+
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.2
+  - @artemiskit/adapter-deepagents@0.2.7
+  - @artemiskit/adapter-langchain@0.2.7
+  - @artemiskit/adapter-ling@0.1.6
+  - @artemiskit/adapter-openai@0.1.18
+  - @artemiskit/adapter-vercel-ai@0.1.18
+  - @artemiskit/redteam@0.3.6
+  - @artemiskit/reports@0.4.5
+
+## 0.4.4
+
+### Patch Changes
+
+- Preserve bounded requested and observed target-model evidence per case and per run, separately from
+  evaluator identities. Normal manifests now use v1.3 execution provenance while retaining readable
+  historical artifacts. CI JSON output is machine-readable without progress text.
+- Updated dependencies
+  - @artemiskit/core@0.5.1
+  - @artemiskit/adapter-deepagents@0.2.6
+  - @artemiskit/adapter-langchain@0.2.6
+  - @artemiskit/adapter-ling@0.1.5
+  - @artemiskit/adapter-openai@0.1.17
+  - @artemiskit/adapter-vercel-ai@0.1.17
+  - @artemiskit/redteam@0.3.5
+  - @artemiskit/reports@0.4.4
+
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+  - @artemiskit/adapter-deepagents@0.2.5
+  - @artemiskit/adapter-langchain@0.2.5
+  - @artemiskit/adapter-ling@0.1.4
+  - @artemiskit/adapter-openai@0.1.16
+  - @artemiskit/adapter-vercel-ai@0.1.16
+  - @artemiskit/redteam@0.3.4
+  - @artemiskit/reports@0.4.3
+
+## 0.4.2
+
+### Patch Changes
+
+- 8716ca6: Harden assessment evidence handling with a disposable database migration proof,
+  explicit invalid-measurement and execution-error presentation, and consistent
+  integrity counts across supported report formats.
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+  - @artemiskit/reports@0.4.2
+  - @artemiskit/adapter-deepagents@0.2.4
+  - @artemiskit/adapter-langchain@0.2.4
+  - @artemiskit/adapter-ling@0.1.3
+  - @artemiskit/adapter-openai@0.1.15
+  - @artemiskit/adapter-vercel-ai@0.1.15
+  - @artemiskit/redteam@0.3.3
+
+## 0.4.1
+
+### Patch Changes
+
+- Harden evaluation-integrity artifacts: redact bounded evaluator evidence, validate status and
+  evidence at storage and JSON-report boundaries, and make non-interactive publishes exit cleanly.
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+  - @artemiskit/reports@0.4.1
+  - @artemiskit/adapter-deepagents@0.2.3
+  - @artemiskit/adapter-langchain@0.2.3
+  - @artemiskit/adapter-ling@0.1.2
+  - @artemiskit/adapter-openai@0.1.14
+  - @artemiskit/adapter-vercel-ai@0.1.14
+  - @artemiskit/redteam@0.3.2
+
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+  - @artemiskit/reports@0.4.0
+  - @artemiskit/adapter-deepagents@0.2.2
+  - @artemiskit/adapter-langchain@0.2.2
+  - @artemiskit/adapter-ling@0.1.1
+  - @artemiskit/adapter-openai@0.1.13
+  - @artemiskit/adapter-vercel-ai@0.1.13
+  - @artemiskit/redteam@0.3.1
+
 ## 0.3.2
 
 ### Patch Changes

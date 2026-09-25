@@ -4,7 +4,15 @@
 
 import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { AnyManifest, RedTeamManifest, RunManifest, StressManifest } from '../artifacts/types';
+import {
+  type AnyManifest,
+  type RedTeamManifest,
+  type RunManifest,
+  type StressManifest,
+  assertRunManifestIntegrity,
+  isRunManifest,
+} from '../artifacts/types';
+import { assessComparisonEligibility, isComparisonAvailable } from '../comparison';
 import type {
   BaselineMetadata,
   BaselineStorageAdapter,
@@ -78,6 +86,9 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
   }
 
   async save(manifest: AnyManifest): Promise<string> {
+    if (isRunManifest(manifest)) {
+      assertRunManifestIntegrity(manifest);
+    }
     const dir = join(this.basePath, manifest.project);
     await mkdir(dir, { recursive: true });
 
@@ -106,7 +117,8 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
     if (getManifestType(manifest) !== 'run') {
       throw new Error(`Run ${runId} is not a standard run manifest`);
     }
-    return manifest as RunManifest;
+    assertRunManifestIntegrity(manifest);
+    return manifest;
   }
 
   async loadRedTeam(runId: string): Promise<RedTeamManifest> {
@@ -201,9 +213,15 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
       this.loadRun(currentId),
     ]);
 
+    const eligibility = assessComparisonEligibility(baseline, current);
+    if (!isComparisonAvailable(eligibility)) {
+      return { baseline, current, eligibility };
+    }
+
     return {
       baseline,
       current,
+      eligibility,
       delta: {
         successRate: current.metrics.success_rate - baseline.metrics.success_rate,
         latency: current.metrics.median_latency_ms - baseline.metrics.median_latency_ms,
@@ -364,7 +382,8 @@ export class LocalStorageAdapter implements BaselineStorageAdapter {
     const comparison = await this.compare(baseline.runId, runId);
 
     // Check for regression (negative delta in success rate)
-    const hasRegression = comparison.delta.successRate < -regressionThreshold;
+    const hasRegression =
+      comparison.delta !== undefined && comparison.delta.successRate < -regressionThreshold;
 
     return {
       baseline,

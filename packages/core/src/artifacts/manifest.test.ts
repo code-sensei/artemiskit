@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { createRunManifest } from './manifest';
+import { assertRunManifestIntegrity } from './types';
 import type { CaseResult } from './types';
 
 describe('createRunManifest', () => {
@@ -12,35 +13,29 @@ describe('createRunManifest', () => {
       id: 'case-1',
       name: 'Test Case 1',
       ok: true,
+      status: 'passed',
       latencyMs: 100,
       prompt: 'Hello',
       response: 'Hi there!',
-      tokens: { prompt: 10, completion: 5 },
-      evaluations: [
-        {
-          type: 'contains',
-          passed: true,
-          score: 1,
-          reason: 'Contains expected value',
-        },
-      ],
+      tokens: { prompt: 10, completion: 5, total: 15 },
+      score: 1,
+      matcherType: 'contains',
+      expected: { type: 'contains', values: ['Hi'], mode: 'any' },
+      tags: [],
     },
     {
       id: 'case-2',
       name: 'Test Case 2',
       ok: false,
+      status: 'failed',
       latencyMs: 200,
       prompt: 'Goodbye',
       response: 'See you!',
-      tokens: { prompt: 8, completion: 4 },
-      evaluations: [
-        {
-          type: 'contains',
-          passed: false,
-          score: 0,
-          reason: 'Missing expected value',
-        },
-      ],
+      tokens: { prompt: 8, completion: 4, total: 12 },
+      score: 0,
+      matcherType: 'contains',
+      expected: { type: 'contains', values: ['Bye'], mode: 'any' },
+      tags: [],
     },
   ];
 
@@ -60,13 +55,19 @@ describe('createRunManifest', () => {
       endTime,
     });
 
-    expect(manifest.version).toBe('1.0');
+    expect(manifest.version).toBe('1.4');
     expect(manifest.project).toBe('test-project');
     expect(manifest.run_id).toBeTruthy();
     expect(manifest.run_id.length).toBe(12);
     expect(manifest.config.scenario).toBe('test-scenario');
     expect(manifest.config.provider).toBe('openai');
     expect(manifest.config.model).toBe('gpt-4');
+    expect(manifest.metrics.cost).toBeUndefined();
+    expect(manifest.metrics.cost_provenance).toEqual({
+      schema_version: '1',
+      status: 'unavailable',
+      unavailable_reason: 'provider_billing_not_recorded',
+    });
   });
 
   test('calculates metrics correctly', () => {
@@ -86,6 +87,10 @@ describe('createRunManifest', () => {
     expect(manifest.metrics.passed_cases).toBe(1);
     expect(manifest.metrics.failed_cases).toBe(1);
     expect(manifest.metrics.success_rate).toBe(0.5);
+    expect(manifest.metrics.total_attempts).toBe(2);
+    expect(manifest.metrics.valid_evaluations).toBe(2);
+    expect(manifest.metrics.invalid_evaluations).toBe(0);
+    expect(manifest.metrics.outcome_rate_denominator).toBe(2);
     expect(manifest.metrics.total_tokens).toBe(27); // (10+5) + (8+4)
     expect(manifest.metrics.total_prompt_tokens).toBe(18); // 10 + 8
     expect(manifest.metrics.total_completion_tokens).toBe(9); // 5 + 4
@@ -129,6 +134,10 @@ describe('createRunManifest', () => {
     expect(manifest.metrics.passed_cases).toBe(0);
     expect(manifest.metrics.failed_cases).toBe(0);
     expect(manifest.metrics.success_rate).toBe(0);
+    expect(manifest.metrics.total_attempts).toBe(0);
+    expect(manifest.metrics.valid_evaluations).toBe(0);
+    expect(manifest.metrics.invalid_evaluations).toBe(0);
+    expect(manifest.metrics.outcome_rate_denominator).toBe(0);
     expect(manifest.metrics.median_latency_ms).toBe(0);
     expect(manifest.metrics.p95_latency_ms).toBe(0);
   });
@@ -158,6 +167,56 @@ describe('createRunManifest', () => {
     expect(manifest.resolved_config?.provider).toBe('openai');
     expect(manifest.resolved_config?.source.provider).toBe('cli');
     expect(manifest.resolved_config?.source.model).toBe('config');
+  });
+
+  test('retains a validated workload identity when provided', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'test-scenario', provider: 'openai' },
+      workloadIdentity: {
+        schema_version: '1',
+        workload: {
+          schema_version: '1',
+          algorithm: 'sha256',
+          digest: 'a'.repeat(64),
+        },
+        rubric: {
+          schema_version: '1',
+          algorithm: 'sha256',
+          digest: 'b'.repeat(64),
+        },
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.workload_identity?.workload.digest).toBe('a'.repeat(64));
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+  });
+
+  test('retains target and evaluator execution provenance separately', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'test-scenario', provider: 'openai' },
+      executionProvenance: {
+        schema_version: '1',
+        target: {
+          provider: 'openai',
+          requested_models: ['gpt-requested'],
+          observed_models: ['gpt-observed'],
+          generation: { temperature: 0, max_tokens: 100, seed: 42 },
+        },
+        evaluator: { models: ['judge-model'] },
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.execution_provenance?.target.observed_models).toEqual(['gpt-observed']);
+    expect(manifest.execution_provenance?.evaluator?.models).toEqual(['judge-model']);
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
   });
 
   test('includes provenance information', () => {
@@ -202,5 +261,169 @@ describe('createRunManifest', () => {
 
     expect(manifest.metrics.median_latency_ms).toBe(300);
     expect(manifest.metrics.p95_latency_ms).toBe(500);
+  });
+
+  test('excludes invalid and target-error measurements from the success-rate denominator', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'test-scenario', provider: 'openai' },
+      cases: [
+        { ...mockCases[0], attempts: 2 },
+        { ...mockCases[1], status: 'invalid', error: undefined },
+        { ...mockCases[1], id: 'case-3', status: 'error', error: 'provider unavailable' },
+      ],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.metrics).toMatchObject({
+      total_attempts: 4,
+      total_cases: 3,
+      valid_evaluations: 1,
+      invalid_evaluations: 2,
+      outcome_rate_denominator: 1,
+      passed_cases: 1,
+      failed_cases: 0,
+      success_rate: 1,
+    });
+  });
+
+  test('maps historical manifests without a status using the documented legacy mapping', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'legacy', provider: 'openai' },
+      cases: [
+        { ...mockCases[0], status: undefined },
+        { ...mockCases[1], status: undefined, error: 'legacy execution failure' },
+      ],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.metrics).toMatchObject({
+      valid_evaluations: 1,
+      invalid_evaluations: 1,
+      outcome_rate_denominator: 1,
+      success_rate: 1,
+    });
+  });
+
+  test('accepts historical cases without integrity fields but rejects malformed new evidence', () => {
+    const historical = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'legacy', provider: 'openai' },
+      cases: [{ ...mockCases[0], status: undefined, evidence: undefined }],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+    expect(() => assertRunManifestIntegrity(historical)).not.toThrow();
+
+    const malformed = {
+      ...historical,
+      cases: [
+        {
+          ...mockCases[0],
+          status: 'passed',
+          evidence: { evaluator: 'custom', validation: { status: 'unknown' } },
+        },
+      ],
+    };
+    expect(() => assertRunManifestIntegrity(malformed)).toThrow('invalid evidence validation');
+
+    expect(() =>
+      assertRunManifestIntegrity({ ...historical, workload_identity: { schema_version: '1' } })
+    ).toThrow('malformed workload identity');
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...historical,
+        execution_provenance: { schema_version: '1', target: { provider: '' } },
+      })
+    ).toThrow('malformed execution provenance');
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...historical,
+        cases: [{ ...historical.cases[0], target: { provider: '', observed_models: ['x'] } }],
+      })
+    ).toThrow('malformed target evidence');
+  });
+
+  test('retains attested cost evidence but rejects malformed monetary claims', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'cost', provider: 'openai' },
+      costProvenance: {
+        schema_version: '1',
+        status: 'known',
+        amount: 1.25,
+        currency: 'USD',
+        source: 'provider_billing',
+        recorded_at: '2026-09-10T00:00:00.000Z',
+      },
+      cases: mockCases,
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(manifest.metrics.cost_provenance?.status).toBe('known');
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...manifest,
+        metrics: {
+          ...manifest.metrics,
+          cost_provenance: { schema_version: '1', status: 'known', amount: 1 },
+        },
+      })
+    ).toThrow('malformed cost provenance');
+  });
+
+  test('validates bounded retry-chain evidence without requiring it from historical manifests', () => {
+    const manifest = createRunManifest({
+      project: 'test-project',
+      config: { scenario: 'retry', provider: 'fixture' },
+      attemptEvidence: {
+        schema_version: '1',
+        repetition: { index: 1, total: 2 },
+        retry_policy: { default_max_retries: 1, backoff: 'exponential', initial_delay_ms: 1000 },
+        timeout: { default_ms: 5000 },
+      },
+      cases: [
+        {
+          ...mockCases[0],
+          attempts: 2,
+          attempt_evidence: [
+            {
+              attempt_id: 'run:case-1:1',
+              retry_chain_id: 'run:case-1',
+              repetition_index: 1,
+              attempt_number: 1,
+              status: 'error',
+              included_in_outcome: false,
+              latency_ms: 3,
+              error_code: 'target_error',
+            },
+            {
+              attempt_id: 'run:case-1:2',
+              retry_chain_id: 'run:case-1',
+              repetition_index: 1,
+              attempt_number: 2,
+              status: 'passed',
+              included_in_outcome: true,
+              latency_ms: 4,
+            },
+          ],
+        },
+      ],
+      startTime: new Date(),
+      endTime: new Date(),
+    });
+
+    expect(() => assertRunManifestIntegrity(manifest)).not.toThrow();
+    expect(() =>
+      assertRunManifestIntegrity({
+        ...manifest,
+        cases: [{ ...manifest.cases[0], attempt_evidence: [] }],
+      })
+    ).toThrow('malformed attempt evidence');
   });
 });

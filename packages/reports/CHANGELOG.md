@@ -1,5 +1,67 @@
 # @artemiskit/reports
 
+## 0.4.6
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.3
+
+## 0.4.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.2
+
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.5.1
+
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [b826698]
+  - @artemiskit/core@0.5.0
+
+## 0.4.2
+
+### Patch Changes
+
+- 8716ca6: Harden assessment evidence handling with a disposable database migration proof,
+  explicit invalid-measurement and execution-error presentation, and consistent
+  integrity counts across supported report formats.
+- Updated dependencies [8716ca6]
+  - @artemiskit/core@0.4.2
+
+## 0.4.1
+
+### Patch Changes
+
+- Harden evaluation-integrity artifacts: redact bounded evaluator evidence, validate status and
+  evidence at storage and JSON-report boundaries, and make non-interactive publishes exit cleanly.
+- Updated dependencies
+  - @artemiskit/core@0.4.1
+
+## 0.4.0
+
+### Minor Changes
+
+- Introduce the v1.1 evaluation-integrity contract for assurance runs. Case results now distinguish
+  valid passes and failures from invalid evaluator measurements and target execution errors. Strict
+  LLM grading is available for assurance scenarios, results retain bounded evaluator evidence, and
+  run/report/CLI/JUnit summaries disclose attempts, valid and invalid measurements, and their rate
+  denominator. Supabase storage gains a migration for queryable integrity counts and case evidence.
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

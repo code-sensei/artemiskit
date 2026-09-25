@@ -69,9 +69,8 @@ describe('sequential milestone release gates', () => {
     };
     const result = await verifyRelease('prepublish', first, {
       packageVersions: async () => new Map([['@artemiskit/core', '0.6.0']]),
-      remoteTag: async () => {
-        throw new Error('unexpected remote lookup');
-      },
+      remoteTag: async () => ({ exists: false }),
+      head: async () => 'first-candidate',
     });
     expect(result.status).toBe('passed');
   });
@@ -145,5 +144,48 @@ describe('sequential milestone release gates', () => {
       parseRemoteTag('tag-object\trefs/tags/v0.6.0\ncommit\trefs/tags/v0.6.0^{}\n', 'v0.6.0')
     ).toEqual({ exists: true, annotated: true, commit: 'commit' });
     expect(parseRemoteTag('', 'v0.6.0').exists).toBe(false);
+  });
+  test('completed milestone allows later independent patches without moving old tags', async () => {
+    expect(
+      (
+        await verifyRelease('completed', manifest, {
+          ...dependencies,
+          packageVersions: async () => new Map([['@artemiskit/sdk', '0.5.2']]),
+          head: async () => 'new-package-release-head',
+          registryPackage: async (name: string) => ({
+            ...(await dependencies.registryPackage(name)),
+            'dist-tags': { latest: '0.5.2' },
+          }),
+        })
+      ).status
+    ).toBe('passed');
+    await expect(
+      verifyRelease('completed', manifest, {
+        ...dependencies,
+        remoteTag: async () => ({ exists: false, annotated: false }),
+      })
+    ).rejects.toThrow('Previous milestone');
+    await expect(
+      verifyRelease('completed', manifest, {
+        ...dependencies,
+        remoteTag: async (name: string) => ({
+          exists: true,
+          annotated: true,
+          commit: name.startsWith('@artemiskit/sdk') ? 'wrong-revision' : 'test-head',
+        }),
+      })
+    ).rejects.toThrow('incomplete');
+  });
+  test('rejects conflicting current release tags before publication', async () => {
+    await expect(
+      verifyRelease('prepublish', manifest, {
+        ...dependencies,
+        remoteTag: async (name: string) => ({
+          exists: true,
+          annotated: true,
+          commit: name === 'v0.6.1' ? 'different-candidate' : 'test-head',
+        }),
+      })
+    ).rejects.toThrow('different revision');
   });
 });

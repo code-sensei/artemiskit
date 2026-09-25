@@ -122,6 +122,24 @@ export async function verifyRelease(mode, manifest, dependencies = {}) {
   const head =
     dependencies.head ??
     (async () => (await exec('git', ['rev-parse', 'HEAD'], { cwd: repository })).stdout.trim());
+  async function requireCompleted(completed) {
+    const milestoneTag = await tag(completed.tag);
+    if (!milestoneTag.exists || !milestoneTag.annotated)
+      throw new Error(
+        'Previous milestone must be published to npm and tagged on origin before this release'
+      );
+    for (const pkg of completed.packages) {
+      const published = await registry(pkg.name);
+      const packageTag = await tag(`${pkg.name}@${pkg.version}`);
+      if (
+        !published.versions?.[pkg.version]?.dist?.integrity ||
+        !packageTag.exists ||
+        !packageTag.annotated ||
+        packageTag.commit !== milestoneTag.commit
+      )
+        throw new Error(`Previous milestone package publication is incomplete: ${pkg.name}`);
+    }
+  }
   if (mode === 'local' || mode === 'prepublish') {
     const versions = await local();
     for (const pkg of release.packages) {
@@ -133,25 +151,19 @@ export async function verifyRelease(mode, manifest, dependencies = {}) {
     const previousRelease = validateReleaseManifest(await previousManifest(release.previous));
     if (previousRelease.milestone !== release.previous)
       throw new Error('Previous milestone manifest mismatch');
-    const previous = await tag(`v${release.previous}`);
-    if (!previous.exists || !previous.annotated) {
-      throw new Error(
-        'Previous milestone must be published to npm and tagged on origin before this release'
-      );
-    }
-    for (const pkg of previousRelease.packages) {
-      const published = await registry(pkg.name);
-      const packageTag = await tag(`${pkg.name}@${pkg.version}`);
-      if (
-        !published.versions?.[pkg.version]?.dist?.integrity ||
-        !packageTag.annotated ||
-        packageTag.commit !== previous.commit
-      ) {
-        throw new Error(`Previous milestone package publication is incomplete: ${pkg.name}`);
-      }
-    }
+    await requireCompleted(previousRelease);
   }
+  if (mode === 'completed') await requireCompleted(release);
   if (mode === 'prepublish') {
+    const candidate = await head();
+    for (const name of [
+      release.tag,
+      ...release.packages.map((pkg) => `${pkg.name}@${pkg.version}`),
+    ]) {
+      const existing = await tag(name);
+      if (existing.exists && (!existing.annotated || existing.commit !== candidate))
+        throw new Error(`Release tag already identifies a different revision: ${name}`);
+    }
     // Changesets can publish every unpublished workspace version, not just listed entries.
     for (const [name, version] of await local()) {
       if (release.packages.some((pkg) => pkg.name === name)) continue;
@@ -184,7 +196,7 @@ export async function verifyRelease(mode, manifest, dependencies = {}) {
       }
     }
   }
-  if (!['local', 'prepublish', 'registry', 'tags'].includes(mode))
+  if (!['local', 'prepublish', 'registry', 'tags', 'completed'].includes(mode))
     throw new Error('Unknown release verification mode');
   return {
     milestone: release.milestone,
@@ -199,7 +211,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     const [mode, file] = process.argv.slice(2);
     if (!file)
       throw new Error(
-        'Usage: bun scripts/verify-release.mjs <local|prepublish|registry|tags> <manifest.json>'
+        'Usage: bun scripts/verify-release.mjs <local|prepublish|registry|tags|completed> <manifest.json>'
       );
     const manifest = JSON.parse(await readFile(file, 'utf8'));
     console.log(JSON.stringify(await verifyRelease(mode, manifest)));

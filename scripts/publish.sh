@@ -29,6 +29,7 @@ FORCE=false
 WORKSPACE_DEPS_FIXED=false
 TEMP_NPM_CONFIG=""
 RELEASE_MANIFEST=""
+PACKAGE_RELEASE=false
 
 restore_workspace_deps() {
   if [ "$WORKSPACE_DEPS_FIXED" = true ]; then
@@ -119,6 +120,10 @@ while [[ $# -gt 0 ]]; do
       PUBLISH_ONLY=true
       shift
       ;;
+    --package-release)
+      PACKAGE_RELEASE=true
+      shift
+      ;;
     --preflight)
       PREFLIGHT_ONLY=true
       shift
@@ -135,6 +140,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --skip-tests     Skip running tests"
       echo "  --skip-changeset Skip changeset creation (use existing)"
       echo "  --publish-only   Publish already-versioned packages without creating a changeset"
+      echo "  --package-release Independent package release after the current milestone is complete"
       echo "  --preflight      Verify npm credentials and package ownership without publishing"
       echo "  --force          Continue even with uncommitted changes"
       echo "  -h, --help       Show this help message"
@@ -322,7 +328,17 @@ if [[ "$CORE_VERSION" == 0.6.* ]]; then
     echo -e "${RED}Error: missing milestone release manifest: $RELEASE_MANIFEST${NC}"
     exit 1
   fi
-  bun scripts/verify-release.mjs prepublish "$RELEASE_MANIFEST"
+  if [ "$PACKAGE_RELEASE" = true ]; then
+    # This cannot bypass a new core milestone: that exact milestone must already
+    # have every recorded package/version and tag available on npm and origin.
+    bun scripts/verify-release.mjs completed "$RELEASE_MANIFEST"
+    RELEASE_MANIFEST=""
+  else
+    bun scripts/verify-release.mjs prepublish "$RELEASE_MANIFEST"
+  fi
+elif [ "$PACKAGE_RELEASE" = true ]; then
+  echo -e "${RED}Error: --package-release requires a completed 0.6.x milestone${NC}"
+  exit 1
 fi
 
 echo ""

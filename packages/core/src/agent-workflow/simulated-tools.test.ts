@@ -53,6 +53,16 @@ describe('deterministic simulated tool catalog', () => {
       records: [{ id: 1, approved: false }],
     });
   });
+  test('distinguishes an empty document from a missing document', () => {
+    expect(call('read_document', { id: 'empty' }, { documents: { empty: '' } })).toMatchObject({
+      status: 'succeeded',
+      output: { id: 'empty', content: '' },
+    });
+    expect(call('read_document', { id: 'missing' }, { documents: { empty: '' } })).toMatchObject({
+      status: 'failed',
+      code: 'not_found',
+    });
+  });
   test('file writes are isolated from fixtures and independent calls', () => {
     const state = { files: { 'notes/a.txt': 'before' } };
     const first = call('write_file', { path: 'notes/a.txt', content: 'after' }, state);

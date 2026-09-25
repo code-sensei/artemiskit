@@ -110,7 +110,7 @@ const tools: WorkflowToolDescriptor[] = [
     'documents',
     'read',
     object({ id: identifier }),
-    object({ id: identifier, content: text })
+    object({ id: identifier, content: { type: 'string', maxLength: 16_384 } })
   ),
   descriptor(
     'query_records',

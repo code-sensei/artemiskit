@@ -31,6 +31,17 @@ My recommended order is:
 These priorities are engineering judgments informed by the repository and the follow-up experiment.
 The trials establish integration behavior, not a winning harness for general task outcomes.
 
+These decisions are assigned to the [public milestone contracts](../ROADMAP.md) and
+[sequential release plan](releases/0.6.x-release-plan.md). The native loop/session interface,
+simulated and sandbox controls, preflight, budgets and cancellation belong to 0.6.1; independent
+outcome scoring belongs to 0.6.2; durable resume and fault/recovery evidence belong to 0.6.3;
+professional saved-evidence reports belong to 0.6.4. Optional integrations follow the shared
+execution interface and may ship separately without blocking the native milestone. Each must pass
+the applicable host-policy/event/budget conformance and stock provider-path qualification; a research
+bridge or existing provider adapter does not establish production harness support. Publish and
+verify each numbered milestone before publishing the next; independent package versions map to
+its milestone tag through the release manifest.
+
 ## Shortlist
 
 | Candidate | Verified capabilities and license | Fit and integration decision |

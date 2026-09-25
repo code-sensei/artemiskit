@@ -209,6 +209,26 @@ Keep the roadmap boundaries: 0.6.1 owns the controlled loop, authority and budge
 outcome scoring; 0.6.3 owns fault/recovery evidence. The experiment informs those increments; it does
 not make them implemented or released.
 
+### Approved implementation assignments
+
+The [updated roadmap](../ROADMAP.md) and [0.6.x release plan](releases/0.6.x-release-plan.md)
+turn these findings into milestone acceptance criteria:
+
+| Finding | Required milestone work |
+| --- | --- |
+| A normal finish can hide task failure | 0.6.1 separates execution status from unavailable task verification; 0.6.2 adds independent outcomes, CLI exit codes and matching typed SDK results. |
+| Argument coercion can conceal a model error | 0.6.1 validates original calls at the host boundary; optional Pi integration blocks or explicitly records configured repairs and identifies that configuration. |
+| A closed runtime may leave a host callback pending | 0.6.1 tracks host work, maps error/cancel events and retains interrupted-run evidence with transport/effect limits. |
+| Conversation checkpoints omit state and budget counters | 0.6.3 adds compatible durable checkpoints, separate-process resume, remaining budgets, operation identity and tested crash/replay boundaries. |
+| Advertised tool support did not produce structured calls | 0.6.1 adds explicit bounded preflight and truthful usage; offline validation stays offline and prose never becomes an implicit executable call. |
+| Evidence does not establish a speed, cost or quality winner | 0.6.4 reports coverage/validity/usage limitations; 0.7.x owns qualified comparative orchestration. Optional integrations make deployed systems assessable, not intrinsically better. |
+
+0.6.0 must first pass fresh-package and advertised runtime/TypeScript consumer verification and
+be published. Every following milestone includes the complete relevant CLI, SDK and evidence path
+and receives its own verified npm package release map and sequential milestone tag. This section
+records implementation decisions; it does not alter the experiment's retained results or expand
+what those results demonstrate.
+
 ## Use what exists today
 
 The following is available in the **built, unreleased checkout**. The published packages do not yet

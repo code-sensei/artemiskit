@@ -6,6 +6,11 @@
 > fault injection, and workflow reports remain later 0.6.x milestones. Existing real-agent examples remain documented in
 > [agent evaluation](../examples/agent-evaluation/README.md).
 
+The [0.6.x release plan](releases/0.6.x-release-plan.md) defines complete milestone acceptance and
+sequential npm/tag publication. Package versions remain independent of milestone labels. The
+[harness experiment](agent-harness-experiment.md) informs the controls below; its research runner is
+not the production workflow runner.
+
 ## Purpose
 
 An agent workflow evaluates whether a tool-using AI system can complete a declared task under a
@@ -275,13 +280,37 @@ statuses, denominators, eligibility, or factual findings.
 
 ## Implementation and release-validation sequence
 
-1. Version and test the workflow schema, tool descriptors, policy contract, and artifact evidence.
-2. Add simulated environments and a small tool catalog with deterministic tests.
-3. Add the CLI generator, list/describe commands, validation, and non-interactive workflows.
-4. Adapt at least two existing targets or adapters to prove the public contract is provider-neutral.
-5. Add sandbox execution through the existing bounded Docker/MCP capability as one implementation.
-6. Add fault injection, recovery classification, and independent outcome checks.
-7. Render technical, executive, and comprehensive deterministic reports.
+Each milestone includes its relevant core, CLI, SDK, artifact compatibility, examples and tests;
+declaring a schema without wiring its required consumers does not complete a behavior milestone.
+
+| Milestone | Delivered capability and acceptance boundary |
+| --- | --- |
+| 0.6.0 | Contract/primitives and offline authoring, proven with at least two adapters; packed CLI/SDK/core and TypeScript consumers must work on declared Node/Bun entry points before publication. No workflow execution claim. |
+| 0.6.1 | Native multi-turn runner and shared session/event interface; CLI/SDK execution with fresh simulated and disposable sandbox environments, fail-closed authority, cumulative budgets, explicit bounded tool preflight and tracked cancellation/cleanup. Independent task scoring remains unavailable. |
+| 0.6.2 | Independent deterministic outcome checks and bounded strict semantic judging; typed runtime/task/policy/measurement states, consistent CLI exit codes, SDK results and saved evidence. Normal termination alone never establishes a pass. |
+| 0.6.3 | Declared faults, bounded recovery/retries and durable CLI/SDK resume; compatible complete checkpoints preserve conversation, state/artifacts, authority, operation IDs and consumed budgets. Public recovery evidence is bounded/redacted separately from sensitive working checkpoints. |
+| 0.6.4 | Offline deterministic technical, executive and comprehensive HTML/Markdown reports from the same canonical evidence through CLI and SDK, with explicit coverage, validity, usage and recovery limitations. |
+
+Within 0.6.1, the implementation order is native loop/session contract, simulated and sandbox
+environments, host enforcement and budgets, preflight/usage handling, cancellation and terminal
+evidence, then integrated CLI/SDK conformance. Validate original tool arguments before effects; never
+execute JSON extracted from assistant prose or silently repair a call. Preflight is an explicit
+provider call with a bounded budget, separate from free offline validation. Record missing usage as
+unavailable and document in-flight overshoot rather than claiming an absolute spend guarantee.
+
+Cancellation must stop admission of new work, track callbacks until settled or explicitly unresolved,
+and preserve a truthful interrupted-run record. Transport abort capability and irreversible effects
+must be disclosed; a timeout or closed harness is not proof that host work stopped. Requested/pending
+approval must remain distinct from authority granted. 0.6.3 adds durable restart and recovery, not an
+excuse to omit basic cancellation handling from 0.6.1.
+
+After the shared execution interface is qualified, add optional AI SDK integration first and Pi
+second with explicit strictness/repair policy; keep fx experimental pending provider transport and
+cleanup qualification. Harness selection is independent of provider selection. Integrations load
+only when selected and record pinned versions/configuration identities. They can be separately
+released without blocking native 0.6.1 and must pass the same applicable conformance checks. No
+fork is justified by the current experiment. External-system execution and Loki integration are
+separately scoped; neither is implied by a sandbox or simulated approval record.
 
 Every user-facing 0.6 change must have focused unit/integration tests, typecheck, lint, and build
 validation. Before a commit, push, or release that changes the runner, executor, artifacts, reports,
@@ -290,6 +319,13 @@ locally installed Ollama model using the OpenAI-compatible endpoint. Inspect the
 requested and observed model identity, tool and policy evidence, measurement counts, denominator,
 cost provenance, and requested report export. These are compatibility-path checks, not native
 Ollama-provider support.
+
+Use bounded deadlines and retain failed/unsupported local-model outcomes rather than claiming
+advertised tool support passed. Deterministic fixture tests establish contract acceptance; live
+checks disclose configuration-specific limits. Test clean packed consumers before publishing and
+clean registry consumers afterward. Publish and verify each milestone's npm package map, package
+tags and `v0.6.x` milestone tag before publishing the next increment; see the release plan for exact
+checks and the current publishing script's non-read-only `--dry-run` caveat. CI repairs remain deferred.
 
 ## Compatibility boundary
 

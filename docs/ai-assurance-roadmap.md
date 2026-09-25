@@ -2,6 +2,12 @@
 
 Status: historical planning snapshot, based on a local source review on 5 September 2026 at `191e2de`. The current [public roadmap](../ROADMAP.md) supersedes this sequence; the [agent-workflow design](agent-workflow.md) defines the next 0.6 increment. The observations below describe the earlier revision, not current implementation gaps.
 
+The approved [0.6.x release plan](releases/0.6.x-release-plan.md) now assigns the complete CLI/SDK
+scope to contract (0.6.0), controlled execution (0.6.1), independent outcomes (0.6.2), durable
+recovery (0.6.3), and reports (0.6.4), with sequential npm and remote tag publication. Its release
+authorization and acceptance gates supersede the historical planning-only exclusions below; this
+snapshot does not authorize additional Loki, infrastructure, paid-provider or production-system work.
+
 ArtemisKit should provide reproducible, inspectable evidence that an AI model or system meets a defined use case's capability, security, language, cost, and performance requirements. This roadmap connects the existing open-source toolkit to the AI Assurance offering described in the owner's proposal. It does not establish delivery dates, commercial guarantees, or regulatory certification.
 
 ## Product boundary and sources

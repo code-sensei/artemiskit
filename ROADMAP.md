@@ -65,6 +65,8 @@ For 0.6.x, publish and verify each completed milestone in order: **0.6.0 → 0.6
 versions to the milestone's `v0.6.x` Git tag. Do not skip a milestone, relabel unimplemented work,
 or mark a release complete before npm installation and remote tag verification pass. See the
 [0.6.x release and acceptance plan](docs/releases/0.6.x-release-plan.md).
+The [0.6.0 candidate record](docs/releases/0.6.0.md) records package versions, local validation and
+the outstanding npm authentication/publication gate.
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |

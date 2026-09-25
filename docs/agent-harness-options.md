@@ -1,8 +1,10 @@
 # Agent harness options for ArtemisKit
 
 Research date: 25 September 2026, after the 0.6.0 implementation and validation.
-This is an architecture recommendation and a limited compatibility experiment, not a performance
-ranking or an adopted dependency. No external project was forked or added to the workspace.
+This initial architecture assessment is now followed by a
+[matched experiment and final recommendations](agent-harness-experiment.md). No upstream project
+was forked or adopted as a production runtime; pinned research dependencies live in an isolated
+experiment package.
 
 ## Recommendation
 
@@ -18,16 +20,16 @@ My recommended order is:
 2. Use **Vercel AI SDK** as the first additional TypeScript integration candidate because the repo
    already depends on it. Its loop controls are useful, but our existing adapter needs additional
    tool/event support before it can satisfy the new workflow contract.
-3. Add **fx/libfx** as an experimental optional integration. The offline tool bridge already works;
-   provider transport and complete budget/evidence control need further qualification.
-4. Evaluate **Pi agent-core** alongside fx as the strongest TypeScript alternative for deeper
-   runtime customization. Prefer its core package over taking ownership of the entire coding CLI.
+3. Add **Pi agent-core** as the next TypeScript option, using the tested strict-argument hook.
+   Prefer its core package over taking ownership of the entire coding CLI.
+4. Keep **fx/libfx** experimental: tools and checkpoint restore worked, but host cleanup and
+   provider transport require further qualification.
 5. Add **Deep Agents/LangGraph** when testing long-running, stateful, delegated business workflows.
    Retain **OpenHands** for software-engineering assessments. Treat **Mastra** as customer-demand
    coverage rather than another mandatory runtime.
 
-These priorities are engineering judgments based on this repository and the sources below.
-They do not establish which harness produces the best task outcomes; that requires matched trials.
+These priorities are engineering judgments informed by the repository and the follow-up experiment.
+The trials establish integration behavior, not a winning harness for general task outcomes.
 
 ## Shortlist
 
@@ -91,7 +93,8 @@ Probe retained at `/tmp/artemis-harness-research.9XRBHI/probe.mjs` on this machi
 
 This establishes an integration seam, not model quality, concurrent safety, crash recovery,
 checkpoint restoration, WASM compatibility, adversarial isolation or hard spend enforcement.
-The other shortlist entries received documentation/source review, not equivalent runtime trials.
+The subsequent matched experiment covers the native reference, AI SDK, Pi and fx. Deep Agents,
+OpenHands and Mastra remain documentation/source review only.
 
 ## Architecture and comparison rules
 
@@ -142,12 +145,10 @@ For any redistributed fork, retain upstream license/notices and identify our cha
 dependencies and separately licensed components as well as the root license. A new maintained
 fork should earn its cost through a demonstrated control or evidence requirement.
 
-## Next experiment before adopting an optional backend
+## Matched experiment completed; remaining qualification
 
-Run the same small assessment pack through the native reference, AI SDK, fx and Pi: document
-retrieval, record lookup, artifact creation, approval handoff, forbidden tool attempts, malformed
-arguments, interrupted execution, budget exhaustion and restart recovery. Start with deterministic
-transports, then use explicitly selected real models. Hold prompts/tools/budgets constant where
-possible and identify unavoidable differences. Compare outcome validity, control violations,
-trace completeness, missing usage, latency and measured cost separately. Select defaults only
-after that evidence; current findings support options, not a universal winning harness.
+The [executed pack](agent-harness-experiment.md) includes 192 original fixture coordinates, 24
+coercion follow-up coordinates, and 48 local-model task coordinates. It retains the Pi coercion
+failures and the model's failure to produce structured tool calls. The tested Pi remedy uses a public
+hook; no fork was needed. Before production adoption, qualify stock provider paths, transport
+cancellation, event/error coverage and broader workloads with models that pass a tool-call preflight.

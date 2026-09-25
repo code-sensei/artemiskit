@@ -1,0 +1,29 @@
+{
+  "recordedAt": "2026-09-25T11:25:51.548Z",
+  "model": "qwen2.5-coder:3b",
+  "scope": "Two post-hoc provider diagnostics, separate from the matched trial. No tool execution.",
+  "results": [
+    {
+      "formattingHint": null,
+      "finishReason": "stop",
+      "structuredToolCalls": [],
+      "syntheticResponseText": "{\"name\": \"read_document\", \"arguments\": {\"id\": \"brief\"}}",
+      "usage": {
+        "prompt_tokens": 352,
+        "completion_tokens": 17,
+        "total_tokens": 369
+      }
+    },
+    {
+      "formattingHint": " For each function call, return its JSON only inside <tool_call></tool_call> XML tags. Never output a bare tool JSON object.",
+      "finishReason": "stop",
+      "structuredToolCalls": [],
+      "syntheticResponseText": "```json\n{\"name\": \"read_document\", \"arguments\": {\"id\": \"brief\"}}\n```",
+      "usage": {
+        "prompt_tokens": 376,
+        "completion_tokens": 21,
+        "total_tokens": 397
+      }
+    }
+  ]
+}

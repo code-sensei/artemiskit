@@ -1,0 +1,1268 @@
+{
+  "startedAt": "2026-09-25T11:20:59.715Z",
+  "completedAt": "2026-09-25T11:21:05.684Z",
+  "sourceCommit": "3877ca5ef6836d5321a76bf5c5fd04cd874609d7",
+  "runtime": {
+    "bun": "1.3.10",
+    "node": "24.3.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "ai": "6.0.27",
+    "libfx": "0.0.11"
+  },
+  "live": false,
+  "model": "scripted-fixture",
+  "fileDigests": {
+    "backends.mjs": "b69f2dab7c1dd14a9cd73970c2ef591b1e216becf9791d2bbab161f0a9bad6e3",
+    "common.mjs": "c43f42981a4ffb10c5b53d2de9f5ef4f260cc71204addf38c0e94c297191c0c9",
+    "cases.mjs": "d71f0c3ce8757798c2dbd46a9a6339edfc783bb8b19503d7b5a82f3661bcb9fe",
+    "worker.mjs": "ae3ff8058f0a86931e59160856bdc2b54a6c1d2826f30c3485769d57adf987fc",
+    "run.mjs": "32c15ab73775cdb00ff50d94b79ad9c1a9648d8fea256075ec4a0cec29c2b5eb",
+    "package-lock.json": "5b9af0b6e8357bc1d272a90c8fefd061078c8f11b5d5e42c1898f275a18c9969"
+  },
+  "fixtureTokensPerRequest": 8,
+  "repetitions": 3,
+  "methodology": "Shared ArtemisKit simulated tool policy and bounded transport; real harness loops; fx uses a Gateway-protocol translation fixture. Not a stock provider-path benchmark.",
+  "results": [
+    {
+      "backend": "native",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 24,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 500,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 4,
+      "elapsedMs": 37,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 500,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "pi",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": false,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 8,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "succeeded"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "53641900cecf63323b0e3615b72e0f8178a0e8366eda588414fa171b8a96dca1",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": ["number.txt"],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 259,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "fx",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 43,
+      "elapsedMs": 76,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 287,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "native",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 13,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 216,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 8,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 207,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "pi",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "toolUse",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 6,
+      "trace": [],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": ["rewritten_arguments"],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 182,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "fx",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 10,
+      "elapsedMs": 17,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 302,
+      "stderrPresent": false,
+      "repeat": 1
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 3,
+      "elapsedMs": 18,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 274,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "pi",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": false,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 7,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "succeeded"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "53641900cecf63323b0e3615b72e0f8178a0e8366eda588414fa171b8a96dca1",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": ["number.txt"],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 207,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "fx",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 14,
+      "elapsedMs": 23,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 237,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "native",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 11,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 244,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 22,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 253,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "pi",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "toolUse",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 7,
+      "trace": [],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": ["rewritten_arguments"],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 235,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "fx",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 7,
+      "elapsedMs": 13,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 207,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "native",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 11,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 189,
+      "stderrPresent": false,
+      "repeat": 2
+    },
+    {
+      "backend": "pi",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": false,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 7,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "succeeded"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "53641900cecf63323b0e3615b72e0f8178a0e8366eda588414fa171b8a96dca1",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": ["number.txt"],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 189,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "fx",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 7,
+      "elapsedMs": 13,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 222,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "native",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 2,
+      "elapsedMs": 35,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 250,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 8,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": false,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 196,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "pi",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "toolUse",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 7,
+      "trace": [],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": ["rewritten_arguments"],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 186,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "fx",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "end_turn",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 7,
+      "elapsedMs": 13,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "c0e2c2b9ad87f529481dbc8deb2760ab0a437a03e07ed6ab5fef617754ddfd02",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 195,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "native",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "invalid_response",
+      "error": null,
+      "requests": 1,
+      "tokens": 8,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 1,
+      "elapsedMs": 12,
+      "trace": [],
+      "events": [],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 187,
+      "stderrPresent": false,
+      "repeat": 3
+    },
+    {
+      "backend": "ai-sdk",
+      "case": "strict_coerced_arguments",
+      "phase": null,
+      "live": false,
+      "passed": true,
+      "category": "control",
+      "taskOutcome": "not_applicable",
+      "reportedStatus": "stop",
+      "error": null,
+      "requests": 2,
+      "tokens": 16,
+      "usageKnown": true,
+      "paidProviderCostUsd": 0,
+      "localComputeCostUsd": null,
+      "initializationMs": 0,
+      "elapsedMs": 8,
+      "trace": [
+        {
+          "tool": "write_file",
+          "status": "invalid",
+          "code": "invalid_input"
+        }
+      ],
+      "events": [
+        {
+          "type": "tool_start",
+          "id": "call-1"
+        },
+        {
+          "type": "tool_end",
+          "id": "call-1"
+        }
+      ],
+      "guardStops": [],
+      "inputs": [
+        {
+          "digest": "8349fe076e064888744bc7756626acca43e2e94cb8187977421205ffcef06573",
+          "roles": ["system", "user"],
+          "instructionsPresent": true
+        },
+        {
+          "digest": "95e132a3154655a7fde28e9b397db7a78819ae0442ba136331d37a0d054c396f",
+          "roles": ["system", "user", "assistant", "tool"],
+          "instructionsPresent": true
+        }
+      ],
+      "toolEventsPaired": true,
+      "toolsPendingAtClose": 0,
+      "strictRawArguments": true,
+      "finalFiles": [],
+      "approvalStatus": null,
+      "isolationPassed": null,
+      "checkpointBytes": null,
+      "processElapsedMs": 189,
+      "stderrPresent": false,
+      "repeat": 3
+    }
+  ]
+}

@@ -2,14 +2,20 @@
  * Validate command - Validate scenarios without running them
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
-import { ScenarioValidator, type ValidationResult, type ValidationSummary } from '@artemiskit/core';
+import {
+  ScenarioValidator,
+  type ValidationResult,
+  type ValidationSummary,
+  parseAgentWorkflow,
+} from '@artemiskit/core';
 import { generateValidationJUnitReport } from '@artemiskit/reports';
 import { Glob } from 'bun';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { parseDocument } from 'yaml';
 import { icons } from '../ui/index.js';
 
 interface ValidateOptions {
@@ -65,7 +71,7 @@ export function validateCommand(): Command {
       }
 
       for (const file of files) {
-        const result = validator.validate(file);
+        const result = validateScenarioFile(file, validator);
         results.push(result);
 
         // In strict mode, warnings become errors
@@ -134,6 +140,30 @@ export function validateCommand(): Command {
     });
 
   return cmd;
+}
+
+/** Dispatch only explicitly tagged workflows; retain legacy validation behavior. */
+function validateScenarioFile(file: string, validator: ScenarioValidator): ValidationResult {
+  try {
+    const source = readFileSync(file, 'utf8');
+    if (parseDocument(source).get('kind') !== 'agent_workflow') return validator.validate(file);
+    parseAgentWorkflow(source);
+    return { file, valid: true, errors: [], warnings: [] };
+  } catch (error) {
+    return {
+      file,
+      valid: false,
+      warnings: [],
+      errors: [
+        {
+          line: 1,
+          severity: 'error',
+          rule: 'scenario-contract',
+          message: (error as Error).message,
+        },
+      ],
+    };
+  }
 }
 
 /**

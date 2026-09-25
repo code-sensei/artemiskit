@@ -15,6 +15,7 @@ import {
   runInitWizard,
 } from '../ui/index.js';
 import { checkForUpdateAndNotify, getCurrentVersion } from '../utils/update-checker.js';
+import { initAgentWorkflowCommand } from './agent-workflow';
 
 const DEFAULT_CONFIG = `# ArtemisKit Configuration
 project: my-project
@@ -298,6 +299,7 @@ async function appendEnvKeys(cwd: string): Promise<{ added: string[]; skipped: s
 
 export function initCommand(): Command {
   const cmd = new Command('init');
+  cmd.addCommand(initAgentWorkflowCommand());
 
   cmd
     .description('Initialize ArtemisKit in the current directory')

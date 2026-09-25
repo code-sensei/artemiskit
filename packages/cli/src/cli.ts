@@ -4,6 +4,7 @@
 
 import { Command } from 'commander';
 import { version } from '../package.json';
+import { scenarioCommand, workflowToolsCommand } from './commands/agent-workflow';
 import { baselineCommand } from './commands/baseline';
 import { compareCommand } from './commands/compare';
 import { historyCommand } from './commands/history';
@@ -46,6 +47,8 @@ export function createCLI(): Command {
     });
 
   program.addCommand(initCommand());
+  program.addCommand(scenarioCommand());
+  program.addCommand(workflowToolsCommand());
   program.addCommand(runCommand());
   program.addCommand(validateCommand());
   program.addCommand(baselineCommand());

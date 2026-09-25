@@ -42,5 +42,8 @@ export * from './tools';
 // Real-agent evaluation contracts
 export * from './agent-evaluation';
 
+// Versioned workflow contracts and single-step primitives
+export * from './agent-workflow';
+
 // Validator
 export * from './validator';

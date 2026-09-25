@@ -2,6 +2,11 @@
 
 This guide explains how to test **agentic AI systems** — chains, agents, and multi-agent workflows — using ArtemisKit's specialized adapters.
 
+For the new provider-neutral 0.6.0 contract, see [agent-workflow.yaml](agent-workflow.yaml)
+and the [workflow guide](../../docs/agent-workflow.md). Validate it with
+`akit scenario validate examples/07-agentic/agent-workflow.yaml`. This contract is implemented in
+source but not yet published; full workflow execution and scoring follow in later milestones.
+
 ## What is Agentic Testing?
 
 Agentic AI systems are more complex than simple prompt → response models. They involve:

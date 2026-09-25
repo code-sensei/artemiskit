@@ -1,6 +1,6 @@
 # ArtemisKit public roadmap
 
-**Last updated:** 10 September 2026
+**Last updated:** 25 September 2026
 **Status:** Active development
 **License:** Apache-2.0
 
@@ -140,6 +140,11 @@ increments can be re-ordered when evidence from real assessment work identifies 
 ### 0.6.x — Native agent harness
 
 #### 0.6.0 — Provider-neutral agent workflow and tool contract
+
+**Implemented in source; not yet published.** Includes strict version 1 schema validation, 12
+simulated tool primitives, a provider-neutral single-turn target proven with OpenAI and Ling
+adapters, and guided/non-interactive CLI authoring. See [the contract guide](docs/agent-workflow.md).
+Full workflow execution, cumulative budgets, scoring, and reports remain in the later increments below.
 
 - Define a public agent-target interface that can adapt at least two supported agent/model targets.
 - Define a versioned, readable `agent_workflow` scenario contract with initial state, system
@@ -385,7 +390,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Planned
+**Status:** Partial — 0.6.0 contract implemented in source, unpublished; execution and reporting planned
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -408,12 +413,12 @@ or a certification.
 
 | Work item | Status |
 | --- | --- |
-| Provider-neutral agent-execution interface supports at least two configured targets | 📋 |
-| Versioned `agent_workflow` scenarios and a small general-purpose tool catalog | 📋 |
-| Guided CLI generator and non-interactive validation produce readable, reviewable YAML | 📋 |
-| Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | 📋 |
+| Provider-neutral single-turn target interface proven with OpenAI and Ling adapters | ✅ 0.6.0 source; full execution follows |
+| Versioned `agent_workflow` scenarios and a small general-purpose tool catalog | ✅ 0.6.0 source |
+| Guided CLI generator and non-interactive validation produce readable, reviewable YAML | ✅ 0.6.0 source |
+| Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | ✅ 0.6.0 source; cumulative enforcement follows |
 | Simulated and sandbox environments use the same policy vocabulary and authority model | 📋 |
-| Undeclared tool authority fails closed | 📋 |
+| Undeclared tool authority fails closed | ✅ Simulated primitives; full environment enforcement follows |
 | Fresh disposable environments support multi-turn workflows | 📋 |
 | Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 |
 | Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 |

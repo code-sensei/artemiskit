@@ -1,8 +1,9 @@
 # Agent-workflow design guide
 
-> **Status: planned for 0.6.x.** This document defines the intended public contract; the
-> `agent_workflow` schema, tool catalog, generator, and environment types are not yet available in
-> released ArtemisKit packages. Existing real-agent examples remain documented in
+> **Status: 0.6.0 contract implemented in source; not yet published.** Version 1 workflow validation,
+> 12 simulated tool primitives, a provider-neutral single-turn target, and CLI authoring are available.
+> Full workflow execution, cumulative budget enforcement, scoring, sandbox/external environments,
+> fault injection, and workflow reports remain later 0.6.x milestones. Existing real-agent examples remain documented in
 > [agent evaluation](../examples/agent-evaluation/README.md).
 
 ## Purpose
@@ -25,10 +26,10 @@ agent framework, Docker, MCP, or a particular model the public harness contract.
 - An agent's self-report and an LLM judge are never the sole proof of workflow completion.
 - Evidence is bounded, sanitized, and explicit about unavailable or invalid measurements.
 
-## Proposed scenario shape
+## Version 1 scenario shape
 
-The exact schema will be versioned and validated before implementation. This illustrative shape is
-intended to make the public vocabulary reviewable:
+The following shape is validated by `AgentWorkflowSchema`. Fixture references are validated as safe
+relative paths; authoring and validation never read their contents or execute a target:
 
 ```yaml
 version: "1"
@@ -93,7 +94,26 @@ evidence:
 declare `tools` and `environment`; ArtemisKit uses deterministic fixtures internally when a
 simulated environment needs state or tool responses.
 
-## Tool catalog
+## Implemented tool catalog
+
+The 0.6.0 catalog contains `search`, `read_document`, `query_records`, `read_file`, `write_file`,
+`calculator`, `get_workflow_state`, `request_approval`, `record_decision`, `draft_message`,
+`delegate_task`, and `get_task_status`. Each has versioned JSON input/output schemas, authority
+requirements, bounded metadata-only evidence, and explicit failure modes. Use `artemiskit tools
+describe <id>` for its exact contract. Descriptors returned by the API are defensive copies.
+
+`executeSimulatedTool` runs one declared tool against detached JSON state. It cannot access the
+host filesystem or network. Simulated files, drafts, approvals, and delegated tasks are state
+records; they do not write real files, send messages, approve external actions, or launch agents.
+Undeclared tools, missing permissions, unsafe paths, and invalid input/state return explicit
+failure results. Returned state and output are working data; only the `evidence` field is a
+bounded metadata summary suitable for retention. Do not persist raw state as sanitized evidence.
+
+Inline state uses `documents: {id: text}`, `records: {collection: [objects]}`,
+`files: {relativePath: text}`, and `workflow_state: {}`. Tools may also maintain `drafts` and `tasks`.
+Execution orchestration and cumulative budget enforcement are not part of these primitives.
+
+### Future catalog direction
 
 The core catalog should contain general capabilities rather than business-sector verbs. Initial
 families are proposed below.
@@ -110,7 +130,7 @@ families are proposed below.
 
 Each catalog tool must have a stable identifier, version, JSON input/output schema, authority
 classification, bounded evidence summary, deterministic simulated behavior, and documented failure
-modes. A scenario may add custom tools, but they need the same schema and policy declaration.
+modes. Custom tool registration is deferred; version 1 currently accepts only the built-in IDs.
 
 Sector-specific semantics—such as support tickets, shipments, lending, health records, or public
 sector casework—belong in scenario extensions and later reviewed packs, not in the core catalog.
@@ -126,7 +146,10 @@ change its own authority.
 | `sandbox` | Fresh disposable filesystem/container/MCP resources | Limited to disposable resources | Artifact, stateful, and multi-step workflows |
 | `external` | Explicitly authorized configured integration | Potentially real; initially read-only | Bounded pilot work only |
 
-Every environment uses the same policy fields:
+The table above describes later environment support. Version 1 accepts only `simulated`,
+`network: denied`, and `side_effects: denied | approval_required`. Resource permissions are explicit;
+`max_actions` and `timeout_ms` are required, with optional `max_tool_calls` and `max_tokens`.
+Unknown policy keys are rejected. The broader future policy vocabulary is:
 
 ```yaml
 policy:
@@ -180,21 +203,55 @@ environment, or measurement failures separately.
 
 ## CLI authoring and validation
 
-The planned CLI should support guided authoring without hiding configuration:
+The CLI supports guided authoring in a terminal and non-interactive flags:
 
 ```bash
 artemiskit init agent-workflow
 artemiskit tools list
 artemiskit tools describe query_records
 artemiskit scenario validate workflow.yaml
+
+# Reproducible generation without prompts (akit is an alias)
+akit init agent-workflow --yes --name review-and-handoff \
+  --provider openai --model configured-model \
+  --tools read_document,request_approval \
+  --expect-state approvals.requested --equals true \
+  --max-actions 10 --max-tool-calls 10 --max-tokens 1024 --timeout 60000 \
+  --output workflow.yaml
 ```
 
-The interactive generator should ask for a workflow name, target, environment, permitted tools,
-authority, budgets, independently observable outcomes, and optional semantic criteria. It writes a
-commented YAML file that users can review and commit.
+The wizard asks for a workflow name, target, tools, instructions, initial request, budgets,
+observable outcome, and optional semantic criterion. It uses the simulated environment, denies
+network/external side effects, and writes the minimum resource permissions required by selected
+tools explicitly into the YAML. Edit the generated initial state, turns, and assertions as needed;
+the default assertion only requires the first selected tool to be called. Add meaningful final-state
+assertions for your task. Files are never overwritten unless `--force` is supplied.
 
 Every guided action needs a non-interactive counterpart for scripts and CI. The CLI must not retain
-undocumented state or create hidden authority grants.
+undocumented state or create hidden authority grants. Both `akit validate` and `akit scenario validate`
+accept mixed directories of legacy scenarios and workflows. Validation does not resolve provider
+credentials or dereference fixture paths. `akit run` continues to accept legacy scenarios only;
+the new workflow schema does not yet have a full execution command.
+
+## Programmatic contract
+
+The core and SDK packages export `AgentWorkflowSchema`, `validateAgentWorkflow`, `parseAgentWorkflow`,
+`loadAgentWorkflow`, `listWorkflowTools`, `getWorkflowTool`, `executeSimulatedTool`, and
+`createModelClientTarget`, plus their public types. The schema requires at least one deterministic
+assertion (`workflow_state`, `tool_trace`, `policy`, or `file`); optional semantic criteria must use
+`strict_assurance`. These are declarations for the later scoring engine, not scores produced by 0.6.0.
+
+`createModelClientTarget(client)` adapts an existing `ModelClient` without provider-specific dispatch.
+Its `turn` method takes a conversation, declared function schemas, generation settings, and per-turn
+timeout/tool-call limits. It validates tool-call IDs, argument schemas, usage, and capability support,
+and returns normalized assistant messages or explicit `unsupported`, `invalid`, or `error` results.
+OpenAI and Ling adapters have deterministic HTTP integration tests covering a tool-call turn followed
+by a correlated tool-result continuation. These prove adapter compatibility, not live model tool-use quality.
+
+Timeout and abort bound waiting; existing adapters do not expose transport cancellation, so an
+in-flight provider request can continue. Configure adapter transport timeouts/retries separately.
+Returned messages and arguments are working conversation data, not sanitized evidence. Token counts
+are adapter-reported; zero can mean unavailable. No cost or complete-run budget is inferred.
 
 ## Report views
 

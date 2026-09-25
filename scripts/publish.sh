@@ -28,6 +28,7 @@ PREFLIGHT_ONLY=false
 FORCE=false
 WORKSPACE_DEPS_FIXED=false
 TEMP_NPM_CONFIG=""
+RELEASE_MANIFEST=""
 
 restore_workspace_deps() {
   if [ "$WORKSPACE_DEPS_FIXED" = true ]; then
@@ -312,6 +313,18 @@ if [ "$APPLY_VERSION_BUMPS" = true ]; then
 fi
 
 # Step 8: Fix workspace dependencies
+# Milestone releases are reviewed/versioned before publication. Prevent skipping a
+# 0.6.x milestone or publishing a package set that differs from its release record.
+CORE_VERSION=$(bun -e 'console.log(require("./packages/core/package.json").version)')
+if [[ "$CORE_VERSION" == 0.6.* ]]; then
+  RELEASE_MANIFEST="docs/releases/$CORE_VERSION.json"
+  if [ ! -f "$RELEASE_MANIFEST" ]; then
+    echo -e "${RED}Error: missing milestone release manifest: $RELEASE_MANIFEST${NC}"
+    exit 1
+  fi
+  bun scripts/verify-release.mjs prepublish "$RELEASE_MANIFEST"
+fi
+
 echo ""
 echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
 
@@ -360,6 +373,10 @@ else
   # Actually publish
   echo ""
   bunx changeset publish
+
+  if [ -n "$RELEASE_MANIFEST" ]; then
+    bun scripts/verify-release.mjs registry "$RELEASE_MANIFEST"
+  fi
 
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"

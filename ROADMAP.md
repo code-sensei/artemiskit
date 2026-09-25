@@ -376,7 +376,8 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 | Versioned workload and rubric identities | ✅ 0.5.0 |
 | Requested and observed provider/model configuration evidence | ✅ 0.5.1 |
 | Attempt, retry, and independent-repetition identities | ✅ 0.5.2 |
-| Target and grader usage separated in artifacts | ✅ 0.5.1 |
+| Target and grader model identities separated in artifacts | ✅ 0.5.1 |
+| Separate grader token usage and cost attribution | 📋 Deferred; the current contract records evaluator model identity only |
 | Cost evidence identifies known, user-supplied, or unavailable pricing | ✅ 0.5.2 |
 | Secrets excluded from artifact and digest inputs | ✅ 0.5.0–0.5.2 |
 | Compatibility checks reject or qualify changed workloads and rubrics | ✅ 0.5.3 |

@@ -1,6 +1,6 @@
 # ArtemisKit AI assurance roadmap
 
-Status: proposed implementation sequence, based on a local source review on 5 September 2026 at `191e2de`.
+Status: historical planning snapshot, based on a local source review on 5 September 2026 at `191e2de`. The current [public roadmap](../ROADMAP.md) supersedes this sequence; the [agent-workflow design](agent-workflow.md) defines the next 0.6 increment. The observations below describe the earlier revision, not current implementation gaps.
 
 ArtemisKit should provide reproducible, inspectable evidence that an AI model or system meets a defined use case's capability, security, language, cost, and performance requirements. This roadmap connects the existing open-source toolkit to the AI Assurance offering described in the owner's proposal. It does not establish delivery dates, commercial guarantees, or regulatory certification.
 

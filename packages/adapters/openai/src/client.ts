@@ -182,10 +182,20 @@ export class OpenAIAdapter implements ModelClient {
     if (typeof prompt === 'string') {
       return [{ role: 'user' as const, content: prompt }];
     }
-    return prompt.map((m) => ({
-      role: m.role as 'system' | 'user' | 'assistant',
-      content: m.content,
-    }));
+    return prompt.map((m) => {
+      if (m.role === 'tool') {
+        if (!m.toolCallId) throw new TypeError('Tool result requires a tool call ID');
+        return { role: 'tool' as const, content: m.content, tool_call_id: m.toolCallId };
+      }
+      if (m.role === 'assistant') {
+        return {
+          role: 'assistant' as const,
+          content: m.content,
+          ...(m.tool_calls ? { tool_calls: m.tool_calls } : {}),
+        };
+      }
+      return { role: m.role as 'system' | 'user' | 'assistant', content: m.content };
+    });
   }
 
   private mapFinishReason(reason: string | null): GenerateResult['finishReason'] {

@@ -94,11 +94,13 @@
   ],
   "localMilestoneTag": "v0.6.1",
   "remote": {
-    "status": "blocked",
-    "observedMain": "5bb7032d79780a14469e34479007ce07ee59f5c2",
-    "milestoneTag": "absent",
-    "githubRelease": "absent",
-    "reason": "Automatic approval review rejected git push origin main --follow-tags: approval required by policy, but AskForApproval is set to Never"
+    "status": "verified",
+    "observedMain": "aa1946aebae1bb9841eb359a006cc71b869a6e6e",
+    "milestoneTag": "v0.6.1",
+    "releaseRevision": "543d0ba72f549453d6c0c256fa33a4a8e7c2e85e",
+    "githubRelease": "https://github.com/code-sensei/artemiskit/releases/tag/v0.6.1",
+    "completedGate": "passed-all-12-packages-and-13-annotated-tags",
+    "verifiedAt": "2026-09-26T14:06:41.407004+00:00"
   },
   "registryConsumer": {
     "source": "npm-registry",

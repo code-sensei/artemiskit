@@ -216,3 +216,87 @@ describe('agent workflow v1 contract', () => {
     }
   });
 });
+
+describe('bounded typed JSON Schema outcome declarations', () => {
+  function withSchema(schema: unknown, source = 'workflow_state', path = 'result') {
+    return {
+      ...fixture(),
+      outcomes: { deterministic: [{ type: 'json_schema', source, path, schema }] },
+    };
+  }
+  test('supports typed object/array/scalar trees with finite constraints and no mutation keywords', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        rows: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 5,
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', minLength: 1, maxLength: 20 },
+              value: { type: 'number', minimum: 0, maximum: 10 },
+              approved: { type: 'boolean', const: false },
+            },
+            required: ['label'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['rows'],
+      additionalProperties: false,
+    };
+    expect(AgentWorkflowSchema.safeParse(withSchema(schema)).success).toBe(true);
+    expect(
+      AgentWorkflowSchema.safeParse(
+        withSchema({ type: 'string', enum: ['pending', 'complete'] }, 'file', 'result.json')
+      ).success
+    ).toBe(true);
+  });
+  test.each([
+    { $ref: '#' },
+    { type: 'string', pattern: '(a+)+$' },
+    { type: 'string', format: 'email' },
+    { type: 'object', additionalProperties: { type: 'string' } },
+    { type: ['string', 'null'] },
+    { type: 'object', properties: { field: { type: 'string', default: 'x' } } },
+    { type: 'object', required: ['missing'] },
+    { type: 'array', items: [{ type: 'string' }] },
+    { type: 'integer', minimum: 5, maximum: 2 },
+    { type: 'string', maxLength: 16385 },
+    { type: 'array', maxItems: 1001 },
+    { type: 'string', minLength: 1, maximum: 4 },
+    { type: 'string', enum: [] },
+    { type: 'object', allOf: [] },
+    { type: 'object', $schema: 'https://json-schema.org/draft-07/schema' },
+    {},
+  ])(
+    'rejects unsupported, remote, regex, applicator and inconsistent schemas offline',
+    (schema) => {
+      expect(AgentWorkflowSchema.safeParse(withSchema(schema)).success).toBe(false);
+    }
+  );
+  test('schema source chooses the matching safe state or file path grammar', () => {
+    expect(
+      AgentWorkflowSchema.safeParse(withSchema({ type: 'string' }, 'workflow_state', 'a/b')).success
+    ).toBe(false);
+    expect(
+      AgentWorkflowSchema.safeParse(withSchema({ type: 'string' }, 'file', '../x.json')).success
+    ).toBe(false);
+    expect(
+      AgentWorkflowSchema.safeParse(
+        withSchema({ type: 'string' }, 'workflow_state', 'constructor.x')
+      ).success
+    ).toBe(false);
+  });
+  test('rejects schema trees above the bounded depth and serialized-size limits', () => {
+    let schema: Record<string, unknown> = { type: 'string' };
+    for (let index = 0; index < 10; index++) schema = { type: 'array', items: schema };
+    expect(AgentWorkflowSchema.safeParse(withSchema(schema)).success).toBe(false);
+    expect(
+      AgentWorkflowSchema.safeParse(withSchema({ type: 'string', const: 'x'.repeat(16385) }))
+        .success
+    ).toBe(false);
+  });
+});

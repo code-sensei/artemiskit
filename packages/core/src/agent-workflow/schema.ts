@@ -1,3 +1,4 @@
+import Ajv from 'ajv';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, getWorkflowTool } from './catalog';
 
@@ -119,7 +120,139 @@ export const WorkflowPolicySchema = z
   .strict();
 export type WorkflowPolicy = z.infer<typeof WorkflowPolicySchema>;
 
+/** Intentionally bounded JSON Schema subset: typed trees, never refs, regexes or applicators. */
+export function isSupportedWorkflowJsonSchema(
+  value: unknown
+): value is Record<string, WorkflowJson> {
+  if (
+    !isWorkflowJson(value) ||
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Buffer.byteLength(JSON.stringify(value)) > 16_384
+  )
+    return false;
+  let nodes = 0;
+  function visit(node: WorkflowJson, depth: number): boolean {
+    if (
+      ++nodes > 256 ||
+      depth > 8 ||
+      node === null ||
+      typeof node !== 'object' ||
+      Array.isArray(node)
+    )
+      return false;
+    const type = node.type;
+    if (
+      typeof type !== 'string' ||
+      !['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'].includes(type)
+    )
+      return false;
+    const common = ['type', 'enum', 'const'];
+    const specific =
+      type === 'object'
+        ? ['properties', 'required', 'additionalProperties', 'minProperties', 'maxProperties']
+        : type === 'array'
+          ? ['items', 'minItems', 'maxItems']
+          : type === 'string'
+            ? ['minLength', 'maxLength']
+            : ['number', 'integer'].includes(type)
+              ? ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum']
+              : [];
+    if (Object.keys(node).some((key) => !common.includes(key) && !specific.includes(key)))
+      return false;
+    if (
+      node.enum !== undefined &&
+      (!Array.isArray(node.enum) || !node.enum.length || node.enum.length > 100)
+    )
+      return false;
+    if (node.properties !== undefined) {
+      if (
+        !node.properties ||
+        typeof node.properties !== 'object' ||
+        Array.isArray(node.properties) ||
+        Object.keys(node.properties).length > 100
+      )
+        return false;
+      if (!Object.values(node.properties).every((property) => visit(property, depth + 1)))
+        return false;
+    }
+    if (
+      node.required !== undefined &&
+      (!Array.isArray(node.required) ||
+        node.required.length > 100 ||
+        new Set(node.required).size !== node.required.length ||
+        node.required.some(
+          (key) =>
+            typeof key !== 'string' ||
+            !node.properties ||
+            typeof node.properties !== 'object' ||
+            !Object.hasOwn(node.properties, key)
+        ))
+    )
+      return false;
+    if (node.additionalProperties !== undefined && typeof node.additionalProperties !== 'boolean')
+      return false;
+    if (node.items !== undefined && !visit(node.items, depth + 1)) return false;
+    for (const [minimum, maximum, limit] of [
+      ['minLength', 'maxLength', 16384],
+      ['minItems', 'maxItems', 1000],
+      ['minProperties', 'maxProperties', 1000],
+    ] as const) {
+      for (const key of [minimum, maximum])
+        if (
+          node[key] !== undefined &&
+          (typeof node[key] !== 'number' ||
+            !Number.isInteger(node[key]) ||
+            node[key] < 0 ||
+            node[key] > limit)
+        )
+          return false;
+      if (
+        typeof node[minimum] === 'number' &&
+        typeof node[maximum] === 'number' &&
+        node[minimum] > node[maximum]
+      )
+        return false;
+    }
+    for (const key of ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'])
+      if (node[key] !== undefined && typeof node[key] !== 'number') return false;
+    if (
+      typeof node.minimum === 'number' &&
+      typeof node.maximum === 'number' &&
+      node.minimum > node.maximum
+    )
+      return false;
+    return true;
+  }
+  if (!visit(value, 0)) return false;
+  try {
+    new Ajv({
+      strict: true,
+      allErrors: false,
+      validateFormats: false,
+      coerceTypes: false,
+      useDefaults: false,
+      removeAdditional: false,
+    }).compile(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const deterministic = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('json_schema'),
+      source: z.enum(['workflow_state', 'file']),
+      path: z.string().min(1).max(512),
+      schema: z.custom<Record<string, WorkflowJson>>(
+        isSupportedWorkflowJsonSchema,
+        'Unsupported or unbounded workflow JSON Schema'
+      ),
+    })
+    .strict(),
   z.object({ type: z.literal('workflow_state'), path: statePath, equals: json }).strict(),
   z
     .object({
@@ -237,6 +370,15 @@ const definition = z
         });
     }
     workflow.outcomes.deterministic.forEach((outcome, index) => {
+      if (
+        outcome.type === 'json_schema' &&
+        !(outcome.source === 'file' ? relativePath : statePath).safeParse(outcome.path).success
+      )
+        ctx.addIssue({
+          code: 'custom',
+          path: ['outcomes', 'deterministic', index, 'path'],
+          message: 'Invalid assertion source path',
+        });
       if (
         outcome.type === 'tool_trace' &&
         (!workflow.tools.includes(outcome.tool) ||

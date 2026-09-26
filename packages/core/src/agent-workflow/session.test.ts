@@ -284,12 +284,24 @@ describe('native workflow session host', () => {
     expect(invoked).toBe(0);
     expect(result.record.policy).toBe('denied');
   });
-  test('invalid policy and sandbox without factory fail closed', async () => {
+  test('invalid policy and unavailable sandbox environment fail closed without fallback', async () => {
     const workflow = fixture();
     workflow.environment.type = 'sandbox';
-    expect((await runAgentWorkflow({ workflow, target: target([]) })).record.reason).toBe(
-      'environment_unavailable'
-    );
+    expect(
+      (
+        await runAgentWorkflow({
+          workflow,
+          target: target([]),
+          environmentFactory: async () => {
+            throw new WorkflowEnvironmentInitializationError({
+              status: 'completed',
+              artifacts: 'discarded',
+              pendingOperations: 0,
+            });
+          },
+        })
+      ).record.reason
+    ).toBe('environment_unavailable');
     (workflow.environment.policy as unknown as Record<string, unknown>).network = 'allowed';
     const t = target([]);
     expect((await runAgentWorkflow({ workflow, target: t })).record.reason).toBe(

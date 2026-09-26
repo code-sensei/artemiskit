@@ -13,10 +13,20 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Run after the workspace build. Pack real candidates and retain the isolated consumer for review.
-// This installs dependencies from npm but executes only deterministic, loopback-provider checks.
+// Default: qualify built tarballs. --registry: qualify exact workspace versions from npm.
+// Both modes retain an isolated installation and execute only loopback-provider checks.
+const arguments_ = process.argv.slice(2);
+assert.ok(
+  new Set(arguments_).size === arguments_.length &&
+    arguments_.every((value) => ['--registry', '--docker'].includes(value)),
+  'Usage: node scripts/verify-package-consumers.mjs [--registry] [--docker]'
+);
+const registry = arguments_.includes('--registry');
+const docker = arguments_.includes('--docker');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const directory = mkdtempSync(join(tmpdir(), 'artemis-package-consumer-'));
+const directory = mkdtempSync(
+  join(tmpdir(), registry ? 'artemis-registry-consumer-' : 'artemis-package-consumer-')
+);
 const fixtures = join(root, 'scripts/fixtures/package-consumers');
 function run(command, args, cwd = directory, timeout = 120_000) {
   const result = spawnSync(command, args, {
@@ -34,7 +44,7 @@ function run(command, args, cwd = directory, timeout = 120_000) {
   return result.stdout.trim();
 }
 console.log(`Fresh package consumer: ${directory}`);
-console.log(run('node', [join(fixtures, 'declarations.mjs')], root));
+if (!registry) console.log(run('node', [join(fixtures, 'declarations.mjs')], root));
 const packageDirectories = [];
 for (const entry of readdirSync(join(root, 'packages'), { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
@@ -53,12 +63,16 @@ const packages = packageDirectories
     manifest: JSON.parse(readFileSync(join(location, 'package.json'), 'utf8')),
   }))
   .filter(({ manifest }) => !manifest.private);
-const archives = [];
+const candidates = [];
 for (const { location, manifest } of packages) {
+  if (registry) {
+    candidates.push(`${manifest.name}@${manifest.version}`);
+    continue;
+  }
   assert.ok(existsSync(join(location, 'dist/index.js')), `Build first: ${manifest.name}`);
   const archive = join(directory, `${manifest.name.replace(/[@/]/g, '-')}-${manifest.version}.tgz`);
   run('bun', ['pm', 'pack', '--ignore-scripts', '--filename', archive, '--quiet'], location);
-  archives.push(archive);
+  candidates.push(archive);
 }
 writeFileSync(
   join(directory, 'package.json'),
@@ -74,7 +88,17 @@ writeFileSync(
 );
 run(
   'npm',
-  ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--omit=optional', ...archives],
+  [
+    'install',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+    '--omit=optional',
+    '--registry=https://registry.npmjs.org',
+    '--fetch-retries=0',
+    '--fetch-timeout=15000',
+    ...candidates,
+  ],
   directory,
   300_000
 );
@@ -99,7 +123,7 @@ for (const { manifest } of packages) {
     );
   }
 }
-for (const file of ['runtime.mjs', 'types.mts']) {
+for (const file of ['runtime.mjs', 'types.mts', 'workflow-cli.mjs']) {
   copyFileSync(join(fixtures, file), join(directory, file));
 }
 // Invoke installed bin entry points, including their declared Bun runtime.
@@ -129,8 +153,11 @@ run('bun', [
 run('bun', [cli, 'scenario', 'validate', 'workflow.yaml']);
 console.log('PASS: installed CLI version, tools, scaffold and validation');
 for (const runtime of ['node', 'bun']) {
-  console.log(`${runtime}: ${run(runtime, ['runtime.mjs'], directory, 30_000)}`);
+  console.log(
+    `${runtime}: ${run(runtime, ['runtime.mjs', ...(docker ? ['--docker'] : [])], directory, 60_000)}`
+  );
 }
+console.log(run('node', ['workflow-cli.mjs', ...(docker ? ['--docker'] : [])], directory, 120_000));
 const compiler = join(root, 'node_modules/typescript/bin/tsc');
 for (const [module, resolution] of [
   ['NodeNext', 'NodeNext'],
@@ -155,6 +182,7 @@ for (const [module, resolution] of [
   console.log(`PASS: isolated TypeScript ${resolution} public API consumer`);
 }
 const report = {
+  source: registry ? 'npm-registry' : 'local-tarballs',
   completedAt: new Date().toISOString(),
   repositoryRevision: run('git', ['rev-parse', 'HEAD'], root),
   runtimes: { node: run('node', ['--version']), bun: run('bun', ['--version']) },
@@ -166,14 +194,20 @@ const report = {
     'approval-permissions',
     'openai-tool-continuation',
     'ling-tool-continuation',
+    'native-workflow-sessions',
     'bun-cli',
+    'workflow-cli-execution-preflight-interruption',
+    ...(docker ? ['real-docker-node-bun-sdk-and-cli'] : []),
     'typescript-nodenext',
     'typescript-bundler',
-    'declaration-finalizer',
+    ...(!registry ? ['declaration-finalizer'] : []),
   ],
   limitations: [
     'No external model calls; other providers import-only.',
-    'CLI/MCP retain Bun runtime; no Docker daemon exercised.',
+    'CLI/MCP retain Bun runtime.',
+    ...(docker
+      ? ['Docker requires the fixed local image and a trusted local daemon.']
+      : ['No Docker daemon exercised.']),
     'TypeScript uses skipLibCheck for third-party declarations.',
   ],
 };

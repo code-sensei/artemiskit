@@ -22,6 +22,18 @@ This package provides the foundational components for ArtemisKit:
 
 ## Usage
 
+Controlled agent workflows use `createAgentWorkflowSession({ workflow, target })` or
+`runAgentWorkflow({ workflow, target })`, with `createModelClientTarget(client)` for existing adapters.
+The native session enforces declared tools, original argument schemas, permissions, cumulative
+budgets, and bounded cancellation/cleanup. Environments are fresh simulated state or a disposable
+Docker filesystem; unsupported authority fails closed.
+
+The returned `record` contains bounded metadata. `state` and `transcript` are sensitive working data
+and are not persisted automatically. `taskVerification` remains `unavailable` in 0.6.1; outcome
+assertions are retained for 0.6.2. See the
+[execution guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-execution.md)
+for session events, transport limits, Docker prerequisites, and CLI/SDK use.
+
 Most users should use the [`@artemiskit/cli`](https://www.npmjs.com/package/@artemiskit/cli) package for running evaluations. This package is primarily for programmatic usage or building custom integrations.
 
 ```typescript

@@ -1,5 +1,12 @@
 # @artemiskit/adapter-deepagents
 
+## 0.2.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.6.1
+
 ## 0.2.9
 
 ### Patch Changes

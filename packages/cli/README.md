@@ -28,6 +28,27 @@ artemiskit stress my-scenario.yaml --iterations 100 --concurrency 10
 
 ## Commands
 
+### Controlled workflows
+
+```bash
+akit init agent-workflow
+akit tools list
+akit scenario validate workflow.yaml
+akit workflow preflight workflow.yaml --config artemis.config.yaml --output probe.json
+akit workflow run workflow.yaml --config artemis.config.yaml --output execution.json
+```
+
+Validation is offline. Preflight makes a bounded structured-tool round trip to the configured
+provider; run executes the declared workflow in a fresh simulated or disposable Docker environment.
+The workflow controls provider/model identity and tool authority. `--output` saves bounded metadata;
+`--state-output` explicitly exports sensitive working state to a separate new file with mode `0600`.
+SIGINT/SIGTERM preserves an interrupted record when output was requested.
+
+Exit `0` means execution, policy, measurement, and cleanup met the execution contract. Independent
+task verification remains unavailable until 0.6.2. See the
+[execution guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-execution.md)
+for the full exit map, budgets, sandbox requirements, and SDK equivalents. The CLI requires Bun.
+
 ### `artemiskit run <scenario>`
 
 Execute scenario-based evaluations against LLM providers.

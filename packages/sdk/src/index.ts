@@ -21,6 +21,10 @@ export {
   createAgentWorkflowSession,
   runAgentWorkflow,
   createSimulatedWorkflowEnvironment,
+  createDockerWorkflowEnvironment,
+  createDockerWorkflowEnvironmentFactory,
+  WORKFLOW_SANDBOX_IMAGE,
+  WorkflowEnvironmentInitializationError,
 } from '@artemiskit/core';
 export type {
   AgentWorkflow,
@@ -47,6 +51,7 @@ export type {
   WorkflowEnvironment,
   WorkflowEnvironmentFactory,
   WorkflowEnvironmentCleanup,
+  DockerWorkflowEnvironmentOptions,
 } from '@artemiskit/core';
 
 // Types

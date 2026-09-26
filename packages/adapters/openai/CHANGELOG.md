@@ -1,5 +1,23 @@
 # @artemiskit/adapter-openai
 
+## 0.1.21
+
+### Patch Changes
+
+- Add native controlled workflow execution for milestone 0.6.1. CLI workflow run/preflight and SDK
+  sessions share strict tool and permission enforcement, cumulative budgets, explicit tool-protocol
+  preflight, measured-usage states, bounded events, cancellation, and truthful cleanup evidence.
+  Run against detached simulated state or a disposable Docker filesystem with a fixed local image,
+  no host mounts or network, and no arbitrary command tool. Save bounded execution metadata separately
+  from explicitly requested sensitive state exports. Task verification remains unavailable until 0.6.2.
+
+  OpenAI and Ling workflow transports forward abort signals, disable automatic retries, and distinguish
+  missing or malformed token usage from explicitly measured zero. Preserve existing scenario APIs and
+  offline workflow validation. Package versions remain independent of the milestone label.
+
+- Updated dependencies
+  - @artemiskit/core@0.6.1
+
 ## 0.1.20
 
 ### Patch Changes

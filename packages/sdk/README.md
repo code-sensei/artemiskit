@@ -48,6 +48,31 @@ console.log('All tests passed! ✅');
 
 ## API Reference
 
+### Controlled agent workflows
+
+```typescript
+const session = await kit.createWorkflowSession({
+  workflow: './workflow.yaml',
+  providerConfig: { apiKey: process.env.OPENAI_API_KEY },
+  preflight: true,
+});
+const result = await session.run();
+console.log(result.record); // bounded metadata; taskVerification is unavailable in 0.6.1
+// session.cancel() stops new work and initiates bounded cleanup.
+// result.state and result.transcript contain sensitive working data.
+```
+
+`kit.runWorkflow(options)` creates and runs a fresh session in one call. Supply a `client` or
+`target` to use an existing trusted adapter or target. The same native controls apply through the
+CLI and SDK: declared tools and permissions, cumulative budgets, explicit preflight, cancellation,
+and cleanup evidence. Workflows use fresh simulated state or a disposable Docker filesystem.
+Independent task scoring follows in 0.6.2; normal execution does not establish a task pass.
+
+The root and `/types` entry points expose workflow result/session/event types. Low-level
+`createAgentWorkflowSession` and `runAgentWorkflow` are available for explicit target composition.
+See the [execution guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-execution.md)
+for configuration, Docker requirements, token-accounting limits, events, and safe persistence.
+
 ### ArtemisKit Class
 
 #### Constructor

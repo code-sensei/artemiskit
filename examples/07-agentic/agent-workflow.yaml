@@ -1,4 +1,5 @@
-# Versioned workflow authoring example. Full workflow orchestration follows in 0.6.1+.
+# Versioned workflow example for controlled execution in 0.6.1.
+# Outcome assertions remain unscored until the independent 0.6.2 verifier.
 # These permissions apply to isolated simulated state, not external systems.
 version: '1'
 kind: agent_workflow
@@ -6,6 +7,9 @@ name: review-and-handoff
 target:
   provider: openai
   model: configured-model
+  generation:
+    max_tokens: 256
+    temperature: 0
 environment:
   type: simulated
   policy:
@@ -16,9 +20,10 @@ environment:
       workflow_state: write
     budgets:
       max_actions: 10
-      max_tool_calls: 10
+      max_model_requests: 5
+      max_tool_calls: 5
       timeout_ms: 60000
-      max_tokens: 1024
+      max_tokens: 4096
 tools:
   - read_document
   - request_approval

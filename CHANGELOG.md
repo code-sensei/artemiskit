@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 0.6.1 — Controlled workflow execution
+
+- Native multi-turn workflow sessions shared by CLI and SDK, with bounded metadata events and
+  separate sensitive working state/transcripts.
+- Fresh simulated environments and a disposable Docker filesystem with declared tools, strict
+  original-argument validation, path/permission checks, and denied network/command capabilities.
+- Cumulative model/action/tool/token/time budgets, explicit structured-tool preflight, measured
+  versus unavailable usage, and interrupted-run cleanup evidence.
+- `workflow run` / `workflow preflight`, SDK `createWorkflowSession` / `runWorkflow`, and explicit
+  private state export. Task verification remains unavailable until independent scoring in 0.6.2.
+- OpenAI/Ling transport abort and strict usage availability; npm 12-compatible immutable publication
+  receipts, asynchronous registry reconciliation, and dependency-first uploads.
+
+See the [release record](docs/releases/0.6.1.md) for validation and publication status. Package
+versions remain independent of the milestone label.
+
 ---
 
 ## [0.4.0] - 2026-09-07

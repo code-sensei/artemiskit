@@ -9,7 +9,8 @@ Welcome to the ArtemisKit documentation. This guide covers configuration, storag
 | [Providers](./providers/README.md) | LLM provider adapters (OpenAI, Azure, Anthropic, Vercel AI) |
 | [Storage](./storage/README.md) | Storage backends for evaluation results |
 | [Assurance improvements](./v0.4-assurance-improvements.md) | Post-v0.4 technical plan for trustworthy scenario-based assessments |
-| [Agent-workflow design](./agent-workflow.md) | Published 0.6.0 contract and scoped execution/scoring/recovery/report increments |
+| [Agent-workflow design](./agent-workflow.md) | Workflow contract and scoped execution/scoring/recovery/report increments |
+| [Controlled execution](./workflow-execution.md) | 0.6.1 sessions, environments, budgets, preflight and evidence retention |
 | [0.6.x release plan](./releases/0.6.x-release-plan.md) | Complete milestone acceptance, independent package versions and sequential npm/tag publication |
 | [Harness experiment](./agent-harness-experiment.md) | Reproducible native/AI SDK/Pi/fx findings and approved integration priorities |
 
@@ -57,7 +58,8 @@ For installation and basic usage, see the main [README](../README.md).
 ```
 docs/
 ├── README.md              # This file
-├── agent-workflow.md      # 0.6.0 contract and later milestone boundaries
+├── agent-workflow.md      # Workflow contract and milestone boundaries
+├── workflow-execution.md  # Controlled native session execution
 ├── agent-harness-experiment.md # Evidence behind optional harness decisions
 ├── releases/
 │   └── 0.6.x-release-plan.md # Sequential milestone acceptance and publication
@@ -140,7 +142,8 @@ Built-in evaluators for assessing LLM outputs:
 - [Contributing Guide](../CONTRIBUTING.md) - Development setup
 - [Roadmap](../ROADMAP.md) - Planned features
 - [Assurance improvements](./v0.4-assurance-improvements.md) - Detailed post-v0.4 technical plan
-- [Agent-workflow design](./agent-workflow.md) - Current contract and planned execution capabilities
+- [Agent-workflow design](./agent-workflow.md) - Workflow contract and milestone boundaries
+- [Controlled execution](./workflow-execution.md) - Native sessions, budgets and disposable environments
 - [0.6.x release plan](./releases/0.6.x-release-plan.md) - Milestone scope, acceptance and publishing gates
 - [Harness experiment](./agent-harness-experiment.md) - Results and optional integration decisions
 - [Examples](../examples/README.md) - Sample scenarios

@@ -31,7 +31,7 @@ export function parseAgentWorkflow(yamlText: string): AgentWorkflow {
   return validateAgentWorkflow(value);
 }
 
-/** Reads only the explicitly supplied scenario; fixture resolution belongs to a future runner. */
+/** Reads only the explicitly supplied scenario; the session resolves fixtures when execution begins. */
 export async function loadAgentWorkflow(filePath: string): Promise<AgentWorkflow> {
   let content: string;
   try {

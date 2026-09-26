@@ -1,5 +1,32 @@
 # @artemiskit/cli
 
+## 0.6.0
+
+### Minor Changes
+
+- Add native controlled workflow execution for milestone 0.6.1. CLI workflow run/preflight and SDK
+  sessions share strict tool and permission enforcement, cumulative budgets, explicit tool-protocol
+  preflight, measured-usage states, bounded events, cancellation, and truthful cleanup evidence.
+  Run against detached simulated state or a disposable Docker filesystem with a fixed local image,
+  no host mounts or network, and no arbitrary command tool. Save bounded execution metadata separately
+  from explicitly requested sensitive state exports. Task verification remains unavailable until 0.6.2.
+
+  OpenAI and Ling workflow transports forward abort signals, disable automatic retries, and distinguish
+  missing or malformed token usage from explicitly measured zero. Preserve existing scenario APIs and
+  offline workflow validation. Package versions remain independent of the milestone label.
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.6.1
+  - @artemiskit/adapter-openai@0.1.21
+  - @artemiskit/adapter-ling@0.1.9
+  - @artemiskit/adapter-deepagents@0.2.10
+  - @artemiskit/adapter-langchain@0.2.10
+  - @artemiskit/adapter-vercel-ai@0.1.21
+  - @artemiskit/redteam@0.3.9
+  - @artemiskit/reports@0.4.8
+
 ## 0.5.0
 
 ### Minor Changes

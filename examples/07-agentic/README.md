@@ -2,10 +2,12 @@
 
 This guide explains how to test **agentic AI systems** — chains, agents, and multi-agent workflows — using ArtemisKit's specialized adapters.
 
-For the new provider-neutral 0.6.0 contract, see [agent-workflow.yaml](agent-workflow.yaml)
-and the [workflow guide](../../docs/agent-workflow.md). Validate it with
-`akit scenario validate examples/07-agentic/agent-workflow.yaml`. This contract is implemented in
-source but not yet published; full workflow execution and scoring follow in later milestones.
+For provider-neutral workflows, see the simulated [agent-workflow.yaml](agent-workflow.yaml),
+the disposable-file [sandbox-workflow.yaml](sandbox-workflow.yaml), and the
+[controlled execution guide](../../docs/workflow-execution.md). Validate without provider calls:
+`akit scenario validate examples/07-agentic/agent-workflow.yaml`. Review the configured target and
+budgets before execution. The [release plan](../../docs/releases/0.6.x-release-plan.md) records
+publication status. Execution is the 0.6.1 scope; independent task scoring remains 0.6.2.
 
 ## What is Agentic Testing?
 

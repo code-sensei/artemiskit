@@ -1,4 +1,4 @@
-/** Versioned built-in capabilities. All implementations in this release are simulated. */
+/** Versioned run-local capabilities shared by simulated and disposable sandbox environments. */
 export const WORKFLOW_TOOL_IDS = [
   'search',
   'read_document',
@@ -35,6 +35,7 @@ export interface WorkflowToolDescriptor {
     resource: WorkflowResource;
     access: 'read' | 'write' | 'none';
     network: 'denied';
+    /** V1's simulated label means run-local effects; file storage follows the selected environment. */
     sideEffects: 'none' | 'simulated';
   };
   evidence: { mode: 'metadata_only'; maxBytes: 1024 };
@@ -124,7 +125,7 @@ const tools: WorkflowToolDescriptor[] = [
   descriptor(
     'read_file',
     'files',
-    'Read one relative file from in-memory fixture state.',
+    'Read one relative file from the isolated workflow environment.',
     'files',
     'read',
     object({ path: relativePath }),
@@ -133,7 +134,7 @@ const tools: WorkflowToolDescriptor[] = [
   descriptor(
     'write_file',
     'files',
-    'Write one relative file in isolated in-memory state.',
+    'Write one relative file in the isolated workflow environment.',
     'files',
     'write',
     object({ path: relativePath, content: { type: 'string', maxLength: 16_384 } }),

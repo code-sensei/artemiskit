@@ -14,6 +14,7 @@ import {
   workflowPathAllowed,
   workflowToolPermitted,
 } from './environment';
+import { createDockerWorkflowEnvironment } from './sandbox';
 import { type AgentWorkflow, AgentWorkflowSchema, isWorkflowJson } from './schema';
 import type { AgentTarget, AgentTurnRequest, AgentTurnResult } from './target';
 import { agentTurnRequestSchema, validWorkflowTranscript } from './target';
@@ -132,6 +133,7 @@ export interface AgentWorkflowSessionOptions {
   preflight?: boolean;
   preflightOnly?: boolean;
   signal?: AbortSignal;
+  /** Total bounded drain/snapshot/close period: 1000 ms simulated, 6000 ms sandbox by default. */
   cleanupTimeoutMs?: number;
   onEvent?: (event: AgentWorkflowEvent) => void;
 }
@@ -826,7 +828,8 @@ export function createAgentWorkflowSession(
       deadlineExpired = true;
       abort();
     }, timeout);
-    const cleanupMs = options.cleanupTimeoutMs ?? 1000;
+    const cleanupMs =
+      options.cleanupTimeoutMs ?? (workflow?.environment.type === 'sandbox' ? 6000 : 1000);
     try {
       if (!workflow) throw new Stop('invalid', 'invalid_workflow');
       if (
@@ -871,8 +874,7 @@ export function createAgentWorkflowSession(
           options.environmentFactory ??
           (workflow.environment.type === 'simulated'
             ? createSimulatedWorkflowEnvironment
-            : undefined);
-        if (!factory) throw new Stop('unsupported', 'environment_unavailable');
+            : createDockerWorkflowEnvironment);
         environment = await owned(async () => {
           const created = await factory({
             workflow: structuredClone(workflow as AgentWorkflow),

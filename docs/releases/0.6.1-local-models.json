@@ -1,0 +1,444 @@
+{
+  "schemaVersion": "1",
+  "completedAt": "2026-09-26T10:43:15.494Z",
+  "purpose": "Bounded CLI compatibility through local Ollama OpenAI-compatible endpoint; no quality ranking.",
+  "exclusions": [
+    "Cloud stubs excluded",
+    "No paid calls or model downloads",
+    "Independent task verification unavailable",
+    "No cost estimate or workflow report generated"
+  ],
+  "runs": [
+    {
+      "model": "qwen2.5-coder:1.5b",
+      "advertisedCapabilities": ["completion", "tools", "insert"],
+      "exitCode": 3,
+      "record": {
+        "schemaVersion": "1",
+        "engine": "native",
+        "execution": "unsupported",
+        "reason": "preflight_failed",
+        "policy": "passed",
+        "configuration": {
+          "sha256": "5415e85a9da6d8586d45424a5e806e64b0d3c12c276e4bde9d87f805eca2ef00",
+          "provider": {
+            "sha256": "7d3194f79e645c42e4396dda38be04766810ec6a00d00aced3ffc2a0a1f1a9ef",
+            "display": "openai"
+          },
+          "model": {
+            "sha256": "4dbc741fbc7b50bd192f480d6dc3c985a8b67bd2862949b802e1892692a760a2",
+            "display": "qwen2.5-coder:1.5b"
+          },
+          "generation": {
+            "maxTokens": 128,
+            "temperature": 0
+          },
+          "limits": {
+            "max_actions": 6,
+            "max_model_requests": 4,
+            "max_tool_calls": 2,
+            "timeout_ms": 30000,
+            "max_tokens": 4096
+          }
+        },
+        "taskVerification": "unavailable",
+        "environment": "simulated",
+        "capability": {
+          "advertised": true,
+          "transportCancellation": true,
+          "preflight": "failed",
+          "observedModelHash": "4dbc741fbc7b50bd192f480d6dc3c985a8b67bd2862949b802e1892692a760a2",
+          "observedModel": {
+            "sha256": "4dbc741fbc7b50bd192f480d6dc3c985a8b67bd2862949b802e1892692a760a2",
+            "display": "qwen2.5-coder:1.5b"
+          }
+        },
+        "usage": {
+          "status": "reported",
+          "reported": {
+            "prompt": 199,
+            "completion": 67,
+            "total": 266
+          },
+          "missingRequests": 0,
+          "inFlightUnknown": false,
+          "preflight": {
+            "prompt": 199,
+            "completion": 67,
+            "total": 266
+          }
+        },
+        "budgets": {
+          "actions": 1,
+          "modelRequests": 1,
+          "toolCalls": 0,
+          "modelRequestAccounting": "target_invocations",
+          "transportAttempts": "unavailable",
+          "tokenOvershoot": 0,
+          "elapsedMs": 3924
+        },
+        "cleanup": {
+          "status": "completed",
+          "artifacts": "discarded",
+          "pendingOperations": 0
+        },
+        "artifacts": {
+          "state": "unavailable"
+        },
+        "events": [
+          {
+            "type": "started",
+            "sequence": 1,
+            "elapsedMs": 0,
+            "phase": "execution"
+          },
+          {
+            "type": "model_requested",
+            "operationId": "model-1",
+            "sequence": 2,
+            "elapsedMs": 2,
+            "phase": "preflight"
+          },
+          {
+            "type": "model_completed",
+            "operationId": "model-1",
+            "status": "completed",
+            "sequence": 3,
+            "elapsedMs": 3923,
+            "phase": "preflight"
+          },
+          {
+            "type": "finished",
+            "status": "failed",
+            "sequence": 4,
+            "elapsedMs": 3924,
+            "phase": "preflight"
+          }
+        ],
+        "droppedEvents": 0
+      }
+    },
+    {
+      "model": "qwen2.5-coder:3b",
+      "advertisedCapabilities": ["completion", "tools", "insert"],
+      "exitCode": 3,
+      "record": {
+        "schemaVersion": "1",
+        "engine": "native",
+        "execution": "unsupported",
+        "reason": "preflight_failed",
+        "policy": "passed",
+        "configuration": {
+          "sha256": "83b9af1a52de4eff1c06441205041d4d1da0d8c649875d6e58181b4ca05f1014",
+          "provider": {
+            "sha256": "7d3194f79e645c42e4396dda38be04766810ec6a00d00aced3ffc2a0a1f1a9ef",
+            "display": "openai"
+          },
+          "model": {
+            "sha256": "fa77660e39dcbad0f9af0bef3d5e9168a85f8679f0ec1d9fb777d4021d433232",
+            "display": "qwen2.5-coder:3b"
+          },
+          "generation": {
+            "maxTokens": 128,
+            "temperature": 0
+          },
+          "limits": {
+            "max_actions": 6,
+            "max_model_requests": 4,
+            "max_tool_calls": 2,
+            "timeout_ms": 30000,
+            "max_tokens": 4096
+          }
+        },
+        "taskVerification": "unavailable",
+        "environment": "simulated",
+        "capability": {
+          "advertised": true,
+          "transportCancellation": true,
+          "preflight": "failed",
+          "observedModelHash": "fa77660e39dcbad0f9af0bef3d5e9168a85f8679f0ec1d9fb777d4021d433232",
+          "observedModel": {
+            "sha256": "fa77660e39dcbad0f9af0bef3d5e9168a85f8679f0ec1d9fb777d4021d433232",
+            "display": "qwen2.5-coder:3b"
+          }
+        },
+        "usage": {
+          "status": "reported",
+          "reported": {
+            "prompt": 202,
+            "completion": 54,
+            "total": 256
+          },
+          "missingRequests": 0,
+          "inFlightUnknown": false,
+          "preflight": {
+            "prompt": 202,
+            "completion": 54,
+            "total": 256
+          }
+        },
+        "budgets": {
+          "actions": 1,
+          "modelRequests": 1,
+          "toolCalls": 0,
+          "modelRequestAccounting": "target_invocations",
+          "transportAttempts": "unavailable",
+          "tokenOvershoot": 0,
+          "elapsedMs": 6448
+        },
+        "cleanup": {
+          "status": "completed",
+          "artifacts": "discarded",
+          "pendingOperations": 0
+        },
+        "artifacts": {
+          "state": "unavailable"
+        },
+        "events": [
+          {
+            "type": "started",
+            "sequence": 1,
+            "elapsedMs": 1,
+            "phase": "execution"
+          },
+          {
+            "type": "model_requested",
+            "operationId": "model-1",
+            "sequence": 2,
+            "elapsedMs": 3,
+            "phase": "preflight"
+          },
+          {
+            "type": "model_completed",
+            "operationId": "model-1",
+            "status": "completed",
+            "sequence": 3,
+            "elapsedMs": 6444,
+            "phase": "preflight"
+          },
+          {
+            "type": "finished",
+            "status": "failed",
+            "sequence": 4,
+            "elapsedMs": 6448,
+            "phase": "preflight"
+          }
+        ],
+        "droppedEvents": 0
+      }
+    },
+    {
+      "model": "qwen2.5-coder:7b",
+      "advertisedCapabilities": ["completion", "tools", "insert"],
+      "exitCode": 6,
+      "record": {
+        "schemaVersion": "1",
+        "engine": "native",
+        "execution": "timeout",
+        "reason": "deadline",
+        "policy": "passed",
+        "configuration": {
+          "sha256": "3c8be00ba58ef8baef952613e1e10577be01ab56c052260a90a14ae6adae90c1",
+          "provider": {
+            "sha256": "7d3194f79e645c42e4396dda38be04766810ec6a00d00aced3ffc2a0a1f1a9ef",
+            "display": "openai"
+          },
+          "model": {
+            "sha256": "49b7701263a8f32ec45e1ab690d6a43ca211955979df99970b40cc462a2ca973",
+            "display": "qwen2.5-coder:7b"
+          },
+          "generation": {
+            "maxTokens": 128,
+            "temperature": 0
+          },
+          "limits": {
+            "max_actions": 6,
+            "max_model_requests": 4,
+            "max_tool_calls": 2,
+            "timeout_ms": 30000,
+            "max_tokens": 4096
+          }
+        },
+        "taskVerification": "unavailable",
+        "environment": "simulated",
+        "capability": {
+          "advertised": true,
+          "transportCancellation": true,
+          "preflight": "failed"
+        },
+        "usage": {
+          "status": "unavailable",
+          "reported": {
+            "prompt": 0,
+            "completion": 0,
+            "total": 0
+          },
+          "missingRequests": 1,
+          "inFlightUnknown": false,
+          "preflight": {
+            "prompt": 0,
+            "completion": 0,
+            "total": 0
+          }
+        },
+        "budgets": {
+          "actions": 1,
+          "modelRequests": 1,
+          "toolCalls": 0,
+          "modelRequestAccounting": "target_invocations",
+          "transportAttempts": "unavailable",
+          "tokenOvershoot": 0,
+          "elapsedMs": 31398
+        },
+        "cleanup": {
+          "status": "completed",
+          "artifacts": "discarded",
+          "pendingOperations": 0
+        },
+        "artifacts": {
+          "state": "unavailable"
+        },
+        "events": [
+          {
+            "type": "started",
+            "sequence": 1,
+            "elapsedMs": 0,
+            "phase": "execution"
+          },
+          {
+            "type": "model_requested",
+            "operationId": "model-1",
+            "sequence": 2,
+            "elapsedMs": 5,
+            "phase": "preflight"
+          },
+          {
+            "type": "model_completed",
+            "operationId": "model-1",
+            "status": "failed",
+            "sequence": 3,
+            "elapsedMs": 30920,
+            "phase": "preflight"
+          },
+          {
+            "type": "finished",
+            "status": "failed",
+            "sequence": 4,
+            "elapsedMs": 31398,
+            "phase": "preflight"
+          }
+        ],
+        "droppedEvents": 0
+      }
+    },
+    {
+      "model": "codellama:7b",
+      "advertisedCapabilities": ["completion"],
+      "exitCode": 7,
+      "record": {
+        "schemaVersion": "1",
+        "engine": "native",
+        "execution": "failed",
+        "reason": "target_error",
+        "policy": "passed",
+        "configuration": {
+          "sha256": "b2c8216e36aed8ac0c150aec961e634d72f87af48448770bd632ec0e0fffcfcd",
+          "provider": {
+            "sha256": "7d3194f79e645c42e4396dda38be04766810ec6a00d00aced3ffc2a0a1f1a9ef",
+            "display": "openai"
+          },
+          "model": {
+            "sha256": "a9ea4ae3ab5dcc70b0424a1e9e76fa091971c4c1d49f8c2fe5ab7dd3e82170ad",
+            "display": "codellama:7b"
+          },
+          "generation": {
+            "maxTokens": 128,
+            "temperature": 0
+          },
+          "limits": {
+            "max_actions": 6,
+            "max_model_requests": 4,
+            "max_tool_calls": 2,
+            "timeout_ms": 30000,
+            "max_tokens": 4096
+          }
+        },
+        "taskVerification": "unavailable",
+        "environment": "simulated",
+        "capability": {
+          "advertised": true,
+          "transportCancellation": true,
+          "preflight": "failed"
+        },
+        "usage": {
+          "status": "unavailable",
+          "reported": {
+            "prompt": 0,
+            "completion": 0,
+            "total": 0
+          },
+          "missingRequests": 1,
+          "inFlightUnknown": false,
+          "preflight": {
+            "prompt": 0,
+            "completion": 0,
+            "total": 0
+          }
+        },
+        "budgets": {
+          "actions": 1,
+          "modelRequests": 1,
+          "toolCalls": 0,
+          "modelRequestAccounting": "target_invocations",
+          "transportAttempts": "unavailable",
+          "tokenOvershoot": 0,
+          "elapsedMs": 2747
+        },
+        "cleanup": {
+          "status": "completed",
+          "artifacts": "discarded",
+          "pendingOperations": 0
+        },
+        "artifacts": {
+          "state": "unavailable"
+        },
+        "events": [
+          {
+            "type": "started",
+            "sequence": 1,
+            "elapsedMs": 7,
+            "phase": "execution"
+          },
+          {
+            "type": "model_requested",
+            "operationId": "model-1",
+            "sequence": 2,
+            "elapsedMs": 21,
+            "phase": "preflight"
+          },
+          {
+            "type": "model_completed",
+            "operationId": "model-1",
+            "status": "failed",
+            "sequence": 3,
+            "elapsedMs": 2684,
+            "phase": "preflight"
+          },
+          {
+            "type": "finished",
+            "status": "failed",
+            "sequence": 4,
+            "elapsedMs": 2747,
+            "phase": "preflight"
+          }
+        ],
+        "droppedEvents": 0
+      }
+    }
+  ],
+  "packageVersions": {
+    "@artemiskit/cli": "0.6.0",
+    "@artemiskit/core": "0.6.1",
+    "@artemiskit/adapter-openai": "0.1.21"
+  }
+}

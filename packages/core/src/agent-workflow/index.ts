@@ -6,4 +6,5 @@ export * from './simulated-tools';
 export * from './target';
 
 export * from './environment';
+export * from './sandbox';
 export * from './session';

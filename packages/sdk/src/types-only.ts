@@ -301,4 +301,6 @@ export type {
   WorkflowEnvironment,
   WorkflowEnvironmentFactory,
   WorkflowEnvironmentCleanup,
+  DockerWorkflowEnvironmentOptions,
+  WorkflowEnvironmentInitializationError,
 } from '@artemiskit/core';

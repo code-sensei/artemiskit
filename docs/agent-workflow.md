@@ -1,13 +1,13 @@
 # Agent-workflow design guide
 
-> **Status: 0.6.0 contract published on 26 September 2026.** Version 1 workflow validation,
-> 12 simulated tool primitives, a provider-neutral single-turn target, and CLI authoring are available.
-> Full workflow execution, cumulative budget enforcement, scoring, sandbox/external environments,
-> fault injection, and workflow reports remain later 0.6.x milestones. Existing real-agent examples remain documented in
-> [agent evaluation](../examples/agent-evaluation/README.md).
+> **Status:** The 0.6.0 contract is published. The 0.6.1 execution milestone is locally
+> qualified and awaiting publication; see the [execution guide](workflow-execution.md) and
+> [release plan](releases/0.6.x-release-plan.md) for publication status. Independent task scoring,
+> durable recovery, and workflow reports remain later milestones. Existing real-agent examples
+> remain documented in [agent evaluation](../examples/agent-evaluation/README.md).
 
-The release maps to `@artemiskit/core@0.6.0` and `@artemiskit/cli@0.5.0` /
-`@artemiskit/sdk@0.5.0`; see the [complete package map and validation](releases/0.6.0.md).
+The published 0.6.0 package map and validation remain in its [release record](releases/0.6.0.md).
+Package versions are independent; use each milestone's exact package map when installing.
 
 The [0.6.x release plan](releases/0.6.x-release-plan.md) defines complete milestone acceptance and
 sequential npm/tag publication. Package versions remain independent of milestone labels. The
@@ -119,7 +119,8 @@ bounded metadata summary suitable for retention. Do not persist raw state as san
 
 Inline state uses `documents: {id: text}`, `records: {collection: [objects]}`,
 `files: {relativePath: text}`, and `workflow_state: {}`. Tools may also maintain `drafts` and `tasks`.
-Execution orchestration and cumulative budget enforcement are not part of these primitives.
+These single-tool primitives do not enforce run budgets. The native session engine adds conversation
+orchestration, cumulative limits, cancellation, and bounded execution evidence around them.
 
 ### Future catalog direction
 
@@ -151,29 +152,37 @@ change its own authority.
 | Environment | Purpose | Side effects | Primary use |
 | --- | --- | --- | --- |
 | `simulated` | Controlled tool responses and state transitions | None outside the run | Authoring, CI, release validation, repeatable assessment |
-| `sandbox` | Fresh disposable filesystem/container/MCP resources | Limited to disposable resources | Artifact, stateful, and multi-step workflows |
-| `external` | Explicitly authorized configured integration | Potentially real; initially read-only | Bounded pilot work only |
+| `sandbox` | Fresh disposable Docker filesystem | Limited to disposable resources | Artifact, stateful, and multi-step workflows |
+| `external` (future; rejected by the current schema) | Explicitly authorized configured integration | Potentially real; initially read-only | Separately scoped pilot work |
 
-The table above describes later environment support. Version 1 accepts only `simulated`,
-`network: denied`, and `side_effects: denied | approval_required`. Resource permissions are explicit;
-`max_actions` and `timeout_ms` are required, with optional `max_tool_calls` and `max_tokens`.
-Unknown policy keys are rejected. The broader future policy vocabulary is:
+The execution contract accepts `simulated` and `sandbox`, `network: denied`, and
+`side_effects: denied | approval_required`. Resource permissions are explicit. `max_actions` and
+`timeout_ms` are required; `max_model_requests`, `max_tool_calls`, and `max_tokens` are optional.
+Unknown policy keys are rejected. An optional `paths` policy restricts file tools to exact safe
+relative paths; it does not interpret globs. Without it, file permissions apply throughout that run's
+isolated file map or workspace. For example:
 
 ```yaml
 policy:
   network: denied
-  side_effects: denied # or approval_required / allowed when supported
+  side_effects: approval_required
   permissions:
-    documents: read
+    files: write
     workflow_state: write
+  paths:
+    read: [input/brief.txt, output/handoff.txt]
+    write: [output/handoff.txt]
   budgets:
-    max_actions: 10
-    max_tool_calls: 12
+    max_actions: 12
+    max_model_requests: 6
+    max_tool_calls: 6
+    max_tokens: 4096
     timeout_ms: 60000
-  faults: []
-  evidence:
-    trace: summary
 ```
+
+Commands, network tools, external effects, and user-selected faults are not accepted capabilities
+in this milestone. Sandbox file tools use real disposable files; approvals, drafts, and delegation
+remain local pending records with no external authority. See [execution controls](workflow-execution.md).
 
 `simulated` is the default because it makes tool calls, state, faults, and outcomes reproducible
 without customer data, live systems, external spend, or uncontrolled side effects. It is not a
@@ -185,7 +194,7 @@ Denied network, tool, path, command, or side-effect requests must produce explic
 in all environments. A scenario should not need to learn a different safety model when changing
 from simulated to sandbox execution.
 
-## Outcome scoring
+## Outcome scoring (0.6.2; not executed in 0.6.1)
 
 ### Deterministic outcome evidence
 
@@ -224,7 +233,7 @@ akit init agent-workflow --yes --name review-and-handoff \
   --provider openai --model configured-model \
   --tools read_document,request_approval \
   --expect-state approvals.requested --equals true \
-  --max-actions 10 --max-tool-calls 10 --max-tokens 1024 --timeout 60000 \
+  --max-actions 10 --max-tool-calls 10 --max-tokens 4096 --timeout 60000 \
   --output workflow.yaml
 ```
 
@@ -239,7 +248,8 @@ Every guided action needs a non-interactive counterpart for scripts and CI. The 
 undocumented state or create hidden authority grants. Both `akit validate` and `akit scenario validate`
 accept mixed directories of legacy scenarios and workflows. Validation does not resolve provider
 credentials or dereference fixture paths. `akit run` continues to accept legacy scenarios only;
-the new workflow schema does not yet have a full execution command.
+explicit `akit workflow run` and `akit workflow preflight` use the controlled session engine.
+See the [execution guide](workflow-execution.md) for commands, result fields, and exit semantics.
 
 ## Programmatic contract
 
@@ -247,7 +257,7 @@ The core and SDK packages export `AgentWorkflowSchema`, `validateAgentWorkflow`,
 `loadAgentWorkflow`, `listWorkflowTools`, `getWorkflowTool`, `executeSimulatedTool`, and
 `createModelClientTarget`, plus their public types. The schema requires at least one deterministic
 assertion (`workflow_state`, `tool_trace`, `policy`, or `file`); optional semantic criteria must use
-`strict_assurance`. These are declarations for the later scoring engine, not scores produced by 0.6.0.
+`strict_assurance`. These remain declarations for the 0.6.2 scoring engine; 0.6.1 reports task verification as unavailable.
 
 `createModelClientTarget(client)` adapts an existing `ModelClient` without provider-specific dispatch.
 Its `turn` method takes a conversation, declared function schemas, generation settings, and per-turn
@@ -256,12 +266,18 @@ and returns normalized assistant messages or explicit `unsupported`, `invalid`, 
 OpenAI and Ling adapters have deterministic HTTP integration tests covering a tool-call turn followed
 by a correlated tool-result continuation. These prove adapter compatibility, not live model tool-use quality.
 
-Timeout and abort bound waiting; existing adapters do not expose transport cancellation, so an
-in-flight provider request can continue. Configure adapter transport timeouts/retries separately.
-Returned messages and arguments are working conversation data, not sanitized evidence. Token counts
-are adapter-reported; zero can mean unavailable. No cost or complete-run budget is inferred.
+The OpenAI and Ling adapters forward transport abort signals and disable automatic retries on the
+controlled target path. Other adapters must advertise supported cancellation truthfully; a bounded
+wait alone does not establish transport cancellation. Session cleanup tracks owned work and records
+unresolved callbacks. Returned messages, arguments, state, and transcripts are sensitive working data.
+Only the bounded session `record` and metadata events form the default persistence boundary.
+Missing provider usage is explicitly unavailable; explicit measured zero is distinct from missing
+counters. Cumulative token accounting and overshoot are documented in the [execution guide](workflow-execution.md).
 
-## Report views
+Core and SDK also expose `createAgentWorkflowSession` and `runAgentWorkflow`, with typed events,
+result, environment, and cleanup contracts. The SDK `ArtemisKit` wrapper uses the same engine.
+
+## Report views (0.6.4)
 
 All report views derive from the same saved, sanitized manifest and workflow evidence.
 
@@ -328,7 +344,7 @@ advertised tool support passed. Deterministic fixture tests establish contract a
 checks disclose configuration-specific limits. Test clean packed consumers before publishing and
 clean registry consumers afterward. Publish and verify each milestone's npm package map, package
 tags and `v0.6.x` milestone tag before publishing the next increment; see the release plan for exact
-checks and the current publishing script's non-read-only `--dry-run` caveat. CI repairs remain deferred.
+checks and the publishing script's dry-run and retained-receipt behavior. CI repairs remain deferred.
 
 ## Compatibility boundary
 

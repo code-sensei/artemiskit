@@ -163,7 +163,7 @@ describe('native workflow CLI boundary', () => {
     expect(result.exit).toBe(0);
     const record = JSON.parse(result.stdout);
     expect(record.execution).toBe('completed');
-    expect(record.taskVerification).toBe('unavailable');
+    expect(record.taskVerification).toBe('passed');
     expect(record.budgets.modelRequests).toBe(2);
     expect(record.budgets.toolCalls).toBe(1);
     expect(f.requests[0].model).toBe('workflow-model');

@@ -10,9 +10,11 @@ import {
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader';
 import { buildAdapterConfig } from '../utils/adapter';
+import { WorkflowJudgeConfigError, prepareWorkflowJudge } from '../utils/workflow-judge';
 
 interface WorkflowExecutionOptions {
   config?: string;
+  judgeConfig?: string;
   fixtureRoot?: string;
   output?: string;
   stateOutput?: string;
@@ -21,7 +23,7 @@ interface WorkflowExecutionOptions {
   json?: boolean;
 }
 
-/** Execution success does not imply verified task success. */
+/** Runtime failures retain precedence; only evaluated task success exits zero on a run. */
 export function workflowExitCode(record: AgentWorkflowRecord): number {
   if (record.execution === 'cancelled') return 130;
   if (record.policy === 'denied') return 4;
@@ -36,7 +38,28 @@ export function workflowExitCode(record: AgentWorkflowRecord): number {
     record.cleanup.status !== 'completed'
   )
     return 7;
-  return 0;
+  if (record.outcomes.cancelled) return 130;
+  if (record.purpose === 'preflight') return 0;
+  if (record.taskVerification === 'passed') return 0;
+  return record.taskVerification === 'failed' ? 8 : 9;
+}
+
+function formatWorkflowRecord(record: AgentWorkflowRecord): string {
+  const coverage = (name: 'deterministic' | 'semantic') => {
+    const counts = record.outcomes[name].counts;
+    return `${name === 'deterministic' ? 'Deterministic' : 'Semantic'} coverage: ${counts.valid}/${counts.declared} valid; ${counts.passed} passed, ${counts.failed} failed, ${counts.invalid} invalid, ${counts.unavailable} unavailable`;
+  };
+  const judge = record.outcomes.semantic;
+  return [
+    `Execution: ${record.execution} (${record.reason})`,
+    `Policy: ${record.policy}`,
+    `Target usage: ${record.usage.status}`,
+    `Cleanup: ${record.cleanup.status}`,
+    `Task verification: ${record.taskVerification} (${record.outcomes.reason})`,
+    coverage('deterministic'),
+    coverage('semantic'),
+    `Judge usage: ${judge.usage.status}; ${judge.usage.reported.total} reported tokens; ${judge.budgets.requests} requests; ${judge.usage.missingRequests} missing measurements; ${judge.usage.pendingOperations} pending operations`,
+  ].join('\n');
 }
 
 interface ReservedOutput {
@@ -82,7 +105,7 @@ async function save(output: ReservedOutput | undefined, value: unknown) {
 
 export function workflowCommand(): Command {
   const workflow = new Command('workflow').description(
-    'Execute controlled agent workflows (task scoring unavailable)'
+    'Execute controlled agent workflows and verify declared outcomes'
   );
   for (const preflightOnly of [false, true]) {
     const command = new Command(preflightOnly ? 'preflight' : 'run')
@@ -102,7 +125,12 @@ export function workflowCommand(): Command {
       .option('--cleanup-timeout <ms>', 'Override environment cleanup wait, 1–10000 ms')
       .option('--json', 'Print metadata-only record as JSON');
     if (!preflightOnly)
-      command.option('--preflight', 'Probe structured tool support before workflow turns');
+      command
+        .option('--preflight', 'Probe structured tool support before workflow turns')
+        .option(
+          '--judge-config <file>',
+          'Explicit independent semantic judge transport and limits'
+        );
     command.action(async (file: string, options: WorkflowExecutionOptions) => {
       const controller = new AbortController();
       const cancel = () => controller.abort();
@@ -125,6 +153,10 @@ export function workflowCommand(): Command {
         const scenario = await loadAgentWorkflow(path);
         phase = 'setup';
         outputs = await reserveOutputs(options);
+        const semanticJudge =
+          options.judgeConfig !== undefined
+            ? await prepareWorkflowJudge(options.judgeConfig)
+            : undefined;
         const config = await loadConfig(options.config);
         if (options.config && !config) throw new Error('explicit_config_unavailable');
         const { adapterConfig } = buildAdapterConfig({
@@ -152,6 +184,7 @@ export function workflowCommand(): Command {
           preflightOnly,
           signal: controller.signal,
           cleanupTimeoutMs,
+          semanticJudge,
         });
         phase = 'execution';
         const result = await session.run();
@@ -164,7 +197,7 @@ export function workflowCommand(): Command {
         console.log(
           options.json
             ? JSON.stringify(result.record, null, 2)
-            : `Execution: ${result.record.execution} (${result.record.reason})\nPolicy: ${result.record.policy}\nUsage: ${result.record.usage.status}\nCleanup: ${result.record.cleanup.status}\nTask verification: unavailable (outcome scoring is not part of this milestone).`
+            : formatWorkflowRecord(result.record)
         );
         process.exitCode = workflowExitCode(result.record);
         if (missingState) {
@@ -174,13 +207,15 @@ export function workflowCommand(): Command {
       } catch (error) {
         const code = (error as { code?: string })?.code;
         process.exitCode =
-          phase === 'load'
-            ? code === 'SCENARIO_READ_ERROR'
-              ? 1
-              : 2
-            : ['PROVIDER_UNAVAILABLE', 'UNKNOWN_PROVIDER'].includes(code ?? '')
-              ? 3
-              : 1;
+          error instanceof WorkflowJudgeConfigError
+            ? error.exitCode
+            : phase === 'load'
+              ? code === 'SCENARIO_READ_ERROR'
+                ? 1
+                : 2
+              : ['PROVIDER_UNAVAILABLE', 'UNKNOWN_PROVIDER'].includes(code ?? '')
+                ? 3
+                : 1;
         console.error(
           phase === 'load'
             ? 'Workflow: unable to read or validate the workflow file.'

@@ -50,11 +50,21 @@ const CIConfigSchema = z.object({
   baselineRunId: z.string().optional(),
 });
 
+export const WorkflowJudgeLimitsSchema = z
+  .object({
+    maxRequests: z.number().int().positive().max(20),
+    maxTokens: z.number().int().positive().max(1_000_000),
+    maxOutputTokens: z.number().int().positive().max(100_000),
+    timeoutMs: z.number().int().positive().max(60_000),
+  })
+  .strict();
+
 export const ArtemisConfigSchema = z.object({
   project: z.string().default('default'),
   provider: z.string().optional(),
   model: z.string().optional(),
   providers: z.record(ProviderConfigSchema).optional(),
+  workflowJudge: WorkflowJudgeLimitsSchema.optional(),
   storage: StorageConfigSchema.optional(),
   scenariosDir: z.string().default('./scenarios'),
   output: OutputConfigSchema.optional(),

@@ -128,6 +128,10 @@ describe('SDK native workflow session', () => {
       }});
       const events = [];
       const result = await kit.runWorkflow({ workflow: ${JSON.stringify(workflowPath)}, onEvent: (event) => events.push(event) });
+      registerAdapter('openai', async () => { throw new Error('SYNTHETIC_PRIVATE_CONSTRUCTION_DETAIL'); });
+      await assert.rejects(kit.createWorkflowSession({ workflow: ${JSON.stringify(workflowPath)} }),
+        (error) => error.code === 'PROVIDER_UNAVAILABLE' &&
+          error.message === 'Unable to initialize workflow target' && error.cause === undefined);
       console.log(JSON.stringify({ result, events }));
     `,
       ],

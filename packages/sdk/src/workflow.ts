@@ -2,6 +2,7 @@ import { dirname, resolve } from 'node:path';
 import {
   type AdapterConfig,
   type AgentWorkflowSession,
+  ArtemisError,
   createAdapter,
   createAgentWorkflowSession,
   createModelClientTarget,
@@ -19,15 +20,21 @@ export async function prepareWorkflowSession(
   const workflow = file ? await loadAgentWorkflow(file) : validateAgentWorkflow(options.workflow);
   let target = options.target;
   if (!target) {
-    const client =
-      options.client ??
-      (await createAdapter({
-        ...config.providerConfig,
-        ...options.providerConfig,
-        provider: workflow.target.provider,
-        defaultModel: workflow.target.model,
-        maxRetries: 0,
-      } as AdapterConfig));
+    let client = options.client;
+    if (!client) {
+      try {
+        client = await createAdapter({
+          ...config.providerConfig,
+          ...options.providerConfig,
+          provider: workflow.target.provider,
+          defaultModel: workflow.target.model,
+          maxRetries: 0,
+        } as AdapterConfig);
+      } catch {
+        // Provider factories may put credentials or configuration values in their diagnostics.
+        throw new ArtemisError('Unable to initialize workflow target', 'PROVIDER_UNAVAILABLE');
+      }
+    }
     target = createModelClientTarget(client);
   }
   return createAgentWorkflowSession({

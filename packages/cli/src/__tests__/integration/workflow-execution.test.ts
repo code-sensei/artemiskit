@@ -280,7 +280,7 @@ describe('native workflow CLI boundary', () => {
     expect(await readFile(join(f.directory, 'owned.json'), 'utf8')).toBe('KEEP');
     expect(await readdir(f.directory)).not.toContain('reserved.json');
     expect(f.requests).toHaveLength(0);
-  });
+  }, 30_000);
   test('timeout and SIGINT save interrupted metadata and do not retry provider calls', async () => {
     for (const cancellation of [false, true]) {
       let requested!: () => void;

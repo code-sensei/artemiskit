@@ -244,6 +244,37 @@ try {
   assert.equal(error.cleanup.status, 'completed');
   assert.equal(error.cleanup.artifacts, 'discarded');
 }
+const deniedWorkflow = workflow();
+deniedWorkflow.environment.policy.paths = { read: [], write: [] };
+const deniedEnvironment = await factory({
+  workflow: deniedWorkflow,
+  initialState,
+  signal: signal(),
+});
+try {
+  const present = await deniedEnvironment.execute(
+    { tool: 'read_file', input: { path: 'nested/note.txt' } },
+    signal()
+  );
+  const absent = await deniedEnvironment.execute(
+    { tool: 'read_file', input: { path: 'absent.txt' } },
+    signal()
+  );
+  assert.deepEqual(present, {
+    status: 'denied',
+    code: 'permission_denied',
+    evidence: { tool: 'read_file', version: '1', status: 'denied', code: 'permission_denied' },
+  });
+  assert.deepEqual(absent, present);
+  const malformed = await deniedEnvironment.execute(
+    { tool: 'read_file', input: { path: 42 } },
+    signal()
+  );
+  assert.equal(malformed.status, 'invalid');
+  assert.equal(malformed.code, 'invalid_input');
+} finally {
+  assert.equal((await deniedEnvironment.close(signal())).status, 'completed');
+}
 const lifetime = new AbortController();
 const active = await factory({ workflow: workflow(), initialState, signal: lifetime.signal });
 const work = active.execute(

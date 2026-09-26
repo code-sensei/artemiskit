@@ -387,9 +387,11 @@ export function createDockerWorkflowEnvironmentFactory(
           policy: configuration.environment.policy,
           declaredTools: configuration.tools,
         });
-        if (checked.status !== 'succeeded') return checked;
+        // Reject malformed original arguments, then apply authority before revealing lookup results.
+        if (checked.status === 'invalid' && checked.code === 'invalid_input') return checked;
         if (!workflowPathAllowed(configuration, request.tool, request.input))
           return failure('denied', 'permission_denied');
+        if (checked.status !== 'succeeded') return checked;
         busy = true;
         try {
           if (request.tool === 'read_file' || request.tool === 'write_file') {

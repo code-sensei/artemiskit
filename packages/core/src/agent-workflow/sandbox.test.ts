@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { WorkflowEnvironmentInitializationError } from './environment';
+import { WorkflowEnvironmentInitializationError, workflowPathAllowed } from './environment';
 import { validateAgentWorkflow } from './parser';
 import { createDockerWorkflowEnvironment, createDockerWorkflowEnvironmentFactory } from './sandbox';
 
@@ -31,6 +31,14 @@ function workflow() {
   });
 }
 describe('Docker workflow environment offline admission', () => {
+  test('empty path grants deny present and absent fixture names equally', () => {
+    const value = workflow();
+    value.environment.policy.paths = { read: [], write: [] };
+    value.workflow.initial_state = { files: { 'present.txt': 'fixture' } };
+    expect(workflowPathAllowed(value, 'read_file', { path: 'present.txt' })).toBe(false);
+    expect(workflowPathAllowed(value, 'read_file', { path: 'absent.txt' })).toBe(false);
+  });
+
   test('accepts qualified default cleanup and explicit bounded timeouts', () => {
     expect(typeof createDockerWorkflowEnvironmentFactory()).toBe('function');
     expect(

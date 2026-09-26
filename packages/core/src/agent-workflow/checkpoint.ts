@@ -1,10 +1,20 @@
 import { createHash } from 'node:crypto';
 import { types } from 'node:util';
+import Ajv from 'ajv';
 import { z } from 'zod';
-import { isWorkflowState } from './environment';
+import { getWorkflowTool, listWorkflowTools } from './catalog';
+import { isWorkflowState, workflowPathAllowed, workflowToolPermitted } from './environment';
 import { workflowExecutionRecordSchema } from './records';
-import { WorkflowRecoverySchema, validWorkflowRecovery, workflowDigest } from './recovery';
-import type { AgentWorkflow } from './schema';
+import {
+  WorkflowRecoverySchema,
+  validWorkflowRecovery,
+  validWorkflowStateChangeChain,
+  workflowDigest,
+  workflowInitialExecutionState,
+} from './recovery';
+import { type AgentWorkflow, isWorkflowJson } from './schema';
+import type { AgentWorkflowEvent } from './session';
+import { executeSimulatedTool } from './simulated-tools';
 import { agentTurnRequestSchema, validWorkflowTranscript } from './target';
 
 const count = z.number().int().nonnegative().safe();
@@ -181,7 +191,8 @@ export function restoreWorkflowCheckpoint(
     new Set(p.attemptIds).size !== p.attemptIds.length ||
     p.attemptIds.length >= 1000 ||
     p.recovery.configurationSha256 !== expectedIdentity.configurationSha256 ||
-    p.recovery.initialStateSha256 !== p.initialStateSha256 ||
+    p.recovery.initialStateSha256 !==
+      workflowDigest(workflowInitialExecutionState(workflow.environment.type, p.initialState)) ||
     p.recovery.pendingOperations !== 0 ||
     b.actions !== b.modelRequests + b.toolCalls ||
     b.actions > limit.max_actions ||
@@ -293,68 +304,149 @@ export function restoreWorkflowCheckpoint(
     (transcript.at(-1)?.role !== 'assistant' || transcript.at(-1)?.tool_calls?.length)
   )
     reject('checkpoint_invalid');
-  const countEvents = 1 + 2 * b.actions + (expectedIdentity.preflight ? 1 : 0);
+  const reconstructed = expectedNativeEvents(p, workflow);
+  const expectedEvents = reconstructed.events;
   if (
-    p.eventSequence !== countEvents ||
-    p.ledger.droppedEvents !== countEvents - events.length ||
-    events.length !== Math.min(countEvents, 254) ||
-    events.some(
-      (event, index) =>
-        event.sequence !== index + 1 ||
-        event.elapsedMs > b.elapsedMs ||
-        (index > 0 && event.elapsedMs < events[index - 1].elapsedMs) ||
-        ['finished', 'execution_finished'].includes(event.type)
-    ) ||
-    events[0]?.type !== 'started' ||
-    events[0].phase !== 'execution'
+    p.eventSequence !== expectedEvents.length ||
+    p.ledger.droppedEvents !== expectedEvents.length - events.length ||
+    events.length !== Math.min(expectedEvents.length, 254) ||
+    events.some((event, index) => {
+      const { sequence, elapsedMs, ...metadata } = event;
+      const expected = expectedEvents[index];
+      return (
+        sequence !== index + 1 ||
+        elapsedMs > b.elapsedMs ||
+        (index > 0 && elapsedMs < events[index - 1].elapsedMs) ||
+        Object.keys(metadata).length !== Object.keys(expected).length ||
+        Object.entries(metadata).some(
+          ([key, value]) => value !== expected[key as keyof typeof expected]
+        )
+      );
+    })
   )
     reject('checkpoint_invalid');
-  const operations = new Map<string, (typeof events)[number]>();
-  let models = 0;
-  let tools = 0;
-  const callHashes = new Set(
-    expectedIds.map((id) => createHash('sha256').update(id).digest('hex'))
-  );
-  for (const event of events.slice(1)) {
-    if (event.type === 'preflight_completed') {
-      if (
-        !expectedIdentity.preflight ||
-        event.status !== 'completed' ||
-        event.phase !== 'preflight'
-      )
-        reject('checkpoint_invalid');
-      continue;
-    }
-    if (!event.operationId || event.phase === 'evaluation') reject('checkpoint_invalid');
-    if (event.type === 'model_requested' || event.type === 'tool_requested') {
-      const kind = event.type === 'model_requested' ? 'model' : 'tool';
-      const number = kind === 'model' ? ++models : ++tools;
-      if (event.operationId !== `${kind}-${number}` || operations.has(event.operationId))
-        reject('checkpoint_invalid');
-      if (
-        kind === 'tool' &&
-        (!event.requestedCallIdHash || !callHashes.has(event.requestedCallIdHash))
-      )
-        reject('checkpoint_invalid');
-      operations.set(event.operationId, event);
-    } else {
-      const request = operations.get(event.operationId);
-      if (
-        !request ||
-        event.type !== request.type.replace('_requested', '_completed') ||
-        event.status !== 'completed' ||
-        event.phase !== request.phase ||
-        event.tool !== request.tool ||
-        event.requestedCallIdHash !== request.requestedCallIdHash
-      )
-        reject('checkpoint_invalid');
-      operations.delete(event.operationId);
-    }
-  }
   if (
-    !p.ledger.droppedEvents &&
-    (operations.size || models !== b.modelRequests || tools !== b.toolCalls)
+    reconstructed.stateSha256 !== p.stateSha256 ||
+    p.recovery.stateChanges.total !== reconstructed.changes.length ||
+    JSON.stringify(p.recovery.stateChanges.entries) !==
+      JSON.stringify(reconstructed.changes.slice(0, 64)) ||
+    !validWorkflowStateChangeChain(p.recovery, p.stateSha256 ?? undefined) ||
+    p.recovery.stateChanges.entries.some(
+      (entry) =>
+        !expectedEvents.some(
+          (event) =>
+            event.type === 'tool_completed' &&
+            event.phase === 'execution' &&
+            event.operationId === entry.operationId &&
+            event.status === 'completed'
+        )
+    )
   )
     reject('checkpoint_invalid');
   return p;
+}
+
+type NativeEvent = Omit<AgentWorkflowEvent, 'sequence' | 'elapsedMs'>;
+const checkpointAjv = new Ajv({
+  strict: true,
+  coerceTypes: false,
+  useDefaults: false,
+  removeAdditional: false,
+});
+const checkpointToolValidators = new Map(
+  listWorkflowTools().map((tool) => [
+    tool.id,
+    {
+      input: checkpointAjv.compile(tool.inputSchema),
+      output: checkpointAjv.compile(tool.outputSchema),
+    },
+  ])
+);
+
+/** Reconstruct the full native operation order, including calls omitted from public trace. */
+function expectedNativeEvents(p: WorkflowCheckpointPayload, workflow: AgentWorkflow) {
+  const expected: NativeEvent[] = [{ type: 'started', phase: 'execution' }];
+  let models = 0;
+  let tools = 0;
+  let reconstructedState = workflowInitialExecutionState(workflow.environment.type, p.initialState);
+  const changes: WorkflowCheckpointPayload['recovery']['stateChanges']['entries'] = [];
+  const modelPair = (phase: NativeEvent['phase']) => {
+    const operationId = `model-${++models}`;
+    expected.push(
+      { type: 'model_requested', operationId, phase },
+      { type: 'model_completed', operationId, phase, status: 'completed' }
+    );
+  };
+  const toolPair = (phase: NativeEvent['phase'], id: string, tool: string) => {
+    const metadata = {
+      operationId: `tool-${++tools}`,
+      requestedCallIdHash: createHash('sha256').update(id).digest('hex'),
+      tool,
+      phase,
+    };
+    expected.push(
+      { type: 'tool_requested', ...metadata },
+      { type: 'tool_completed', ...metadata, status: 'completed' }
+    );
+  };
+  if (p.identity.preflight) {
+    modelPair('preflight');
+    toolPair('preflight', p.preflightIds[0], 'artemis_probe');
+    modelPair('preflight');
+    expected.push({ type: 'preflight_completed', phase: 'preflight', status: 'completed' });
+  }
+  let calls: NonNullable<WorkflowCheckpointPayload['transcript'][number]['tool_calls']> = [];
+  let callIndex = 0;
+  for (const message of p.transcript) {
+    if (message.role === 'assistant') {
+      if (callIndex !== calls.length) reject('checkpoint_invalid');
+      modelPair('execution');
+      calls = message.tool_calls ?? [];
+      callIndex = 0;
+    } else if (message.role === 'tool') {
+      const call = calls[callIndex++];
+      if (!call || message.toolCallId !== call.id) reject('checkpoint_invalid');
+      const tool = getWorkflowTool(call.function.name);
+      const validators = tool ? checkpointToolValidators.get(tool.id) : undefined;
+      let input: unknown;
+      let output: unknown;
+      try {
+        input = JSON.parse(call.function.arguments);
+        output = JSON.parse(message.content);
+      } catch {
+        reject('checkpoint_invalid');
+      }
+      if (
+        !tool ||
+        !validators ||
+        !isWorkflowState(input) ||
+        !validators.input(input) ||
+        !workflowToolPermitted(workflow, tool.id) ||
+        !workflowPathAllowed(workflow, tool.id, input) ||
+        !isWorkflowJson(output) ||
+        !validators.output(output) ||
+        JSON.stringify(output) !== message.content
+      )
+        reject('checkpoint_invalid');
+      const beforeSha256 = workflowDigest(reconstructedState);
+      // This pure in-memory primitive verifies prior effects; it never restores its generated state.
+      const verified = executeSimulatedTool({
+        tool: tool.id,
+        input,
+        state: reconstructedState,
+        policy: workflow.environment.policy,
+        declaredTools: workflow.tools,
+      });
+      if (verified.status !== 'succeeded' || JSON.stringify(verified.output) !== message.content)
+        reject('checkpoint_invalid');
+      reconstructedState = workflowInitialExecutionState(workflow.environment.type, verified.state);
+      const afterSha256 = workflowDigest(reconstructedState);
+      toolPair('execution', call.id, tool.id);
+      if (beforeSha256 !== afterSha256)
+        changes.push({ operationId: `tool-${tools}`, beforeSha256, afterSha256 });
+    } else if (callIndex !== calls.length) reject('checkpoint_invalid');
+  }
+  if (models !== p.ledger.budgets.modelRequests || tools !== p.ledger.budgets.toolCalls)
+    reject('checkpoint_invalid');
+  return { events: expected, changes, stateSha256: workflowDigest(reconstructedState) };
 }

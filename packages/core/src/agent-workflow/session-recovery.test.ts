@@ -1,11 +1,14 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseWorkflowCheckpoint } from './checkpoint';
 import { openWorkflowCheckpointStore } from './checkpoint-store';
+import * as environments from './environment';
 import { readWorkflowRecord } from './records';
+import { workflowDigest } from './recovery';
 import {
   recoveryAnswer,
   recoveryCalls,
@@ -40,6 +43,10 @@ async function directory() {
   const root = await mkdtemp(join(tmpdir(), 'artemis-resume-'));
   roots.push(root);
   return join(root, 'checkpoint');
+}
+function required<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) throw new Error('Missing test fixture field');
+  return value;
 }
 const checkpoint = (directory: string, mode: 'create' | 'resume' = 'create') => ({
   directory,
@@ -563,6 +570,36 @@ describe('durable native workflow attempts', () => {
     });
     expect(first.record.reason).toBe('checkpoint_paused');
     expect(first.record.droppedEvents).toBeGreaterThan(0);
+    let original!: ReturnType<typeof parseWorkflowCheckpoint>;
+    await mutate(path, (p) => {
+      original = structuredClone(p);
+      const assistant = p.transcript.filter((message) => message.role === 'assistant').at(-1);
+      required(required(assistant).tool_calls)[0].function.arguments = '{}';
+    });
+    for (const corrupt of ['omitted completed call', 'omitted change chain']) {
+      if (corrupt === 'omitted change chain')
+        await mutate(path, (p) => {
+          Object.assign(p, structuredClone(original));
+          p.recovery.stateChanges.entries[0].beforeSha256 = '0'.repeat(64);
+        });
+      const counted = countedTarget();
+      const factory = spyOn(environments, 'createSimulatedWorkflowEnvironment');
+      try {
+        const refused = await runAgentWorkflow({
+          workflow,
+          target: counted.target,
+          checkpoint: checkpoint(path, 'resume'),
+        });
+        expect(refused.record.reason).toBe('checkpoint_invalid');
+        expect(counted.calls).toEqual({ capabilities: 0, turn: 0, drain: 0 });
+        expect(factory).not.toHaveBeenCalled();
+      } finally {
+        factory.mockRestore();
+      }
+    }
+    await mutate(path, (p) => {
+      Object.assign(p, original);
+    });
     const result = await runAgentWorkflow({
       workflow,
       target,
@@ -577,6 +614,17 @@ describe('durable native workflow attempts', () => {
     expect(result.record.recovery?.stateChanges).toMatchObject({ total: 70, omitted: 6 });
     expect(result.record.recovery?.stateChanges.entries).toHaveLength(64);
     expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    const changedPrefix = structuredClone(result.record);
+    required(changedPrefix.recovery).stateChanges.entries[0].beforeSha256 = '0'.repeat(64);
+    expect(() => readWorkflowRecord(changedPrefix)).toThrow(
+      'Invalid or unsupported workflow record'
+    );
+    const missingPrefix = structuredClone(result.record);
+    required(missingPrefix.recovery).stateChanges.entries = [];
+    required(missingPrefix.recovery).stateChanges.omitted = 70;
+    expect(() => readWorkflowRecord(missingPrefix)).toThrow(
+      'Invalid or unsupported workflow record'
+    );
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-70');
   });
 
@@ -647,5 +695,265 @@ describe('durable native workflow attempts', () => {
       checkpoint: checkpoint(path, 'resume'),
     });
     expect(replay.record.reason).toBe('checkpoint_terminal');
+  });
+  test('rejects checksum-valid completed transcript and native event corruption before every callback', async () => {
+    type Payload = ReturnType<typeof parseWorkflowCheckpoint>;
+    const pair = (p: Payload, id: string) =>
+      p.ledger.events.filter((event) => event.operationId === id);
+    const changes: {
+      name: string;
+      pause?: number;
+      preflight?: boolean;
+      mutate: (p: Payload) => void;
+    }[] = [
+      {
+        name: 'pending call hash',
+        mutate: (p) => {
+          for (const event of pair(p, 'tool-1'))
+            event.requestedCallIdHash = createHash('sha256').update('call-two').digest('hex');
+        },
+      },
+      {
+        name: 'completed tool label',
+        mutate: (p) => {
+          for (const event of pair(p, 'tool-1')) event.tool = 'read_file';
+        },
+      },
+      {
+        name: 'started metadata',
+        mutate: (p) => {
+          p.ledger.events[0].operationId = 'model-1';
+        },
+      },
+      {
+        name: 'request status',
+        mutate: (p) => {
+          p.ledger.events[1].status = 'failed';
+        },
+      },
+      {
+        name: 'model tool metadata',
+        mutate: (p) => {
+          for (const event of pair(p, 'model-1')) event.tool = 'write_file';
+        },
+      },
+      {
+        name: 'false preflight phase',
+        mutate: (p) => {
+          for (const event of pair(p, 'model-1')) event.phase = 'preflight';
+        },
+      },
+      {
+        name: 'false execution phase',
+        pause: 5,
+        preflight: true,
+        mutate: (p) => {
+          for (const event of pair(p, 'model-1')) event.phase = 'execution';
+        },
+      },
+      {
+        name: 'invalid completed arguments',
+        mutate: (p) => {
+          required(p.transcript[2].tool_calls)[0].function.arguments = '{}';
+        },
+      },
+      {
+        name: 'undeclared completed tool',
+        mutate: (p) => {
+          required(p.transcript[2].tool_calls)[0].function.name = 'shell';
+        },
+      },
+      {
+        name: 'invalid completed output JSON',
+        mutate: (p) => {
+          p.transcript[3].content = 'not-json';
+        },
+      },
+      {
+        name: 'invalid completed output schema',
+        mutate: (p) => {
+          p.transcript[3].content = JSON.stringify({ path: 'one.txt', written: false });
+        },
+      },
+      {
+        name: 'mismatched successful output',
+        mutate: (p) => {
+          p.transcript[3].content = JSON.stringify({ path: 'two.txt', written: true });
+        },
+      },
+      {
+        name: 'path authority',
+        mutate: (p) => {
+          required(p.transcript[2].tool_calls)[0].function.arguments = JSON.stringify({
+            path: 'forbidden.txt',
+            content: 'PRIVATE-ONE',
+          });
+        },
+      },
+      {
+        name: 'changed completed effect',
+        mutate: (p) => {
+          required(p.transcript[2].tool_calls)[0].function.arguments = JSON.stringify({
+            path: 'one.txt',
+            content: 'different prior effect',
+          });
+        },
+      },
+      {
+        name: 'duplicate completed hash',
+        pause: 3,
+        mutate: (p) => {
+          for (const event of pair(p, 'tool-2'))
+            event.requestedCallIdHash = pair(p, 'tool-1')[0].requestedCallIdHash;
+        },
+      },
+      {
+        name: 'out of order completed replies',
+        pause: 3,
+        mutate: (p) => {
+          [p.transcript[3], p.transcript[4]] = [p.transcript[4], p.transcript[3]];
+        },
+      },
+    ];
+    for (const variant of changes) {
+      const path = await directory();
+      const workflow = recoveryWorkflow();
+      workflow.environment.policy.paths = {
+        read: ['one.txt', 'two.txt'],
+        write: ['one.txt', 'two.txt'],
+      };
+      const first = await runAgentWorkflow({
+        workflow,
+        target: recoveryTarget(),
+        preflight: variant.preflight,
+        checkpoint: checkpoint(path),
+        pauseAfterActions: variant.pause ?? 2,
+      });
+      expect(first.record.reason, variant.name).toBe('checkpoint_paused');
+      await mutate(path, variant.mutate);
+      const { target, calls } = countedTarget();
+      const factory = spyOn(environments, 'createSimulatedWorkflowEnvironment');
+      try {
+        const result = await runAgentWorkflow({
+          workflow,
+          target,
+          preflight: variant.preflight,
+          checkpoint: checkpoint(path, 'resume'),
+        });
+        expect(result.record.reason, variant.name).toBe('checkpoint_invalid');
+        expect(calls, variant.name).toEqual({ capabilities: 0, turn: 0, drain: 0 });
+        expect(factory).not.toHaveBeenCalled();
+        expect(result.state).toBeNull();
+      } finally {
+        factory.mockRestore();
+      }
+    }
+  });
+
+  test('rejects first, adjacent, final and zero-change state-chain corruption before effects', async () => {
+    for (const kind of ['first', 'adjacent', 'final', 'zero']) {
+      const path = await directory();
+      const workflow = recoveryWorkflow();
+      if (kind === 'zero')
+        workflow.workflow.initial_state = {
+          files: { 'one.txt': 'PRIVATE-ONE', 'two.txt': 'PRIVATE-TWO' },
+        };
+      const first = await paused(path, 3, workflow);
+      expect(first.record.reason).toBe('checkpoint_paused');
+      await mutate(path, (p) => {
+        if (kind === 'first') p.recovery.stateChanges.entries[0].beforeSha256 = '0'.repeat(64);
+        if (kind === 'adjacent') p.recovery.stateChanges.entries[1].beforeSha256 = '0'.repeat(64);
+        if (kind === 'final') p.recovery.stateChanges.entries[1].afterSha256 = '0'.repeat(64);
+        if (kind === 'zero') {
+          required(p.state).files = { 'one.txt': 'altered', 'two.txt': 'PRIVATE-TWO' };
+          p.stateSha256 = workflowDigest(p.state);
+        }
+      });
+      const { target, calls } = countedTarget();
+      const factory = spyOn(environments, 'createSimulatedWorkflowEnvironment');
+      try {
+        const result = await runAgentWorkflow({
+          workflow,
+          target,
+          checkpoint: checkpoint(path, 'resume'),
+        });
+        expect(result.record.reason).toBe('checkpoint_invalid');
+        expect(calls).toEqual({ capabilities: 0, turn: 0, drain: 0 });
+        expect(factory).not.toHaveBeenCalled();
+      } finally {
+        factory.mockRestore();
+      }
+    }
+  });
+
+  test('V3 saved evidence binds every retained state-change link including unchanged runs', async () => {
+    for (const unchanged of [false, true]) {
+      const path = await directory();
+      const workflow = recoveryWorkflow();
+      if (unchanged)
+        workflow.workflow.initial_state = {
+          files: { 'one.txt': 'PRIVATE-ONE', 'two.txt': 'PRIVATE-TWO' },
+        };
+      const result = await runAgentWorkflow({
+        workflow,
+        target: recoveryTarget(),
+        checkpoint: checkpoint(path),
+      });
+      expect(result.record.taskVerification).toBe('passed');
+      expect(readWorkflowRecord(result.record)).toEqual(result.record);
+      if (unchanged) {
+        const altered = structuredClone(result.record);
+        altered.artifacts.stateSha256 = '0'.repeat(64);
+        altered.outcomes.stateSha256 = altered.artifacts.stateSha256;
+        expect(() => readWorkflowRecord(altered)).toThrow('Invalid or unsupported workflow record');
+      } else {
+        for (const kind of ['first', 'adjacent', 'final']) {
+          const altered = structuredClone(result.record);
+          const entries = required(altered.recovery).stateChanges.entries;
+          if (kind === 'first') entries[0].beforeSha256 = '0'.repeat(64);
+          if (kind === 'adjacent') entries[1].beforeSha256 = '0'.repeat(64);
+          if (kind === 'final') entries[1].afterSha256 = '0'.repeat(64);
+          expect(() => readWorkflowRecord(altered)).toThrow(
+            'Invalid or unsupported workflow record'
+          );
+        }
+      }
+    }
+  });
+
+  test('pre-initialization sandbox errors never advertise an inconsistent raw fixture snapshot', async () => {
+    for (const kind of ['capability', 'preflight']) {
+      for (const initial of [
+        {},
+        { files: { 'z.txt': 'z', 'a/x.txt': 'nested', 'a.txt': 'outside' } },
+      ]) {
+        const path = await directory();
+        const workflow = recoveryWorkflow();
+        workflow.environment.type = 'sandbox';
+        workflow.workflow.initial_state = initial;
+        const base = recoveryTarget();
+        const target =
+          kind === 'capability'
+            ? {
+                ...base,
+                capabilities: async () => ({
+                  status: 'available' as const,
+                  toolUse: false,
+                  transportCancellation: false,
+                }),
+              }
+            : { ...base, turn: async () => recoveryAnswer() };
+        const result = await runAgentWorkflow({
+          workflow,
+          target,
+          checkpoint: checkpoint(path),
+          preflight: kind === 'preflight',
+        });
+        expect(result.record.execution).toBe('unsupported');
+        expect(result.state).toBeNull();
+        expect(result.record.artifacts.state).toBe('unavailable');
+        expect(readWorkflowRecord(result.record)).toEqual(result.record);
+      }
+    }
   });
 });

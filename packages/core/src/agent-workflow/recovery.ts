@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, listWorkflowTools } from './catalog';
+import type { WorkflowState } from './environment';
 import { type AgentWorkflow, isWorkflowJson } from './schema';
 
 const count = z.number().int().nonnegative().safe();
@@ -154,4 +155,51 @@ export function workflowCheckpointIdentity(
     configurationSha256: workflowDigest(configurationId),
     preflight,
   };
+}
+
+/** Docker materializes an empty file map and enumerates path components in directory order. */
+export function workflowInitialExecutionState(
+  environment: 'simulated' | 'sandbox',
+  initial: WorkflowState
+): WorkflowState {
+  if (environment === 'simulated') return structuredClone(initial);
+  const files = initial.files ?? {};
+  if (!files || typeof files !== 'object' || Array.isArray(files)) return structuredClone(initial);
+  const entries = Object.entries(files).sort(([left], [right]) => {
+    const a = left.split('/');
+    const b = right.split('/');
+    for (let index = 0; index < Math.min(a.length, b.length); index++) {
+      if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
+    }
+    return a.length - b.length;
+  });
+  return { ...structuredClone(initial), files: Object.fromEntries(entries) };
+}
+
+/** Validate only the retained prefix; omitted transitions never acquire invented links. */
+export function validWorkflowStateChangeChain(
+  recovery: WorkflowRecoveryEvidence,
+  finalSha256?: string
+): boolean {
+  const { entries, total, omitted } = recovery.stateChanges;
+  const initial = recovery.initialStateSha256;
+  if (
+    entries.length !== Math.min(total, 64) ||
+    omitted !== Math.max(0, total - 64) ||
+    (total > 0 && !initial)
+  )
+    return false;
+  if (
+    entries.some(
+      (entry, index) =>
+        entry.beforeSha256 === entry.afterSha256 ||
+        entry.beforeSha256 !== (index ? entries[index - 1].afterSha256 : initial) ||
+        (index > 0 &&
+          Number(entry.operationId.slice(5)) <= Number(entries[index - 1].operationId.slice(5)))
+    )
+  )
+    return false;
+  if (initial && finalSha256 && !omitted)
+    return (entries.at(-1)?.afterSha256 ?? initial) === finalSha256;
+  return true;
 }

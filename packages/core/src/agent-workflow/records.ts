@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { decideWorkflowOutcome, validWorkflowAssertionCounts } from './outcome-status';
 import { workflowRecordLedgerStatus } from './outcomes';
-import { WorkflowRecoverySchema, validWorkflowRecovery } from './recovery';
+import {
+  WorkflowRecoverySchema,
+  validWorkflowRecovery,
+  validWorkflowStateChangeChain,
+} from './recovery';
 import { WorkflowPolicySchema, isWorkflowJson } from './schema';
 
 const count = z.number().int().nonnegative().safe();
@@ -402,6 +406,7 @@ export function readWorkflowRecord(input: unknown): SavedWorkflowRecord {
       const recovery = record.recovery;
       if (
         !validWorkflowRecovery(recovery) ||
+        !validWorkflowStateChangeChain(recovery, record.artifacts.stateSha256) ||
         recovery.stateChanges.total > record.budgets.toolCalls ||
         recovery.retries.attempted > record.budgets.toolCalls ||
         recovery.pendingOperations > record.budgets.actions + 1 ||

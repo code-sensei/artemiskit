@@ -33,6 +33,7 @@ import {
   type WorkflowRecoveryEvidence,
   workflowCheckpointIdentity,
   workflowDigest,
+  workflowInitialExecutionState,
 } from './recovery';
 import { createDockerWorkflowEnvironment } from './sandbox';
 import { type AgentWorkflow, AgentWorkflowSchema, isWorkflowJson } from './schema';
@@ -1174,7 +1175,9 @@ export function createAgentWorkflowSession(
           initialStateSha256 = workflowDigest(initialState);
           state = structuredClone(initialState);
           transcript = [{ role: 'system', content: workflow.workflow.system_instructions }];
-          recovery.initialStateSha256 = initialStateSha256;
+          recovery.initialStateSha256 = workflowDigest(
+            workflowInitialExecutionState(workflow.environment.type, initialState)
+          );
           await persistCheckpoint('pending', { kind: 'setup' });
         }
       }
@@ -1408,7 +1411,11 @@ export function createAgentWorkflowSession(
         record.cleanup.status = 'unresolved';
         record.cleanup.artifacts = 'unknown';
       }
-      if (record.cleanup.status === 'unresolved') state = null;
+      if (
+        record.cleanup.status === 'unresolved' ||
+        (checkpointStore && checkpointOptions?.mode === 'create' && !environment)
+      )
+        state = null;
 
       record.usage.missingRequests = record.budgets.modelRequests - measuredRequests;
       const tokenLimit = workflow?.environment.policy.budgets.max_tokens;

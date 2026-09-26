@@ -1,6 +1,5 @@
-# 0.6.1 controlled execution example. Review the target and budgets before running.
+# 0.6.2 verified sandbox example. Review the target and budgets before running.
 # File tools use disposable container files. Approval stays a pending local record.
-# Outcome assertions are declarations; independent scoring arrives in 0.6.2.
 version: '1'
 kind: agent_workflow
 name: sandbox-review-and-handoff
@@ -39,6 +38,9 @@ workflow:
       content: Read input/brief.txt, write the exact text "Human review required." to output/handoff.txt, then request human approval.
 outcomes:
   deterministic:
+    - type: workflow_state
+      path: approvals.status
+      equals: pending
     - type: file
       path: output/handoff.txt
       exists: true

@@ -57,7 +57,7 @@ const session = await kit.createWorkflowSession({
   preflight: true,
 });
 const result = await session.run();
-console.log(result.record); // bounded metadata; taskVerification is unavailable in 0.6.1
+console.log(result.record); // bounded metadata with separate execution and task outcomes
 // session.cancel() stops new work and initiates bounded cleanup.
 // result.state and result.transcript contain sensitive working data.
 ```
@@ -66,7 +66,11 @@ console.log(result.record); // bounded metadata; taskVerification is unavailable
 `target` to use an existing trusted adapter or target. The same native controls apply through the
 CLI and SDK: declared tools and permissions, cumulative budgets, explicit preflight, cancellation,
 and cleanup evidence. Workflows use fresh simulated state or a disposable Docker filesystem.
-Independent task scoring follows in 0.6.2; normal execution does not establish a task pass.
+The 0.6.2 milestone independently verifies declared artifacts, state, schemas, traces and policy.
+Use explicit `semanticJudge` configuration for declared qualitative criteria. Target and judge usage
+remain separate; `readWorkflowRecord` validates V1/V2 saved metadata without making model calls.
+See [workflow outcomes](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-outcomes.md)
+for usage, denominators, compatibility and publication status.
 
 The root and `/types` entry points expose workflow result/session/event types. Low-level
 `createAgentWorkflowSession` and `runAgentWorkflow` are available for explicit target composition.

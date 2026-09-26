@@ -93,6 +93,7 @@ For a real coding-agent workflow, see the
 toolset in a disposable, network-disabled Docker workspace and independently verifies the result.
 For the provider-neutral `agent_workflow` contract, general tool catalog and shared policies, see the
 [agent-workflow design guide](docs/agent-workflow.md). The
+[outcome verification guide](docs/workflow-outcomes.md) explains independent assertions and bounded judging. The
 [controlled execution guide](docs/workflow-execution.md) covers the 0.6.1 native sessions, budgets,
 preflight and disposable environments; the [release plan](docs/releases/0.6.x-release-plan.md)
 records publication status and the separate outcome-scoring milestone.

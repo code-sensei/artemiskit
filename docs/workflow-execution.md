@@ -1,6 +1,6 @@
 # Controlled workflow execution
 
-This guide accompanies the 0.6.1 execution milestone. Publication status and exact package versions
+This guide covers controlled execution introduced in 0.6.1 and task-aware exits in 0.6.2. Publication status and exact package versions
 are recorded in [the release plan](releases/0.6.x-release-plan.md). The
 [workflow design guide](agent-workflow.md) explains the YAML contract and longer-term roadmap.
 
@@ -10,8 +10,9 @@ ArtemisKit runs the declared conversation, admits only declared tools, and check
 arguments and resource permissions before executing them. It starts a fresh environment for each
 run. CLI and SDK execution use the same native session engine.
 
-A completed conversation is **not a verified task pass**. In this milestone, `taskVerification`
-remains `unavailable`: the YAML outcome assertions are retained for independent scoring in 0.6.2.
+A completed conversation is **not a verified task pass**. Historical 0.6.1 records keep
+`taskVerification: unavailable`. The 0.6.2 engine independently evaluates declared requirements;
+see [workflow outcomes](workflow-outcomes.md) for scoring, judge configuration and saved-record compatibility.
 Check execution, policy, budget, measurement, and cleanup fields separately. A pending approval
 request remains pending; a draft message is never sent; a delegated task is a local pending record,
 not another running agent.
@@ -110,7 +111,7 @@ Interrupted evidence is not a resumable checkpoint.
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | Execution completed, policy passed, usage reported, and cleanup completed; task verification remains unavailable |
+| `0` | Verified task pass; or a successful capability-only preflight |
 | `1` | File, configuration, output preparation, or persistence error |
 | `2` | Invalid workflow, options, fixture, or target response |
 | `3` | Unsupported target or environment |
@@ -118,7 +119,9 @@ Interrupted evidence is not a resumable checkpoint.
 | `5` | Budget exhausted |
 | `6` | Workflow deadline exceeded |
 | `7` | Runtime failure, unavailable/partial measurement, or unresolved cleanup |
-| `130` | Cancelled execution |
+| `8` | Valid task failure (0.6.2) |
+| `9` | Invalid or unavailable outcome evaluation (0.6.2) |
+| `130` | Cancelled execution or evaluation |
 
 Use `akit workflow run --help` for supported controls. `akit run` continues to execute historical
 prompt-response scenarios. Workflow records have a separate schema.

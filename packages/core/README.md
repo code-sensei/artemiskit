@@ -29,8 +29,10 @@ budgets, and bounded cancellation/cleanup. Environments are fresh simulated stat
 Docker filesystem; unsupported authority fails closed.
 
 The returned `record` contains bounded metadata. `state` and `transcript` are sensitive working data
-and are not persisted automatically. `taskVerification` remains `unavailable` in 0.6.1; outcome
-assertions are retained for 0.6.2. See the
+and are not persisted automatically. The 0.6.2 engine independently checks declared outcomes;
+optional qualitative checks require explicit `semanticJudge` configuration with separate limits.
+`readWorkflowRecord` validates V1/V2 metadata without rescoring historical runs. See the
+[outcome guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-outcomes.md) and
 [execution guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-execution.md)
 for session events, transport limits, Docker prerequisites, and CLI/SDK use.
 

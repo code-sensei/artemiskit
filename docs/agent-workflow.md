@@ -2,8 +2,8 @@
 
 > **Status:** The 0.6.0 contract is published. The 0.6.1 execution milestone is published
 > to npm and registry-qualified; remote tags await an approval-blocked GitHub push. See the [execution guide](workflow-execution.md) and
-> [release plan](releases/0.6.x-release-plan.md) for publication status. Independent task scoring,
-> durable recovery, and workflow reports remain later milestones. Existing real-agent examples
+> [release plan](releases/0.6.x-release-plan.md) for publication status. The 0.6.2 source adds [independent task scoring](workflow-outcomes.md); publication remains gated
+> on sequential remote tags. Durable recovery and workflow reports remain later milestones. Existing real-agent examples
 > remain documented in [agent evaluation](../examples/agent-evaluation/README.md).
 
 The published 0.6.0 package map and validation remain in its [release record](releases/0.6.0.md).
@@ -200,12 +200,17 @@ from simulated to sandbox execution.
 
 Use deterministic scoring whenever the result is objectively observable:
 
-- An artifact exists and matches a schema, checksum, or expected content.
-- A declared state transition occurred or did not occur.
+- An artifact exists and matches a bounded JSON schema or exact expected content.
+- The final state matches an expected value under a controlled initial fixture.
 - A required tool call occurred with valid arguments.
 - A forbidden or undeclared tool call did not occur.
 - A policy, authority, budget, or timeout rule was satisfied.
 - A structured value meets a declared constraint.
+
+Artifact checksums correlate retained evidence; they are not an expected-checksum assertion.
+Final-state checks do not automatically prove a before/after transition; combine them with declared
+tool traces and a controlled initial fixture where the transition matters. See the
+[implemented outcome contract](workflow-outcomes.md) for exact syntax and limits.
 
 ### Semantic evidence
 
@@ -256,8 +261,9 @@ See the [execution guide](workflow-execution.md) for commands, result fields, an
 The core and SDK packages export `AgentWorkflowSchema`, `validateAgentWorkflow`, `parseAgentWorkflow`,
 `loadAgentWorkflow`, `listWorkflowTools`, `getWorkflowTool`, `executeSimulatedTool`, and
 `createModelClientTarget`, plus their public types. The schema requires at least one deterministic
-assertion (`workflow_state`, `tool_trace`, `policy`, or `file`); optional semantic criteria must use
-`strict_assurance`. These remain declarations for the 0.6.2 scoring engine; 0.6.1 reports task verification as unavailable.
+assertion (`workflow_state`, `tool_trace`, `policy`, `file`, or `json_schema`); optional semantic criteria must use
+`strict_assurance`. The 0.6.2 engine evaluates these independently. Historical 0.6.1 records keep
+task verification unavailable. `readWorkflowRecord` validates both saved versions without rescoring.
 
 `createModelClientTarget(client)` adapts an existing `ModelClient` without provider-specific dispatch.
 Its `turn` method takes a conversation, declared function schemas, generation settings, and per-turn

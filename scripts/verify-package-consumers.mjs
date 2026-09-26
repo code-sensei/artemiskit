@@ -126,6 +126,10 @@ for (const { manifest } of packages) {
 for (const file of ['runtime.mjs', 'types.mts', 'workflow-cli.mjs']) {
   copyFileSync(join(fixtures, file), join(directory, file));
 }
+copyFileSync(
+  join(root, 'docs/releases/0.6.1-local-models.json'),
+  join(directory, 'historical-workflows.json')
+);
 // Invoke installed bin entry points, including their declared Bun runtime.
 const cli = join(directory, 'node_modules/.bin/akit');
 console.log(run('bun', [cli, '--version']));
@@ -195,6 +199,10 @@ const report = {
     'openai-tool-continuation',
     'ling-tool-continuation',
     'native-workflow-sessions',
+    'deterministic-outcomes-and-json-schema',
+    'explicit-semantic-judge-and-separate-usage',
+    'saved-v1-v2-compatibility',
+    'task-outcome-cli-exits-and-judge-cancellation',
     'bun-cli',
     'workflow-cli-execution-preflight-interruption',
     ...(docker ? ['real-docker-node-bun-sdk-and-cli'] : []),

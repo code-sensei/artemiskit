@@ -212,6 +212,12 @@ sandbox and fresh-consumer evidence; outcome scoring stays in 0.6.2.
 
 #### 0.6.2 — Independent outcome verification
 
+**Implementation in progress; unpublished.** The core verifier and V2 session/record contract are
+implemented and independently reviewed. CLI/SDK and installed-consumer qualification are tracked in
+the [0.6.2 release record](docs/releases/0.6.2.md). Publication waits for the missing 0.6.1 remote tags.
+See the [outcome guide](docs/workflow-outcomes.md) for assertions, bounded judging, validity
+denominators and historical compatibility.
+
 - Add independent assertions for produced artifacts, validated schemas, simulated state transitions,
   tool traces, policy decisions, and required final state across supported environments.
 - Prefer deterministic assertions whenever the outcome is objectively checkable. Permit strict,

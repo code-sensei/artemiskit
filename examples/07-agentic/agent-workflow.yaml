@@ -1,5 +1,4 @@
-# Versioned workflow example for controlled execution in 0.6.1.
-# Outcome assertions remain unscored until the independent 0.6.2 verifier.
+# Controlled workflow with independent deterministic verification in 0.6.2.
 # These permissions apply to isolated simulated state, not external systems.
 version: '1'
 kind: agent_workflow
@@ -37,6 +36,9 @@ workflow:
       content: Read the brief and request a human review.
 outcomes:
   deterministic:
+    - type: workflow_state
+      path: approvals.status
+      equals: pending
     - type: tool_trace
       tool: read_document
       minimum_calls: 1

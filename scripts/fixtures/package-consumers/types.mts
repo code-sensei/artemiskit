@@ -13,8 +13,11 @@ import {
   createAgentWorkflowSession,
   createDockerWorkflowEnvironmentFactory,
   createModelClientTarget,
+  evaluateWorkflowDeterministicOutcomes,
+  evaluateWorkflowSemantics,
   executeSimulatedTool,
   listWorkflowTools,
+  readWorkflowRecord,
   runAgentWorkflow,
 } from '@artemiskit/sdk';
 import { scenario } from '@artemiskit/sdk/builders';
@@ -25,6 +28,9 @@ import type {
   AgentWorkflowRecord,
   DockerWorkflowEnvironmentOptions,
   RunResult,
+  SavedWorkflowRecord,
+  WorkflowJudgeOptions,
+  WorkflowOutcomeAssessment,
   WorkflowRunOptions,
 } from '@artemiskit/sdk/types';
 import { assertDefined } from '@artemiskit/sdk/utils';
@@ -37,7 +43,28 @@ declare const run: RunResult;
 const target: AgentTarget = createModelClientTarget(client);
 const session: AgentWorkflowSession = createAgentWorkflowSession({ workflow, target });
 const execution: Promise<AgentWorkflowResult> = runAgentWorkflow({ workflow, target });
-const options: WorkflowRunOptions = { workflow, target, cleanupTimeoutMs: 1000 };
+const judge: WorkflowJudgeOptions = {
+  client,
+  provider: 'openai',
+  model: 'judge-model',
+  limits: { maxRequests: 1, maxTokens: 100, maxOutputTokens: 20, timeoutMs: 1000 },
+};
+const options: WorkflowRunOptions = {
+  workflow,
+  target,
+  cleanupTimeoutMs: 1000,
+  semanticJudge: judge,
+};
+const saved: SavedWorkflowRecord = readWorkflowRecord('{}');
+const outcomes: WorkflowOutcomeAssessment | undefined =
+  saved.schemaVersion === '2' ? saved.outcomes : undefined;
+if (saved.schemaVersion === '1') {
+  const unscored: 'unavailable' = saved.taskVerification;
+  void unscored;
+}
+// @ts-expect-error judges require explicit bounded limits
+const badJudge: WorkflowJudgeOptions = { client, provider: 'openai', model: 'judge-model' };
+void [outcomes, badJudge, evaluateWorkflowDeterministicOutcomes, evaluateWorkflowSemantics];
 const kit = new ArtemisKit();
 const wrappedSession: Promise<AgentWorkflowSession> = kit.createWorkflowSession(options);
 const wrappedExecution: Promise<AgentWorkflowResult> = kit.runWorkflow(options);

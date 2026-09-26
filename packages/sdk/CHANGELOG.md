@@ -1,5 +1,14 @@
 # @artemiskit/sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- Complete the 0.6.2 independent workflow outcome milestone: verify final artifacts, bounded JSON schemas, state, tool traces and policy before optional explicitly configured semantic judging. Keep target and judge identity, usage and limits separate; expose task validity and coverage, strict V1/V2 saved-record reading, SDK composition and CLI outcome exits without changing historical prompt-response reports.
+- Updated dependencies
+  - @artemiskit/core@0.6.2
+  - @artemiskit/redteam@0.3.10
+
 ## 0.6.0
 
 ### Minor Changes

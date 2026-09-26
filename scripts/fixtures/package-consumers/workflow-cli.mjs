@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
+import { readWorkflowRecord } from '@artemiskit/sdk';
 
 // Run from the isolated consumer, against its installed CLI and an owned loopback provider.
 const cli = resolve('node_modules/.bin/akit');
@@ -17,7 +18,7 @@ const server = createServer(async (request, response) => {
   const body = JSON.parse(raw);
   requests.push(body);
   assert.ok(body.model.startsWith('consumer-'), 'Workflow model must override config default');
-  if (body.model === 'consumer-cancel') {
+  if (body.model === 'consumer-cancel' || body.model === 'consumer-external-judge-cancel') {
     cancelChild.kill('SIGINT');
     return;
   }
@@ -25,7 +26,16 @@ const server = createServer(async (request, response) => {
   const probe = body.tools?.find((tool) => tool.function.name === 'artemis_probe');
   let content = 'Run finished.';
   let calls;
-  if (probe) {
+  const isJudge = body.model.startsWith('consumer-external-judge');
+  if (isJudge) {
+    content =
+      body.model === 'consumer-external-judge-invalid'
+        ? 'Passed!'
+        : body.model === 'consumer-external-judge-fail'
+          ? '{"verdict":"fail"}'
+          : '{"verdict":"pass"}';
+    assert.equal(body.tools, undefined);
+  } else if (probe) {
     const nonce = probe.function.parameters.properties.nonce.const;
     if (continued) content = nonce;
     else
@@ -139,7 +149,7 @@ function run(args, cancel = false) {
     });
   });
 }
-async function check(name, expected, mutate = () => {}, mode = 'run') {
+async function check(name, expected, mutate = () => {}, mode = 'run', judgeModel = undefined) {
   const workflow = structuredClone(base);
   workflow.target.model = `consumer-${name}`;
   workflow.target.generation = { max_tokens: 256, temperature: 0 };
@@ -164,17 +174,52 @@ async function check(name, expected, mutate = () => {}, mode = 'run') {
   ];
   if (['success', 'sandbox'].includes(name)) command.push('--state-output', `${name}-state.json`);
   if (name === 'sandbox') command.push('--cleanup-timeout', '10000');
+  if (judgeModel) {
+    const config = JSON.parse(readFileSync('consumer-config.json', 'utf8'));
+    config.provider = 'openai';
+    config.model = judgeModel;
+    config.workflowJudge = { maxRequests: 2, maxTokens: 100, maxOutputTokens: 20, timeoutMs: 5000 };
+    writeFileSync(`${name}-judge.json`, JSON.stringify(config));
+    command.push('--judge-config', `${name}-judge.json`);
+  }
   const before = requests.length;
-  const result = await run(command, name === 'cancel');
+  const result = await run(command, name === 'cancel' || name === 'judge-cancel');
   assert.equal(result.code, expected, `${name}: ${result.stdout}\n${result.stderr}`);
   const record = JSON.parse(readFileSync(`${name}-record.json`, 'utf8'));
   assert.deepEqual(JSON.parse(result.stdout), record, `${name}: stdout and saved evidence differ`);
   assert.equal(
     requests.length - before,
-    ['success', 'preflight', 'sandbox'].includes(name) ? 2 : 1,
+    ['judge-pass', 'judge-fail', 'judge-invalid', 'judge-cancel'].includes(name)
+      ? 3
+      : ['success', 'preflight', 'sandbox', 'missing-artifact', 'no-judge', 'skip-judge'].includes(
+            name
+          )
+        ? 2
+        : 1,
     `${name}: unexpected hidden retry or extra model turn`
   );
-  assert.equal(record.taskVerification, 'unavailable');
+  assert.equal(
+    record.taskVerification,
+    expected === 0 && mode !== 'preflight'
+      ? 'passed'
+      : expected === 8
+        ? 'failed'
+        : name === 'judge-invalid'
+          ? 'invalid'
+          : 'unavailable'
+  );
+  assert.deepEqual(readWorkflowRecord(record), record);
+  assert.equal(
+    record.outcomes.task.eligible,
+    (expected === 0 && mode !== 'preflight') || expected === 8 ? 1 : 0
+  );
+  assert.equal(record.outcomes.task.failed, expected === 8 ? 1 : 0);
+  for (const group of [record.outcomes.deterministic, record.outcomes.semantic]) {
+    assert.equal(group.counts.valid, group.counts.passed + group.counts.failed);
+  }
+  assert.equal(record.configuration.model.display, `consumer-${name}`);
+  if (judgeModel && record.outcomes.semantic.budgets.requests)
+    assert.equal(record.outcomes.semantic.judge.requested.model.display, judgeModel);
   assert.ok(!JSON.stringify(record).includes(secretFixture));
   assert.ok(!`${result.stdout}${result.stderr}`.includes(secretFixture));
   assert.equal(record.cleanup.status, 'completed', name);
@@ -225,6 +270,52 @@ try {
     ).reason,
     'max_model_requests'
   );
+  const semantic = (workflow) => {
+    workflow.outcomes.semantic = [
+      { type: 'llm_judge', mode: 'strict_assurance', rubric: 'Clear handoff explanation.' },
+    ];
+  };
+  await check('missing-artifact', 8, (workflow) => {
+    workflow.outcomes.deterministic = [{ type: 'file', path: 'missing.txt', exists: true }];
+  });
+  await check('no-judge', 9, semantic);
+  for (const [name, code] of [
+    ['pass', 0],
+    ['fail', 8],
+    ['invalid', 9],
+  ]) {
+    const record = await check(
+      `judge-${name}`,
+      code,
+      semantic,
+      'run',
+      `consumer-external-judge-${name}`
+    );
+    assert.equal(record.usage.reported.total, 30);
+    assert.equal(record.outcomes.semantic.usage.reported.total, 15);
+    assert.equal(record.outcomes.semantic.budgets.requests, 1);
+  }
+  const cancelledJudge = await check(
+    'judge-cancel',
+    130,
+    semantic,
+    'run',
+    'consumer-external-judge-cancel'
+  );
+  assert.equal(cancelledJudge.execution, 'completed');
+  assert.equal(cancelledJudge.outcomes.reason, 'cancelled');
+  assert.equal(cancelledJudge.outcomes.task.eligible, 0);
+  const skipped = await check(
+    'skip-judge',
+    8,
+    (workflow) => {
+      semantic(workflow);
+      workflow.outcomes.deterministic = [{ type: 'file', path: 'missing.txt', exists: true }];
+    },
+    'run',
+    'consumer-external-judge-pass'
+  );
+  assert.equal(skipped.outcomes.semantic.budgets.requests, 0);
   const preflight = await check(
     'preflight',
     0,

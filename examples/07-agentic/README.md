@@ -7,7 +7,8 @@ the disposable-file [sandbox-workflow.yaml](sandbox-workflow.yaml), and the
 [controlled execution guide](../../docs/workflow-execution.md). Validate without provider calls:
 `akit scenario validate examples/07-agentic/agent-workflow.yaml`. Review the configured target and
 budgets before execution. The [release plan](../../docs/releases/0.6.x-release-plan.md) records
-publication status. Execution is the 0.6.1 scope; independent task scoring remains 0.6.2.
+publication status. The [outcome guide](../../docs/workflow-outcomes.md) covers 0.6.2
+independent scoring and optional explicit semantic judging.
 
 ## What is Agentic Testing?
 

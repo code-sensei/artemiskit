@@ -1,5 +1,12 @@
 # @artemiskit/adapter-trueforge
 
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.6.2
+
 ## 0.1.9
 
 ### Patch Changes

@@ -212,9 +212,10 @@ sandbox and fresh-consumer evidence; outcome scoring stays in 0.6.2.
 
 #### 0.6.2 — Independent outcome verification
 
-**Implementation in progress; unpublished.** The core verifier and V2 session/record contract are
-implemented and independently reviewed. CLI/SDK and installed-consumer qualification are tracked in
-the [0.6.2 release record](docs/releases/0.6.2.md). Publication waits for the missing 0.6.1 remote tags.
+**Implemented and locally qualified; unpublished.** Independent assertions, bounded semantic
+judging, V2 evidence, CLI/SDK outcomes and fresh installed Node/Bun/Docker checks pass. See the
+[0.6.2 release record](docs/releases/0.6.2.md) for exact validation and package versions. Publication
+waits for the missing 0.6.1 remote tags; this milestone is not marked shipped.
 See the [outcome guide](docs/workflow-outcomes.md) for assertions, bounded judging, validity
 denominators and historical compatibility.
 
@@ -514,9 +515,9 @@ or a certification.
 | Cancellation tracks pending host work and preserves interrupted execution evidence | ✅ 0.6.1 npm verified; remote tags pending |
 | Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 0.6.3 |
 | Durable CLI/SDK resume preserves state, identity, authority and consumed budgets | 📋 0.6.3 |
-| Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 0.6.2 |
-| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 📋 0.6.2 |
-| Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 Execution fields 0.6.1; independent outcomes 0.6.2 |
+| Deterministic checks verify artifacts, final state, schemas, traces, and acceptance conditions | Implemented and locally qualified in 0.6.2; publication blocked |
+| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | Implemented and locally qualified in 0.6.2; publication blocked |
+| Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | Execution fields shipped in 0.6.1; independent outcomes locally qualified in 0.6.2 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 Basic execution 0.6.1; recovery/checkpoints 0.6.3 |
 | No default execution path discovers tools or performs live side effects | ✅ 0.6.1 npm verified; remote tags pending |
 | Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 0.6.4 |

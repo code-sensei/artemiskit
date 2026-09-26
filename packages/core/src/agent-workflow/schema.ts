@@ -1,3 +1,4 @@
+import { types } from 'node:util';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, getWorkflowTool } from './catalog';
@@ -24,7 +25,7 @@ export function isWorkflowJson(value: unknown): value is WorkflowJson {
       textBytes += Buffer.byteLength(item);
       return textBytes <= 1_048_576;
     }
-    if (typeof item !== 'object' || ancestors.has(item)) return false;
+    if (typeof item !== 'object' || types.isProxy(item) || ancestors.has(item)) return false;
     if (
       !Array.isArray(item) &&
       Object.getPrototypeOf(item) !== Object.prototype &&

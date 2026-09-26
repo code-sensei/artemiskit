@@ -1,17 +1,90 @@
 import { createHash } from 'node:crypto';
+import { types } from 'node:util';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, type WorkflowToolId, getWorkflowTool } from './catalog';
 import { type WorkflowJson, isWorkflowJson } from './schema';
 
+/** Inspect descriptors before Zod can probe thenables or evaluate Proxy traps. */
+function safeFaultJson(value: unknown): value is WorkflowJson {
+  let nodes = 0;
+  const ancestors = new Set<object>();
+  function visit(item: unknown, depth: number): boolean {
+    if (++nodes > 10_000 || depth > 16) return false;
+    if (item === null || typeof item !== 'object') return typeof item !== 'function';
+    if (types.isProxy(item) || ancestors.has(item)) return false;
+    const prototype = Object.getPrototypeOf(item);
+    if (
+      Array.isArray(item)
+        ? prototype !== Array.prototype
+        : prototype !== Object.prototype && prototype !== null
+    )
+      return false;
+    ancestors.add(item);
+    for (const key of Object.getOwnPropertyNames(item)) {
+      const descriptor = Object.getOwnPropertyDescriptor(item, key);
+      if (!descriptor || !('value' in descriptor) || !visit(descriptor.value, depth + 1))
+        return false;
+    }
+    ancestors.delete(item);
+    return true;
+  }
+  try {
+    return visit(value, 0) && isWorkflowJson(value);
+  } catch {
+    return false;
+  }
+}
+
+/** Zod probes root inputs before refinements; guard its entry and composed parse paths. */
+function guardFaultSchema<T extends z.ZodTypeAny>(schema: T, optionalInput = false): T {
+  const valid = (data: unknown) => (optionalInput && data === undefined) || safeFaultJson(data);
+  const issue = () => ({
+    code: 'custom' as const,
+    message: 'Expected bounded plain JSON',
+    path: [],
+  });
+  const failure = () => ({ success: false as const, error: new z.ZodError([issue()]) });
+  const parse = schema._parse.bind(schema);
+  schema._parse = (input) => {
+    if (valid(input.data)) return parse(input);
+    input.parent.common.issues.push({ ...issue(), path: input.path });
+    return z.INVALID;
+  };
+  const safeParse = schema.safeParse.bind(schema);
+  schema.safeParse = (data, params) => {
+    if (!valid(data)) return failure();
+    try {
+      return safeParse(data, params);
+    } catch {
+      return failure();
+    }
+  };
+  const safeParseAsync = schema.safeParseAsync.bind(schema);
+  schema.safeParseAsync = async (data, params) => {
+    if (!valid(data)) return failure();
+    try {
+      return await safeParseAsync(data, params);
+    } catch {
+      return failure();
+    }
+  };
+  schema.spa = schema.safeParseAsync;
+  const optional = schema.optional.bind(schema);
+  schema.optional = () => guardFaultSchema(optional(), true);
+  const pipe = schema.pipe.bind(schema);
+  schema.pipe = (next) => guardFaultSchema(pipe(next), optionalInput);
+  return schema;
+}
+
 const MAX_FIXTURE_BYTES = 16_384;
 const MAX_INSTRUCTION_BYTES = 4096;
 const plainJson = z.unknown().superRefine((value, ctx) => {
-  if (!isWorkflowJson(value))
+  if (!safeFaultJson(value))
     ctx.addIssue({ code: 'custom', message: 'Expected bounded plain JSON' });
 });
 const boundedOutput = z.custom<WorkflowJson>(
-  (value) => isWorkflowJson(value) && Buffer.byteLength(JSON.stringify(value)) <= MAX_FIXTURE_BYTES,
+  (value) => safeFaultJson(value) && Buffer.byteLength(JSON.stringify(value)) <= MAX_FIXTURE_BYTES,
   'Expected bounded fault fixture'
 );
 const instruction = z
@@ -56,44 +129,47 @@ const outputValidators = new Map(
 );
 
 /** Fixtures alter observations only; they cannot invent successful write effects. */
-export const WorkflowFaultsSchema = plainJson.pipe(
-  z
-    .array(faultDefinition)
-    .max(32)
-    .superRefine((faults, ctx) => {
-      const ids = new Set<string>();
-      const schedules = new Map<string, number>();
-      for (const [index, fault] of faults.entries()) {
-        const fail = (message: string) => ctx.addIssue({ code: 'custom', path: [index], message });
-        if (ids.has(fault.id)) fail('Duplicate fault identifier');
-        ids.add(fault.id);
-        const schedule = `${fault.tool}:${fault.occurrence}`;
-        const count = (schedules.get(schedule) ?? 0) + 1;
-        schedules.set(schedule, count);
-        if (count > 5) fail('Fault schedule exceeds maximum retry attempts');
-        if (fault.kind === 'unavailable_tool' || fault.kind === 'timeout') continue;
-        if (getWorkflowTool(fault.tool)?.authority.access === 'write') {
-          fail('Fault output cannot replace a write effect');
-          continue;
+export const WorkflowFaultsSchema = guardFaultSchema(
+  plainJson.pipe(
+    z
+      .array(faultDefinition)
+      .max(32)
+      .superRefine((faults, ctx) => {
+        const ids = new Set<string>();
+        const schedules = new Map<string, number>();
+        for (const [index, fault] of faults.entries()) {
+          const fail = (message: string) =>
+            ctx.addIssue({ code: 'custom', path: [index], message });
+          if (ids.has(fault.id)) fail('Duplicate fault identifier');
+          ids.add(fault.id);
+          const schedule = `${fault.tool}:${fault.occurrence}`;
+          const count = (schedules.get(schedule) ?? 0) + 1;
+          schedules.set(schedule, count);
+          if (count > 5) fail('Fault schedule exceeds maximum retry attempts');
+          if (fault.kind === 'unavailable_tool' || fault.kind === 'timeout') continue;
+          if (getWorkflowTool(fault.tool)?.authority.access === 'write') {
+            fail('Fault output cannot replace a write effect');
+            continue;
+          }
+          if (fault.kind === 'conflicting_instructions') {
+            if (fault.tool !== 'read_document' && fault.tool !== 'read_file')
+              fail('Conflicting instructions require a document or file read');
+          } else {
+            const valid = outputValidators.get(fault.tool)?.(fault.output) === true;
+            if (fault.kind === 'malformed_result' ? valid : !valid)
+              fail('Fault fixture does not match its declared validity');
+          }
         }
-        if (fault.kind === 'conflicting_instructions') {
-          if (fault.tool !== 'read_document' && fault.tool !== 'read_file')
-            fail('Conflicting instructions require a document or file read');
-        } else {
-          const valid = outputValidators.get(fault.tool)?.(fault.output) === true;
-          if (fault.kind === 'malformed_result' ? valid : !valid)
-            fail('Fault fixture does not match its declared validity');
-        }
-      }
-    })
+      })
+  )
 );
 export type WorkflowFaults = z.infer<typeof WorkflowFaultsSchema>;
 export type WorkflowFault = WorkflowFaults[number];
 export type WorkflowFaultKind = WorkflowFault['kind'];
 
 /** Attempts include the initial invocation. Every retry remains subject to host budgets. */
-export const WorkflowRetrySchema = plainJson.pipe(
-  z.object({ max_attempts: z.number().int().min(1).max(5) }).strict()
+export const WorkflowRetrySchema = guardFaultSchema(
+  plainJson.pipe(z.object({ max_attempts: z.number().int().min(1).max(5) }).strict())
 );
 export type WorkflowRetry = z.infer<typeof WorkflowRetrySchema>;
 
@@ -172,19 +248,21 @@ export type WorkflowFaultAction =
       readonly fault: WorkflowFaultSummary;
     };
 
-const contextSchema = plainJson.pipe(
-  z
-    .object({
-      tool: z.enum(WORKFLOW_TOOL_IDS),
-      occurrence: z.number().int().min(1).max(1000),
-      attempt: z.number().int().min(1).max(5),
-      consumedFaultIndices: z.array(z.number().int().min(0).max(31)).max(32),
-    })
-    .strict()
-    .refine(
-      (value) => new Set(value.consumedFaultIndices).size === value.consumedFaultIndices.length,
-      'Duplicate consumed fault index'
-    )
+const contextSchema = guardFaultSchema(
+  plainJson.pipe(
+    z
+      .object({
+        tool: z.enum(WORKFLOW_TOOL_IDS),
+        occurrence: z.number().int().min(1).max(1000),
+        attempt: z.number().int().min(1).max(5),
+        consumedFaultIndices: z.array(z.number().int().min(0).max(31)).max(32),
+      })
+      .strict()
+      .refine(
+        (value) => new Set(value.consumedFaultIndices).size === value.consumedFaultIndices.length,
+        'Duplicate consumed fault index'
+      )
+  )
 );
 
 /**
@@ -241,10 +319,11 @@ export function applyWorkflowFaultInstruction(
 ): WorkflowJson | undefined {
   if (
     (tool !== 'read_document' && tool !== 'read_file') ||
-    !isWorkflowJson(output) ||
+    !safeFaultJson(output) ||
     !output ||
     typeof output !== 'object' ||
     Array.isArray(output) ||
+    typeof appendedInstruction !== 'string' ||
     !instruction.safeParse(appendedInstruction).success ||
     !outputValidators.get(tool)?.(output) ||
     typeof output.content !== 'string'

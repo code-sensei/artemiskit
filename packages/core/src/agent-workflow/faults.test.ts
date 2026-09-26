@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, getWorkflowTool } from './catalog';
 import {
   WorkflowFaultsSchema,
@@ -311,5 +312,91 @@ describe('pure deterministic fault planning', () => {
       0
     );
     expect(one.fixture_sha256).toBe(two.fixture_sha256);
+  });
+});
+
+describe('fault input proxy boundaries', () => {
+  test.each(['throwing', 'nonthrowing', 'revoked'] as const)(
+    'rejects %s proxies at roots and nested values without executing traps',
+    async (mode) => {
+      let traps = 0;
+      function proxy<T extends object>(target: T): T {
+        const hit = () => {
+          traps++;
+          if (mode === 'throwing') throw new Error('SYNTHETIC_PRIVATE_MARKER');
+        };
+        const wrapped = Proxy.revocable(target, {
+          get(object, property, receiver) {
+            hit();
+            return Reflect.get(object, property, receiver);
+          },
+          getPrototypeOf(object) {
+            hit();
+            return Reflect.getPrototypeOf(object);
+          },
+          ownKeys(object) {
+            hit();
+            return Reflect.ownKeys(object);
+          },
+          getOwnPropertyDescriptor(object, property) {
+            hit();
+            return Reflect.getOwnPropertyDescriptor(object, property);
+          },
+        });
+        if (mode === 'revoked') wrapped.revoke();
+        return wrapped.proxy;
+      }
+      const fault = { ...base, kind: 'unavailable_tool' };
+      const badFault = proxy(fault);
+      const nestedOutput = { ...base, kind: 'malformed_result', output: { deeper: proxy({}) } };
+      for (const input of [proxy([fault]), [badFault], [nestedOutput]]) {
+        expect(WorkflowFaultsSchema.safeParse(input).success).toBe(false);
+        expect((await WorkflowFaultsSchema.safeParseAsync(input)).success).toBe(false);
+        expect((await WorkflowFaultsSchema.spa(input)).success).toBe(false);
+        expect(() => WorkflowFaultsSchema.parse(input)).toThrow('Expected bounded plain JSON');
+        expect(() => planWorkflowFault(input, context)).toThrow(
+          'invalid_workflow_fault_configuration'
+        );
+      }
+      for (const input of [badFault, nestedOutput])
+        expect(() => summarizeWorkflowFault(input, 0)).toThrow(
+          'invalid_workflow_fault_configuration'
+        );
+      expect(WorkflowRetrySchema.safeParse(proxy({ max_attempts: 1 })).success).toBe(false);
+      expect(WorkflowRetrySchema.safeParse({ max_attempts: proxy({}) }).success).toBe(false);
+      for (const input of [proxy(context), { ...context, consumedFaultIndices: proxy([]) }])
+        expect(() => planWorkflowFault([], input)).toThrow('invalid_workflow_fault_configuration');
+      expect(
+        applyWorkflowFaultInstruction('read_file', proxy({ content: 'safe' }), 'do X')
+      ).toBeUndefined();
+      expect(
+        applyWorkflowFaultInstruction('read_file', { content: proxy({}) }, 'do X')
+      ).toBeUndefined();
+      const composed = z
+        .object({ faults: WorkflowFaultsSchema.optional() })
+        .pipe(z.object({ faults: WorkflowFaultsSchema.optional() }));
+      for (const input of [proxy([fault]), [badFault], [nestedOutput]])
+        expect(composed.safeParse({ faults: input }).success).toBe(false);
+      expect(composed.safeParse({}).success).toBe(true);
+      expect(composed.safeParse({ faults: [fault] }).success).toBe(true);
+      expect(WorkflowFaultsSchema.optional().safeParse(proxy([fault])).success).toBe(false);
+      expect(
+        WorkflowFaultsSchema.pipe(z.array(z.unknown())).safeParse(proxy([fault])).success
+      ).toBe(false);
+      expect(traps).toBe(0);
+    }
+  );
+
+  test('rejects Zod thenable getters before root classification', () => {
+    let calls = 0;
+    const input = Object.defineProperty({ max_attempts: 1 }, 'then', {
+      enumerable: true,
+      get() {
+        calls++;
+        throw new Error('SYNTHETIC_PRIVATE_MARKER');
+      },
+    });
+    expect(WorkflowRetrySchema.safeParse(input).success).toBe(false);
+    expect(calls).toBe(0);
   });
 });

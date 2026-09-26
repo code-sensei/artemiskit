@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { GenerateOptions, ModelClient, TokenUsage } from '../adapters/types';
 import { isWorkflowState } from './environment';
 import { type AgentWorkflow, AgentWorkflowSchema, isWorkflowJson } from './schema';
-import type { AgentWorkflowResult } from './session';
+import type { AgentWorkflowEvidence } from './session';
 
 export interface WorkflowJudgeOptions {
   client: ModelClient;
@@ -12,11 +12,12 @@ export interface WorkflowJudgeOptions {
 }
 export interface WorkflowSemanticOptions {
   workflow: AgentWorkflow;
-  result: AgentWorkflowResult;
+  result: AgentWorkflowEvidence;
   judge?: WorkflowJudgeOptions;
   signal?: AbortSignal;
 }
 export type WorkflowSemanticReason =
+  | 'prerequisite_failed'
   | 'satisfied'
   | 'not_satisfied'
   | 'judge_not_configured'

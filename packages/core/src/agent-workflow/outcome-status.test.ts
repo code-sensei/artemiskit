@@ -25,6 +25,14 @@ function options(): Parameters<typeof decideWorkflowOutcome>[0] {
         preflight: { prompt: 0, completion: 0, total: 0 },
       },
       cleanup: { status: 'completed', pendingOperations: 0, artifacts: 'discarded' },
+      artifacts: { state: 'available', stateSha256: 'a'.repeat(64) },
+      configuration: {
+        sha256: 'b'.repeat(64),
+        provider: { sha256: 'c'.repeat(64) },
+        model: { sha256: 'd'.repeat(64) },
+        generation: { maxTokens: 256, temperature: 0 },
+        limits: { max_actions: 10, timeout_ms: 1000 },
+      },
     },
     deterministic: counts({ declared: 1, passed: 1, valid: 1 }),
     semantic: counts(),
@@ -74,6 +82,12 @@ describe('task outcome and denominator rules', () => {
     const pending = options();
     pending.record.cleanup.pendingOperations = 1;
     cases.push(pending);
+    const snapshot = options();
+    snapshot.record.artifacts = { state: 'unavailable' };
+    cases.push(snapshot);
+    const configuration = options();
+    configuration.record.configuration = undefined;
+    cases.push(configuration);
     const cancellation = options();
     cancellation.cancelled = true;
     cases.push(cancellation);

@@ -107,7 +107,7 @@ describe('native workflow session host', () => {
     expect(session.run()).toBe(first);
     const result = await first;
     expect(result.record.execution).toBe('completed');
-    expect(result.record.taskVerification).toBe('unavailable');
+    expect(result.record.taskVerification).toBe('passed');
     expect(result.state?.files).toEqual({ 'note.txt': 'updated' });
     expect(workflow).toEqual(before);
     expect(t.requests[1].messages.at(-1)).toMatchObject({ role: 'tool', toolCallId: 'call-1' });

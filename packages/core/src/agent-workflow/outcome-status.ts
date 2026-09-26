@@ -38,7 +38,10 @@ export function validWorkflowAssertionCounts(counts: WorkflowAssertionCounts): b
 /** Shared conjunction/eligibility rules for the engine and saved-record validation. */
 export function decideWorkflowOutcome(options: {
   purpose: 'workflow' | 'preflight';
-  record: Pick<AgentWorkflowRecord, 'execution' | 'policy' | 'usage' | 'cleanup'>;
+  record: Pick<
+    AgentWorkflowRecord,
+    'execution' | 'policy' | 'usage' | 'cleanup' | 'artifacts' | 'configuration'
+  >;
   deterministic: WorkflowAssertionCounts;
   semantic: WorkflowAssertionCounts;
   cancelled: boolean;
@@ -71,6 +74,12 @@ export function decideWorkflowOutcome(options: {
     options.record.usage.inFlightUnknown
   )
     return decision('unavailable', 'target_usage_unavailable');
+  if (
+    !options.record.configuration ||
+    options.record.artifacts.state !== 'available' ||
+    !options.record.artifacts.stateSha256
+  )
+    return decision('unavailable', 'evaluation_unavailable');
   if (
     !validWorkflowAssertionCounts(options.deterministic) ||
     !validWorkflowAssertionCounts(options.semantic) ||

@@ -8,7 +8,7 @@ import {
   type WorkflowJson,
   isWorkflowJson,
 } from './schema';
-import type { AgentWorkflowResult } from './session';
+import type { AgentWorkflowEvidence } from './session';
 
 export type WorkflowDeterministicStatus = 'passed' | 'failed' | 'invalid' | 'unavailable';
 export type WorkflowDeterministicReason =
@@ -175,7 +175,7 @@ function summarize(
 
 /** Verifies the sealed host execution ledger; model prose and evaluation events never count. */
 function ledger(
-  workflow: AgentWorkflow,
+  workflow: Pick<AgentWorkflow, 'tools'> | undefined,
   record: Evidence
 ): { finding?: Finding; calls: Map<string, number> } {
   const calls = new Map<string, number>();
@@ -268,7 +268,7 @@ function ledger(
         event.phase === 'execution' &&
         event.status === 'completed'
       ) {
-        if (!workflow.tools.some((tool) => tool === event.tool)) return invalid();
+        if (workflow && !workflow.tools.some((tool) => tool === event.tool)) return invalid();
         calls.set(event.tool ?? '', (calls.get(event.tool ?? '') ?? 0) + 1);
       }
       if (
@@ -289,10 +289,22 @@ function ledger(
   return { calls };
 }
 
+/** @internal Reuse lifecycle/correlation checks when reading metadata without the workflow. */
+export function workflowRecordLedgerStatus(input: unknown): WorkflowDeterministicStatus {
+  try {
+    if (!isWorkflowJson(input)) return 'invalid';
+    const parsed = recordSchema.safeParse(input);
+    if (!parsed.success) return 'invalid';
+    return ledger(undefined, parsed.data).finding?.status ?? 'passed';
+  } catch {
+    return 'invalid';
+  }
+}
+
 /** Pure independent verification. Only bounded metadata is returned; working content never escapes. */
 export function evaluateWorkflowDeterministicOutcomes(
   workflow: AgentWorkflow,
-  result: AgentWorkflowResult
+  result: AgentWorkflowEvidence
 ): WorkflowDeterministicSummary {
   let parsed: ReturnType<typeof AgentWorkflowSchema.safeParse>;
   try {

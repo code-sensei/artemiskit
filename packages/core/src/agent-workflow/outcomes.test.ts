@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { evaluateWorkflowDeterministicOutcomes } from './outcomes';
 import { validateAgentWorkflow } from './parser';
 import type { AgentWorkflow } from './schema';
-import { type AgentWorkflowResult, runAgentWorkflow } from './session';
+import { type AgentWorkflowEvidence, runAgentWorkflow } from './session';
 const sha = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function workflow(outcomes: unknown[]): AgentWorkflow {
   return validateAgentWorkflow({
@@ -32,11 +32,11 @@ function workflow(outcomes: unknown[]): AgentWorkflow {
 }
 function result(
   definition: AgentWorkflow,
-  state: AgentWorkflowResult['state'] = {
+  state: AgentWorkflowEvidence['state'] = {
     workflow_state: { done: true, approvals: { requested: true, status: 'pending' } },
     files: { 'note.txt': 'actual', 'data.json': '{"count":3}' },
   }
-): AgentWorkflowResult {
+): AgentWorkflowEvidence {
   return {
     record: {
       schemaVersion: '1',
@@ -172,7 +172,7 @@ describe('independent deterministic outcome verification', () => {
     for (const mutation of ['boundary_status', 'boundary_phase', 'missing_start', 'model_failed']) {
       const altered = structuredClone(actual);
       const events = altered.record.events;
-      const last = events.at(-1);
+      const last = events.find((event) => event.type === 'execution_finished') ?? events.at(-1);
       const model = events.find((event) => event.type === 'model_completed');
       if (!last || !model) throw new Error('Native fixture lacks terminal events');
       if (mutation === 'boundary_status') last.status = 'failed';

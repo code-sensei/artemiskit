@@ -2,6 +2,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import type { TokenUsage } from '../adapters/types';
+import {
+  type WorkflowOutcomeAssessment,
+  assessWorkflowOutcome,
+  emptyWorkflowAssessment,
+} from './assessment';
 import { getWorkflowTool } from './catalog';
 import {
   type WorkflowEnvironment,
@@ -16,6 +21,7 @@ import {
 } from './environment';
 import { createDockerWorkflowEnvironment } from './sandbox';
 import { type AgentWorkflow, AgentWorkflowSchema, isWorkflowJson } from './schema';
+import { type WorkflowJudgeOptions, isValidWorkflowJudgeOptions } from './semantic';
 import type { AgentTarget, AgentTurnRequest, AgentTurnResult } from './target';
 import { agentTurnRequestSchema, validWorkflowTranscript } from './target';
 
@@ -59,15 +65,15 @@ export interface AgentWorkflowEvent {
     | 'tool_requested'
     | 'tool_completed'
     | 'preflight_completed'
+    | 'execution_finished'
     | 'finished';
-  phase: 'execution' | 'preflight';
+  phase: 'execution' | 'preflight' | 'evaluation';
   operationId?: string;
   requestedCallIdHash?: string;
   tool?: string;
   status?: 'completed' | 'denied' | 'invalid' | 'failed';
 }
-export interface AgentWorkflowRecord {
-  schemaVersion: '1';
+export interface AgentWorkflowExecutionRecord {
   engine: 'native';
   execution: AgentWorkflowExecution;
   reason: AgentWorkflowReason;
@@ -79,7 +85,7 @@ export interface AgentWorkflowRecord {
     generation: { maxTokens: number; temperature: number };
     limits: AgentWorkflow['environment']['policy']['budgets'];
   };
-  taskVerification: 'unavailable';
+  taskVerification: WorkflowOutcomeAssessment['status'];
   environment: 'simulated' | 'sandbox' | 'unknown';
   capability: {
     advertised: boolean | null;
@@ -118,7 +124,21 @@ export interface AgentWorkflowRecord {
   events: AgentWorkflowEvent[];
   droppedEvents: number;
 }
-export interface AgentWorkflowResult {
+export interface AgentWorkflowRecord extends AgentWorkflowExecutionRecord {
+  schemaVersion: '2';
+  purpose: 'workflow' | 'preflight';
+  outcomes: WorkflowOutcomeAssessment;
+}
+/** Read-only scoring input supports both execution-only V1 and outcome-aware V2 records. */
+export interface AgentWorkflowEvidence {
+  record: AgentWorkflowExecutionRecord & {
+    schemaVersion: '1' | '2';
+    purpose?: 'workflow' | 'preflight';
+  };
+  state: WorkflowState | null;
+  transcript: AgentTurnRequest['messages'];
+}
+export interface AgentWorkflowResult extends AgentWorkflowEvidence {
   /** Metadata only. Safe default persistence boundary, never contains model text or fixture content. */
   record: AgentWorkflowRecord;
   /** Sensitive working data; persist only with an explicit application policy. */
@@ -132,6 +152,8 @@ export interface AgentWorkflowSessionOptions {
   environmentFactory?: WorkflowEnvironmentFactory;
   preflight?: boolean;
   preflightOnly?: boolean;
+  /** Explicit independent judge and its own limits. Never inferred from the target. */
+  semanticJudge?: WorkflowJudgeOptions;
   signal?: AbortSignal;
   /** Total bounded drain/snapshot/close period: 1000 ms simulated, 6000 ms sandbox by default. */
   cleanupTimeoutMs?: number;
@@ -299,6 +321,23 @@ export function createAgentWorkflowSession(
   options: AgentWorkflowSessionOptions
 ): AgentWorkflowSession {
   const controller = new AbortController();
+  const evaluationController = new AbortController();
+  const judgeValid =
+    options.semanticJudge === undefined || isValidWorkflowJudgeOptions(options.semanticJudge);
+  const semanticJudge =
+    judgeValid && options.semanticJudge
+      ? {
+          client: options.semanticJudge.client,
+          provider: options.semanticJudge.provider,
+          model: options.semanticJudge.model,
+          limits: {
+            maxRequests: options.semanticJudge.limits.maxRequests,
+            maxTokens: options.semanticJudge.limits.maxTokens,
+            maxOutputTokens: options.semanticJudge.limits.maxOutputTokens,
+            timeoutMs: options.semanticJudge.limits.timeoutMs,
+          },
+        }
+      : undefined;
   let sessionState: AgentWorkflowSession['state'] = 'idle';
   let promise: Promise<AgentWorkflowResult> | undefined;
   let workflow: AgentWorkflow | undefined;
@@ -314,7 +353,9 @@ export function createAgentWorkflowSession(
   let started = 0;
   let eventSequence = 0;
   const record: AgentWorkflowRecord = {
-    schemaVersion: '1',
+    schemaVersion: '2',
+    purpose: options.preflightOnly ? 'preflight' : 'workflow',
+    outcomes: emptyWorkflowAssessment(),
     engine: 'native',
     execution: 'invalid',
     reason: 'invalid_workflow',
@@ -377,7 +418,8 @@ export function createAgentWorkflowSession(
       elapsedMs: Math.max(0, Date.now() - started),
       phase,
     };
-    if (retained.length < 255 || value.type === 'finished') retained.push(value);
+    if (retained.length < 254 || value.type === 'execution_finished' || value.type === 'finished')
+      retained.push(value);
     else record.droppedEvents++;
     try {
       options.onEvent?.(structuredClone(value));
@@ -389,6 +431,7 @@ export function createAgentWorkflowSession(
   const abort = () => {
     if (!finished) {
       controller.abort();
+      evaluationController.abort();
       if (sessionState === 'running') sessionState = 'cancelling';
     }
   };
@@ -833,6 +876,7 @@ export function createAgentWorkflowSession(
     try {
       if (!workflow) throw new Stop('invalid', 'invalid_workflow');
       if (
+        !judgeValid ||
         !Number.isInteger(cleanupMs) ||
         cleanupMs < 1 ||
         cleanupMs > 10_000 ||
@@ -1043,7 +1087,6 @@ export function createAgentWorkflowSession(
       }
       if (record.cleanup.status === 'unresolved') state = null;
 
-      options.signal?.removeEventListener('abort', abort);
       record.usage.missingRequests = record.budgets.modelRequests - measuredRequests;
       const tokenLimit = workflow?.environment.policy.budgets.max_tokens;
       record.budgets.tokenOvershoot =
@@ -1071,9 +1114,27 @@ export function createAgentWorkflowSession(
         };
       }
       record.budgets.elapsedMs = Math.max(0, Date.now() - started);
-      emit({ type: 'finished', status: record.execution === 'completed' ? 'completed' : 'failed' });
+      phase = 'execution';
+      emit({
+        type: 'execution_finished',
+        status: record.execution === 'completed' ? 'completed' : 'failed',
+      });
+      record.outcomes = await assessWorkflowOutcome({
+        workflow,
+        result: {
+          record: structuredClone(record),
+          state: state ? structuredClone(state) : null,
+          transcript: structuredClone(transcript),
+        },
+        judge: semanticJudge,
+        signal: evaluationController.signal,
+      });
+      record.taskVerification = record.outcomes.status;
+      options.signal?.removeEventListener('abort', abort);
       finished = true;
       sessionState = 'completed';
+      phase = 'evaluation';
+      emit({ type: 'finished', status: record.execution === 'completed' ? 'completed' : 'failed' });
       for (const wake of listeners) wake();
     }
     return {

@@ -39,7 +39,8 @@ export function isWorkflowJson(value: unknown): value is WorkflowJson {
     )
       return false;
     ancestors.add(item);
-    for (const key of Object.keys(item)) {
+    for (const key of Object.getOwnPropertyNames(item)) {
+      if (Array.isArray(item) && key === 'length') continue;
       textBytes += Buffer.byteLength(key);
       const entry = Object.getOwnPropertyDescriptor(item, key);
       if (
@@ -47,6 +48,7 @@ export function isWorkflowJson(value: unknown): value is WorkflowJson {
         forbiddenKeys.has(key) ||
         !entry ||
         !('value' in entry) ||
+        !entry.enumerable ||
         !visit(entry.value, depth + 1)
       )
         return false;
@@ -100,9 +102,14 @@ export const WorkflowPolicySchema = z
         coordination: permission.optional(),
       })
       .strict(),
+    paths: z
+      .object({ read: z.array(relativePath).max(1000), write: z.array(relativePath).max(1000) })
+      .strict()
+      .optional(),
     budgets: z
       .object({
         max_actions: z.number().int().min(1).max(1000),
+        max_model_requests: z.number().int().min(1).max(1000).optional(),
         max_tool_calls: z.number().int().min(1).max(1000).optional(),
         timeout_ms: z.number().int().min(1).max(3_600_000),
         max_tokens: z.number().int().min(1).max(1_000_000).optional(),
@@ -163,9 +170,18 @@ const definition = z
           .max(64)
           .regex(/^[a-z0-9_-]+$/),
         model: z.string().min(1).max(256),
+        generation: z
+          .object({
+            max_tokens: z.number().int().min(1).max(1_000_000).optional(),
+            temperature: z.number().min(0).max(2).optional(),
+          })
+          .strict()
+          .optional(),
       })
       .strict(),
-    environment: z.object({ type: z.literal('simulated'), policy: WorkflowPolicySchema }).strict(),
+    environment: z
+      .object({ type: z.enum(['simulated', 'sandbox']), policy: WorkflowPolicySchema })
+      .strict(),
     tools: z.array(z.enum(WORKFLOW_TOOL_IDS)).min(1).max(WORKFLOW_TOOL_IDS.length),
     workflow: z
       .object({

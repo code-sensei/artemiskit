@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import type { GenerateOptions, ModelClient, TokenUsage, ToolCall } from '../adapters/types';
+import { getWorkflowTool } from './catalog';
 
 const identifier = z.string().min(1).max(256);
 const toolName = z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/);
@@ -21,7 +23,7 @@ const messageSchema = z
   })
   .strict();
 const timeoutSchema = z.number().int().min(1).max(2_147_483_647);
-const requestSchema = z
+export const agentTurnRequestSchema = z
   .object({
     messages: z.array(messageSchema).min(1).max(1000),
     tools: z
@@ -59,6 +61,7 @@ const requestSchema = z
   })
   .strict();
 const resultSchema = z.object({
+  usageAvailable: z.boolean().optional(),
   id: identifier,
   model: identifier,
   text,
@@ -75,8 +78,15 @@ const resultSchema = z.object({
   functionCall: z.unknown().optional(),
 });
 
-export type AgentTurnRequest = z.infer<typeof requestSchema>;
+export type AgentTurnRequest = z.infer<typeof agentTurnRequestSchema>;
 export type AgentTargetFailure = {
+  rejectedCall?: {
+    requestedCallIdHash: string;
+    tool: string;
+    reason: 'undeclared_tool' | 'invalid_arguments' | 'duplicate_id';
+  };
+  tokens?: TokenUsage;
+  usageAvailable?: boolean;
   status: 'unsupported' | 'invalid' | 'error';
   code:
     | 'invalid_request'
@@ -89,8 +99,7 @@ export type AgentTargetFailure = {
 export type AgentTargetCapabilities = {
   status: 'available';
   toolUse: boolean;
-  /** ModelClient has no AbortSignal contract. Timeouts bound waiting, not transport work. */
-  transportCancellation: false;
+  transportCancellation: boolean;
 };
 export type AgentTurnResult =
   | AgentTargetFailure
@@ -101,6 +110,7 @@ export type AgentTurnResult =
       message: { role: 'assistant'; content: string; tool_calls?: ToolCall[] };
       /** Adapter-reported counts only; zero can mean unavailable in existing adapters. */
       tokens: TokenUsage;
+      usageAvailable?: boolean;
       latencyMs: number;
       finishReason?: 'stop' | 'length' | 'tool_calls' | 'content_filter';
     };
@@ -113,6 +123,8 @@ export interface AgentTarget {
     signal?: AbortSignal
   ): Promise<AgentTargetCapabilities | AgentTargetFailure>;
   turn(request: AgentTurnRequest, signal?: AbortSignal): Promise<AgentTurnResult>;
+  /** Wait for underlying callbacks hidden behind a bounded turn facade. */
+  drain?(options: { timeoutMs: number }): Promise<{ pendingOperations: number }>;
 }
 
 const failure = (
@@ -145,7 +157,7 @@ function bounded<T>(
   });
 }
 
-function validTranscript(messages: AgentTurnRequest['messages']): boolean {
+export function validWorkflowTranscript(messages: AgentTurnRequest['messages']): boolean {
   const seen = new Set<string>();
   const pending = new Set<string>();
   for (const message of messages) {
@@ -172,8 +184,8 @@ function validTranscript(messages: AgentTurnRequest['messages']): boolean {
 }
 
 /**
- * Bridge existing adapters without provider-specific dispatch. Callers must configure adapter
- * transport timeouts/retries separately: cancellation here cannot stop an in-flight provider call.
+ * Bridge existing adapters without provider-specific dispatch. Workflow calls disable supported
+ * transport retries and propagate abort only when the adapter declares transport cancellation.
  * Returned text/tool arguments are working conversation data, not sanitized retained evidence.
  */
 export function createModelClientTarget(client: ModelClient): AgentTarget {
@@ -185,26 +197,44 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
   ) {
     throw new TypeError('Invalid ModelClient');
   }
+  const pending = new Set<Promise<unknown>>();
+  const track = <T>(promise: Promise<T>): Promise<T> => {
+    pending.add(promise);
+    void promise.then(
+      () => pending.delete(promise),
+      () => pending.delete(promise)
+    );
+    return promise;
+  };
   const readCapabilities = async (): Promise<AgentTargetCapabilities | AgentTargetFailure> => {
-    const value = await client.capabilities();
+    const value = await track(client.capabilities());
     if (!value || typeof value.toolUse !== 'boolean') return failure('invalid', 'invalid_response');
-    return { status: 'available', toolUse: value.toolUse, transportCancellation: false };
+    return {
+      status: 'available',
+      toolUse: value.toolUse,
+      transportCancellation: value.transportCancellation === true,
+    };
   };
   return {
     provider: client.provider,
+    async drain({ timeoutMs }) {
+      if (!timeoutSchema.safeParse(timeoutMs).success) return { pendingOperations: pending.size };
+      await bounded(() => Promise.allSettled([...pending]), timeoutMs);
+      return { pendingOperations: pending.size };
+    },
     async capabilities(options, signal) {
       if (!timeoutSchema.safeParse(options?.timeoutMs).success)
         return failure('invalid', 'invalid_request');
       return bounded(readCapabilities, options.timeoutMs, signal);
     },
     async turn(request, signal) {
-      let parsed: ReturnType<typeof requestSchema.safeParse>;
+      let parsed: ReturnType<typeof agentTurnRequestSchema.safeParse>;
       try {
-        parsed = requestSchema.safeParse(request);
+        parsed = agentTurnRequestSchema.safeParse(request);
       } catch {
         return failure('invalid', 'invalid_request');
       }
-      if (!parsed.success || !validTranscript(parsed.data.messages))
+      if (!parsed.success || !validWorkflowTranscript(parsed.data.messages))
         return failure('invalid', 'invalid_request');
       const input = parsed.data;
       const validators = new Map<string, ReturnType<Ajv['compile']>>();
@@ -223,6 +253,11 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
         return failure('invalid', 'invalid_request');
       }
       const started = Date.now();
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal?.addEventListener('abort', abort, { once: true });
+      if (signal?.aborted) controller.abort();
+      const timer = setTimeout(abort, input.budgets.timeoutMs);
       return bounded(
         async (): Promise<AgentTurnResult> => {
           const capabilities = await readCapabilities();
@@ -232,12 +267,14 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
           if (signal?.aborted) return failure('error', 'aborted');
           if (Date.now() - started >= input.budgets.timeoutMs) return failure('error', 'timeout');
           const options: GenerateOptions = {
+            maxRetries: 0,
             prompt: input.messages,
             tools: input.tools,
             model: input.model,
             ...input.generation,
+            ...(capabilities.transportCancellation ? { signal: controller.signal } : {}),
           };
-          const generated = resultSchema.safeParse(await client.generate(options));
+          const generated = resultSchema.safeParse(await track(client.generate(options)));
           if (!generated.success) return failure('invalid', 'invalid_response');
           const result = generated.data;
           const calls = result.toolCalls ?? [];
@@ -252,10 +289,26 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
           const ids = new Set(
             input.messages.flatMap((message) => message.tool_calls?.map((call) => call.id) ?? [])
           );
+          const rejected = (
+            call: ToolCall,
+            reason: NonNullable<AgentTargetFailure['rejectedCall']>['reason']
+          ): AgentTargetFailure => ({
+            ...failure('invalid', 'invalid_response'),
+            tokens: result.tokens,
+            ...(result.usageAvailable !== undefined
+              ? { usageAvailable: result.usageAvailable }
+              : {}),
+            rejectedCall: {
+              requestedCallIdHash: createHash('sha256').update(call.id).digest('hex'),
+              tool: getWorkflowTool(call.function.name)?.id ?? 'unknown',
+              reason,
+            },
+          });
           for (const call of calls) {
-            if (ids.has(call.id)) return failure('invalid', 'invalid_response');
+            if (ids.has(call.id)) return rejected(call, 'duplicate_id');
             ids.add(call.id);
             const validate = validators.get(call.function.name);
+            if (!validate) return rejected(call, 'undeclared_tool');
             try {
               const args: unknown = JSON.parse(call.function.arguments);
               if (
@@ -265,9 +318,9 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
                 !validate ||
                 validate(args) !== true
               )
-                return failure('invalid', 'invalid_response');
+                return rejected(call, 'invalid_arguments');
             } catch {
-              return failure('invalid', 'invalid_response');
+              return rejected(call, 'invalid_arguments');
             }
           }
           return {
@@ -280,13 +333,25 @@ export function createModelClientTarget(client: ModelClient): AgentTarget {
               ...(calls.length ? { tool_calls: calls } : {}),
             },
             tokens: result.tokens,
+            ...(result.usageAvailable !== undefined
+              ? { usageAvailable: result.usageAvailable }
+              : {}),
             latencyMs: result.latencyMs,
             finishReason: result.finishReason,
           };
         },
         input.budgets.timeoutMs,
         signal
-      );
+      )
+        .then((result) =>
+          controller.signal.aborted
+            ? failure('error', signal?.aborted ? 'aborted' : 'timeout')
+            : result
+        )
+        .finally(() => {
+          clearTimeout(timer);
+          signal?.removeEventListener('abort', abort);
+        });
     },
   };
 }

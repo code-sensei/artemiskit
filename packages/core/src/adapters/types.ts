@@ -31,6 +31,10 @@ export interface ToolCall {
  * Options for generating a completion
  */
 export interface GenerateOptions {
+  /** Optional transport cancellation; consult capabilities before relying on it. */
+  signal?: AbortSignal;
+  /** Override retries per request when a host owns cumulative admission budgets. */
+  maxRetries?: number;
   prompt: string | ChatMessage[];
   model?: string;
   maxTokens?: number;
@@ -78,6 +82,8 @@ export interface TokenUsage {
  * Result from a generation request
  */
 export interface GenerateResult {
+  /** False when zero counts are placeholders rather than provider-reported usage. */
+  usageAvailable?: boolean;
   id: string;
   model: string;
   text: string;
@@ -96,6 +102,7 @@ export interface GenerateResult {
  * Model capabilities
  */
 export interface ModelCapabilities {
+  transportCancellation?: boolean;
   streaming: boolean;
   functionCalling: boolean;
   toolUse: boolean;

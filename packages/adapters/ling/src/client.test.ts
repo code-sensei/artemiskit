@@ -145,6 +145,7 @@ describe('LingAdapter', () => {
     const { adapter } = createAdapterWithResponse({});
 
     await expect(adapter.capabilities()).resolves.toEqual({
+      transportCancellation: true,
       streaming: true,
       functionCalling: true,
       toolUse: true,

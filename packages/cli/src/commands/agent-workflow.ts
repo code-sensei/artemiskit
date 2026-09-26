@@ -19,6 +19,11 @@ export interface WorkflowAuthoringOptions {
   maxActions?: string;
   maxToolCalls?: string;
   maxTokens?: string;
+  maxOutputTokens?: string;
+  maxModelRequests?: string;
+  environment?: string;
+  readPaths?: string;
+  writePaths?: string;
   timeout?: string;
   expectState?: string;
   equals?: string;
@@ -57,18 +62,41 @@ export function buildAgentWorkflow(options: WorkflowAuthoringOptions) {
     version: '1',
     kind: 'agent_workflow',
     name: options.name ?? 'review-and-handoff',
-    target: { provider: options.provider ?? 'openai', model: options.model ?? 'configured-model' },
+    target: {
+      provider: options.provider ?? 'openai',
+      model: options.model ?? 'configured-model',
+      generation: { max_tokens: Number(options.maxOutputTokens ?? 256) },
+    },
     environment: {
-      type: 'simulated',
+      type: options.environment ?? 'simulated',
       policy: {
         network: 'denied',
         side_effects: 'denied',
         permissions,
+        ...(options.readPaths !== undefined || options.writePaths !== undefined
+          ? {
+              paths: {
+                read:
+                  options.readPaths
+                    ?.split(',')
+                    .map((path) => path.trim())
+                    .filter(Boolean) ?? [],
+                write:
+                  options.writePaths
+                    ?.split(',')
+                    .map((path) => path.trim())
+                    .filter(Boolean) ?? [],
+              },
+            }
+          : {}),
         budgets: {
           max_actions: Number(options.maxActions ?? 10),
           max_tool_calls: Number(options.maxToolCalls ?? 10),
           timeout_ms: Number(options.timeout ?? 60000),
-          max_tokens: Number(options.maxTokens ?? 1024),
+          max_tokens: Number(options.maxTokens ?? 4096),
+          ...(options.maxModelRequests !== undefined
+            ? { max_model_requests: Number(options.maxModelRequests) }
+            : {}),
         },
       },
     },
@@ -116,7 +144,7 @@ export async function promptForAgentWorkflow(options: WorkflowAuthoringOptions) 
     {
       type: 'checkbox',
       name: 'selectedTools',
-      message: 'Permitted simulated tools (resource permissions are written in the YAML)',
+      message: 'Permitted workflow tools (resource permissions are written in the YAML)',
       choices: listWorkflowTools().map((tool) => ({
         name: `${tool.id}: ${tool.description}`,
         value: tool.id,
@@ -158,8 +186,39 @@ export async function promptForAgentWorkflow(options: WorkflowAuthoringOptions) 
     {
       type: 'input',
       name: 'maxTokens',
-      message: 'Maximum tokens',
-      default: options.maxTokens ?? '1024',
+      message: 'Cumulative token limit for the complete workflow',
+      default: options.maxTokens ?? '4096',
+    },
+    {
+      type: 'input',
+      name: 'maxOutputTokens',
+      message: 'Maximum output tokens per model generation',
+      default: options.maxOutputTokens ?? '256',
+    },
+    {
+      type: 'input',
+      name: 'maxModelRequests',
+      message: 'Maximum model requests',
+      default: options.maxModelRequests ?? options.maxActions ?? '10',
+    },
+    {
+      type: 'list',
+      name: 'environment',
+      message: 'Isolated environment',
+      choices: ['simulated', 'sandbox'],
+      default: options.environment ?? 'simulated',
+    },
+    {
+      type: 'input',
+      name: 'readPaths',
+      message: 'Optional exact readable file paths, comma-separated',
+      default: options.readPaths ?? '',
+    },
+    {
+      type: 'input',
+      name: 'writePaths',
+      message: 'Optional exact writable file paths, comma-separated',
+      default: options.writePaths ?? '',
     },
     {
       type: 'input',
@@ -185,6 +244,8 @@ export async function promptForAgentWorkflow(options: WorkflowAuthoringOptions) 
     ...options,
     ...answers,
     tools: answers.selectedTools.join(','),
+    readPaths: answers.readPaths?.trim() || undefined,
+    writePaths: answers.writePaths?.trim() || undefined,
     expectState: answers.expectState || undefined,
     equals: answers.expectState ? answers.equals : undefined,
   } as WorkflowAuthoringOptions;
@@ -192,7 +253,7 @@ export async function promptForAgentWorkflow(options: WorkflowAuthoringOptions) 
 
 export function initAgentWorkflowCommand(): Command {
   return new Command('agent-workflow')
-    .description('Generate a validated simulated agent-workflow YAML file without executing it')
+    .description('Generate validated agent-workflow YAML without executing it')
     .option('--name <name>', 'Workflow name')
     .option('--provider <provider>', 'Target provider identifier')
     .option('--model <model>', 'Target model identifier')
@@ -202,7 +263,12 @@ export function initAgentWorkflowCommand(): Command {
     .option('--prompt <text>', 'Initial user request')
     .option('--max-actions <n>', 'Maximum actions', '10')
     .option('--max-tool-calls <n>', 'Maximum tool calls', '10')
-    .option('--max-tokens <n>', 'Maximum tokens', '1024')
+    .option('--max-tokens <n>', 'Cumulative token budget for the complete workflow', '4096')
+    .option('--max-output-tokens <n>', 'Maximum output tokens per model generation', '256')
+    .option('--max-model-requests <n>', 'Maximum model requests (default: action budget)')
+    .option('--environment <type>', 'simulated or disposable sandbox', 'simulated')
+    .option('--read-paths <paths>', 'Comma-separated exact readable file paths')
+    .option('--write-paths <paths>', 'Comma-separated exact writable file paths')
     .option('--timeout <ms>', 'Timeout in milliseconds', '60000')
     .option('--expect-state <path>', 'Required final state path (paired with --equals)')
     .option('--equals <json>', 'Expected final state JSON value')
@@ -225,7 +291,7 @@ export function initAgentWorkflowCommand(): Command {
         const output = resolve(options.output ?? 'scenarios/agent-workflow.yaml');
         await mkdir(dirname(output), { recursive: true });
         const header =
-          '# ArtemisKit agent-workflow contract v1\n# Authoring and validation only in 0.6.0; full workflow execution follows separately.\n# Permissions below cover simulated state only. Review tools, inputs, and outcomes before use.\n';
+          '# ArtemisKit agent-workflow contract v1\n# Controlled native execution: artemiskit workflow run <file>. Outcome scoring remains unavailable.\n# Permissions govern isolated working state. Review tools, inputs, budgets, and outcomes before use.\n';
         await writeFile(output, header + stringify(scenario), { flag: options.force ? 'w' : 'wx' });
         console.log(
           `Created ${output}\nValidate with: artemiskit scenario validate ${JSON.stringify(output)}`

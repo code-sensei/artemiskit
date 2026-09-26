@@ -14,6 +14,7 @@ import { reportCommand } from './commands/report';
 import { runCommand } from './commands/run';
 import { stressCommand } from './commands/stress';
 import { validateCommand } from './commands/validate';
+import { workflowCommand } from './commands/workflow';
 import { checkForUpdate, formatUpdateMessage, formatVersionDisplay } from './utils/update-checker';
 
 export function createCLI(): Command {
@@ -49,6 +50,7 @@ export function createCLI(): Command {
   program.addCommand(initCommand());
   program.addCommand(scenarioCommand());
   program.addCommand(workflowToolsCommand());
+  program.addCommand(workflowCommand());
   program.addCommand(runCommand());
   program.addCommand(validateCommand());
   program.addCommand(baselineCommand());

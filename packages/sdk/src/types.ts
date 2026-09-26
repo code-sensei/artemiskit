@@ -5,6 +5,9 @@
 
 import type {
   AdapterConfig,
+  AgentTarget,
+  AgentWorkflow,
+  AgentWorkflowSessionOptions,
   CaseResult,
   ComparisonEligibility,
   ModelClient,
@@ -447,4 +450,17 @@ export interface CompareResult {
   hasRegression: boolean;
   /** Threshold used for regression detection */
   threshold: number;
+}
+
+/** Controlled workflow execution. Text/state remain in memory unless the caller explicitly saves them. */
+export interface WorkflowRunOptions
+  extends Omit<AgentWorkflowSessionOptions, 'workflow' | 'target'> {
+  /** Workflow object or YAML path. File fixtures default to the workflow file's directory. */
+  workflow: AgentWorkflow | string;
+  /** Explicit host-owned client. Its transport retry behavior remains the caller's responsibility. */
+  client?: ModelClient;
+  /** Explicit custom target, mutually exclusive with client. */
+  target?: AgentTarget;
+  /** Trusted transport configuration; workflow provider/model and zero retries remain authoritative. */
+  providerConfig?: Partial<AdapterConfig>;
 }

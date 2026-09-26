@@ -276,6 +276,28 @@ for (const provider of ['openai', 'ling'] as const)
         await host.close();
       }
     });
+    test.each([
+      ['empty', {}, false],
+      ['partial', { prompt_tokens: 0, completion_tokens: 0 }, false],
+      ['explicit zero', { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, true],
+    ] as const)(
+      'qualifies %s provider usage before enforcing token budgets',
+      async (_, usage, measured) => {
+        const host = await server((_, res) => json(res, { ...response(), usage }));
+        try {
+          const result = await runAgentWorkflow({
+            workflow: workflow(provider),
+            target: createModelClientTarget(client(host.url)),
+          });
+          expect(result.record.usage.status).toBe(measured ? 'reported' : 'unavailable');
+          expect(result.record.execution).toBe(measured ? 'completed' : 'budget_exceeded');
+          expect(result.record.reason).toBe(measured ? 'finished' : 'usage_unavailable');
+          expect(result.record.usage.missingRequests).toBe(measured ? 0 : 1);
+        } finally {
+          await host.close();
+        }
+      }
+    );
     test('request host disables configured provider retries', async () => {
       let requests = 0;
       const host = await server((_, res) => {

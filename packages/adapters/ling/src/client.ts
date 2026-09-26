@@ -70,7 +70,15 @@ export class LingAdapter implements ModelClient {
         completion: response.usage?.completion_tokens ?? 0,
         total: response.usage?.total_tokens ?? 0,
       },
-      usageAvailable: response.usage != null,
+      usageAvailable:
+        response.usage != null &&
+        [
+          response.usage.prompt_tokens,
+          response.usage.completion_tokens,
+          response.usage.total_tokens,
+        ].every((count) => Number.isSafeInteger(count) && count >= 0) &&
+        response.usage.total_tokens ===
+          response.usage.prompt_tokens + response.usage.completion_tokens,
       latencyMs: Date.now() - start,
       finishReason:
         choice?.finish_reason === 'tool_calls'

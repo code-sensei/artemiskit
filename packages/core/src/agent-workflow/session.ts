@@ -260,7 +260,8 @@ function safeBoundary(value: unknown): boolean {
     if (Object.getOwnPropertySymbols(item).length || (Array.isArray(item) && item.length > 10_000))
       return false;
     parents.add(item);
-    for (const key of Object.keys(item)) {
+    for (const key of Object.getOwnPropertyNames(item)) {
+      if (Array.isArray(item) && key === 'length') continue;
       bytes += Buffer.byteLength(key);
       const descriptor = Object.getOwnPropertyDescriptor(item, key);
       if (
@@ -268,6 +269,7 @@ function safeBoundary(value: unknown): boolean {
         ['__proto__', 'constructor', 'prototype'].includes(key) ||
         !descriptor ||
         !('value' in descriptor) ||
+        !descriptor.enumerable ||
         !check(descriptor.value, depth + 1)
       )
         return false;
@@ -935,14 +937,14 @@ export function createAgentWorkflowSession(
     } catch (error) {
       if (error instanceof WorkflowEnvironmentInitializationError) {
         const detail = error.cleanup;
-        if (
-          safeBoundary(detail) &&
-          cleanupSchema.safeParse({ status: detail.status, artifacts: detail.artifacts }).success &&
-          Number.isSafeInteger(detail.pendingOperations) &&
-          detail.pendingOperations >= 0
-        )
-          record.cleanup = structuredClone(detail);
-        else record.cleanup = { status: 'unresolved', artifacts: 'unknown', pendingOperations: 1 };
+        const checked = safeBoundary(detail)
+          ? cleanupSchema
+              .extend({ pendingOperations: z.number().int().nonnegative().safe() })
+              .safeParse(detail)
+          : null;
+        record.cleanup = checked?.success
+          ? checked.data
+          : { status: 'unresolved', artifacts: 'unknown', pendingOperations: 1 };
       }
       const stop =
         error instanceof WorkflowEnvironmentInitializationError
@@ -982,8 +984,9 @@ export function createAgentWorkflowSession(
             adapterPending = value.pendingOperations;
           else adapterPending = 1;
         }
-        if (pending.size)
-          await owned(() => Promise.allSettled([...pending]), drainController.signal);
+        const callbacks = [...pending];
+        if (callbacks.length)
+          await owned(() => Promise.allSettled(callbacks), drainController.signal);
       } catch {
         adapterPending =
           typeof target?.drain === 'function' ? Math.max(1, adapterPending) : adapterPending;
@@ -1082,7 +1085,11 @@ export function createAgentWorkflowSession(
       return sessionState;
     },
     run() {
-      promise ??= run();
+      if (!promise) {
+        sessionState = controller.signal.aborted ? 'cancelling' : 'running';
+        // Assign before emitting events so a reentrant observer cannot start a second run.
+        promise = Promise.resolve().then(run);
+      }
       return promise;
     },
     cancel: abort,

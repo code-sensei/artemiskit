@@ -122,6 +122,25 @@ describe('native workflow session host', () => {
     for await (const event of session.events()) events.push(event);
     expect(events).toEqual(result.record.events);
   });
+  test('reentrant run from an event callback shares the original execution', async () => {
+    const t = target([answer()]);
+    let observed = false;
+    let repeated: Promise<unknown> | undefined;
+    const session = createAgentWorkflowSession({
+      workflow: fixture(),
+      target: t,
+      onEvent(event) {
+        if (event.type === 'started' && !observed) {
+          observed = true;
+          repeated = session.run();
+        }
+      },
+    });
+    const first = session.run();
+    await first;
+    expect(repeated).toBe(first);
+    expect(t.requests).toHaveLength(1);
+  });
   test('approval remains pending, never granted', async () => {
     const result = await runAgentWorkflow({
       workflow: fixture(),
@@ -425,6 +444,71 @@ describe('native workflow session host', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(closed).toBe(true);
     expect(result.record.cleanup.status).toBe('unresolved');
+  });
+  test('callbacks settling inside the drain window leave no synthetic pending operation', async () => {
+    const workflow = fixture();
+    workflow.environment.policy.budgets.timeout_ms = 20;
+    const result = await runAgentWorkflow({
+      workflow,
+      cleanupTimeoutMs: 300,
+      target: target(() => new Promise((resolve) => setTimeout(() => resolve(answer()), 50))),
+    });
+    expect(result.record.execution).toBe('timeout');
+    expect(result.record.cleanup.status).toBe('completed');
+    expect(result.record.cleanup.pendingOperations).toBe(0);
+    expect(result.record.usage.missingRequests).toBe(1);
+  });
+  test('initialization diagnostics never enter safe cleanup evidence', async () => {
+    const result = await runAgentWorkflow({
+      workflow: fixture(),
+      target: target([]),
+      environmentFactory: async () => {
+        const detail = {
+          status: 'unresolved' as const,
+          artifacts: 'unknown' as const,
+          pendingOperations: 1,
+          diagnostic: 'SYNTHETIC_PRIVATE_CONTENT',
+        };
+        throw new WorkflowEnvironmentInitializationError(detail);
+      },
+    });
+    expect(result.record.cleanup.status).toBe('unresolved');
+    expect(JSON.stringify(result.record)).not.toContain('SYNTHETIC_PRIVATE_CONTENT');
+    expect(Object.keys(result.record.cleanup).sort()).toEqual([
+      'artifacts',
+      'pendingOperations',
+      'status',
+    ]);
+  });
+  test('non-enumerable target getters are rejected without execution', async () => {
+    let called = false;
+    const response = Object.defineProperty(answer(), 'model', {
+      enumerable: false,
+      get() {
+        called = true;
+        return 'fixture-model';
+      },
+    });
+    const result = await runAgentWorkflow({
+      workflow: fixture(),
+      target: target(async () => response),
+    });
+    expect(called).toBe(false);
+    expect(result.record.execution).toBe('invalid');
+  });
+  test('non-enumerable workflow getters are rejected without execution', async () => {
+    let called = false;
+    const workflow = fixture();
+    Object.defineProperty(workflow.target, 'model', {
+      enumerable: false,
+      get() {
+        called = true;
+        return 'fixture-model';
+      },
+    });
+    const result = await runAgentWorkflow({ workflow, target: target([]) });
+    expect(called).toBe(false);
+    expect(result.record.reason).toBe('invalid_workflow');
   });
   test('cancelled model usage remains partial even if callback drains', async () => {
     const t = target(async (_, index, signal) => {

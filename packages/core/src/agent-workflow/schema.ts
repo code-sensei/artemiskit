@@ -39,7 +39,8 @@ export function isWorkflowJson(value: unknown): value is WorkflowJson {
     )
       return false;
     ancestors.add(item);
-    for (const key of Object.keys(item)) {
+    for (const key of Object.getOwnPropertyNames(item)) {
+      if (Array.isArray(item) && key === 'length') continue;
       textBytes += Buffer.byteLength(key);
       const entry = Object.getOwnPropertyDescriptor(item, key);
       if (
@@ -47,6 +48,7 @@ export function isWorkflowJson(value: unknown): value is WorkflowJson {
         forbiddenKeys.has(key) ||
         !entry ||
         !('value' in entry) ||
+        !entry.enumerable ||
         !visit(entry.value, depth + 1)
       )
         return false;

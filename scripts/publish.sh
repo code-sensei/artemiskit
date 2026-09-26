@@ -26,25 +26,10 @@ SKIP_CHANGESET=false
 PUBLISH_ONLY=false
 PREFLIGHT_ONLY=false
 FORCE=false
-WORKSPACE_DEPS_FIXED=false
 TEMP_NPM_CONFIG=""
-RELEASE_MANIFEST=""
 PACKAGE_RELEASE=false
 
-restore_workspace_deps() {
-  if [ "$WORKSPACE_DEPS_FIXED" = true ]; then
-    echo ""
-    echo "Restoring workspace:* dependencies..."
-    ./scripts/fix-workspace-deps.sh --restore
-    WORKSPACE_DEPS_FIXED=false
-  fi
-}
-
 cleanup_release_resources() {
-  # Workspace dependency rewrites are temporary release preparation. Restore
-  # them even if authentication or package publication fails.
-  restore_workspace_deps
-
   # Publish credentials must never be left in a persistent npm configuration.
   if [ -n "$TEMP_NPM_CONFIG" ]; then
     rm -f "$TEMP_NPM_CONFIG"
@@ -61,22 +46,6 @@ setup_temporary_npm_config() {
   export NPM_CONFIG_USERCONFIG="$TEMP_NPM_CONFIG"
 }
 
-package_names=(
-  '@artemiskit/core'
-  '@artemiskit/adapter-openai'
-  '@artemiskit/adapter-anthropic'
-  '@artemiskit/adapter-vercel-ai'
-  '@artemiskit/adapter-deepagents'
-  '@artemiskit/adapter-langchain'
-  '@artemiskit/adapter-ling'
-  '@artemiskit/adapter-trueforge'
-  '@artemiskit/redteam'
-  '@artemiskit/reports'
-  '@artemiskit/sdk'
-  '@artemiskit/cli'
-  '@artemiskit/mcp-docker-sandbox'
-)
-
 run_npm_access_preflight() {
   echo "Verifying npm authentication..."
   NPM_USER="$(npm whoami 2>/dev/null || true)"
@@ -86,19 +55,7 @@ run_npm_access_preflight() {
   fi
   echo -e "${GREEN}✓ Authenticated as: $NPM_USER${NC}"
 
-  echo "Checking npm ownership for publishable packages..."
-  local package_name package_owners
-  for package_name in "${package_names[@]}"; do
-    if ! package_owners="$(npm owner ls "$package_name" 2>/dev/null)"; then
-      echo -e "${RED}Error: unable to read npm ownership for $package_name${NC}"
-      exit 1
-    fi
-    if ! printf '%s\n' "$package_owners" | awk -v user="$NPM_USER" '$1 == user { found = 1 } END { exit !found }'; then
-      echo -e "${RED}Error: $NPM_USER is not an npm owner of $package_name${NC}"
-      exit 1
-    fi
-  done
-  echo -e "${GREEN}✓ Ownership confirmed for ${#package_names[@]} package(s)${NC}"
+  echo "Package publish access is enforced by npm; no organization governance access is required."
 }
 
 # Parse arguments
@@ -106,6 +63,7 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run)
       DRY_RUN=true
+      PUBLISH_ONLY=true
       shift
       ;;
     --skip-tests)
@@ -136,13 +94,13 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: ./scripts/publish.sh [options]"
       echo ""
       echo "Options:"
-      echo "  --dry-run        Run without actually publishing"
+      echo "  --dry-run        Plan committed versions without publishing, versioning or committing"
       echo "  --skip-tests     Skip running tests"
       echo "  --skip-changeset Skip changeset creation (use existing)"
       echo "  --publish-only   Publish already-versioned packages without creating a changeset"
       echo "  --package-release Independent package release after the current milestone is complete"
-      echo "  --preflight      Verify npm credentials and package ownership without publishing"
-      echo "  --force          Continue even with uncommitted changes"
+      echo "  --preflight      Verify npm authentication without publishing"
+      echo "  --force          Skip preliminary clean check (publication still requires a committed candidate)"
       echo "  -h, --help       Show this help message"
       exit 0
       ;;
@@ -212,7 +170,7 @@ fi
 # Step 2: Install dependencies
 echo ""
 echo -e "${YELLOW}[2/8] Installing dependencies...${NC}"
-bun install
+bun install --frozen-lockfile
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 # Step 3: Run type checking
@@ -311,93 +269,28 @@ if [ "$APPLY_VERSION_BUMPS" = true ]; then
   if [ -n "$(git status --porcelain)" ]; then
     echo ""
     echo "Committing version changes..."
-    git add package.json packages/*/package.json packages/*/CHANGELOG.md \
+    git add .changeset bun.lock package.json packages/*/package.json packages/*/CHANGELOG.md \
       packages/adapters/*/package.json packages/adapters/*/CHANGELOG.md
     git commit -m "chore: version packages for release"
     echo -e "${GREEN}✓ Version changes committed${NC}"
+    # Bundles may embed package versions. Build the final versioned candidate.
+    bun run build
   fi
 fi
 
-# Step 8: Fix workspace dependencies
-# Milestone releases are reviewed/versioned before publication. Prevent skipping a
-# 0.6.x milestone or publishing a package set that differs from its release record.
-CORE_VERSION=$(bun -e 'console.log(require("./packages/core/package.json").version)')
-if [[ "$CORE_VERSION" == 0.6.* ]]; then
-  RELEASE_MANIFEST="docs/releases/$CORE_VERSION.json"
-  if [ ! -f "$RELEASE_MANIFEST" ]; then
-    echo -e "${RED}Error: missing milestone release manifest: $RELEASE_MANIFEST${NC}"
-    exit 1
-  fi
-  if [ "$PACKAGE_RELEASE" = true ]; then
-    # This cannot bypass a new core milestone: that exact milestone must already
-    # have every recorded package/version and tag available on npm and origin.
-    bun scripts/verify-release.mjs completed "$RELEASE_MANIFEST"
-    RELEASE_MANIFEST=""
-  else
-    bun scripts/verify-release.mjs prepublish "$RELEASE_MANIFEST"
-  fi
-elif [ "$PACKAGE_RELEASE" = true ]; then
-  echo -e "${RED}Error: --package-release requires a completed 0.6.x milestone${NC}"
-  exit 1
-fi
+# Immutable packing translates workspace dependencies without changing source manifests.
+# The maintained publisher selects exact versions, records attempts, and waits for
+# public availability before creating tags. Changesets remains the versioning tool.
+PUBLICATION_ARGS=()
+if [ "$PACKAGE_RELEASE" = true ]; then PUBLICATION_ARGS+=(--package-release); fi
+if [ "$DRY_RUN" = true ]; then PUBLICATION_ARGS+=(--dry-run); fi
+bun scripts/npm-publication.mjs "${PUBLICATION_ARGS[@]}"
 
-echo ""
-echo -e "${YELLOW}[8/9] Fixing workspace:* dependencies...${NC}"
-
-# Replace workspace:* with actual version numbers for npm compatibility
-./scripts/fix-workspace-deps.sh
-WORKSPACE_DEPS_FIXED=true
-
-# Validate no workspace:* remains (prevents publishing broken packages)
-echo ""
-echo "Validating workspace:* dependencies are fully resolved..."
-REMAINING_WORKSPACE=$(grep -r '"workspace:\*"' packages/*/package.json packages/adapters/*/package.json 2>/dev/null || true)
-if [ -n "$REMAINING_WORKSPACE" ]; then
-  echo -e "${RED}ERROR: Found unfixed workspace:* dependencies:${NC}"
-  echo "$REMAINING_WORKSPACE"
-  echo ""
-  echo -e "${RED}Please update scripts/fix-workspace-deps.sh to include all packages.${NC}"
-  # Restore before exiting
-  ./scripts/fix-workspace-deps.sh --restore
-  exit 1
-fi
-echo -e "${GREEN}✓ Workspace dependencies fixed and validated${NC}"
-
-# Step 9: Publish
-echo ""
-echo -e "${YELLOW}[9/9] Publishing to npm...${NC}"
-
-if [ "$DRY_RUN" = true ]; then
-  echo ""
-  echo -e "${YELLOW}=== DRY RUN MODE ===${NC}"
-  echo "Would publish the following packages:"
-  echo ""
-
-  # List packages that would be published
-  for pkg in packages/core packages/adapters/openai packages/adapters/anthropic packages/adapters/vercel-ai packages/redteam packages/reports packages/cli; do
-    if [ -f "$pkg/package.json" ]; then
-      PKG_NAME=$(grep '"name"' "$pkg/package.json" | head -1 | sed 's/.*: "\(.*\)".*/\1/')
-      PKG_VERSION=$(grep '"version"' "$pkg/package.json" | head -1 | sed 's/.*: "\(.*\)".*/\1/')
-      echo "  - $PKG_NAME@$PKG_VERSION"
-    fi
-  done
-
-  echo ""
-  echo -e "${YELLOW}Run without --dry-run to actually publish${NC}"
-
-else
-  # Actually publish
-  echo ""
-  bunx changeset publish
-
-  if [ -n "$RELEASE_MANIFEST" ]; then
-    bun scripts/verify-release.mjs registry "$RELEASE_MANIFEST"
-  fi
-
+if [ "$DRY_RUN" = false ]; then
   echo ""
   echo -e "${GREEN}✓ Packages published successfully!${NC}"
 
-  # Changesets creates package tags. Only prompt for a push when stdin is a
+  # The publisher creates verified package/milestone tags. Only prompt when stdin is a
   # terminal; an unattended successful publication must still exit cleanly.
   echo ""
   if [ -t 0 ]; then
@@ -416,5 +309,9 @@ fi
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}   Publishing complete!${NC}"
+if [ "$DRY_RUN" = true ]; then
+  echo -e "${GREEN}   Publication plan complete (dry run)${NC}"
+else
+  echo -e "${GREEN}   Publishing complete!${NC}"
+fi
 echo -e "${GREEN}========================================${NC}"

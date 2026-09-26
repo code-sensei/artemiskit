@@ -1,7 +1,7 @@
 # Agent-workflow design guide
 
-> **Status:** The 0.6.0 contract is published. The 0.6.1 execution milestone is locally
-> qualified and awaiting publication; see the [execution guide](workflow-execution.md) and
+> **Status:** The 0.6.0 contract is published. The 0.6.1 execution milestone is published
+> to npm and registry-qualified; remote tags await an approval-blocked GitHub push. See the [execution guide](workflow-execution.md) and
 > [release plan](releases/0.6.x-release-plan.md) for publication status. Independent task scoring,
 > durable recovery, and workflow reports remain later milestones. Existing real-agent examples
 > remain documented in [agent evaluation](../examples/agent-evaluation/README.md).

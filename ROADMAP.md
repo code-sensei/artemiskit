@@ -175,9 +175,9 @@ Full workflow execution, cumulative budgets, scoring, and reports remain in the 
 
 #### 0.6.1 — Controlled workflow execution and environments
 
-**Locally qualified; publication pending.** Native sessions, real disposable Docker, CLI/SDK surfaces,
-and fresh installed-package checks are complete. Sequential npm and remote-tag publication remain
-release gates; see the [0.6.1 validation record](docs/releases/0.6.1.md). The [execution guide](docs/workflow-execution.md)
+**Implemented and published to npm; GitHub push blocked.** Native sessions, real disposable Docker,
+CLI/SDK surfaces and fresh registry-installed checks are complete. Local annotated tags are ready;
+automatic approval review blocked their push. See the [0.6.1 release record](docs/releases/0.6.1.md). The [execution guide](docs/workflow-execution.md)
 describes the controlled run contract. Completion requires the full scope below, including actual
 sandbox and fresh-consumer evidence; outcome scoring stays in 0.6.2.
 
@@ -472,7 +472,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Partial — 0.6.0 contract published; 0.6.1 execution in progress; scoring and reports planned
+**Status:** Partial — 0.6.0 contract published; 0.6.1 execution on npm (remote tags pending); scoring and reports planned
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -500,19 +500,19 @@ or a certification.
 | Guided CLI generator and non-interactive validation produce readable, reviewable YAML | ✅ 0.6.0 source |
 | Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | ✅ 0.6.0 contract; cumulative enforcement qualified in 0.6.1 |
 | Clean packed/npm consumer checks, declared Node/Bun imports and TypeScript declarations | ✅ 0.6.0; Node 24.18 and Bun 1.3.10 |
-| Native multi-turn execution and shared CLI/SDK session/event contract | ✅ 0.6.1 source qualified; publication pending |
-| Simulated and sandbox environments use the same policy vocabulary and authority model | ✅ 0.6.1 source qualified; publication pending |
-| Undeclared tool authority fails closed | ✅ 0.6.1 simulated and Docker boundaries qualified; publication pending |
-| Fresh disposable environments support multi-turn workflows | ✅ 0.6.1 source qualified; publication pending |
-| Original-argument validation, cumulative budgets, bounded preflight and truthful usage | ✅ 0.6.1 source qualified; publication pending |
-| Cancellation tracks pending host work and preserves interrupted execution evidence | ✅ 0.6.1 source qualified; publication pending |
+| Native multi-turn execution and shared CLI/SDK session/event contract | ✅ 0.6.1 npm verified; remote tags pending |
+| Simulated and sandbox environments use the same policy vocabulary and authority model | ✅ 0.6.1 npm verified; remote tags pending |
+| Undeclared tool authority fails closed | ✅ 0.6.1 simulated and Docker boundaries verified on npm; remote tags pending |
+| Fresh disposable environments support multi-turn workflows | ✅ 0.6.1 npm verified; remote tags pending |
+| Original-argument validation, cumulative budgets, bounded preflight and truthful usage | ✅ 0.6.1 npm verified; remote tags pending |
+| Cancellation tracks pending host work and preserves interrupted execution evidence | ✅ 0.6.1 npm verified; remote tags pending |
 | Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 📋 0.6.3 |
 | Durable CLI/SDK resume preserves state, identity, authority and consumed budgets | 📋 0.6.3 |
 | Deterministic checks verify artifacts, state changes, traces, and acceptance conditions | 📋 0.6.2 |
 | Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 📋 0.6.2 |
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | 📋 Execution fields 0.6.1; independent outcomes 0.6.2 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | 📋 Basic execution 0.6.1; recovery/checkpoints 0.6.3 |
-| No default execution path discovers tools or performs live side effects | ✅ 0.6.1 source qualified; publication pending |
+| No default execution path discovers tools or performs live side effects | ✅ 0.6.1 npm verified; remote tags pending |
 | Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 0.6.4 |
 | Optional AI SDK then Pi integrations pass shared controls; fx stays experimental pending qualification | 📋 After shared 0.6.1 interface; separately releasable |
 | Exact npm package map and remote package/milestone tags verified sequentially | 📋 Every 0.6.x publication |

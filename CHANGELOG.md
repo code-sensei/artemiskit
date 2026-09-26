@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 0.6.1 — Controlled workflow execution
+## [0.6.1] - 2026-09-26
+
+Published and verified on npm; remote tags and GitHub release pending an approval-blocked push.
+
+### Controlled workflow execution
 
 - Native multi-turn workflow sessions shared by CLI and SDK, with bounded metadata events and
   separate sensitive working state/transcripts.

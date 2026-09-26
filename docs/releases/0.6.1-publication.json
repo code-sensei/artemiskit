@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "milestone": "0.6.1",
+  "recordedAt": "2026-09-26T11:22:10.253280+00:00",
+  "candidate": "543d0ba72f549453d6c0c256fa33a4a8e7c2e85e",
+  "npm": "published-and-verified",
+  "testedArchiveIntegrity": "all-12-match",
+  "registryGate": "passed-exact-versions-integrities-and-latest",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.21",
+      "integrity": "sha512-ql5jz8FzhEj9AnTdTEBUtrzYRtcSDV394R2lbyLf/od+7I9mZgKVnuy87hQ0brPP/kJJa+LPgAPjVdyoeIN4wA==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-anthropic@0.1.21"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.10",
+      "integrity": "sha512-7rLp0Ed9IM4ZoHXIrEFZcvczwcsPdgDSWo6hXNuijExUg5zdkkxPHgo11k80ukWamZKryGL/nmAlXIVaJGjJnA==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-deepagents@0.2.10"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.10",
+      "integrity": "sha512-JgWiHl2GjcYoXXZvWSl9JMkZDhce9xBsei9+ORZEMay8ilOGRHmsECXnj0th3ychtCy+0VDx6+4ZlqnYgkMKmQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-langchain@0.2.10"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.9",
+      "integrity": "sha512-24pbvn80EGHpTs3HvG/sNhAhX3iPe4QkUhBS/rXsE8McqR9TachrkjHux9uZBXEGUAVq8Kp0yhkpjS+vSF3HjQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-ling@0.1.9"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.1.21",
+      "integrity": "sha512-Njl4wjf3GGuzM79y6oFJzjsCLwEDnFbA+RzSYeYGCBcAZUZMRbVDtwfwXjR5X/M/lS/H+s1Ot8CiW8diJGR4sw==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-openai@0.1.21"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.9",
+      "integrity": "sha512-wV1jo4AkCQgYUqxjdWYIpbtOvsqn2xIOLyXLOz4YxbVykQy48IELnbLgL4Tzi6DnwkxsogwVMlvHiWry4V2U/A==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-trueforge@0.1.9"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.21",
+      "integrity": "sha512-hkz+zsB/zpRcVszC6SJLtZIga7kjcSGLgPv7xeM660I24f5ZAYI7yTHkKx3EyTwHwdoEJUuV8cxwRGxELN4IxA==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-vercel-ai@0.1.21"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.6.0",
+      "integrity": "sha512-Q7jA13Rcfpa/eZurgox5Ax+5qXbwb8fzSZ6VHAwjeuRc7kOjXv6TilXB43dfMDH5vyVLBsmZ5BuXygazML/RwQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/cli@0.6.0"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.6.1",
+      "integrity": "sha512-C3Ucphdc0w1fJGUjimjkqpxFiWDxQLDQLYVvEW2drOBt1KXTVgC+0LgAQjufSz3et5u4PaF5D6SV1i5r86pp3g==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/core@0.6.1"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.9",
+      "integrity": "sha512-CGDpA4H/2Sw1tXDm5QDXRFMY0iYqGq0x0slzSiGGIMmefUBcN+FWccyk+HG/hguYUXacqjflI+XM1zC0A2d+ag==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/redteam@0.3.9"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.4.8",
+      "integrity": "sha512-B/keZtqLdEk1WynzR6jwj8dyaSIL84EarTvBRtqu8C5WV33fK4ZkGpQAKHGrUnkhumfRCggAsL1JcKWcZpndzw==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/reports@0.4.8"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.6.0",
+      "integrity": "sha512-JxHsrkvrmyE+f+20GrhP8yVlS7v6gEPt9UsYkf2ac5aseUf7bN6i9cuwF1TulXFWslignIa0xalehnMZ9J2C3w==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/sdk@0.6.0"
+    }
+  ],
+  "localMilestoneTag": "v0.6.1",
+  "remote": {
+    "status": "blocked",
+    "observedMain": "5bb7032d79780a14469e34479007ce07ee59f5c2",
+    "milestoneTag": "absent",
+    "githubRelease": "absent",
+    "reason": "Automatic approval review rejected git push origin main --follow-tags: approval required by policy, but AskForApproval is set to Never"
+  },
+  "registryConsumer": {
+    "source": "npm-registry",
+    "completedAt": "2026-09-26T11:19:45.686Z",
+    "repositoryRevision": "543d0ba72f549453d6c0c256fa33a4a8e7c2e85e",
+    "runtimes": {
+      "node": "v24.18.0",
+      "bun": "1.3.10"
+    },
+    "packages": {
+      "@artemiskit/adapter-anthropic": "0.1.21",
+      "@artemiskit/adapter-deepagents": "0.2.10",
+      "@artemiskit/adapter-langchain": "0.2.10",
+      "@artemiskit/adapter-ling": "0.1.9",
+      "@artemiskit/adapter-openai": "0.1.21",
+      "@artemiskit/adapter-trueforge": "0.1.9",
+      "@artemiskit/adapter-vercel-ai": "0.1.21",
+      "@artemiskit/cli": "0.6.0",
+      "@artemiskit/core": "0.6.1",
+      "@artemiskit/mcp-docker-sandbox": "0.1.0",
+      "@artemiskit/redteam": "0.3.9",
+      "@artemiskit/reports": "0.4.8",
+      "@artemiskit/sdk": "0.6.0"
+    },
+    "checks": [
+      "node-imports",
+      "bun-imports",
+      "workflow-schema",
+      "approval-permissions",
+      "openai-tool-continuation",
+      "ling-tool-continuation",
+      "native-workflow-sessions",
+      "bun-cli",
+      "workflow-cli-execution-preflight-interruption",
+      "real-docker-node-bun-sdk-and-cli",
+      "typescript-nodenext",
+      "typescript-bundler"
+    ],
+    "limitations": [
+      "No external model calls; other providers import-only.",
+      "CLI/MCP retain Bun runtime.",
+      "Docker requires the fixed local image and a trusted local daemon.",
+      "TypeScript uses skipLibCheck for third-party declarations."
+    ]
+  }
+}

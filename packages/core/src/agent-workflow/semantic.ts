@@ -143,11 +143,21 @@ export function isValidWorkflowJudgeOptions(value: unknown): value is WorkflowJu
   }
 }
 
+const UNSUPPORTED_RESPONSE_FIELD = Symbol('unsupported response field');
+function responseField(value: unknown, key: string): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return UNSUPPORTED_RESPONSE_FIELD;
+  const property = Object.getOwnPropertyDescriptor(value, key);
+  if (property) return 'value' in property ? property.value : UNSUPPORTED_RESPONSE_FIELD;
+  // A present inherited or accessor control is not the same as an omitted optional field.
+  return key in value ? UNSUPPORTED_RESPONSE_FIELD : undefined;
+}
+
 function measuredUsage(value: unknown): TokenUsage | undefined {
-  const flag = own(value, 'usageAvailable');
+  const flag = responseField(value, 'usageAvailable');
   if (flag !== undefined && typeof flag !== 'boolean') return;
   if (flag === false) return;
-  const usage = own(value, 'tokens');
+  const usage = responseField(value, 'tokens');
   if (!isWorkflowJson(usage) || !usage || typeof usage !== 'object' || Array.isArray(usage)) return;
   if (Object.keys(usage).some((key) => !['prompt', 'completion', 'total'].includes(key))) return;
   const { prompt, completion, total } = usage;
@@ -163,17 +173,21 @@ function measuredUsage(value: unknown): TokenUsage | undefined {
   return { prompt, completion, total };
 }
 function verdict(value: unknown): 'pass' | 'fail' | undefined {
-  const text = own(value, 'text');
-  const model = own(value, 'model');
-  const finish = own(value, 'finishReason');
+  // Only the scoring envelope must be plain; opaque provider raw diagnostics are untouched.
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return;
+  const text = responseField(value, 'text');
+  const model = responseField(value, 'model');
+  const finish = responseField(value, 'finishReason');
   if (
     typeof model !== 'string' ||
     model.length < 1 ||
     model.length > 256 ||
     typeof text !== 'string' ||
     Buffer.byteLength(text) > 128 ||
-    own(value, 'toolCalls') !== undefined ||
-    own(value, 'functionCall') !== undefined ||
+    responseField(value, 'toolCalls') !== undefined ||
+    responseField(value, 'functionCall') !== undefined ||
     (finish !== undefined && finish !== 'stop')
   )
     return;

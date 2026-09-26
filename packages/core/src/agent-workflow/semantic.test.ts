@@ -291,6 +291,120 @@ describe('independent workflow semantic measurements', () => {
       expect(result.usage.reported.total).toBe(4);
     }
   });
+  test('accessor verdict controls are invalid without losing independent own token usage', async () => {
+    const f = await fixture(1);
+    let invoked = 0;
+    for (const enumerable of [true, false]) {
+      for (const key of ['text', 'model', 'toolCalls', 'functionCall', 'finishReason']) {
+        for (const inherited of [false, true]) {
+          const answer = response();
+          Reflect.deleteProperty(answer, key);
+          const owner = inherited ? {} : answer;
+          Object.defineProperty(owner, key, {
+            enumerable,
+            get() {
+              invoked++;
+              throw new Error('PRIVATE-CONTROL');
+            },
+          });
+          if (inherited) Object.setPrototypeOf(answer, owner);
+          const result = await evaluateWorkflowSemantics({ ...f, judge: judge([answer]).options });
+          expect(result.assertions[0].reason).toBe('invalid_response');
+          expect(result.counts.valid).toBe(0);
+          expect(result.usage.reported.total).toBe(4);
+          expect(result.usage.status).toBe('reported');
+        }
+      }
+    }
+    expect(invoked).toBe(0);
+  });
+  test('unsafe usage descriptors never become legacy available usage', async () => {
+    const f = await fixture();
+    let invoked = 0;
+    for (const enumerable of [true, false]) {
+      for (const key of ['usageAvailable', 'tokens']) {
+        for (const inherited of [true, false]) {
+          const answer = response();
+          Reflect.deleteProperty(answer, key);
+          const owner = inherited ? {} : answer;
+          Object.defineProperty(owner, key, {
+            enumerable,
+            get() {
+              invoked++;
+              return undefined;
+            },
+          });
+          if (inherited) Object.setPrototypeOf(answer, owner);
+          const j = judge([answer]);
+          const result = await evaluateWorkflowSemantics({ ...f, judge: j.options });
+          expect(result.assertions[0].reason).toBe('usage_unavailable');
+          expect(result.usage.status).toBe('unavailable');
+          expect(result.usage.missingRequests).toBe(1);
+          expect(j.requests).toHaveLength(1);
+        }
+      }
+    }
+    expect(invoked).toBe(0);
+  });
+  test('inherited data controls cannot produce a valid verdict', async () => {
+    const f = await fixture(1);
+    for (const key of [
+      'text',
+      'model',
+      'toolCalls',
+      'functionCall',
+      'finishReason',
+      'usageAvailable',
+    ]) {
+      for (const enumerable of [true, false]) {
+        const answer = response();
+        const inherited = {};
+        Reflect.deleteProperty(answer, key);
+        Object.defineProperty(inherited, key, { enumerable, value: undefined });
+        Object.setPrototypeOf(answer, inherited);
+        const result = await evaluateWorkflowSemantics({ ...f, judge: judge([answer]).options });
+        expect(result.counts.valid).toBe(0);
+        expect(result.assertions[0].reason).toBe(
+          key === 'usageAvailable' ? 'usage_unavailable' : 'invalid_response'
+        );
+        expect(result.usage.reported.total).toBe(key === 'usageAvailable' ? 0 : 4);
+      }
+    }
+  });
+  test('own optional undefined and opaque raw diagnostics remain supported', async () => {
+    const f = await fixture(1);
+    let rawReads = 0;
+    const opaque: Record<string, unknown> = { sensitive: 'PRIVATE-RAW' };
+    opaque.circular = opaque;
+    for (const prototype of [Object.prototype, null]) {
+      for (const rawGetter of [false, true]) {
+        const answer = response('{"verdict":"pass"}', {
+          toolCalls: undefined,
+          functionCall: undefined,
+          finishReason: undefined,
+          usageAvailable: undefined,
+        });
+        Object.setPrototypeOf(answer, prototype);
+        Object.defineProperty(
+          answer,
+          'raw',
+          rawGetter
+            ? {
+                get() {
+                  rawReads++;
+                  throw new Error('PRIVATE-RAW');
+                },
+              }
+            : { value: opaque }
+        );
+        const result = await evaluateWorkflowSemantics({ ...f, judge: judge([answer]).options });
+        expect(result.counts.passed).toBe(1);
+        expect(result.usage.reported.total).toBe(4);
+        expect(JSON.stringify(result)).not.toContain('PRIVATE-RAW');
+      }
+    }
+    expect(rawReads).toBe(0);
+  });
   test('plain JSON without advertised JSON mode uses identical strict validation', async () => {
     for (const jsonMode of [false, undefined]) {
       const f = await fixture(1);

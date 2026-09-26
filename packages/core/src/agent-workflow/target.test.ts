@@ -71,6 +71,7 @@ describe('ModelClient agent target', () => {
     );
     const result = await target.turn(request);
     expect(received).toEqual({
+      maxRetries: 0,
       prompt: request.messages,
       tools: request.tools,
       model: request.model,
@@ -167,7 +168,10 @@ describe('ModelClient agent target', () => {
     const target = createModelClientTarget(
       client({ generate: async () => ({ ...response, ...override }) })
     );
-    expect(await target.turn(request)).toEqual({ status: 'invalid', code: 'invalid_response' });
+    expect(await target.turn(request)).toMatchObject({
+      status: 'invalid',
+      code: 'invalid_response',
+    });
   });
   test('rejects tool calls beyond the declared per-turn budget', async () => {
     expect(

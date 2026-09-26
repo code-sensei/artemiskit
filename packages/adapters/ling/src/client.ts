@@ -27,33 +27,39 @@ export class LingAdapter implements ModelClient {
   async generate(options: GenerateOptions): Promise<GenerateResult> {
     const start = Date.now();
     const ling = options.providerOptions?.ling;
-    const response = await this.client.chat.completions.create({
-      model: options.model ?? this.config.defaultModel ?? 'Ling-3.0-flash',
-      messages:
-        typeof options.prompt === 'string'
-          ? [{ role: 'user', content: options.prompt }]
-          : options.prompt.map(({ role, content, toolCallId, tool_calls }) => ({
-              role: role as 'system' | 'user' | 'assistant' | 'tool',
-              content,
-              ...(toolCallId ? { tool_call_id: toolCallId } : {}),
-              ...(tool_calls ? { tool_calls } : {}),
-            })),
-      ...(options.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
-      temperature: options.temperature,
-      top_p: options.topP,
-      stop: options.stop,
-      tools: options.tools,
-      response_format: options.responseFormat,
-      ...((ling?.thinking ?? this.config.thinking)
-        ? { thinking: ling?.thinking ?? this.config.thinking }
-        : {}),
-      ...((ling?.enableSearch ?? this.config.enableSearch)
-        ? { enable_search: ling?.enableSearch ?? this.config.enableSearch }
-        : {}),
-      ...((ling?.searchOptions ?? this.config.searchOptions)
-        ? { search_options: ling?.searchOptions ?? this.config.searchOptions }
-        : {}),
-    } as never);
+    const response = await this.client.chat.completions.create(
+      {
+        model: options.model ?? this.config.defaultModel ?? 'Ling-3.0-flash',
+        messages:
+          typeof options.prompt === 'string'
+            ? [{ role: 'user', content: options.prompt }]
+            : options.prompt.map(({ role, content, toolCallId, tool_calls }) => ({
+                role: role as 'system' | 'user' | 'assistant' | 'tool',
+                content,
+                ...(toolCallId ? { tool_call_id: toolCallId } : {}),
+                ...(tool_calls ? { tool_calls } : {}),
+              })),
+        ...(options.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+        temperature: options.temperature,
+        top_p: options.topP,
+        stop: options.stop,
+        tools: options.tools,
+        response_format: options.responseFormat,
+        ...((ling?.thinking ?? this.config.thinking)
+          ? { thinking: ling?.thinking ?? this.config.thinking }
+          : {}),
+        ...((ling?.enableSearch ?? this.config.enableSearch)
+          ? { enable_search: ling?.enableSearch ?? this.config.enableSearch }
+          : {}),
+        ...((ling?.searchOptions ?? this.config.searchOptions)
+          ? { search_options: ling?.searchOptions ?? this.config.searchOptions }
+          : {}),
+      } as never,
+      {
+        signal: options.signal,
+        ...(options.maxRetries !== undefined ? { maxRetries: options.maxRetries } : {}),
+      }
+    );
     const choice = response.choices[0];
     return {
       id: response.id || nanoid(),
@@ -64,6 +70,7 @@ export class LingAdapter implements ModelClient {
         completion: response.usage?.completion_tokens ?? 0,
         total: response.usage?.total_tokens ?? 0,
       },
+      usageAvailable: response.usage != null,
       latencyMs: Date.now() - start,
       finishReason:
         choice?.finish_reason === 'tool_calls'
@@ -82,6 +89,7 @@ export class LingAdapter implements ModelClient {
 
   async capabilities(): Promise<ModelCapabilities> {
     return {
+      transportCancellation: true,
       streaming: true,
       functionCalling: true,
       toolUse: true,

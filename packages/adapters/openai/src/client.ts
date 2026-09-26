@@ -77,17 +77,23 @@ export class OpenAIAdapter implements ModelClient {
         : { max_tokens: options.maxTokens }
       : {};
 
-    const response = await this.client.chat.completions.create({
-      model,
-      messages,
-      ...tokenParams,
-      temperature: options.temperature,
-      top_p: options.topP,
-      seed: options.seed,
-      stop: options.stop,
-      tools: options.tools,
-      response_format: options.responseFormat,
-    });
+    const response = await this.client.chat.completions.create(
+      {
+        model,
+        messages,
+        ...tokenParams,
+        temperature: options.temperature,
+        top_p: options.topP,
+        seed: options.seed,
+        stop: options.stop,
+        tools: options.tools,
+        response_format: options.responseFormat,
+      },
+      {
+        signal: options.signal,
+        ...(options.maxRetries !== undefined ? { maxRetries: options.maxRetries } : {}),
+      }
+    );
 
     const latencyMs = Date.now() - startTime;
     const choice = response.choices[0];
@@ -101,6 +107,7 @@ export class OpenAIAdapter implements ModelClient {
         completion: response.usage?.completion_tokens ?? 0,
         total: response.usage?.total_tokens ?? 0,
       },
+      usageAvailable: response.usage != null,
       latencyMs,
       finishReason: this.mapFinishReason(choice.finish_reason),
       toolCalls: choice.message.tool_calls?.map((tc) => ({
@@ -165,6 +172,7 @@ export class OpenAIAdapter implements ModelClient {
 
   async capabilities(): Promise<ModelCapabilities> {
     return {
+      transportCancellation: true,
       streaming: true,
       functionCalling: true,
       toolUse: true,

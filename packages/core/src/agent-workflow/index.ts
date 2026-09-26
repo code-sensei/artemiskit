@@ -19,4 +19,6 @@ export type {
 export * from './semantic';
 export * from './outcome-status';
 export type { WorkflowOutcomeAssessment } from './assessment';
-export * from './records';
+export { readWorkflowRecord } from './records';
+export type { SavedWorkflowRecord, HistoricalWorkflowRecord } from './records';
+export type { WorkflowCheckpointOptions, WorkflowRecoveryEvidence } from './recovery';

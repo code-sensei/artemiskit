@@ -67,7 +67,7 @@ const eventSchema = z.object({
   status: z.string().max(32).optional(),
 });
 const recordSchema = z.object({
-  schemaVersion: z.enum(['1', '2']),
+  schemaVersion: z.enum(['1', '2', '3']),
   engine: z.literal('native'),
   purpose: z.enum(['workflow', 'preflight']).optional(),
   execution: z.enum([
@@ -190,7 +190,7 @@ function ledger(
   if (record.droppedEvents > 0)
     return { finding: finding('unavailable', 'evidence_truncated'), calls };
   if (record.events.some((event, index) => event.sequence !== index + 1)) return invalid();
-  const boundary = record.schemaVersion === '2' ? 'execution_finished' : 'finished';
+  const boundary = record.schemaVersion !== '1' ? 'execution_finished' : 'finished';
   const boundaries = record.events.filter((event) => event.type === boundary);
   if (boundaries.length !== 1) return invalid();
   const last = boundaries[0];

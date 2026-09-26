@@ -9,6 +9,14 @@ import {
 } from './assessment';
 import { getWorkflowTool } from './catalog';
 import {
+  type WorkflowCheckpointCursor,
+  WorkflowCheckpointError,
+  type WorkflowCheckpointPayload,
+  parseWorkflowCheckpoint,
+  restoreWorkflowCheckpoint,
+} from './checkpoint';
+import { type WorkflowCheckpointStore, openWorkflowCheckpointStore } from './checkpoint-store';
+import {
   type WorkflowEnvironment,
   type WorkflowEnvironmentFactory,
   WorkflowEnvironmentInitializationError,
@@ -19,6 +27,13 @@ import {
   workflowPathAllowed,
   workflowToolPermitted,
 } from './environment';
+import {
+  type WorkflowCheckpointOptions,
+  WorkflowCheckpointOptionsSchema,
+  type WorkflowRecoveryEvidence,
+  workflowCheckpointIdentity,
+  workflowDigest,
+} from './recovery';
 import { createDockerWorkflowEnvironment } from './sandbox';
 import { type AgentWorkflow, AgentWorkflowSchema, isWorkflowJson } from './schema';
 import { type WorkflowJudgeOptions, isValidWorkflowJudgeOptions } from './semantic';
@@ -54,7 +69,16 @@ export type AgentWorkflowReason =
   | 'max_tool_calls'
   | 'max_tokens'
   | 'usage_unavailable'
-  | 'transcript_limit';
+  | 'transcript_limit'
+  | 'checkpoint_paused'
+  | 'checkpoint_unavailable'
+  | 'checkpoint_incompatible'
+  | 'checkpoint_pending'
+  | 'checkpoint_terminal'
+  | 'checkpoint_expired'
+  | 'checkpoint_clock_rollback'
+  | 'checkpoint_invalid'
+  | 'checkpoint_cleanup_unresolved';
 export interface AgentWorkflowEvent {
   sequence: number;
   elapsedMs: number;
@@ -125,14 +149,15 @@ export interface AgentWorkflowExecutionRecord {
   droppedEvents: number;
 }
 export interface AgentWorkflowRecord extends AgentWorkflowExecutionRecord {
-  schemaVersion: '2';
+  schemaVersion: '2' | '3';
+  recovery?: WorkflowRecoveryEvidence;
   purpose: 'workflow' | 'preflight';
   outcomes: WorkflowOutcomeAssessment;
 }
-/** Read-only scoring input supports both execution-only V1 and outcome-aware V2 records. */
+/** Read-only scoring accepts execution-only V1 and outcome-aware V2/V3 records. */
 export interface AgentWorkflowEvidence {
   record: AgentWorkflowExecutionRecord & {
-    schemaVersion: '1' | '2';
+    schemaVersion: '1' | '2' | '3';
     purpose?: 'workflow' | 'preflight';
   };
   state: WorkflowState | null;
@@ -149,6 +174,10 @@ export interface AgentWorkflowSessionOptions {
   workflow: AgentWorkflow;
   target: AgentTarget;
   fixtureRoot?: string;
+  /** Sensitive private working state. Fresh runs do not checkpoint implicitly. */
+  checkpoint?: WorkflowCheckpointOptions;
+  /** Request a safe pause after this many admitted actions in the current attempt. */
+  pauseAfterActions?: number;
   environmentFactory?: WorkflowEnvironmentFactory;
   preflight?: boolean;
   preflightOnly?: boolean;
@@ -163,6 +192,8 @@ export interface AgentWorkflowSession {
   readonly state: 'idle' | 'running' | 'cancelling' | 'completed';
   run(): Promise<AgentWorkflowResult>;
   cancel(): void;
+  /** Pause at the next settled boundary; never abort or replay an in-flight operation. */
+  pause(): void;
   events(): AsyncIterable<AgentWorkflowEvent>;
 }
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -347,14 +378,42 @@ export function createAgentWorkflowSession(
     /* Safe error returned by run. */
   }
   const target = options.target;
+  const preflightRequested = options.preflight === true;
   const retained: AgentWorkflowEvent[] = [];
   const listeners = new Set<() => void>();
   let finished = false;
   let started = 0;
   let eventSequence = 0;
+  let pauseRequested = false;
+  let paused = false;
+  let targetTouched = false;
+  let checkpointStore: WorkflowCheckpointStore | undefined;
+  let checkpointOptions: WorkflowCheckpointOptions | undefined;
+  let checkpointFault = false;
+  let initialSnapshot: WorkflowState | undefined;
+  let initialStateSha256: string | undefined;
+  let lastCheckpointObserved = 0;
+  let cursor: WorkflowCheckpointCursor = { turn: 0, stage: 'turn', callIndex: 0 };
+  let attemptActions = 0;
+  let preflightIds: string[] = [];
+  const firstAttempt = randomUUID();
+  let attemptIds: string[] = [firstAttempt];
+  const recovery: WorkflowRecoveryEvidence = {
+    schemaVersion: '1',
+    runId: firstAttempt,
+    attemptId: firstAttempt,
+    attempts: 1,
+    checkpoint: 'active',
+    reason: 'fresh',
+    pendingOperations: 0,
+    faults: { declared: 0, injected: 0, entries: [] },
+    retries: { maxAttempts: 1, attempted: 0, recovered: 0, exhausted: 0, entries: [], omitted: 0 },
+    stateChanges: { total: 0, entries: [], omitted: 0 },
+  };
   const record: AgentWorkflowRecord = {
-    schemaVersion: '2',
-    purpose: options.preflightOnly ? 'preflight' : 'workflow',
+    schemaVersion: options.checkpoint === undefined ? '2' : '3',
+    ...(options.checkpoint === undefined ? {} : { recovery }),
+    purpose: options.checkpoint === undefined && options.preflightOnly ? 'preflight' : 'workflow',
     outcomes: emptyWorkflowAssessment(),
     engine: 'native',
     execution: 'invalid',
@@ -438,6 +497,8 @@ export function createAgentWorkflowSession(
   options.signal?.addEventListener('abort', abort, { once: true });
   if (options.signal?.aborted) abort();
   function active() {
+    if (checkpointStore && Date.now() < lastCheckpointObserved)
+      throw new Stop('invalid', 'checkpoint_clock_rollback');
     if (controller.signal.aborted)
       throw new Stop(
         deadlineExpired ? 'timeout' : 'cancelled',
@@ -523,6 +584,119 @@ export function createAgentWorkflowSession(
     if (kind === 'model') record.budgets.modelRequests++;
     else record.budgets.toolCalls++;
   }
+
+  function checkpointIdentity() {
+    if (!workflow || !checkpointOptions) throw new Stop('invalid', 'checkpoint_invalid');
+    return {
+      ...workflowCheckpointIdentity(
+        workflow,
+        checkpointOptions.configurationId,
+        preflightRequested
+      ),
+      judgeSha256: workflowDigest(
+        semanticJudge
+          ? {
+              provider: semanticJudge.provider,
+              model: semanticJudge.model,
+              limits: semanticJudge.limits,
+            }
+          : null
+      ),
+    };
+  }
+  function syncUsage() {
+    record.usage.missingRequests = record.budgets.modelRequests - measuredRequests;
+    record.usage.status = measuredRequests
+      ? record.usage.missingRequests || record.usage.inFlightUnknown
+        ? 'partial'
+        : 'reported'
+      : 'unavailable';
+    record.budgets.elapsedMs = Math.max(0, Date.now() - started);
+  }
+  async function persistCheckpoint(
+    lifecycle: WorkflowCheckpointPayload['lifecycle'],
+    pendingOperation: WorkflowCheckpointPayload['pending'] = null,
+    environmentReleased = false
+  ) {
+    if (!checkpointStore || !workflow || !initialSnapshot || !initialStateSha256) return;
+    try {
+      const observed = Date.now();
+      if (observed < lastCheckpointObserved) throw new Stop('invalid', 'checkpoint_clock_rollback');
+      syncUsage();
+      record.budgets.elapsedMs = Math.max(0, observed - started);
+      recovery.pendingOperations = pendingOperation ? 1 : 0;
+      const payload = parseWorkflowCheckpoint({
+        schemaVersion: '1',
+        identity: checkpointIdentity(),
+        lifecycle,
+        pending: pendingOperation,
+        environmentReleased,
+        initialState: initialSnapshot,
+        initialStateSha256,
+        state,
+        stateSha256: state ? workflowDigest(state) : null,
+        startedAt: started,
+        deadlineAt: started + workflow.environment.policy.budgets.timeout_ms,
+        lastObservedAt: started + record.budgets.elapsedMs,
+        attemptIds,
+        recovery,
+        cursor,
+        transcript,
+        seenIds: [...ids],
+        preflightIds,
+        measuredRequests,
+        eventSequence,
+        ledger: {
+          capability: record.capability,
+          usage: record.usage,
+          budgets: record.budgets,
+          events: retained,
+          droppedEvents: record.droppedEvents,
+        },
+      });
+      await checkpointStore.write(payload);
+      lastCheckpointObserved = payload.lastObservedAt;
+    } catch (error) {
+      checkpointFault = true;
+      recovery.checkpoint = 'refused';
+      recovery.reason =
+        error instanceof Stop && error.reason === 'checkpoint_clock_rollback'
+          ? 'checkpoint_clock_rollback'
+          : 'checkpoint_unavailable';
+      if (error instanceof Stop) throw error;
+      throw new Stop('failed', 'checkpoint_unavailable');
+    }
+  }
+  async function readyCheckpoint() {
+    if (!checkpointStore) return;
+    syncUsage();
+    if (record.usage.missingRequests || record.usage.inFlightUnknown)
+      throw new Stop('budget_exceeded', 'usage_unavailable');
+    if (!environment) throw new Stop('failed', 'checkpoint_unavailable');
+    try {
+      const snapshot = await owned(
+        () => (environment as WorkflowEnvironment).snapshot(controller.signal),
+        controller.signal
+      );
+      if (!isWorkflowState(snapshot)) throw new Stop('invalid', 'invalid_environment');
+      state = structuredClone(snapshot);
+    } catch (error) {
+      if (error instanceof Stop) throw error;
+      throw new Stop('failed', 'checkpoint_unavailable');
+    }
+    active();
+    await persistCheckpoint('ready');
+    active();
+    if (
+      pauseRequested ||
+      (options.pauseAfterActions !== undefined &&
+        record.budgets.actions - attemptActions >= options.pauseAfterActions)
+    ) {
+      await persistCheckpoint('pausing');
+      paused = true;
+      throw new Stop('cancelled', 'checkpoint_paused');
+    }
+  }
   const ajv = new Ajv({
     strict: true,
     allErrors: false,
@@ -562,6 +736,8 @@ export function createAgentWorkflowSession(
     admit('model');
     const operationId = `model-${record.budgets.modelRequests}`;
     emit({ type: 'model_requested', operationId });
+    await persistCheckpoint('pending', { kind: 'model', operationId });
+    active();
     let response: unknown;
     let modelCompleted = false;
     try {
@@ -594,6 +770,7 @@ export function createAgentWorkflowSession(
             if (phase === 'preflight') record.usage.preflight[key] += failure.data.tokens[key];
           }
         } else record.usage.missingRequests++;
+        if (checkpointStore) syncUsage();
         if (failure.data.rejectedCall) {
           const rejection = failure.data.rejectedCall;
           const denied = rejection.reason === 'undeclared_tool';
@@ -649,6 +826,7 @@ export function createAgentWorkflowSession(
           if (phase === 'preflight') record.usage.preflight[key] += value.tokens[key];
         }
       } else record.usage.missingRequests++;
+      if (checkpointStore) syncUsage();
       record.capability.observedModelHash = hash(value.model);
       record.capability.observedModel = identity(value.model);
       const calls = value.message.tool_calls ?? [];
@@ -663,7 +841,7 @@ export function createAgentWorkflowSession(
       }
       modelCompleted = true;
       emit({ type: 'model_completed', operationId, status: 'completed' });
-      if (budget.max_tokens !== undefined && !measured)
+      if ((checkpointStore || budget.max_tokens !== undefined) && !measured)
         throw new Stop('budget_exceeded', 'usage_unavailable');
       if (budget.max_tokens !== undefined && record.usage.reported.total > budget.max_tokens) {
         record.budgets.tokenOvershoot = record.usage.reported.total - budget.max_tokens;
@@ -742,6 +920,7 @@ export function createAgentWorkflowSession(
     const second = await model(messages, tools);
     if (second.message.tool_calls?.length || second.message.content !== nonce)
       throw new Stop('unsupported', 'preflight_failed');
+    preflightIds = [...ids];
     record.capability.preflight = 'passed';
     emit({ type: 'preflight_completed', status: 'completed' });
     phase = 'execution';
@@ -779,6 +958,9 @@ export function createAgentWorkflowSession(
         });
         throw new Stop('invalid', 'policy_denied');
       }
+      const beforeStateSha256 = checkpointStore && state ? workflowDigest(state) : undefined;
+      await persistCheckpoint('pending', { kind: 'tool', operationId });
+      active();
       let value: unknown;
       try {
         value = await owned(
@@ -820,6 +1002,19 @@ export function createAgentWorkflowSession(
         )
           throw new Stop('invalid', 'invalid_environment');
         state = structuredClone(value.state);
+        if (checkpointStore && beforeStateSha256) {
+          const afterSha256 = workflowDigest(state);
+          if (beforeStateSha256 !== afterSha256) {
+            recovery.stateChanges.total++;
+            if (recovery.stateChanges.entries.length < 64)
+              recovery.stateChanges.entries.push({
+                operationId,
+                beforeSha256: beforeStateSha256,
+                afterSha256,
+              });
+            else recovery.stateChanges.omitted++;
+          }
+        }
         transcript.push({
           role: 'tool',
           toolCallId: call.id,
@@ -867,7 +1062,7 @@ export function createAgentWorkflowSession(
     sessionState = controller.signal.aborted ? 'cancelling' : 'running';
     started = Date.now();
     const timeout = workflow?.environment.policy.budgets.timeout_ms ?? 1;
-    const timer = setTimeout(() => {
+    let timer = setTimeout(() => {
       deadlineExpired = true;
       abort();
     }, timeout);
@@ -885,18 +1080,106 @@ export function createAgentWorkflowSession(
         typeof target.capabilities !== 'function'
       )
         throw new Stop('invalid', 'invalid_options');
+      if (
+        options.pauseAfterActions !== undefined &&
+        (!Number.isInteger(options.pauseAfterActions) ||
+          options.pauseAfterActions < 1 ||
+          options.pauseAfterActions > 1000 ||
+          options.checkpoint === undefined)
+      )
+        throw new Stop('invalid', 'invalid_options');
+      if (options.checkpoint !== undefined) {
+        if (
+          !isWorkflowJson(options.checkpoint) ||
+          options.environmentFactory ||
+          options.preflightOnly ||
+          target.provider !== workflow.target.provider ||
+          (options.preflight !== undefined && typeof options.preflight !== 'boolean')
+        )
+          throw new Stop('invalid', 'invalid_options');
+        const parsed = WorkflowCheckpointOptionsSchema.safeParse(options.checkpoint);
+        if (!parsed.success) throw new Stop('invalid', 'invalid_options');
+        checkpointOptions = parsed.data;
+        recovery.configurationSha256 = checkpointIdentity().configurationSha256;
+        try {
+          checkpointStore = await openWorkflowCheckpointStore(
+            checkpointOptions.mode === 'create'
+              ? { directory: checkpointOptions.directory, mode: 'create' }
+              : { directory: checkpointOptions.directory, mode: 'resume' }
+          );
+        } catch {
+          throw new Stop('invalid', 'checkpoint_unavailable');
+        }
+      }
       active();
-      emit({ type: 'started' });
-      const initialState = options.preflightOnly
-        ? {}
-        : await owned(
-            () => resolveWorkflowInitialState(workflow as AgentWorkflow, options.fixtureRoot),
-            controller.signal
-          ).catch((error) => {
-            if (error instanceof Stop) throw error;
-            throw new Stop('invalid', 'invalid_fixture');
-          });
+      let initialState: WorkflowState;
+      if (checkpointStore && checkpointOptions?.mode === 'resume') {
+        const saved = await checkpointStore.read();
+        if (!saved) throw new Stop('invalid', 'checkpoint_invalid');
+        const restored = restoreWorkflowCheckpoint(
+          saved.payload,
+          workflow,
+          checkpointIdentity(),
+          Date.now()
+        );
+        started = restored.startedAt;
+        lastCheckpointObserved = restored.lastObservedAt;
+        clearTimeout(timer);
+        timer = setTimeout(
+          () => {
+            deadlineExpired = true;
+            abort();
+          },
+          Math.max(1, restored.deadlineAt - Date.now())
+        );
+        active();
+        initialSnapshot = structuredClone(restored.initialState);
+        initialStateSha256 = restored.initialStateSha256;
+        initialState = structuredClone(restored.state as WorkflowState);
+        state = structuredClone(initialState);
+        cursor = restored.cursor;
+        transcript = restored.transcript;
+        for (const id of restored.seenIds) ids.add(id);
+        preflightIds = restored.preflightIds;
+        measuredRequests = restored.measuredRequests;
+        Object.assign(record.capability, restored.ledger.capability);
+        Object.assign(record.usage, restored.ledger.usage);
+        Object.assign(record.budgets, restored.ledger.budgets);
+        retained.push(...restored.ledger.events);
+        record.droppedEvents = restored.ledger.droppedEvents;
+        eventSequence = restored.eventSequence;
+        Object.assign(recovery, restored.recovery);
+        const nextAttempt = randomUUID();
+        attemptIds = [...restored.attemptIds, nextAttempt];
+        recovery.attemptId = nextAttempt;
+        recovery.attempts = attemptIds.length;
+        recovery.checkpoint = 'active';
+        recovery.reason = 'resumed';
+        attemptActions = record.budgets.actions;
+        // Keep setup non-resumable until a newly created sandbox is owned and snapshotted.
+        await persistCheckpoint('pending', { kind: 'setup' });
+      } else {
+        emit({ type: 'started' });
+        initialState = options.preflightOnly
+          ? {}
+          : await owned(
+              () => resolveWorkflowInitialState(workflow as AgentWorkflow, options.fixtureRoot),
+              controller.signal
+            ).catch((error) => {
+              if (error instanceof Stop) throw error;
+              throw new Stop('invalid', 'invalid_fixture');
+            });
+        if (checkpointStore) {
+          initialSnapshot = structuredClone(initialState);
+          initialStateSha256 = workflowDigest(initialState);
+          state = structuredClone(initialState);
+          transcript = [{ role: 'system', content: workflow.workflow.system_instructions }];
+          recovery.initialStateSha256 = initialStateSha256;
+          await persistCheckpoint('pending', { kind: 'setup' });
+        }
+      }
       active();
+      targetTouched = true;
       const advertised = await owned(
         () =>
           target.capabilities(
@@ -911,7 +1194,8 @@ export function createAgentWorkflowSession(
       record.capability.advertised = capability.data.toolUse;
       record.capability.transportCancellation = capability.data.transportCancellation;
       if (!capability.data.toolUse) throw new Stop('unsupported', 'tool_use_unsupported');
-      if (options.preflight || options.preflightOnly) await probe();
+      if ((preflightRequested || options.preflightOnly) && checkpointOptions?.mode !== 'resume')
+        await probe();
       if (!options.preflightOnly) {
         active();
         const factory =
@@ -954,7 +1238,8 @@ export function createAgentWorkflowSession(
         )
           throw new Stop('invalid', 'invalid_environment');
         state = structuredClone(initialState);
-        transcript = [{ role: 'system', content: workflow.workflow.system_instructions }];
+        if (!checkpointStore)
+          transcript = [{ role: 'system', content: workflow.workflow.system_instructions }];
         const tools: AgentTurnRequest['tools'] = workflow.tools.map((id) => {
           const descriptor = getWorkflowTool(id);
           if (!descriptor) throw new Stop('invalid', 'invalid_workflow');
@@ -967,14 +1252,37 @@ export function createAgentWorkflowSession(
             },
           };
         });
-        for (const turn of workflow.workflow.turns) {
-          transcript.push(structuredClone(turn));
-          while (true) {
+        await readyCheckpoint();
+        while (cursor.stage !== 'done') {
+          if (cursor.stage === 'turn') {
+            transcript.push(structuredClone(workflow.workflow.turns[cursor.turn]));
+            cursor.stage = 'model';
+          }
+          if (cursor.stage === 'model') {
             const answer = await model(transcript, tools);
             transcript.push(answer.message);
-            const calls = answer.message.tool_calls ?? [];
-            if (!calls.length) break;
-            for (const call of calls) await executeTool(call, tools);
+            if (answer.message.tool_calls?.length) {
+              cursor.stage = 'tools';
+              cursor.callIndex = 0;
+            } else {
+              cursor.turn++;
+              cursor.stage = cursor.turn === workflow.workflow.turns.length ? 'done' : 'turn';
+            }
+            await readyCheckpoint();
+          }
+          if (cursor.stage === 'tools') {
+            const answer = transcript.findLast((message) => message.role === 'assistant');
+            const calls = answer?.tool_calls ?? [];
+            while (cursor.callIndex < calls.length) {
+              await executeTool(calls[cursor.callIndex], tools);
+              cursor.callIndex++;
+              if (cursor.callIndex === calls.length) {
+                cursor.stage = 'model';
+                cursor.callIndex = 0;
+              }
+              await readyCheckpoint();
+              if (cursor.stage === 'model') break;
+            }
           }
         }
       }
@@ -995,11 +1303,26 @@ export function createAgentWorkflowSession(
       const stop =
         error instanceof WorkflowEnvironmentInitializationError
           ? new Stop('failed', 'environment_unavailable')
-          : error instanceof Stop
-            ? error
-            : new Stop('failed', 'target_error');
+          : error instanceof WorkflowCheckpointError
+            ? new Stop(
+                error.reason === 'checkpoint_expired'
+                  ? 'timeout'
+                  : error.reason.startsWith('max_') || error.reason === 'usage_unavailable'
+                    ? 'budget_exceeded'
+                    : 'invalid',
+                error.reason
+              )
+            : error instanceof Stop
+              ? error
+              : new Stop('failed', 'target_error');
       record.execution = stop.execution;
       record.reason = stop.reason;
+      if (record.schemaVersion === '3' && stop.reason !== 'checkpoint_paused') {
+        recovery.checkpoint = 'refused';
+        recovery.reason = stop.reason.startsWith('checkpoint_')
+          ? (stop.reason as WorkflowRecoveryEvidence['reason'])
+          : 'checkpoint_unavailable';
+      }
     } finally {
       clearTimeout(timer);
       controller.abort();
@@ -1017,7 +1340,7 @@ export function createAgentWorkflowSession(
       let adapterPending = 0;
       try {
         const drain = target?.drain;
-        if (typeof drain === 'function') {
+        if (typeof drain === 'function' && (options.checkpoint === undefined || targetTouched)) {
           const value = await owned(
             () => drain.call(target, { timeoutMs: drainBudget }),
             drainController.signal
@@ -1114,6 +1437,47 @@ export function createAgentWorkflowSession(
         };
       }
       record.budgets.elapsedMs = Math.max(0, Date.now() - started);
+      if (checkpointStore && initialSnapshot && initialStateSha256) {
+        try {
+          if (
+            paused &&
+            !checkpointFault &&
+            record.cleanup.status === 'completed' &&
+            state &&
+            !record.usage.inFlightUnknown &&
+            !record.usage.missingRequests
+          ) {
+            recovery.checkpoint = 'paused';
+            recovery.reason = 'paused';
+            recovery.pendingOperations = 0;
+            await persistCheckpoint('ready', null, true);
+          } else {
+            if (paused) {
+              record.execution = 'failed';
+              record.reason = 'checkpoint_cleanup_unresolved';
+              recovery.reason = 'checkpoint_cleanup_unresolved';
+            }
+            recovery.checkpoint = 'terminal';
+            if (record.execution === 'completed') recovery.reason = 'finished';
+            await persistCheckpoint('terminal', null, record.cleanup.status === 'completed');
+          }
+        } catch {
+          record.execution = 'failed';
+          record.reason = 'checkpoint_unavailable';
+          recovery.checkpoint = 'refused';
+          recovery.reason = 'checkpoint_unavailable';
+        }
+      }
+      if (checkpointStore) {
+        try {
+          await checkpointStore.close();
+        } catch {
+          record.execution = 'failed';
+          record.reason = 'checkpoint_unavailable';
+          recovery.checkpoint = 'refused';
+          recovery.reason = 'checkpoint_unavailable';
+        }
+      }
       phase = 'execution';
       emit({
         type: 'execution_finished',
@@ -1156,6 +1520,9 @@ export function createAgentWorkflowSession(
       return promise;
     },
     cancel: abort,
+    pause() {
+      if (options.checkpoint !== undefined && !finished) pauseRequested = true;
+    },
     async *events() {
       let index = 0;
       while (true) {

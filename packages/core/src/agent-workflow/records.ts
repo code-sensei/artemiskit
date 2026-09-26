@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { decideWorkflowOutcome, validWorkflowAssertionCounts } from './outcome-status';
 import { workflowRecordLedgerStatus } from './outcomes';
+import { WorkflowRecoverySchema, validWorkflowRecovery } from './recovery';
 import { WorkflowPolicySchema, isWorkflowJson } from './schema';
 
 const count = z.number().int().nonnegative().safe();
@@ -186,7 +187,7 @@ const event = z
     status: z.enum(['completed', 'denied', 'invalid', 'failed']).optional(),
   })
   .strict();
-const base = z.object({
+export const workflowExecutionRecordSchema = z.object({
   engine: z.literal('native'),
   execution: z.enum([
     'completed',
@@ -219,6 +220,15 @@ const base = z.object({
     'max_tokens',
     'usage_unavailable',
     'transcript_limit',
+    'checkpoint_paused',
+    'checkpoint_unavailable',
+    'checkpoint_incompatible',
+    'checkpoint_pending',
+    'checkpoint_terminal',
+    'checkpoint_expired',
+    'checkpoint_clock_rollback',
+    'checkpoint_invalid',
+    'checkpoint_cleanup_unresolved',
   ]),
   policy: z.enum(['passed', 'denied']),
   configuration: z
@@ -283,15 +293,24 @@ const base = z.object({
   droppedEvents: count,
 });
 const schema = z.discriminatedUnion('schemaVersion', [
-  base
+  workflowExecutionRecordSchema
     .extend({ schemaVersion: z.literal('1'), taskVerification: z.literal('unavailable') })
     .strict(),
-  base
+  workflowExecutionRecordSchema
     .extend({
       schemaVersion: z.literal('2'),
       purpose: z.enum(['workflow', 'preflight']),
       taskVerification: status,
       outcomes,
+    })
+    .strict(),
+  workflowExecutionRecordSchema
+    .extend({
+      schemaVersion: z.literal('3'),
+      purpose: z.literal('workflow'),
+      taskVerification: status,
+      outcomes,
+      recovery: WorkflowRecoverySchema,
     })
     .strict(),
 ]);
@@ -369,6 +388,7 @@ export function readWorkflowRecord(input: unknown): SavedWorkflowRecord {
         throw new Error();
       previous = entry.sequence;
     }
+    if (record.schemaVersion !== '3' && record.reason.startsWith('checkpoint_')) throw new Error();
     if (record.schemaVersion === '1') {
       if (
         record.events.some(
@@ -377,6 +397,51 @@ export function readWorkflowRecord(input: unknown): SavedWorkflowRecord {
       )
         throw new Error();
       return record;
+    }
+    if (record.schemaVersion === '3') {
+      const recovery = record.recovery;
+      if (
+        !validWorkflowRecovery(recovery) ||
+        recovery.stateChanges.total > record.budgets.toolCalls ||
+        recovery.retries.attempted > record.budgets.toolCalls ||
+        recovery.pendingOperations > record.budgets.actions + 1 ||
+        (recovery.checkpoint === 'paused' &&
+          (recovery.reason !== 'paused' ||
+            !recovery.configurationSha256 ||
+            !recovery.initialStateSha256 ||
+            record.reason !== 'checkpoint_paused' ||
+            record.execution !== 'cancelled' ||
+            record.cleanup.status !== 'completed' ||
+            recovery.pendingOperations !== 0)) ||
+        (record.execution === 'completed' && recovery.checkpoint !== 'terminal') ||
+        recovery.stateChanges.entries.some(
+          (entry) => Number(entry.operationId.slice(5)) > record.budgets.toolCalls
+        )
+      )
+        throw new Error();
+      const changes = recovery.stateChanges.entries;
+      if (
+        new Set(changes.map((entry) => entry.operationId)).size !== changes.length ||
+        changes.some(
+          (entry, index) =>
+            entry.beforeSha256 === entry.afterSha256 ||
+            (index > 0 &&
+              Number(entry.operationId.slice(5)) <=
+                Number(changes[index - 1].operationId.slice(5))) ||
+            (!record.droppedEvents &&
+              !record.events.some(
+                (event) =>
+                  event.type === 'tool_completed' &&
+                  event.operationId === entry.operationId &&
+                  event.status === 'completed'
+              ))
+        ) ||
+        (changes.length &&
+          !recovery.stateChanges.omitted &&
+          record.artifacts.state === 'available' &&
+          changes.at(-1)?.afterSha256 !== record.artifacts.stateSha256)
+      )
+        throw new Error();
     }
     const assessment = record.outcomes;
     if (

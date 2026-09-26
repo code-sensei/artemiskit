@@ -41,6 +41,7 @@ import {
   UnsafeResponseDetector,
 } from '@artemiskit/redteam';
 import { nanoid } from 'nanoid';
+import { prepareWorkflowSession } from './workflow';
 
 import type {
   ArtemisKitConfig,
@@ -62,6 +63,7 @@ import type {
   StressResult,
   ValidateOptions,
   ValidationResult,
+  WorkflowRunOptions,
 } from './types';
 
 /**
@@ -123,6 +125,16 @@ export class ArtemisKit {
     if (config.storage) {
       this.storage = createStorageAdapter(config.storage);
     }
+  }
+
+  /** Create a cancellable native session without executing model turns or persisting results. */
+  async createWorkflowSession(options: WorkflowRunOptions) {
+    return prepareWorkflowSession(options, this.config);
+  }
+
+  /** Execute a workflow; task verification is explicitly unavailable until outcome scoring. */
+  async runWorkflow(options: WorkflowRunOptions) {
+    return (await this.createWorkflowSession(options)).run();
   }
 
   // ==========================================================================

@@ -23,6 +23,7 @@
 export type {
   // Configuration
   ArtemisKitConfig,
+  WorkflowRunOptions,
   RunOptions,
   RedTeamOptions,
   StressOptions,
@@ -274,3 +275,30 @@ export type {
 // ============================================================================
 
 export type { ScenarioBuilder, TestCaseBuilder } from './builders';
+
+export type {
+  AgentWorkflow,
+  WorkflowPolicy,
+  WorkflowJson,
+  WorkflowToolId,
+  WorkflowResource,
+  WorkflowToolDescriptor,
+  SimulatedToolEvidence,
+  SimulatedToolResult,
+  AgentTarget,
+  AgentTurnRequest,
+  AgentTurnResult,
+  AgentTargetCapabilities,
+  AgentTargetFailure,
+  AgentWorkflowExecution,
+  AgentWorkflowReason,
+  AgentWorkflowEvent,
+  AgentWorkflowRecord,
+  AgentWorkflowResult,
+  AgentWorkflowSessionOptions,
+  AgentWorkflowSession,
+  WorkflowState,
+  WorkflowEnvironment,
+  WorkflowEnvironmentFactory,
+  WorkflowEnvironmentCleanup,
+} from '@artemiskit/core';

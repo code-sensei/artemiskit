@@ -54,7 +54,11 @@ describe('agent workflow authoring', () => {
     expect(result.exit).toBe(0);
     expect(await readdir(cwd)).toEqual(['workflow.yaml']);
     const scenario = parseAgentWorkflow(await readFile(join(cwd, 'workflow.yaml'), 'utf8'));
-    expect(scenario.target).toEqual({ provider: 'ling', model: 'fixture-model' });
+    expect(scenario.target).toEqual({
+      provider: 'ling',
+      model: 'fixture-model',
+      generation: { max_tokens: 256 },
+    });
     expect(scenario.environment.policy.permissions).toEqual({ workflow_state: 'write' });
     expect(scenario.environment.policy.network).toBe('denied');
     expect(scenario.outcomes.deterministic).toEqual([
@@ -140,6 +144,8 @@ describe('agent workflow authoring', () => {
       timeout: '5000',
       maxTokens: '64',
       expectState: '',
+      readPaths: '',
+      writePaths: '  ',
       semanticRubric: '',
     });
     try {
@@ -148,6 +154,7 @@ describe('agent workflow authoring', () => {
       expect(scenario.tools).toEqual(['calculator']);
       expect(scenario.environment.policy.permissions).toEqual({});
       expect(scenario.environment.policy.budgets.max_actions).toBe(2);
+      expect(scenario.environment.policy.paths).toBeUndefined();
     } finally {
       prompt.mockRestore();
     }

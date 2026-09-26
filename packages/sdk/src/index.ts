@@ -6,7 +6,7 @@
 // Main class
 export { ArtemisKit } from './artemiskit';
 
-// Workflow authoring and single-step primitives (full workflow execution follows separately).
+// Workflow authoring, controlled native execution and tool primitives.
 export {
   AgentWorkflowSchema,
   WorkflowPolicySchema,
@@ -18,6 +18,9 @@ export {
   getWorkflowTool,
   executeSimulatedTool,
   createModelClientTarget,
+  createAgentWorkflowSession,
+  runAgentWorkflow,
+  createSimulatedWorkflowEnvironment,
 } from '@artemiskit/core';
 export type {
   AgentWorkflow,
@@ -33,12 +36,24 @@ export type {
   AgentTurnResult,
   AgentTargetCapabilities,
   AgentTargetFailure,
+  AgentWorkflowExecution,
+  AgentWorkflowReason,
+  AgentWorkflowEvent,
+  AgentWorkflowRecord,
+  AgentWorkflowResult,
+  AgentWorkflowSessionOptions,
+  AgentWorkflowSession,
+  WorkflowState,
+  WorkflowEnvironment,
+  WorkflowEnvironmentFactory,
+  WorkflowEnvironmentCleanup,
 } from '@artemiskit/core';
 
 // Types
 export type {
   // Configuration
   ArtemisKitConfig,
+  WorkflowRunOptions,
   RunOptions,
   RedTeamOptions,
   StressOptions,

@@ -194,6 +194,28 @@ function ledger(
   const boundaries = record.events.filter((event) => event.type === boundary);
   if (boundaries.length !== 1) return invalid();
   const last = boundaries[0];
+  const completed = record.execution === 'completed';
+  const starts = record.events.filter((event) => event.type === 'started');
+  const hasOperationMetadata = (event: z.infer<typeof eventSchema>) =>
+    event.operationId !== undefined ||
+    event.requestedCallIdHash !== undefined ||
+    event.tool !== undefined;
+  if (
+    last.status !== (completed ? 'completed' : 'failed') ||
+    last.phase === 'evaluation' ||
+    (completed && last.phase !== 'execution') ||
+    hasOperationMetadata(last) ||
+    (record.schemaVersion === '1' && last !== record.events.at(-1)) ||
+    starts.length > 1 ||
+    (starts.length === 1 &&
+      (starts[0].sequence !== 1 ||
+        starts[0].phase !== 'execution' ||
+        starts[0].status !== undefined ||
+        hasOperationMetadata(starts[0]))) ||
+    // Validation or cancellation can stop a native session before started is emitted.
+    (starts.length === 0 && (completed || record.budgets.actions > 0))
+  )
+    return invalid();
   if (
     record.events.some(
       (event) =>
@@ -239,6 +261,7 @@ function ledger(
         !['completed', 'denied', 'invalid', 'failed'].includes(event.status ?? '')
       )
         return invalid();
+      if (completed && event.status !== 'completed') return invalid();
       pending.delete(event.operationId);
       if (
         event.type === 'tool_completed' &&

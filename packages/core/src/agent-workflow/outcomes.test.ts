@@ -142,7 +142,11 @@ const policyAssertion = { type: 'policy', rule: 'permissions_respected', expecte
 
 describe('independent deterministic outcome verification', () => {
   test('accepts actual native session evidence without relying on fabricated success text', async () => {
-    const definition = workflow([stateAssertion, policyAssertion]);
+    const definition = workflow([
+      stateAssertion,
+      policyAssertion,
+      { ...traceAssertion, minimum_calls: 0, maximum_calls: 0 },
+    ]);
     definition.workflow.initial_state = { workflow_state: { done: true } };
     const actual = await runAgentWorkflow({
       workflow: definition,
@@ -165,7 +169,51 @@ describe('independent deterministic outcome verification', () => {
       },
     });
     expect(evaluateWorkflowDeterministicOutcomes(definition, actual).status).toBe('passed');
+    for (const mutation of ['boundary_status', 'boundary_phase', 'missing_start', 'model_failed']) {
+      const altered = structuredClone(actual);
+      const events = altered.record.events;
+      const last = events.at(-1);
+      const model = events.find((event) => event.type === 'model_completed');
+      if (!last || !model) throw new Error('Native fixture lacks terminal events');
+      if (mutation === 'boundary_status') last.status = 'failed';
+      if (mutation === 'boundary_phase') last.phase = 'preflight';
+      if (mutation === 'model_failed') model.status = 'failed';
+      if (mutation === 'missing_start') {
+        altered.record.events = events
+          .filter((event) => event.type !== 'started')
+          .map((event, index) => ({ ...event, sequence: index + 1 }));
+      }
+      const measured = evaluateWorkflowDeterministicOutcomes(definition, altered);
+      expect(measured.counts.invalid).toBe(3);
+      expect(measured.counts.valid).toBe(0);
+    }
   });
+  test.each([false, true])(
+    'native target failure or early cancellation stays unavailable (cancelled=%s)',
+    async (cancelled) => {
+      const definition = workflow([traceAssertion]);
+      const controller = new AbortController();
+      if (cancelled) controller.abort();
+      const actual = await runAgentWorkflow({
+        workflow: definition,
+        signal: controller.signal,
+        target: {
+          provider: 'custom',
+          capabilities: async () => ({
+            status: 'available',
+            toolUse: true,
+            transportCancellation: false,
+          }),
+          turn: async () => {
+            throw new Error('Local fixture failure');
+          },
+        },
+      });
+      expect(actual.record.execution).toBe(cancelled ? 'cancelled' : 'failed');
+      expect(actual.record.events.some((event) => event.type === 'started')).toBe(!cancelled);
+      expect(evaluateWorkflowDeterministicOutcomes(definition, actual).status).toBe('unavailable');
+    }
+  );
   test('dotted paths support own array indices without exposing synthetic array properties', () => {
     const definition = workflow([
       { type: 'workflow_state', path: 'rows.0.done', equals: false },
@@ -256,6 +304,7 @@ describe('independent deterministic outcome verification', () => {
     const definition = workflow([stateAssertion, traceAssertion]);
     const value = result(definition);
     value.record.execution = execution;
+    value.record.events[7].status = 'failed';
     const measured = evaluateWorkflowDeterministicOutcomes(definition, value);
     expect(measured.status).toBe('unavailable');
     expect(measured.counts.valid).toBe(0);
@@ -277,9 +326,11 @@ describe('independent deterministic outcome verification', () => {
     for (const status of ['denied', 'invalid', 'failed'] as const) {
       const value = result(definition);
       value.record.events[4].status = status;
+      value.record.execution = 'failed';
+      value.record.events[7].status = 'failed';
       if (status === 'denied') value.record.policy = 'denied';
       expect(evaluateWorkflowDeterministicOutcomes(definition, value).assertions[0].status).toBe(
-        'failed'
+        'unavailable'
       );
     }
     const preflight = result(definition);
@@ -330,6 +381,7 @@ describe('independent deterministic outcome verification', () => {
     record.purpose = 'workflow';
     const events = record.events as Record<string, unknown>[];
     events[7].type = 'execution_finished';
+    expect(evaluateWorkflowDeterministicOutcomes(definition, value).status).toBe('passed');
     events.push(
       { sequence: 9, elapsedMs: 25, type: 'evaluation_started', phase: 'evaluation' },
       {
@@ -345,11 +397,50 @@ describe('independent deterministic outcome verification', () => {
     record.purpose = 'preflight';
     expect(evaluateWorkflowDeterministicOutcomes(definition, value).status).toBe('unavailable');
   });
+  test.each(['1', '2'])(
+    'validates lifecycle structure and failure contradictions for v%s',
+    (version) => {
+      const definition = workflow([traceAssertion]);
+      for (const mutation of [
+        'start_phase',
+        'start_status',
+        'start_operation',
+        'duplicate_start',
+        'boundary_phase',
+        'boundary_status',
+        'boundary_operation',
+        'failed_tool',
+        'failed_execution',
+      ]) {
+        const value = result(definition);
+        const record = value.record as unknown as Record<string, unknown>;
+        record.schemaVersion = version;
+        const events = record.events as Record<string, unknown>[];
+        if (version === '2') events[7].type = 'execution_finished';
+        if (mutation === 'start_phase') events[0].phase = 'preflight';
+        if (mutation === 'start_status') events[0].status = 'completed';
+        if (mutation === 'start_operation') events[0].operationId = 'model-1';
+        if (mutation === 'duplicate_start') {
+          events.splice(1, 0, { ...events[0] });
+          events.forEach((event, index) => {
+            event.sequence = index + 1;
+          });
+        }
+        if (mutation === 'boundary_phase') events[7].phase = 'evaluation';
+        if (mutation === 'boundary_status') events[7].status = 'failed';
+        if (mutation === 'boundary_operation') events[7].tool = 'calculator';
+        if (mutation === 'failed_tool') events[4].status = 'failed';
+        if (mutation === 'failed_execution') record.execution = 'failed';
+        expect(evaluateWorkflowDeterministicOutcomes(definition, value).status).toBe('invalid');
+      }
+    }
+  );
   test('policy denial never passes, and failed policy remains a valid denominator member', () => {
     const definition = workflow([policyAssertion]);
     const value = result(definition);
     value.record.policy = 'denied';
     value.record.execution = 'invalid';
+    value.record.events[7].status = 'failed';
     const measured = evaluateWorkflowDeterministicOutcomes(definition, value);
     expect(measured.status).toBe('failed');
     expect(measured.counts.valid).toBe(1);
@@ -364,6 +455,7 @@ describe('independent deterministic outcome verification', () => {
     value.record.usage.missingRequests = 1;
     expect(evaluateWorkflowDeterministicOutcomes(definition, value).status).toBe('unavailable');
     value.record.execution = 'budget_exceeded';
+    value.record.events[7].status = 'failed';
     expect(evaluateWorkflowDeterministicOutcomes(definition, value).status).toBe('failed');
   });
   test('JSON-schema file/state assertions use typed subset and count mismatches as valid failures', () => {

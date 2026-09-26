@@ -12,7 +12,8 @@ import {
 } from '@artemiskit/core';
 import { OpenAIAdapter } from '../../../adapters/openai/src/client';
 import { ArtemisKit } from '../artemiskit';
-import type { WorkflowRunOptions } from '../types-only';
+import { readWorkflowRecord } from '../index';
+import type { WorkflowJudgeOptions, WorkflowRunOptions } from '../types-only';
 
 const servers: ReturnType<typeof Bun.serve>[] = [];
 afterEach(() => {
@@ -63,6 +64,152 @@ function target(): AgentTarget {
 }
 
 describe('SDK native workflow session', () => {
+  test('forwards explicit independent semantic judging with separate coverage, usage and record reading', async () => {
+    for (const verdict of ['pass', 'fail', 'malformed', 'unconfigured']) {
+      const scenario = workflow();
+      scenario.outcomes.deterministic = [{ type: 'file', path: 'result.txt', exists: false }];
+      scenario.outcomes.semantic = [
+        { type: 'llm_judge', mode: 'strict_assurance', rubric: 'PRIVATE-RUBRIC' },
+      ];
+      let calls = 0;
+      let closed = 0;
+      const semanticJudge: WorkflowJudgeOptions = {
+        provider: 'independent-judge',
+        model: 'judge-model',
+        limits: { maxRequests: 1, maxTokens: 100, maxOutputTokens: 10, timeoutMs: 1000 },
+        client: {
+          provider: 'independent-judge',
+          capabilities: async () => ({
+            streaming: false,
+            functionCalling: false,
+            toolUse: false,
+            maxContext: 10000,
+          }),
+          generate: async (request) => {
+            calls++;
+            expect(request.model).toBe('judge-model');
+            expect(request.maxRetries).toBe(0);
+            return {
+              id: 'judge',
+              model: 'observed-judge',
+              text: verdict === 'malformed' ? 'PRIVATE-BAD-RESPONSE' : JSON.stringify({ verdict }),
+              tokens: { prompt: 5, completion: 2, total: 7 },
+              latencyMs: 1,
+            };
+          },
+          close: async () => {
+            closed++;
+          },
+        },
+      };
+      const result = await new ArtemisKit().runWorkflow({
+        workflow: scenario,
+        target: target(),
+        ...(verdict === 'unconfigured' ? {} : { semanticJudge }),
+      });
+      expect(result.record.execution).toBe('completed');
+      expect(result.record.taskVerification).toBe(
+        verdict === 'pass'
+          ? 'passed'
+          : verdict === 'fail'
+            ? 'failed'
+            : verdict === 'malformed'
+              ? 'invalid'
+              : 'unavailable'
+      );
+      expect(result.record.usage.reported.total).toBe(3);
+      expect(result.record.outcomes.deterministic.counts.valid).toBe(1);
+      expect(result.record.outcomes.semantic.usage.reported.total).toBe(
+        verdict === 'unconfigured' ? 0 : 7
+      );
+      expect(calls).toBe(verdict === 'unconfigured' ? 0 : 1);
+      expect(closed).toBe(0);
+      expect(readWorkflowRecord(JSON.parse(JSON.stringify(result.record)))).toEqual(result.record);
+      expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
+    }
+  });
+  test('malformed explicit judge bounds stop before any target model call', async () => {
+    const scenario = workflow();
+    let turns = 0;
+    const custom = target();
+    custom.turn = async () => {
+      turns++;
+      throw new Error('must not call');
+    };
+    const result = await new ArtemisKit().runWorkflow({
+      workflow: scenario,
+      target: custom,
+      semanticJudge: {
+        provider: 'judge',
+        model: 'judge',
+        limits: { maxRequests: 0, maxTokens: 100, maxOutputTokens: 10, timeoutMs: 1000 },
+        client: {
+          provider: 'judge',
+          capabilities: async () => {
+            throw new Error('must not call');
+          },
+          generate: async () => {
+            throw new Error('must not call');
+          },
+        },
+      },
+    });
+    expect(turns).toBe(0);
+    expect(result.record.execution).toBe('invalid');
+  });
+  test('deterministic failure gates judge calls and session cancellation reaches the independent evaluator', async () => {
+    let started!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let calls = 0;
+    const semanticJudge: WorkflowJudgeOptions = {
+      provider: 'judge',
+      model: 'judge',
+      limits: { maxRequests: 1, maxTokens: 100, maxOutputTokens: 10, timeoutMs: 1000 },
+      client: {
+        provider: 'judge',
+        capabilities: async () => ({
+          streaming: false,
+          functionCalling: false,
+          toolUse: false,
+          maxContext: 10000,
+        }),
+        generate: async (request) => {
+          calls++;
+          started();
+          await new Promise<void>((resolve) =>
+            request.signal?.addEventListener('abort', () => resolve(), { once: true })
+          );
+          throw new Error('PRIVATE-ABORT');
+        },
+      },
+    };
+    const scenario = workflow();
+    scenario.outcomes.semantic = [
+      { type: 'llm_judge', mode: 'strict_assurance', rubric: 'PRIVATE-RUBRIC' },
+    ];
+    const kit = new ArtemisKit();
+    const failed = await kit.runWorkflow({ workflow: scenario, target: target(), semanticJudge });
+    expect(failed.record.taskVerification).toBe('failed');
+    expect(calls).toBe(0);
+    scenario.outcomes.deterministic = [{ type: 'file', path: 'result.txt', exists: false }];
+    const session = await kit.createWorkflowSession({
+      workflow: scenario,
+      target: target(),
+      semanticJudge,
+    });
+    const finished = session.run();
+    await pending;
+    session.cancel();
+    const result = await finished;
+    expect(result.record.execution).toBe('completed');
+    expect(result.record.outcomes.cancelled).toBe(true);
+    expect(result.record.outcomes.reason).toBe('cancelled');
+    expect(result.record.outcomes.semantic.counts.valid).toBe(0);
+    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+  });
+
   test('configured adapter uses workflow identity and zero retries with real loopback multi-turn execution', async () => {
     const bodies: Record<string, unknown>[] = [];
     const server = Bun.serve({
@@ -154,7 +301,7 @@ describe('SDK native workflow session', () => {
     const { result, events } = JSON.parse(stdout);
     expect(bodies[0].model).toBe('workflow-authoritative');
     expect(result.record.execution).toBe('completed');
-    expect(result.record.taskVerification).toBe('unavailable');
+    expect(result.record.taskVerification).toBe('passed');
     expect(result.record.budgets).toMatchObject({ modelRequests: 2, toolCalls: 1 });
     expect(result.state?.files).toEqual({ 'result.txt': 'PRIVATE-STATE' });
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');

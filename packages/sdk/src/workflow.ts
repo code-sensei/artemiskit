@@ -46,6 +46,7 @@ export async function prepareWorkflowSession(
     preflightOnly: options.preflightOnly,
     signal: options.signal,
     cleanupTimeoutMs: options.cleanupTimeoutMs,
+    semanticJudge: options.semanticJudge,
     onEvent: options.onEvent,
   });
 }

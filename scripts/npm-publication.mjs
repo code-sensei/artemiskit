@@ -87,6 +87,33 @@ function lifecycle(status, pkg) {
     throw new Error(`Publication ${status}: ${pkg.name}@${pkg.version}; no resubmission`);
 }
 
+function dependencyOrder(items) {
+  const byName = new Map(items.map((item) => [item.pkg.name, item]));
+  const visiting = new Set();
+  const ordered = [];
+  const complete = new Set();
+  function visit(name) {
+    if (complete.has(name)) return;
+    if (visiting.has(name)) throw new Error(`Publication dependency cycle: ${name}`);
+    visiting.add(name);
+    const item = byName.get(name);
+    // Runtime and optional dependencies must already be publicly installable.
+    // Peer/dev declarations do not impose an install order and can be reciprocal.
+    const dependencies = new Set([
+      ...Object.keys(item.pkg.dependencies ?? {}),
+      ...Object.keys(item.pkg.optionalDependencies ?? {}),
+    ]);
+    for (const dependency of [...dependencies].sort()) {
+      if (byName.has(dependency)) visit(dependency);
+    }
+    visiting.delete(name);
+    complete.add(name);
+    ordered.push(item);
+  }
+  for (const name of [...byName.keys()].sort()) visit(name);
+  return ordered;
+}
+
 export async function publishPackages(
   { packages, candidate, manifest, dryRun = false, timeoutMs = 600_000 },
   io
@@ -99,7 +126,7 @@ export async function publishPackages(
   }
   if (new Set(packages.map((pkg) => pkg.name)).size !== packages.length)
     throw new Error('Duplicate publication package');
-  const selected = [];
+  const candidates = [];
   for (const pkg of packages) {
     const metadata = normalizePackument(await io.registry(pkg.name));
     const receipt = await io.load(pkg);
@@ -113,8 +140,9 @@ export async function publishPackages(
       throw new Error(
         `Retained publication belongs to another candidate: ${pkg.name}@${pkg.version}`
       );
-    selected.push({ pkg, receipt });
+    candidates.push({ pkg, receipt });
   }
+  const selected = dependencyOrder(candidates);
   if (manifest && selected.length !== manifest.packages.length)
     throw new Error('Publication candidate does not cover the milestone manifest');
   const tags = selected.map(({ pkg }) => `${pkg.name}@${pkg.version}`);

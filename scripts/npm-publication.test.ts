@@ -454,3 +454,76 @@ test('actual Bun tarballs preserve source bytes and resolve workspace dependenci
     packCandidate(localSDK, [localCore, localSDK], archive, { integrity: 'wrong' })
   ).rejects.toThrow('integrity mismatch');
 });
+
+test('dependency-first order is deterministic and waits for each dependency publication', async () => {
+  const adapter = {
+    name: '@artemiskit/adapter-openai',
+    version: '0.1.21',
+    dependencies: { [core.name]: 'workspace:*' },
+  };
+  const library = {
+    ...sdk,
+    dependencies: { [core.name]: 'workspace:*' },
+    optionalDependencies: { [adapter.name]: 'workspace:*' },
+  };
+  const cli = {
+    name: '@artemiskit/cli',
+    version: '0.5.1',
+    dependencies: { [library.name]: 'workspace:*' },
+  };
+  for (const packages of [
+    [cli, library, adapter, core],
+    [adapter, core, cli, library],
+  ]) {
+    const f = fixture(packages);
+    f.io.publish = async (pkg) => {
+      for (const name of Object.keys({ ...pkg.dependencies, ...pkg.optionalDependencies })) {
+        expect(f.receipts.get(name)?.state).toBe('published');
+      }
+      f.uploads.push(pkg.name);
+      f.lifecycle.set(pkg.name, 'validating');
+    };
+    const sleep = f.io.sleep;
+    f.io.sleep = async (ms) => {
+      await sleep(ms);
+      const pkg = packages.find((entry) => entry.name === f.uploads.at(-1));
+      f.metadata.set(pkg.name, published(pkg));
+    };
+    await publishPackages({ packages, candidate }, f.io);
+    expect(f.uploads).toEqual([core.name, adapter.name, library.name, cli.name]);
+  }
+});
+
+test('internal runtime or optional dependency cycles fail before packing, receipts or upload', async () => {
+  for (const group of ['dependencies', 'optionalDependencies']) {
+    const packages = [
+      { ...core, dependencies: { [sdk.name]: 'workspace:*' } },
+      { ...sdk, [group]: { [core.name]: 'workspace:*' } },
+    ];
+    const f = fixture(packages);
+    f.io.pack = async () => {
+      throw new Error('must not pack a cyclic candidate');
+    };
+    await expect(publishPackages({ packages, candidate }, f.io)).rejects.toThrow(
+      'dependency cycle'
+    );
+    expect(f.receipts.size).toBe(0);
+    expect(f.uploads).toHaveLength(0);
+    expect(f.tags).toHaveLength(0);
+  }
+});
+
+test('unchanged dependencies and reciprocal peer declarations do not introduce false cycles', async () => {
+  const packages = [
+    {
+      ...sdk,
+      dependencies: { [core.name]: 'workspace:*' },
+      peerDependencies: { [core.name]: '*' },
+    },
+    { ...core, peerDependencies: { [sdk.name]: '*' } },
+  ];
+  const f = fixture(packages);
+  f.metadata.set(core.name, published(core));
+  await publishPackages({ packages, candidate }, f.io);
+  expect(f.uploads).toEqual([sdk.name]);
+});

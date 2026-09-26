@@ -223,16 +223,17 @@ turn these findings into milestone acceptance criteria:
 | Advertised tool support did not produce structured calls | 0.6.1 adds explicit bounded preflight and truthful usage; offline validation stays offline and prose never becomes an implicit executable call. |
 | Evidence does not establish a speed, cost or quality winner | 0.6.4 reports coverage/validity/usage limitations; 0.7.x owns qualified comparative orchestration. Optional integrations make deployed systems assessable, not intrinsically better. |
 
-0.6.0 must first pass fresh-package and advertised runtime/TypeScript consumer verification and
-be published. Every following milestone includes the complete relevant CLI, SDK and evidence path
+0.6.0 passed fresh-package and advertised runtime/TypeScript consumer verification and was
+published on 26 September 2026. Every following milestone includes the complete relevant CLI, SDK and evidence path
 and receives its own verified npm package release map and sequential milestone tag. This section
 records implementation decisions; it does not alter the experiment's retained results or expand
 what those results demonstrate.
 
 ## Use what exists today
 
-The following is available in the **built, unreleased checkout**. The published packages do not yet
-include these 0.6.0 additions. Use the source CLI as shown, or `akit` after linking this checkout:
+The following is available in the **published 0.6.0 milestone** (`@artemiskit/cli@0.5.0` and
+`@artemiskit/sdk@0.5.0`). Use the source CLI as shown, or replace its prefix with `akit` after installing
+the CLI with Bun. The research SDK example remains in this repository:
 
 ```sh
 bun packages/cli/bin/artemis.ts tools describe request_approval

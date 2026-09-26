@@ -1,10 +1,13 @@
 # Agent-workflow design guide
 
-> **Status: 0.6.0 contract implemented in source; not yet published.** Version 1 workflow validation,
+> **Status: 0.6.0 contract published on 26 September 2026.** Version 1 workflow validation,
 > 12 simulated tool primitives, a provider-neutral single-turn target, and CLI authoring are available.
 > Full workflow execution, cumulative budget enforcement, scoring, sandbox/external environments,
 > fault injection, and workflow reports remain later 0.6.x milestones. Existing real-agent examples remain documented in
 > [agent evaluation](../examples/agent-evaluation/README.md).
+
+The release maps to `@artemiskit/core@0.6.0` and `@artemiskit/cli@0.5.0` /
+`@artemiskit/sdk@0.5.0`; see the [complete package map and validation](releases/0.6.0.md).
 
 The [0.6.x release plan](releases/0.6.x-release-plan.md) defines complete milestone acceptance and
 sequential npm/tag publication. Package versions remain independent of milestone labels. The

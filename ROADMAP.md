@@ -65,8 +65,8 @@ For 0.6.x, publish and verify each completed milestone in order: **0.6.0 → 0.6
 versions to the milestone's `v0.6.x` Git tag. Do not skip a milestone, relabel unimplemented work,
 or mark a release complete before npm installation and remote tag verification pass. See the
 [0.6.x release and acceptance plan](docs/releases/0.6.x-release-plan.md).
-The [0.6.0 candidate record](docs/releases/0.6.0.md) records package versions, local validation and
-the outstanding npm authentication/publication gate.
+The [0.6.0 release record](docs/releases/0.6.0.md) records the published package versions,
+local and npm-installed validation, and matching remote tags.
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
@@ -149,7 +149,7 @@ increments can be re-ordered when evidence from real assessment work identifies 
 
 #### 0.6.0 — Provider-neutral agent workflow and tool contract
 
-**Implemented in source; not yet published.** Includes strict version 1 schema validation, 12
+**Published 26 September 2026.** Includes strict version 1 schema validation, 12
 simulated tool primitives, a provider-neutral single-turn target proven with OpenAI and Ling
 adapters, and guided/non-interactive CLI authoring. See [the contract guide](docs/agent-workflow.md).
 Full workflow execution, cumulative budgets, scoring, and reports remain in the later increments below.
@@ -466,7 +466,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Partial — 0.6.0 contract implemented in source, unpublished; execution and reporting planned
+**Status:** Partial — 0.6.0 contract published; execution and reporting planned
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -493,7 +493,7 @@ or a certification.
 | Versioned `agent_workflow` scenarios and a small general-purpose tool catalog | ✅ 0.6.0 source |
 | Guided CLI generator and non-interactive validation produce readable, reviewable YAML | ✅ 0.6.0 source |
 | Scenario contract declares tools, permissions, schemas, time/step/token budgets, and side-effect boundaries | ✅ 0.6.0 source; cumulative enforcement follows |
-| Clean packed/npm consumer checks, declared Node/Bun imports and TypeScript declarations | 📋 0.6.0 publication gate |
+| Clean packed/npm consumer checks, declared Node/Bun imports and TypeScript declarations | ✅ 0.6.0; Node 24.18 and Bun 1.3.10 |
 | Native multi-turn execution and shared CLI/SDK session/event contract | 📋 0.6.1 |
 | Simulated and sandbox environments use the same policy vocabulary and authority model | 📋 0.6.1 |
 | Undeclared tool authority fails closed | ✅ Simulated primitives; full environment enforcement follows |

@@ -9,7 +9,7 @@ Welcome to the ArtemisKit documentation. This guide covers configuration, storag
 | [Providers](./providers/README.md) | LLM provider adapters (OpenAI, Azure, Anthropic, Vercel AI) |
 | [Storage](./storage/README.md) | Storage backends for evaluation results |
 | [Assurance improvements](./v0.4-assurance-improvements.md) | Post-v0.4 technical plan for trustworthy scenario-based assessments |
-| [Agent-workflow design](./agent-workflow.md) | Implemented, unpublished 0.6.0 contract and scoped execution/scoring/recovery/report increments |
+| [Agent-workflow design](./agent-workflow.md) | Published 0.6.0 contract and scoped execution/scoring/recovery/report increments |
 | [0.6.x release plan](./releases/0.6.x-release-plan.md) | Complete milestone acceptance, independent package versions and sequential npm/tag publication |
 | [Harness experiment](./agent-harness-experiment.md) | Reproducible native/AI SDK/Pi/fx findings and approved integration priorities |
 

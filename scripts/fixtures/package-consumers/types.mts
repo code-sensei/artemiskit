@@ -29,8 +29,12 @@ import type {
   DockerWorkflowEnvironmentOptions,
   RunResult,
   SavedWorkflowRecord,
+  WorkflowCheckpointOptions,
+  WorkflowFault,
   WorkflowJudgeOptions,
   WorkflowOutcomeAssessment,
+  WorkflowRecoveryEvidence,
+  WorkflowRetry,
   WorkflowRunOptions,
 } from '@artemiskit/sdk/types';
 import { assertDefined } from '@artemiskit/sdk/utils';
@@ -57,7 +61,7 @@ const options: WorkflowRunOptions = {
 };
 const saved: SavedWorkflowRecord = readWorkflowRecord('{}');
 const outcomes: WorkflowOutcomeAssessment | undefined =
-  saved.schemaVersion === '2' ? saved.outcomes : undefined;
+  saved.schemaVersion !== '1' ? saved.outcomes : undefined;
 if (saved.schemaVersion === '1') {
   const unscored: 'unavailable' = saved.taskVerification;
   void unscored;
@@ -110,3 +114,35 @@ void [
   LingAdapter,
   generateHTMLReport,
 ];
+
+const checkpoint: WorkflowCheckpointOptions = {
+  directory: '.private-run',
+  mode: 'resume',
+  configurationId: 'approved-transport-v1',
+};
+const resumedOptions: WorkflowRunOptions = { workflow, target, checkpoint, pauseAfterActions: 2 };
+const resumable = createAgentWorkflowSession(
+  resumedOptions as WorkflowRunOptions & { workflow: AgentWorkflow; target: AgentTarget }
+);
+resumable.pause();
+const recovery: WorkflowRecoveryEvidence | undefined = record.recovery;
+const fault: WorkflowFault = {
+  id: 'first-tool',
+  tool: 'read_file',
+  occurrence: 1,
+  kind: 'unavailable_tool',
+};
+const retry: WorkflowRetry = { max_attempts: 2 };
+// @ts-expect-error checkpoints require an explicit host configuration identity
+const incompleteCheckpoint: WorkflowCheckpointOptions = {
+  directory: '.private-run',
+  mode: 'resume',
+};
+const invalidFault: WorkflowFault = {
+  id: 'bad',
+  tool: 'read_file',
+  occurrence: 1,
+  // @ts-expect-error fault kinds are a closed union
+  kind: 'live-network',
+};
+void [checkpoint, resumedOptions, recovery, fault, retry, incompleteCheckpoint, invalidFault];

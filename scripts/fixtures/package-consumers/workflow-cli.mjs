@@ -49,6 +49,17 @@ const server = createServer(async (request, response) => {
           },
         },
       ];
+  } else if (body.model === 'consumer-recovery') {
+    if (!continued)
+      calls = ['one', 'two'].map((name) => ({
+        id: `recovery-${name}`,
+        type: 'function',
+        function: {
+          name: 'write_file',
+          arguments: JSON.stringify({ path: `${name}.txt`, content: secretFixture }),
+        },
+      }));
+    else assert.equal(body.messages.filter((message) => message.role === 'tool').length, 2);
   } else if (!continued) {
     const sandbox = body.model === 'consumer-sandbox';
     calls = [
@@ -225,7 +236,97 @@ async function check(name, expected, mutate = () => {}, mode = 'run', judgeModel
   assert.equal(record.cleanup.status, 'completed', name);
   return record;
 }
+async function checkRecovery(environment) {
+  const workflow = structuredClone(base);
+  workflow.target.model = 'consumer-recovery';
+  workflow.environment.type = environment;
+  workflow.environment.policy.permissions = { files: 'write' };
+  workflow.environment.policy.paths = {
+    read: ['one.txt', 'two.txt'],
+    write: ['one.txt', 'two.txt'],
+  };
+  workflow.environment.policy.budgets = {
+    max_actions: 5,
+    max_model_requests: 2,
+    max_tool_calls: 3,
+    max_tokens: 30,
+    timeout_ms: 120000,
+  };
+  workflow.tools = ['write_file'];
+  workflow.faults = [
+    { id: 'first-write-unavailable', tool: 'write_file', occurrence: 1, kind: 'unavailable_tool' },
+  ];
+  workflow.retry = { max_attempts: 2 };
+  workflow.workflow.initial_state = { files: {} };
+  workflow.outcomes.deterministic = ['one', 'two'].map((name) => ({
+    type: 'file',
+    path: `${name}.txt`,
+    exists: true,
+    equals: secretFixture,
+  }));
+  const prefix = `recovery-${environment}`;
+  writeFileSync(`${prefix}.json`, JSON.stringify(workflow));
+  const invoke = async (mode, suffix, extra = []) => {
+    const output = `${prefix}-${suffix}.json`;
+    const result = await run([
+      'workflow',
+      mode,
+      `${prefix}.json`,
+      '--config',
+      'consumer-config.json',
+      '--checkpoint-dir',
+      `${prefix}-private`,
+      '--output',
+      output,
+      '--json',
+      '--cleanup-timeout',
+      '10000',
+      ...extra,
+    ]);
+    const record = readWorkflowRecord(readFileSync(output, 'utf8'));
+    assert.deepEqual(JSON.parse(result.stdout), record);
+    assert.ok(!`${result.stdout}${result.stderr}`.includes(secretFixture));
+    return { ...result, record };
+  };
+  const before = requests.length;
+  const paused = await invoke('run', 'paused', ['--pause-after-actions', '3']);
+  assert.equal(paused.code, 10, paused.stderr);
+  assert.equal(paused.record.reason, 'checkpoint_paused');
+  assert.equal(paused.record.budgets.actions, 3);
+  assert.equal(statSync(`${prefix}-private`).mode & 0o777, 0o700);
+  assert.equal(statSync(`${prefix}-private/checkpoint.json`).mode & 0o777, 0o600);
+  const originalConfig = readFileSync('consumer-config.json', 'utf8');
+  const incompatibleConfig = JSON.parse(originalConfig);
+  incompatibleConfig.providers.openai.apiKey = 'different-offline-fixture';
+  writeFileSync('consumer-config.json', JSON.stringify(incompatibleConfig));
+  try {
+    const refused = await invoke('resume', 'incompatible');
+    assert.notEqual(refused.code, 0);
+    assert.equal(requests.length - before, 1);
+  } finally {
+    writeFileSync('consumer-config.json', originalConfig);
+  }
+  const resumed = await invoke('resume', 'resumed');
+  assert.equal(resumed.code, 0, `${resumed.stdout}\n${resumed.stderr}`);
+  assert.equal(resumed.record.taskVerification, 'passed');
+  assert.equal(resumed.record.budgets.actions, 5);
+  assert.equal(resumed.record.budgets.modelRequests, 2);
+  assert.equal(resumed.record.budgets.toolCalls, 3);
+  assert.equal(resumed.record.usage.reported.total, 30);
+  assert.equal(resumed.record.recovery.faults.injected, 1);
+  assert.equal(resumed.record.recovery.retries.recovered, 1);
+  assert.equal(resumed.record.recovery.runId, paused.record.recovery.runId);
+  assert.notEqual(resumed.record.recovery.attemptId, paused.record.recovery.attemptId);
+  assert.equal(resumed.record.recovery.attempts, 2);
+  assert.equal(resumed.record.events.filter((event) => event.type === 'started').length, 1);
+  assert.equal(resumed.record.events.filter((event) => event.type === 'finished').length, 1);
+  assert.equal(resumed.record.cleanup.status, 'completed');
+  assert.notEqual((await invoke('resume', 'terminal')).code, 0);
+  assert.equal(requests.length - before, 2);
+}
 try {
+  await checkRecovery('simulated');
+  if (process.argv.includes('--docker')) await checkRecovery('sandbox');
   const success = await check('success', 0);
   assert.equal(success.execution, 'completed');
   assert.equal(success.usage.reported.total, 30);
@@ -352,5 +453,5 @@ try {
   });
 }
 console.log(
-  `PASS: installed workflow CLI execution, privacy, exits, preflight, cancellation${process.argv.includes('--docker') ? ', real Docker file artifact and cleanup' : ''}`
+  `PASS: installed workflow CLI execution, private separate-process recovery, privacy, exits, preflight, cancellation${process.argv.includes('--docker') ? ', real Docker file artifact and cleanup' : ''}`
 );

@@ -123,7 +123,7 @@ for (const { manifest } of packages) {
     );
   }
 }
-for (const file of ['runtime.mjs', 'types.mts', 'workflow-cli.mjs']) {
+for (const file of ['runtime.mjs', 'types.mts', 'workflow-cli.mjs', 'workflow-recovery.mjs']) {
   copyFileSync(join(fixtures, file), join(directory, file));
 }
 copyFileSync(
@@ -159,6 +159,11 @@ console.log('PASS: installed CLI version, tools, scaffold and validation');
 for (const runtime of ['node', 'bun']) {
   console.log(
     `${runtime}: ${run(runtime, ['runtime.mjs', ...(docker ? ['--docker'] : [])], directory, 60_000)}`
+  );
+}
+for (const runtime of ['node', 'bun']) {
+  console.log(
+    `${runtime}: ${run(runtime, ['workflow-recovery.mjs', ...(docker ? ['--docker'] : [])], directory, 180_000)}`
   );
 }
 console.log(run('node', ['workflow-cli.mjs', ...(docker ? ['--docker'] : [])], directory, 120_000));
@@ -201,7 +206,9 @@ const report = {
     'native-workflow-sessions',
     'deterministic-outcomes-and-json-schema',
     'explicit-semantic-judge-and-separate-usage',
-    'saved-v1-v2-compatibility',
+    'saved-v1-v2-v3-compatibility',
+    'separate-process-sdk-checkpoint-resume-node-bun',
+    'checkpoint-identity-budgets-cursor-terminal-refusal-privacy',
     'task-outcome-cli-exits-and-judge-cancellation',
     'bun-cli',
     'workflow-cli-execution-preflight-interruption',

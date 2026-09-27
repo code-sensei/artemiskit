@@ -1,6 +1,6 @@
 # Controlled workflow execution
 
-This guide covers controlled execution introduced in 0.6.1 and task-aware exits in 0.6.2. Publication status and exact package versions
+This guide covers controlled execution introduced in 0.6.1, task-aware exits in 0.6.2 and explicit checkpoint pause/resume in 0.6.3. Publication status and exact package versions
 are recorded in [the release plan](releases/0.6.x-release-plan.md). The
 [workflow design guide](agent-workflow.md) explains the YAML contract and longer-term roadmap.
 
@@ -113,7 +113,7 @@ Interrupted evidence is not a resumable checkpoint.
 | --- | --- |
 | `0` | Verified task pass; or a successful capability-only preflight |
 | `1` | File, configuration, output preparation, or persistence error |
-| `2` | Invalid workflow, options, fixture, or target response |
+| `2` | Invalid workflow, options, fixture, target response or refused checkpoint |
 | `3` | Unsupported target or environment |
 | `4` | Policy denial |
 | `5` | Budget exhausted |
@@ -121,6 +121,7 @@ Interrupted evidence is not a resumable checkpoint.
 | `7` | Runtime failure, unavailable/partial measurement, or unresolved cleanup |
 | `8` | Valid task failure (0.6.2) |
 | `9` | Invalid or unavailable outcome evaluation (0.6.2) |
+| `10` | Confirmed safe checkpoint pause; task verification remains unavailable (0.6.3) |
 | `130` | Cancelled execution or evaluation |
 
 Use `akit workflow run --help` for supported controls. `akit run` continues to execute historical
@@ -204,4 +205,5 @@ policy for the data being evaluated.
 
 Historical prompt-response manifests and reports retain their existing contract. Workflow records
 have their own schema and must not be passed to legacy report generators as if they were scored
-scenario results. Durable restart is 0.6.3; professional workflow reports are 0.6.4.
+scenario results. The [0.6.3 recovery guide](workflow-recovery.md) covers declared faults, bounded
+retries and explicit private checkpoint/resume. Professional workflow reports remain 0.6.4.

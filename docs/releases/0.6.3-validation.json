@@ -1,0 +1,183 @@
+{
+  "source": "local-tarballs",
+  "completedAt": "2026-09-27T01:21:32.750Z",
+  "repositoryRevision": "634c837a95914731fa4629c342883c34a3cee9cb",
+  "runtimes": {
+    "node": "v24.18.0",
+    "bun": "1.3.10"
+  },
+  "packages": {
+    "@artemiskit/adapter-anthropic": "0.1.23",
+    "@artemiskit/adapter-deepagents": "0.2.12",
+    "@artemiskit/adapter-langchain": "0.2.12",
+    "@artemiskit/adapter-ling": "0.1.11",
+    "@artemiskit/adapter-openai": "0.1.23",
+    "@artemiskit/adapter-trueforge": "0.1.11",
+    "@artemiskit/adapter-vercel-ai": "0.1.23",
+    "@artemiskit/cli": "0.6.2",
+    "@artemiskit/core": "0.6.3",
+    "@artemiskit/mcp-docker-sandbox": "0.1.0",
+    "@artemiskit/redteam": "0.3.11",
+    "@artemiskit/reports": "0.4.10",
+    "@artemiskit/sdk": "0.6.2"
+  },
+  "checks": [
+    "node-imports",
+    "bun-imports",
+    "workflow-schema",
+    "approval-permissions",
+    "openai-tool-continuation",
+    "ling-tool-continuation",
+    "native-workflow-sessions",
+    "deterministic-outcomes-and-json-schema",
+    "explicit-semantic-judge-and-separate-usage",
+    "saved-v1-v2-v3-compatibility",
+    "separate-process-sdk-checkpoint-resume-node-bun",
+    "checkpoint-identity-budgets-cursor-terminal-refusal-privacy",
+    "task-outcome-cli-exits-and-judge-cancellation",
+    "bun-cli",
+    "workflow-cli-execution-preflight-interruption",
+    "real-docker-node-bun-sdk-and-cli",
+    "typescript-nodenext",
+    "typescript-bundler",
+    "declaration-finalizer"
+  ],
+  "limitations": [
+    "No external model calls; other providers import-only.",
+    "CLI/MCP retain Bun runtime.",
+    "Docker requires the fixed local image and a trusted local daemon.",
+    "TypeScript uses skipLibCheck for third-party declarations."
+  ],
+  "qualifiedPackageRevision": "cda0126346f860aa8f34aa0eb9b52a232f27aa16",
+  "revisionNote": "The consumer ran with version/fixture edits in the working tree at repositoryRevision; those exact changes are committed in qualifiedPackageRevision. All 13 repacked archives match the tested SHA512 bytes. Subsequent release documentation does not change package payloads.",
+  "archiveInspection": {
+    "archives": [
+      {
+        "archive": "-artemiskit-adapter-anthropic-0.1.23.tgz",
+        "files": 8,
+        "bytes": 134757,
+        "sha512": "956c43936b4eca8bdbff727eccb695e654cdb421018eece801b6805990e23d4e110baf1a8ad86cc9d9da71696b00ba8627af1e88622ecf7e6120583520a82c76",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-deepagents-0.2.12.tgz",
+        "files": 15,
+        "bytes": 16455,
+        "sha512": "40d6157db539bd4a50aa421e9a71f9e44bfcad02446569d59c0f0703798c69f490fca3c410df6ce3bc4ca424ee1bea1fe362baad743d275b0707c450b1c4e230",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-langchain-0.2.12.tgz",
+        "files": 15,
+        "bytes": 11610,
+        "sha512": "5547465b94327a491f62805e26aade71acf222ffa1013b5e97ffdd939e29eeb11202bbee66f71ba864acb4788f5bd91871d20c65f1c24d864da5d1ccf471fa5a",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-ling-0.1.11.tgz",
+        "files": 12,
+        "bytes": 152498,
+        "sha512": "56ac93a9947d0abb67424178fe6f4015ef40c1e34c1789d0e2aacf460c3266313f044611f3a813818a565bd8ca7e36b19c75f8be0b7c60587d5ed371692361d2",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-openai-0.1.23.tgz",
+        "files": 15,
+        "bytes": 160751,
+        "sha512": "2be030c1240747528d0b5bc4510d1e46446b71f9c05d824b262f6cd5db33fe826d81d7c8d9a4891790379b6028c84b802633682d1c9d112dd70915d9b7655afd",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-trueforge-0.1.11.tgz",
+        "files": 18,
+        "bytes": 53589,
+        "sha512": "68d54deb231d188f146ea40489d3cd838225f1ef6568f6346a75c8efaa8bce46f4070917d2e317a9f6dec188cf4630d54eb915bf0d5673f4381d57e269217238",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-vercel-ai-0.1.23.tgz",
+        "files": 14,
+        "bytes": 236955,
+        "sha512": "c8e421ca8df513f82f3e75d344bb0d949e5e6643236851db38efaf7ab65703748ec2f3355cc85aec8245dc56bf5c2961eda8a056f51d1d1946b3b3ba7f7e435a",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-cli-0.6.2.tgz",
+        "files": 125,
+        "bytes": 1010462,
+        "sha512": "c7c28253b94cb83e401da8b5265331eefba25f9436a2b9331550bad0edc5378cc4367882a6dd3293078ed05add179739e8b606104c62db4f2196e54d4cacd58b",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-core-0.6.3.tgz",
+        "files": 302,
+        "bytes": 575632,
+        "sha512": "01866f29d33cf19278f8adfc6e1f46fa91811947e2da2c1b6b77d211cf9c2c0fdce1198c8d173dd067f21d874ec1d9057312343d5ebc78f6cd72384f9ea54072",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-mcp-docker-sandbox-0.1.0.tgz",
+        "files": 23,
+        "bytes": 216570,
+        "sha512": "36bf71ee0d532349862ec5f8cabe7e5fc764bd7baa9429aa9ba0755d9abbed6ecbf2c32c877eb0cfe52c3765d8078b74b42ddbcee42e69df3670d70a7006a915",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-redteam-0.3.11.tgz",
+        "files": 95,
+        "bytes": 201710,
+        "sha512": "e676d28b81d4ff2076510c5853bebf1ec485b07cfaab92f942c1300dc2dcd3d2409a8aaf17d4bd77cef95b6bb228bc74bc42c1b43478d43606cdea0d8fe3153c",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-reports-0.4.10.tgz",
+        "files": 30,
+        "bytes": 90818,
+        "sha512": "89c9911f04187b7afe87ddbabbb7b058ed076f0ec04f8e292839d6ac6fd2d85c5c31b76b6fd05f763636e12071de4500bf61a6557fa4c1901b9557c00e96d613",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-sdk-0.6.2.tgz",
+        "files": 91,
+        "bytes": 236150,
+        "sha512": "3a67744e2f3d400d9197b30a52f413f0a937f6fa7b8d3bd03609666ae411b8ad47fe8e44c88ebeda3a0162dd574003c5dfed7c873ad502027421ff37c587c870",
+        "entryMtimes": [499162500]
+      }
+    ],
+    "checks": [
+      "package-relative paths",
+      "no links or traversal",
+      "no .env/.git/node_modules paths",
+      "SHA512 recorded",
+      "all 13 committed-source repacks match tested archives"
+    ]
+  },
+  "integratedValidation": {
+    "install": "bun install --frozen-lockfile --ignore-scripts: passed",
+    "tests": {
+      "command": "bun test",
+      "passed": 1683,
+      "failed": 0,
+      "assertions": 5768,
+      "files": 103
+    },
+    "build": {
+      "command": "bun run build",
+      "packagesPassed": 13
+    },
+    "typecheck": {
+      "command": "bun run typecheck",
+      "packagesPassed": 13
+    },
+    "lint": {
+      "command": "bun run lint",
+      "errors": 0,
+      "warnings": 30,
+      "baselineWarnings": 30
+    },
+    "consumerCommand": "node scripts/verify-package-consumers.mjs --docker",
+    "dockerServer": "29.7.2",
+    "localManifest": "bun scripts/verify-release.mjs local docs/releases/0.6.3.json: passed",
+    "publication": "blocked by missing 0.6.2 remote milestone/package tags; no uploads attempted"
+  }
+}

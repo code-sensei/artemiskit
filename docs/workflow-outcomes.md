@@ -99,7 +99,8 @@ unavailable; coverage and partial judge usage retain that incompleteness. All st
 
 ## Saved evidence and historical compatibility
 
-New outcome-bearing execution records use version 2. Version 1 records remain historical execution
+Default outcome-bearing execution records use version 2. Opting into fault/retry declarations or
+private checkpointing uses version 3 with bounded recovery evidence. Version 1 records remain historical execution
 records with task verification unavailable; reading an old record never invents outcomes or calls a
 judge. Unknown future versions and inconsistent result/count summaries must be rejected.
 
@@ -110,7 +111,8 @@ malicious host. Custom targets, environments and judge clients remain trusted ex
 
 Historical prompt-response manifests and report readers retain their existing contract. These
 workflow records must not be presented to legacy report generators as scored prompt scenarios.
-Professional workflow reports remain 0.6.4, and durable recovery remains 0.6.3.
+Professional workflow reports remain 0.6.4. See [faults and durable recovery](workflow-recovery.md)
+for the 0.6.3 contract, CLI/SDK interfaces and qualification boundary.
 
 ## Bounded JSON schemas
 
@@ -204,7 +206,7 @@ console.log(result.record.taskVerification, result.record.outcomes.task);
 console.log(result.record.usage, result.record.outcomes.semantic.usage);
 
 const saved = readWorkflowRecord(await readFile('./outcome.json', 'utf8'));
-if (saved.schemaVersion === '2') console.log(saved.outcomes);
+if (saved.schemaVersion !== '1') console.log(saved.outcomes);
 // Version 1 stays taskVerification: 'unavailable'; reading never calls a model.
 ```
 

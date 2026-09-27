@@ -38,6 +38,9 @@ logs/
 # Artemis runs (local storage fallback)
 artemis-runs/
 
+# Sensitive private workflow working checkpoints (example/default operator path)
+.artemis-checkpoint/
+
 # Artemis output (reports)
 artemis-output/
 

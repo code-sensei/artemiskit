@@ -180,8 +180,10 @@ policy:
     timeout_ms: 60000
 ```
 
-Commands, network tools, external effects, and user-selected faults are not accepted capabilities
-in this milestone. Sandbox file tools use real disposable files; approvals, drafts, and delegation
+Commands, network tools and external effects remain unsupported. Milestone 0.6.3 accepts
+explicit bounded fault declarations after original argument and policy validation; see
+[faults and recovery](workflow-recovery.md) for supported kinds, retries and release status. Sandbox file tools use real disposable files;
+approvals, drafts, and delegation
 remain local pending records with no external authority. See [execution controls](workflow-execution.md).
 
 `simulated` is the default because it makes tool calls, state, faults, and outcomes reproducible
@@ -253,7 +255,8 @@ Every guided action needs a non-interactive counterpart for scripts and CI. The 
 undocumented state or create hidden authority grants. Both `akit validate` and `akit scenario validate`
 accept mixed directories of legacy scenarios and workflows. Validation does not resolve provider
 credentials or dereference fixture paths. `akit run` continues to accept legacy scenarios only;
-explicit `akit workflow run` and `akit workflow preflight` use the controlled session engine.
+explicit `akit workflow run`, `akit workflow resume` and `akit workflow preflight` use the controlled
+session engine.
 See the [execution guide](workflow-execution.md) for commands, result fields, and exit semantics.
 
 ## Programmatic contract
@@ -263,7 +266,8 @@ The core and SDK packages export `AgentWorkflowSchema`, `validateAgentWorkflow`,
 `createModelClientTarget`, plus their public types. The schema requires at least one deterministic
 assertion (`workflow_state`, `tool_trace`, `policy`, `file`, or `json_schema`); optional semantic criteria must use
 `strict_assurance`. The 0.6.2 engine evaluates these independently. Historical 0.6.1 records keep
-task verification unavailable. `readWorkflowRecord` validates both saved versions without rescoring.
+task verification unavailable. `readWorkflowRecord` validates historical V1/V2 and recovery-bearing V3
+records without rescoring.
 
 `createModelClientTarget(client)` adapts an existing `ModelClient` without provider-specific dispatch.
 Its `turn` method takes a conversation, declared function schemas, generation settings, and per-turn

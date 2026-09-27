@@ -27,6 +27,7 @@ import {
   workflowPathAllowed,
   workflowToolPermitted,
 } from './environment';
+import { applyWorkflowFaultInstruction, planWorkflowFault } from './faults';
 import {
   type WorkflowCheckpointOptions,
   WorkflowCheckpointOptionsSchema,
@@ -397,6 +398,9 @@ export function createAgentWorkflowSession(
   let cursor: WorkflowCheckpointCursor = { turn: 0, stage: 'turn', callIndex: 0 };
   let attemptActions = 0;
   let preflightIds: string[] = [];
+  const recoveryEnabled =
+    options.checkpoint !== undefined ||
+    (!options.preflightOnly && (workflow?.faults !== undefined || workflow?.retry !== undefined));
   const firstAttempt = randomUUID();
   let attemptIds: string[] = [firstAttempt];
   const recovery: WorkflowRecoveryEvidence = {
@@ -404,16 +408,23 @@ export function createAgentWorkflowSession(
     runId: firstAttempt,
     attemptId: firstAttempt,
     attempts: 1,
-    checkpoint: 'active',
+    checkpoint: options.checkpoint === undefined ? 'disabled' : 'active',
     reason: 'fresh',
     pendingOperations: 0,
-    faults: { declared: 0, injected: 0, entries: [] },
-    retries: { maxAttempts: 1, attempted: 0, recovered: 0, exhausted: 0, entries: [], omitted: 0 },
+    faults: { declared: workflow?.faults?.length ?? 0, injected: 0, entries: [] },
+    retries: {
+      maxAttempts: workflow?.retry?.max_attempts ?? 1,
+      attempted: 0,
+      recovered: 0,
+      exhausted: 0,
+      entries: [],
+      omitted: 0,
+    },
     stateChanges: { total: 0, entries: [], omitted: 0 },
   };
   const record: AgentWorkflowRecord = {
-    schemaVersion: options.checkpoint === undefined ? '2' : '3',
-    ...(options.checkpoint === undefined ? {} : { recovery }),
+    schemaVersion: recoveryEnabled ? '3' : '2',
+    ...(recoveryEnabled ? { recovery } : {}),
     purpose: options.checkpoint === undefined && options.preflightOnly ? 'preflight' : 'workflow',
     outcomes: emptyWorkflowAssessment(),
     engine: 'native',
@@ -931,132 +942,219 @@ export function createAgentWorkflowSession(
     tools: AgentTurnRequest['tools']
   ) {
     if (!workflow || !environment) throw new Stop('failed', 'environment_unavailable');
-    admit('tool');
-    const operationId = `tool-${record.budgets.toolCalls}`;
-    const requestedCallIdHash = hash(call.id);
-    const known = getWorkflowTool(call.function.name);
-    emit({
-      type: 'tool_requested',
-      operationId,
-      requestedCallIdHash,
-      tool: known?.id ?? 'unknown',
-    });
-    let toolCompleted = false;
-    try {
-      const input = originalArguments(call, tools);
-      if (
-        !workflowToolPermitted(workflow, call.function.name) ||
-        !workflowPathAllowed(workflow, call.function.name, input)
-      ) {
-        record.policy = 'denied';
-        toolCompleted = true;
-        emit({
-          type: 'tool_completed',
-          operationId,
-          requestedCallIdHash,
-          tool: known?.id ?? 'unknown',
-          status: 'denied',
-        });
-        throw new Stop('invalid', 'policy_denied');
+    const completedCallIds = new Set(
+      transcript.filter((message) => message.role === 'tool').map((message) => message.toolCallId)
+    );
+    const occurrence =
+      transcript
+        .flatMap((message) => message.tool_calls ?? [])
+        .filter(
+          (previous) =>
+            previous.function.name === call.function.name && completedCallIds.has(previous.id)
+        ).length + 1;
+    let previousOperationId = '';
+    for (let attempt = 1; ; attempt++) {
+      admit('tool');
+      const operationId = `tool-${record.budgets.toolCalls}`;
+      if (attempt > 1) {
+        recovery.retries.attempted++;
+        recovery.retries.entries.push({ operationId, previousOperationId, attempt });
       }
-      const beforeStateSha256 = checkpointStore && state ? workflowDigest(state) : undefined;
-      await persistCheckpoint('pending', { kind: 'tool', operationId });
-      active();
-      let value: unknown;
+      const requestedCallIdHash = hash(call.id);
+      const known = getWorkflowTool(call.function.name);
+      emit({
+        type: 'tool_requested',
+        operationId,
+        requestedCallIdHash,
+        tool: known?.id ?? 'unknown',
+      });
+      let toolCompleted = false;
       try {
-        value = await owned(
-          () =>
-            environment
-              ? environment.execute(
-                  { tool: call.function.name, input: structuredClone(input) },
-                  controller.signal
-                )
-              : Promise.reject(),
-          controller.signal
-        );
-      } catch (error) {
-        if (error instanceof Stop) throw error;
-        throw new Stop('failed', 'tool_failed');
-      }
-      if (!isWorkflowState(value) || !known) throw new Stop('invalid', 'invalid_environment');
-      const status = value.status;
-      if (
-        !isWorkflowState(value.evidence) ||
-        value.evidence.tool !== known.id ||
-        value.evidence.version !== '1' ||
-        value.evidence.status !== status ||
-        Object.keys(value).some(
-          (key) =>
-            !(
-              status === 'succeeded'
-                ? ['status', 'output', 'state', 'evidence']
-                : ['status', 'code', 'evidence']
-            ).includes(key)
-        )
-      )
-        throw new Stop('invalid', 'invalid_environment');
-      if (status === 'succeeded') {
+        const input = originalArguments(call, tools);
         if (
-          !isWorkflowState(value.state) ||
-          !isWorkflowJson(value.output) ||
-          !ajv.compile(known.outputSchema)(value.output)
+          !workflowToolPermitted(workflow, call.function.name) ||
+          !workflowPathAllowed(workflow, call.function.name, input)
+        ) {
+          record.policy = 'denied';
+          toolCompleted = true;
+          emit({
+            type: 'tool_completed',
+            operationId,
+            requestedCallIdHash,
+            tool: known?.id ?? 'unknown',
+            status: 'denied',
+          });
+          throw new Stop('invalid', 'policy_denied');
+        }
+        const beforeStateSha256 = recoveryEnabled && state ? workflowDigest(state) : undefined;
+        await persistCheckpoint('pending', { kind: 'tool', operationId });
+        active();
+        if (!known) throw new Stop('invalid', 'invalid_environment');
+        const plan = planWorkflowFault(workflow.faults ?? [], {
+          tool: known.id,
+          occurrence,
+          attempt,
+          consumedFaultIndices: recovery.faults.entries.map((entry) => entry.index),
+        });
+        if (plan.fault) {
+          recovery.faults.entries.push({ ...plan.fault, operationId });
+          recovery.faults.injected++;
+        }
+        if (plan.kind === 'fail') {
+          if (plan.timeoutMs) {
+            await owned(
+              () =>
+                new Promise<void>((resolveWait) => {
+                  const settle = () => {
+                    clearTimeout(timer);
+                    controller.signal.removeEventListener('abort', settle);
+                    resolveWait();
+                  };
+                  const timer = setTimeout(settle, plan.timeoutMs);
+                  controller.signal.addEventListener('abort', settle, { once: true });
+                  if (controller.signal.aborted) settle();
+                }),
+              controller.signal
+            );
+          }
+          active();
+          toolCompleted = true;
+          emit({
+            type: 'tool_completed',
+            operationId,
+            requestedCallIdHash,
+            tool: known.id,
+            status: 'failed',
+          });
+          if (attempt >= recovery.retries.maxAttempts) {
+            recovery.retries.exhausted++;
+            recovery.reason = 'retry_exhausted';
+            throw new Stop('failed', 'tool_failed');
+          }
+          previousOperationId = operationId;
+          continue;
+        }
+        let value: unknown;
+        try {
+          value =
+            plan.kind === 'substitute'
+              ? {
+                  status: 'succeeded',
+                  output: plan.output,
+                  state: structuredClone(state),
+                  evidence: { tool: known.id, version: '1', status: 'succeeded' },
+                }
+              : await owned(
+                  () =>
+                    environment
+                      ? environment.execute(
+                          { tool: call.function.name, input: structuredClone(input) },
+                          controller.signal
+                        )
+                      : Promise.reject(),
+                  controller.signal
+                );
+        } catch (error) {
+          if (error instanceof Stop) throw error;
+          throw new Stop('failed', 'tool_failed');
+        }
+        if (!isWorkflowState(value) || !known) throw new Stop('invalid', 'invalid_environment');
+        if (
+          plan.kind === 'execute' &&
+          plan.instruction !== undefined &&
+          value.status === 'succeeded'
+        ) {
+          const altered = applyWorkflowFaultInstruction(known.id, value.output, plan.instruction);
+          if (altered === undefined) throw new Stop('invalid', 'invalid_environment');
+          value.output = altered;
+        }
+        const status = value.status;
+        if (
+          !isWorkflowState(value.evidence) ||
+          value.evidence.tool !== known.id ||
+          value.evidence.version !== '1' ||
+          value.evidence.status !== status ||
+          Object.keys(value).some(
+            (key) =>
+              !(
+                status === 'succeeded'
+                  ? ['status', 'output', 'state', 'evidence']
+                  : ['status', 'code', 'evidence']
+              ).includes(key)
+          )
         )
           throw new Stop('invalid', 'invalid_environment');
-        state = structuredClone(value.state);
-        if (checkpointStore && beforeStateSha256) {
-          const afterSha256 = workflowDigest(state);
-          if (beforeStateSha256 !== afterSha256) {
-            recovery.stateChanges.total++;
-            if (recovery.stateChanges.entries.length < 64)
-              recovery.stateChanges.entries.push({
-                operationId,
-                beforeSha256: beforeStateSha256,
-                afterSha256,
-              });
-            else recovery.stateChanges.omitted++;
+        if (status === 'succeeded') {
+          if (
+            !isWorkflowState(value.state) ||
+            !isWorkflowJson(value.output) ||
+            !ajv.compile(known.outputSchema)(value.output)
+          )
+            throw new Stop('invalid', 'invalid_environment');
+          state = structuredClone(value.state);
+          if (recoveryEnabled && beforeStateSha256) {
+            const afterSha256 = workflowDigest(state);
+            if (beforeStateSha256 !== afterSha256) {
+              recovery.stateChanges.total++;
+              if (recovery.stateChanges.entries.length < 64)
+                recovery.stateChanges.entries.push({
+                  operationId,
+                  beforeSha256: beforeStateSha256,
+                  afterSha256,
+                });
+              else recovery.stateChanges.omitted++;
+            }
           }
-        }
-        transcript.push({
-          role: 'tool',
-          toolCallId: call.id,
-          content: JSON.stringify(value.output),
-        });
-        toolCompleted = true;
-        emit({
-          type: 'tool_completed',
-          operationId,
-          requestedCallIdHash,
-          tool: known.id,
-          status: 'completed',
-        });
-      } else if (
-        (status === 'denied' || status === 'invalid' || status === 'failed') &&
-        typeof value.code === 'string' &&
-        failureCodes.has(value.code)
-      ) {
-        if (status === 'denied') record.policy = 'denied';
-        transcript.push({
-          role: 'tool',
-          toolCallId: call.id,
-          content: JSON.stringify({ status, code: value.code }),
-        });
-        toolCompleted = true;
-        emit({ type: 'tool_completed', operationId, requestedCallIdHash, tool: known.id, status });
-        throw new Stop(
-          status === 'denied' ? 'invalid' : 'failed',
-          status === 'denied' ? 'policy_denied' : 'tool_failed'
-        );
-      } else throw new Stop('invalid', 'invalid_environment');
-      active();
-    } finally {
-      if (!toolCompleted)
-        emit({
-          type: 'tool_completed',
-          operationId,
-          requestedCallIdHash,
-          tool: known?.id ?? 'unknown',
-          status: record.policy === 'denied' ? 'denied' : 'failed',
-        });
+          if (attempt > 1) recovery.retries.recovered++;
+          transcript.push({
+            role: 'tool',
+            toolCallId: call.id,
+            content: JSON.stringify(value.output),
+          });
+          toolCompleted = true;
+          emit({
+            type: 'tool_completed',
+            operationId,
+            requestedCallIdHash,
+            tool: known.id,
+            status: 'completed',
+          });
+        } else if (
+          (status === 'denied' || status === 'invalid' || status === 'failed') &&
+          typeof value.code === 'string' &&
+          failureCodes.has(value.code)
+        ) {
+          if (status === 'denied') record.policy = 'denied';
+          transcript.push({
+            role: 'tool',
+            toolCallId: call.id,
+            content: JSON.stringify({ status, code: value.code }),
+          });
+          toolCompleted = true;
+          emit({
+            type: 'tool_completed',
+            operationId,
+            requestedCallIdHash,
+            tool: known.id,
+            status,
+          });
+          throw new Stop(
+            status === 'denied' ? 'invalid' : 'failed',
+            status === 'denied' ? 'policy_denied' : 'tool_failed'
+          );
+        } else throw new Stop('invalid', 'invalid_environment');
+        active();
+        return;
+      } finally {
+        if (!toolCompleted)
+          emit({
+            type: 'tool_completed',
+            operationId,
+            requestedCallIdHash,
+            tool: known?.id ?? 'unknown',
+            status: record.policy === 'denied' ? 'denied' : 'failed',
+          });
+      }
     }
   }
   async function run(): Promise<AgentWorkflowResult> {
@@ -1243,6 +1341,15 @@ export function createAgentWorkflowSession(
         state = structuredClone(initialState);
         if (!checkpointStore)
           transcript = [{ role: 'system', content: workflow.workflow.system_instructions }];
+        if (recoveryEnabled && !checkpointStore) {
+          const snapshot = await owned(
+            () => (environment as WorkflowEnvironment).snapshot(controller.signal),
+            controller.signal
+          );
+          if (!isWorkflowState(snapshot)) throw new Stop('invalid', 'invalid_environment');
+          state = structuredClone(snapshot);
+          recovery.initialStateSha256 = workflowDigest(state);
+        }
         const tools: AgentTurnRequest['tools'] = workflow.tools.map((id) => {
           const descriptor = getWorkflowTool(id);
           if (!descriptor) throw new Stop('invalid', 'invalid_workflow');
@@ -1291,6 +1398,7 @@ export function createAgentWorkflowSession(
       }
       record.execution = 'completed';
       record.reason = 'finished';
+      if (recoveryEnabled && !checkpointStore) recovery.reason = 'finished';
     } catch (error) {
       if (error instanceof WorkflowEnvironmentInitializationError) {
         const detail = error.cleanup;
@@ -1320,11 +1428,14 @@ export function createAgentWorkflowSession(
               : new Stop('failed', 'target_error');
       record.execution = stop.execution;
       record.reason = stop.reason;
-      if (record.schemaVersion === '3' && stop.reason !== 'checkpoint_paused') {
+      if (options.checkpoint !== undefined && stop.reason !== 'checkpoint_paused') {
         recovery.checkpoint = 'refused';
-        recovery.reason = stop.reason.startsWith('checkpoint_')
-          ? (stop.reason as WorkflowRecoveryEvidence['reason'])
-          : 'checkpoint_unavailable';
+        recovery.reason =
+          recovery.reason === 'retry_exhausted'
+            ? 'retry_exhausted'
+            : stop.reason.startsWith('checkpoint_')
+              ? (stop.reason as WorkflowRecoveryEvidence['reason'])
+              : 'checkpoint_unavailable';
       }
     } finally {
       clearTimeout(timer);

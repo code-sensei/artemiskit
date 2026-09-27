@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { validWorkflowFaultEvidence } from './fault-evidence';
 import { decideWorkflowOutcome, validWorkflowAssertionCounts } from './outcome-status';
 import { workflowRecordLedgerStatus } from './outcomes';
 import {
@@ -406,6 +407,13 @@ export function readWorkflowRecord(input: unknown): SavedWorkflowRecord {
       const recovery = record.recovery;
       if (
         !validWorkflowRecovery(recovery) ||
+        !validWorkflowFaultEvidence(
+          recovery,
+          record.events,
+          record.budgets.toolCalls,
+          record.droppedEvents,
+          record.execution === 'completed'
+        ) ||
         !validWorkflowStateChangeChain(recovery, record.artifacts.stateSha256) ||
         recovery.stateChanges.total > record.budgets.toolCalls ||
         recovery.retries.attempted > record.budgets.toolCalls ||
@@ -418,7 +426,9 @@ export function readWorkflowRecord(input: unknown): SavedWorkflowRecord {
             record.execution !== 'cancelled' ||
             record.cleanup.status !== 'completed' ||
             recovery.pendingOperations !== 0)) ||
-        (record.execution === 'completed' && recovery.checkpoint !== 'terminal') ||
+        (record.execution === 'completed' &&
+          recovery.checkpoint !== 'terminal' &&
+          recovery.checkpoint !== 'disabled') ||
         recovery.stateChanges.entries.some(
           (entry) => Number(entry.operationId.slice(5)) > record.budgets.toolCalls
         )

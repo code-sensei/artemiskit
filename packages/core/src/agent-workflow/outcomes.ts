@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import Ajv from 'ajv';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
+import { validWorkflowFaultEvidence } from './fault-evidence';
+import { WorkflowRecoverySchema } from './recovery';
 import {
   type AgentWorkflow,
   AgentWorkflowSchema,
@@ -68,6 +70,7 @@ const eventSchema = z.object({
 });
 const recordSchema = z.object({
   schemaVersion: z.enum(['1', '2', '3']),
+  recovery: WorkflowRecoverySchema.optional(),
   engine: z.literal('native'),
   purpose: z.enum(['workflow', 'preflight']).optional(),
   execution: z.enum([
@@ -187,6 +190,23 @@ function ledger(
     )
   )
     return invalid();
+  if (record.schemaVersion !== '3' && record.recovery !== undefined) return invalid();
+  if (
+    record.schemaVersion === '3' &&
+    (!record.recovery ||
+      !validWorkflowFaultEvidence(
+        record.recovery,
+        record.events,
+        record.budgets.toolCalls,
+        record.droppedEvents,
+        record.execution === 'completed'
+      ))
+  )
+    return invalid();
+  const retryLinks = new Map(
+    record.recovery?.retries.entries.map((entry) => [entry.operationId, entry]) ?? []
+  );
+  const completedTools = new Map<string, z.infer<typeof eventSchema>>();
   if (record.droppedEvents > 0)
     return { finding: finding('unavailable', 'evidence_truncated'), calls };
   if (record.events.some((event, index) => event.sequence !== index + 1)) return invalid();
@@ -245,7 +265,17 @@ function ledger(
       seen.add(event.operationId);
       pending.set(event.operationId, event);
       if (event.type === 'tool_requested') {
-        if (!event.tool || !event.requestedCallIdHash || callIds.has(event.requestedCallIdHash))
+        const retry = retryLinks.get(event.operationId);
+        const previous = retry && completedTools.get(retry.previousOperationId);
+        if (
+          !event.tool ||
+          !event.requestedCallIdHash ||
+          (callIds.has(event.requestedCallIdHash) &&
+            (!previous ||
+              previous.status !== 'failed' ||
+              previous.requestedCallIdHash !== event.requestedCallIdHash)) ||
+          (retry && !previous)
+        )
           return invalid();
         callIds.add(event.requestedCallIdHash);
         tools++;
@@ -261,7 +291,19 @@ function ledger(
         !['completed', 'denied', 'invalid', 'failed'].includes(event.status ?? '')
       )
         return invalid();
-      if (completed && event.status !== 'completed') return invalid();
+      if (
+        completed &&
+        event.status !== 'completed' &&
+        !(
+          event.type === 'tool_completed' &&
+          event.status === 'failed' &&
+          record.recovery?.retries.entries.some(
+            (entry) => entry.previousOperationId === event.operationId
+          )
+        )
+      )
+        return invalid();
+      if (event.type === 'tool_completed') completedTools.set(event.operationId, event);
       pending.delete(event.operationId);
       if (
         event.type === 'tool_completed' &&

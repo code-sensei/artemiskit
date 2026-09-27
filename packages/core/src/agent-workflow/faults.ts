@@ -3,7 +3,7 @@ import { types } from 'node:util';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, type WorkflowToolId, getWorkflowTool } from './catalog';
-import { type WorkflowJson, isWorkflowJson } from './schema';
+import { type WorkflowJson, isWorkflowJson } from './json';
 
 /** Inspect descriptors before Zod can probe thenables or evaluate Proxy traps. */
 function safeFaultJson(value: unknown): value is WorkflowJson {

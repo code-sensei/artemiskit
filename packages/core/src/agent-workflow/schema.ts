@@ -1,65 +1,9 @@
-import { types } from 'node:util';
 import Ajv from 'ajv';
 import { z } from 'zod';
 import { WORKFLOW_TOOL_IDS, getWorkflowTool } from './catalog';
-
-export type WorkflowJson =
-  | null
-  | boolean
-  | number
-  | string
-  | WorkflowJson[]
-  | { [key: string]: WorkflowJson };
-const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
-
-/** Limit both recursive work and retained fixture size before schema parsing/cloning. */
-export function isWorkflowJson(value: unknown): value is WorkflowJson {
-  let nodes = 0;
-  let textBytes = 0;
-  const ancestors = new Set<object>();
-  function visit(item: unknown, depth: number): boolean {
-    if (++nodes > 10_000 || depth > 16) return false;
-    if (item === null || typeof item === 'boolean') return true;
-    if (typeof item === 'number') return Number.isFinite(item);
-    if (typeof item === 'string') {
-      textBytes += Buffer.byteLength(item);
-      return textBytes <= 1_048_576;
-    }
-    if (typeof item !== 'object' || types.isProxy(item) || ancestors.has(item)) return false;
-    if (
-      !Array.isArray(item) &&
-      Object.getPrototypeOf(item) !== Object.prototype &&
-      Object.getPrototypeOf(item) !== null
-    )
-      return false;
-    if (Object.getOwnPropertySymbols(item).length) return false;
-    if (
-      Array.isArray(item) &&
-      (item.length > 10_000 ||
-        Object.keys(item).length !== item.length ||
-        Object.keys(item).some((key, index) => key !== String(index)))
-    )
-      return false;
-    ancestors.add(item);
-    for (const key of Object.getOwnPropertyNames(item)) {
-      if (Array.isArray(item) && key === 'length') continue;
-      textBytes += Buffer.byteLength(key);
-      const entry = Object.getOwnPropertyDescriptor(item, key);
-      if (
-        textBytes > 1_048_576 ||
-        forbiddenKeys.has(key) ||
-        !entry ||
-        !('value' in entry) ||
-        !entry.enumerable ||
-        !visit(entry.value, depth + 1)
-      )
-        return false;
-    }
-    ancestors.delete(item);
-    return true;
-  }
-  return visit(value, 0);
-}
+import { WorkflowFaultsSchema, WorkflowRetrySchema } from './faults';
+import { type WorkflowJson, forbiddenWorkflowKeys as forbiddenKeys, isWorkflowJson } from './json';
+export { type WorkflowJson, isWorkflowJson } from './json';
 
 export function isWorkflowRelativePath(value: string): boolean {
   return (
@@ -329,6 +273,8 @@ const definition = z
           .max(100),
       })
       .strict(),
+    faults: WorkflowFaultsSchema.optional(),
+    retry: WorkflowRetrySchema.optional(),
     outcomes: z
       .object({
         deterministic: z.array(deterministic).min(1).max(100),
@@ -368,6 +314,14 @@ const definition = z
           code: 'custom',
           path: ['tools', index],
           message: `Missing ${tool.authority.access} permission for ${resource}`,
+        });
+    }
+    for (const [index, fault] of (workflow.faults ?? []).entries()) {
+      if (!workflow.tools.includes(fault.tool))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['faults', index, 'tool'],
+          message: 'Fault targets an undeclared tool',
         });
     }
     workflow.outcomes.deterministic.forEach((outcome, index) => {
@@ -411,3 +365,18 @@ export const AgentWorkflowSchema = z
   })
   .pipe(definition);
 export type AgentWorkflow = z.infer<typeof AgentWorkflowSchema>;
+
+// Zod classifies a root value before refinements. Check executable inputs before that probe.
+const parseWorkflow = AgentWorkflowSchema.safeParse.bind(AgentWorkflowSchema);
+const parseWorkflowAsync = AgentWorkflowSchema.safeParseAsync.bind(AgentWorkflowSchema);
+const invalidPlainWorkflow = () => ({
+  success: false as const,
+  error: new z.ZodError([
+    { code: 'custom', path: [], message: 'Workflow must be bounded plain JSON' },
+  ]),
+});
+AgentWorkflowSchema.safeParse = (value, params) =>
+  isWorkflowJson(value) ? parseWorkflow(value, params) : invalidPlainWorkflow();
+AgentWorkflowSchema.safeParseAsync = async (value, params) =>
+  isWorkflowJson(value) ? parseWorkflowAsync(value, params) : invalidPlainWorkflow();
+AgentWorkflowSchema.spa = AgentWorkflowSchema.safeParseAsync;

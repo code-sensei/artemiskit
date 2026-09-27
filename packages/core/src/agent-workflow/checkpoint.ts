@@ -4,6 +4,8 @@ import Ajv from 'ajv';
 import { z } from 'zod';
 import { getWorkflowTool, listWorkflowTools } from './catalog';
 import { isWorkflowState, workflowPathAllowed, workflowToolPermitted } from './environment';
+import { validCheckpointFaultSchedule, validWorkflowFaultEvidence } from './fault-evidence';
+import { applyWorkflowFaultInstruction, planWorkflowFault } from './faults';
 import { workflowExecutionRecordSchema } from './records';
 import {
   WorkflowRecoverySchema,
@@ -185,6 +187,8 @@ export function restoreWorkflowCheckpoint(
     (typeof workflow.workflow.initial_state !== 'string' &&
       p.initialStateSha256 !== workflowDigest(workflow.workflow.initial_state)) ||
     !validWorkflowRecovery(p.recovery) ||
+    !validWorkflowFaultEvidence(p.recovery, events, b.toolCalls, p.ledger.droppedEvents, true) ||
+    !validCheckpointFaultSchedule(workflow, p.transcript, p.recovery, p.identity.preflight) ||
     p.recovery.runId !== p.attemptIds[0] ||
     p.recovery.attemptId !== p.attemptIds.at(-1) ||
     p.recovery.attempts !== p.attemptIds.length ||
@@ -273,7 +277,8 @@ export function restoreWorkflowCheckpoint(
     new Set(expectedIds).size !== expectedIds.length ||
     JSON.stringify(p.seenIds) !== JSON.stringify(expectedIds) ||
     b.modelRequests !== assistants.length + (expectedIdentity.preflight ? 2 : 0) ||
-    b.toolCalls !== completedTools.length + (expectedIdentity.preflight ? 1 : 0) ||
+    b.toolCalls !==
+      completedTools.length + (expectedIdentity.preflight ? 1 : 0) + p.recovery.retries.attempted ||
     p.recovery.stateChanges.total > completedTools.length
   )
     reject('checkpoint_invalid');
@@ -377,7 +382,12 @@ function expectedNativeEvents(p: WorkflowCheckpointPayload, workflow: AgentWorkf
       { type: 'model_completed', operationId, phase, status: 'completed' }
     );
   };
-  const toolPair = (phase: NativeEvent['phase'], id: string, tool: string) => {
+  const toolPair = (
+    phase: NativeEvent['phase'],
+    id: string,
+    tool: string,
+    status: 'completed' | 'failed' = 'completed'
+  ) => {
     const metadata = {
       operationId: `tool-${++tools}`,
       requestedCallIdHash: createHash('sha256').update(id).digest('hex'),
@@ -386,7 +396,7 @@ function expectedNativeEvents(p: WorkflowCheckpointPayload, workflow: AgentWorkf
     };
     expected.push(
       { type: 'tool_requested', ...metadata },
-      { type: 'tool_completed', ...metadata, status: 'completed' }
+      { type: 'tool_completed', ...metadata, status }
     );
   };
   if (p.identity.preflight) {
@@ -397,6 +407,8 @@ function expectedNativeEvents(p: WorkflowCheckpointPayload, workflow: AgentWorkf
   }
   let calls: NonNullable<WorkflowCheckpointPayload['transcript'][number]['tool_calls']> = [];
   let callIndex = 0;
+  const occurrences = new Map<string, number>();
+  const consumed: number[] = [];
   for (const message of p.transcript) {
     if (message.role === 'assistant') {
       if (callIndex !== calls.length) reject('checkpoint_invalid');
@@ -428,22 +440,60 @@ function expectedNativeEvents(p: WorkflowCheckpointPayload, workflow: AgentWorkf
         JSON.stringify(output) !== message.content
       )
         reject('checkpoint_invalid');
-      const beforeSha256 = workflowDigest(reconstructedState);
-      // This pure in-memory primitive verifies prior effects; it never restores its generated state.
-      const verified = executeSimulatedTool({
-        tool: tool.id,
-        input,
-        state: reconstructedState,
-        policy: workflow.environment.policy,
-        declaredTools: workflow.tools,
-      });
-      if (verified.status !== 'succeeded' || JSON.stringify(verified.output) !== message.content)
-        reject('checkpoint_invalid');
-      reconstructedState = workflowInitialExecutionState(workflow.environment.type, verified.state);
-      const afterSha256 = workflowDigest(reconstructedState);
-      toolPair('execution', call.id, tool.id);
-      if (beforeSha256 !== afterSha256)
-        changes.push({ operationId: `tool-${tools}`, beforeSha256, afterSha256 });
+      const occurrence = (occurrences.get(tool.id) ?? 0) + 1;
+      occurrences.set(tool.id, occurrence);
+      for (let attempt = 1; ; attempt++) {
+        const plan = planWorkflowFault(workflow.faults ?? [], {
+          tool: tool.id,
+          occurrence,
+          attempt,
+          consumedFaultIndices: consumed,
+        });
+        if (plan.fault) consumed.push(plan.fault.index);
+        if (plan.kind === 'fail') {
+          toolPair('execution', call.id, tool.id, 'failed');
+          if (
+            attempt >= p.recovery.retries.maxAttempts ||
+            !p.recovery.retries.entries.some(
+              (entry) =>
+                entry.previousOperationId === `tool-${tools}` &&
+                entry.operationId === `tool-${tools + 1}` &&
+                entry.attempt === attempt + 1
+            )
+          )
+            reject('checkpoint_invalid');
+          continue;
+        }
+        const beforeSha256 = workflowDigest(reconstructedState);
+        // Pure validation of prior built-in effects; the saved authoritative state is never replaced.
+        const verified =
+          plan.kind === 'substitute'
+            ? { status: 'succeeded', output: plan.output, state: reconstructedState }
+            : executeSimulatedTool({
+                tool: tool.id,
+                input,
+                state: reconstructedState,
+                policy: workflow.environment.policy,
+                declaredTools: workflow.tools,
+              });
+        if (verified.status !== 'succeeded' || !('output' in verified) || !('state' in verified))
+          reject('checkpoint_invalid');
+        const observation =
+          plan.kind === 'execute' && plan.instruction !== undefined
+            ? applyWorkflowFaultInstruction(tool.id, verified.output, plan.instruction)
+            : verified.output;
+        if (observation === undefined || JSON.stringify(observation) !== message.content)
+          reject('checkpoint_invalid');
+        reconstructedState = workflowInitialExecutionState(
+          workflow.environment.type,
+          verified.state
+        );
+        const afterSha256 = workflowDigest(reconstructedState);
+        toolPair('execution', call.id, tool.id);
+        if (beforeSha256 !== afterSha256)
+          changes.push({ operationId: `tool-${tools}`, beforeSha256, afterSha256 });
+        break;
+      }
     } else if (callIndex !== calls.length) reject('checkpoint_invalid');
   }
   if (models !== p.ledger.budgets.modelRequests || tools !== p.ledger.budgets.toolCalls)

@@ -22,3 +22,6 @@ export type { WorkflowOutcomeAssessment } from './assessment';
 export { readWorkflowRecord } from './records';
 export type { SavedWorkflowRecord, HistoricalWorkflowRecord } from './records';
 export type { WorkflowCheckpointOptions, WorkflowRecoveryEvidence } from './recovery';
+
+export { WorkflowFaultsSchema, WorkflowRetrySchema } from './faults';
+export type { WorkflowFault, WorkflowFaults, WorkflowFaultKind, WorkflowRetry } from './faults';

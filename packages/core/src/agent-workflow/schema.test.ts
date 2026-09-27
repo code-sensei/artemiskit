@@ -300,3 +300,58 @@ describe('bounded typed JSON Schema outcome declarations', () => {
     ).toBe(false);
   });
 });
+
+describe('declared workflow faults', () => {
+  test('accepts declared bounded faults without granting undeclared tools', () => {
+    const fault = {
+      id: 'read-unavailable',
+      tool: 'read_document',
+      occurrence: 1,
+      kind: 'unavailable_tool',
+    };
+    const scenario = { ...fixture(), faults: [fault], retry: { max_attempts: 2 } };
+    expect(AgentWorkflowSchema.parse(scenario).faults).toEqual([fault]);
+    expect(
+      AgentWorkflowSchema.safeParse({ ...scenario, faults: [{ ...fault, tool: 'read_file' }] })
+        .success
+    ).toBe(false);
+    expect(AgentWorkflowSchema.safeParse({ ...scenario, retry: { max_attempts: 6 } }).success).toBe(
+      false
+    );
+  });
+  test('rejects executable roots before Zod classification across sync/async APIs', async () => {
+    let traps = 0;
+    const proxy = new Proxy(
+      {},
+      {
+        get() {
+          traps++;
+          throw new Error('private');
+        },
+        getPrototypeOf() {
+          traps++;
+          throw new Error('private');
+        },
+      }
+    );
+    for (const input of [proxy, { ...fixture(), faults: [proxy] }]) {
+      expect(AgentWorkflowSchema.safeParse(input).success).toBe(false);
+      expect((await AgentWorkflowSchema.safeParseAsync(input)).success).toBe(false);
+      expect((await AgentWorkflowSchema.spa(input)).success).toBe(false);
+      expect(() => validateAgentWorkflow(input)).toThrow('Invalid agent workflow');
+    }
+    expect(traps).toBe(0);
+  });
+  test('rejects array subclasses with inherited executable classification', () => {
+    let reads = 0;
+    class HostileArray extends Array {}
+    Object.defineProperty(HostileArray.prototype, 'then', {
+      get() {
+        reads++;
+        throw new Error('private');
+      },
+    });
+    expect(isWorkflowJson(new HostileArray())).toBe(false);
+    expect(reads).toBe(0);
+  });
+});

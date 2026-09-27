@@ -1,5 +1,14 @@
 # @artemiskit/sdk
 
+## 0.6.2
+
+### Patch Changes
+
+- Add declared workflow faults and bounded retries, private local checkpoints with explicit pause/resume, and version 3 recovery evidence. Preserve workflow identity, tool authority, original deadlines and cumulative budgets across restart; refuse ambiguous pending operations. Expose the same recovery controls in CLI and SDK while retaining version 1/2 record compatibility.
+- Updated dependencies
+  - @artemiskit/core@0.6.3
+  - @artemiskit/redteam@0.3.11
+
 ## 0.6.1
 
 ### Patch Changes

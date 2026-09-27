@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies
+  - @artemiskit/core@0.6.3
+
 ## 0.1.10
 
 ### Patch Changes

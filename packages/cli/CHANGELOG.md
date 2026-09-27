@@ -1,5 +1,20 @@
 # @artemiskit/cli
 
+## 0.6.2
+
+### Patch Changes
+
+- Add declared workflow faults and bounded retries, private local checkpoints with explicit pause/resume, and version 3 recovery evidence. Preserve workflow identity, tool authority, original deadlines and cumulative budgets across restart; refuse ambiguous pending operations. Expose the same recovery controls in CLI and SDK while retaining version 1/2 record compatibility.
+- Updated dependencies
+  - @artemiskit/core@0.6.3
+  - @artemiskit/adapter-deepagents@0.2.12
+  - @artemiskit/adapter-langchain@0.2.12
+  - @artemiskit/adapter-ling@0.1.11
+  - @artemiskit/adapter-openai@0.1.23
+  - @artemiskit/adapter-vercel-ai@0.1.23
+  - @artemiskit/redteam@0.3.11
+  - @artemiskit/reports@0.4.10
+
 ## 0.6.1
 
 ### Patch Changes

@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import { type ModelClient, type WorkflowJudgeOptions, createAdapter } from '@artemiskit/core';
 import { loadConfig } from '../config/loader';
 import { buildAdapterConfig } from './adapter';
+import { workflowTransportIdentity } from './workflow-identity';
 
 export class WorkflowJudgeConfigError extends Error {
   constructor(readonly exitCode: 1 | 2 | 3) {
@@ -9,7 +11,10 @@ export class WorkflowJudgeConfigError extends Error {
 }
 
 /** Explicit authorization only; loading transport settings must not initialize the judge. */
-export async function prepareWorkflowJudge(path: string): Promise<WorkflowJudgeOptions> {
+export async function prepareWorkflowJudge(
+  path: string,
+  onConfigurationIdentity?: (identity: string) => void
+): Promise<WorkflowJudgeOptions> {
   if (!path.trim()) throw new WorkflowJudgeConfigError(2);
   let config: Awaited<ReturnType<typeof loadConfig>>;
   try {
@@ -38,6 +43,20 @@ export async function prepareWorkflowJudge(path: string): Promise<WorkflowJudgeO
   });
   // The general builder supports fallback; explicit assurance configuration must not.
   if (adapterConfig.provider !== provider) throw new WorkflowJudgeConfigError(3);
+  onConfigurationIdentity?.(
+    createHash('sha256')
+      .update(
+        JSON.stringify({
+          adapter: workflowTransportIdentity({
+            ...adapterConfig,
+            defaultModel: model,
+            maxRetries: 0,
+          }),
+          limits: config.workflowJudge,
+        })
+      )
+      .digest('hex')
+  );
   let initialized: Promise<ModelClient> | undefined;
   async function getClient(): Promise<ModelClient> {
     initialized ??= createAdapter({ ...adapterConfig, defaultModel: model, maxRetries: 0 });

@@ -44,6 +44,13 @@ The workflow controls provider/model identity and tool authority. `--output` sav
 `--state-output` explicitly exports sensitive working state to a separate new file with mode `0600`.
 SIGINT/SIGTERM preserves an interrupted record when output was requested.
 
+The 0.6.3 recovery interface adds `--checkpoint-dir` and `--pause-after-actions` to a run,
+and `akit workflow resume <file> --checkpoint-dir <directory>` for a compatible private checkpoint.
+A confirmed pause exits `10`; budgets, tool-call cursor, configuration identity and the original
+deadline survive restart. Operational checkpoints contain sensitive working data and stay separate
+from saved public evidence. See the [fault and recovery guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-recovery.md)
+for complete CLI/SDK examples, supported crash boundaries and qualification status.
+
 For 0.6.2 workflow runs, exit `0` means verified task success, `8` means a valid task failure,
 and `9` means invalid/unavailable outcome evaluation. Runtime/policy failures retain their existing
 exits. Successful preflight still returns `0` without assessing the task. Optional semantic criteria

@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import { type FileHandle, open, realpath, unlink } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import {
+  type AgentTarget,
   type AgentWorkflowRecord,
   createAdapter,
   createAgentWorkflowSession,
@@ -10,6 +12,7 @@ import {
 import { Command } from 'commander';
 import { loadConfig } from '../config/loader';
 import { buildAdapterConfig } from '../utils/adapter';
+import { workflowTransportIdentity } from '../utils/workflow-identity';
 import { WorkflowJudgeConfigError, prepareWorkflowJudge } from '../utils/workflow-judge';
 
 interface WorkflowExecutionOptions {
@@ -21,10 +24,13 @@ interface WorkflowExecutionOptions {
   cleanupTimeout?: string;
   preflight?: boolean;
   json?: boolean;
+  checkpointDir?: string;
+  pauseAfterActions?: string;
 }
 
 /** Runtime failures retain precedence; only evaluated task success exits zero on a run. */
 export function workflowExitCode(record: AgentWorkflowRecord): number {
+  if (record.reason === 'checkpoint_paused' && record.recovery?.checkpoint === 'paused') return 10;
   if (record.execution === 'cancelled') return 130;
   if (record.policy === 'denied') return 4;
   if (record.reason === 'usage_unavailable') return 7;
@@ -52,6 +58,12 @@ function formatWorkflowRecord(record: AgentWorkflowRecord): string {
   const judge = record.outcomes.semantic;
   return [
     `Execution: ${record.execution} (${record.reason})`,
+    ...(record.recovery
+      ? [
+          `Recovery: ${record.recovery.checkpoint} (${record.recovery.reason}); attempt ${record.recovery.attempts}`,
+          `Faults: ${record.recovery.faults.injected}/${record.recovery.faults.declared} injected; retries: ${record.recovery.retries.attempted} attempted, ${record.recovery.retries.recovered} recovered, ${record.recovery.retries.exhausted} exhausted`,
+        ]
+      : []),
     `Policy: ${record.policy}`,
     `Target usage: ${record.usage.status}`,
     `Cleanup: ${record.cleanup.status}`,
@@ -107,13 +119,16 @@ export function workflowCommand(): Command {
   const workflow = new Command('workflow').description(
     'Execute controlled agent workflows and verify declared outcomes'
   );
-  for (const preflightOnly of [false, true]) {
-    const command = new Command(preflightOnly ? 'preflight' : 'run')
+  for (const mode of ['run', 'preflight', 'resume'] as const) {
+    const preflightOnly = mode === 'preflight';
+    const command = new Command(mode)
       .argument('<file>', 'Agent workflow YAML file')
       .description(
         preflightOnly
           ? 'Probe structured tool support without executing workflow turns'
-          : 'Run the native workflow engine with declared authority and cumulative budgets'
+          : mode === 'resume'
+            ? 'Continue a compatible private checkpoint without resetting authority or budgets'
+            : 'Run the native workflow engine with declared authority and cumulative budgets'
       )
       .option('--config <file>', 'Trusted provider transport configuration')
       .option('--fixture-root <directory>', 'Fixture directory (default: workflow file directory)')
@@ -126,7 +141,18 @@ export function workflowCommand(): Command {
       .option('--json', 'Print metadata-only record as JSON');
     if (!preflightOnly)
       command
-        .option('--preflight', 'Probe structured tool support before workflow turns')
+        .option(
+          '--preflight',
+          'Probe structured tool support before workflow turns (must match on resume)'
+        )
+        .option(
+          '--checkpoint-dir <directory>',
+          'Explicit private checkpoint directory; contains sensitive working data'
+        )
+        .option(
+          '--pause-after-actions <count>',
+          'Pause at the next safe boundary after 1–1000 actions in this attempt'
+        )
         .option(
           '--judge-config <file>',
           'Explicit independent semantic judge transport and limits'
@@ -139,6 +165,23 @@ export function workflowCommand(): Command {
       let outputs: Awaited<ReturnType<typeof reserveOutputs>> = {};
       let phase: 'load' | 'setup' | 'execution' = 'load';
       try {
+        const pauseAfterActions =
+          options.pauseAfterActions === undefined ? undefined : Number(options.pauseAfterActions);
+        if (
+          (mode === 'resume' && !options.checkpointDir?.trim()) ||
+          (options.checkpointDir !== undefined && !options.checkpointDir.trim()) ||
+          (pauseAfterActions !== undefined &&
+            (!options.checkpointDir ||
+              !Number.isInteger(pauseAfterActions) ||
+              pauseAfterActions < 1 ||
+              pauseAfterActions > 1000))
+        ) {
+          process.exitCode = 2;
+          console.error(
+            'Workflow: resume requires --checkpoint-dir; --pause-after-actions requires checkpoint storage and an integer from 1 to 1000.'
+          );
+          return;
+        }
         const cleanupTimeoutMs =
           options.cleanupTimeout === undefined ? undefined : Number(options.cleanupTimeout);
         if (
@@ -153,9 +196,12 @@ export function workflowCommand(): Command {
         const scenario = await loadAgentWorkflow(path);
         phase = 'setup';
         outputs = await reserveOutputs(options);
+        let judgeConfigurationId: string | undefined;
         const semanticJudge =
           options.judgeConfig !== undefined
-            ? await prepareWorkflowJudge(options.judgeConfig)
+            ? await prepareWorkflowJudge(options.judgeConfig, (identity) => {
+                judgeConfigurationId = identity;
+              })
             : undefined;
         const config = await loadConfig(options.config);
         if (options.config && !config) throw new Error('explicit_config_unavailable');
@@ -171,20 +217,58 @@ export function workflowCommand(): Command {
           console.error('Workflow: configured provider is unsupported.');
           return;
         }
-        const client = await createAdapter({
-          ...adapterConfig,
-          defaultModel: scenario.target.model,
-          maxRetries: 0,
-        });
+        let initializedTarget: Promise<AgentTarget> | undefined;
+        const getTarget = () => {
+          initializedTarget ??= createAdapter({
+            ...adapterConfig,
+            defaultModel: scenario.target.model,
+            maxRetries: 0,
+          }).then(createModelClientTarget);
+          return initializedTarget;
+        };
+        // Checkpoint identity/authority refusal must precede adapter initialization.
+        const target: AgentTarget = options.checkpointDir
+          ? {
+              provider: scenario.target.provider,
+              capabilities: async (limits, signal) =>
+                (await getTarget()).capabilities(limits, signal),
+              turn: async (request, signal) => (await getTarget()).turn(request, signal),
+              drain: async (limits) =>
+                initializedTarget
+                  ? ((await initializedTarget).drain?.(limits) ?? { pendingOperations: 0 })
+                  : { pendingOperations: 0 },
+            }
+          : await getTarget();
         const session = createAgentWorkflowSession({
           workflow: scenario,
-          target: createModelClientTarget(client),
+          target,
           fixtureRoot: options.fixtureRoot ? resolve(options.fixtureRoot) : dirname(path),
           preflight: options.preflight,
           preflightOnly,
           signal: controller.signal,
           cleanupTimeoutMs,
           semanticJudge,
+          ...(options.checkpointDir
+            ? {
+                checkpoint: {
+                  directory: resolve(options.checkpointDir),
+                  mode: mode === 'resume' ? ('resume' as const) : ('create' as const),
+                  configurationId: createHash('sha256')
+                    .update(
+                      JSON.stringify({
+                        adapter: workflowTransportIdentity({
+                          ...adapterConfig,
+                          defaultModel: scenario.target.model,
+                          maxRetries: 0,
+                        }),
+                        judge: judgeConfigurationId ?? null,
+                      })
+                    )
+                    .digest('hex'),
+                },
+              }
+            : {}),
+          pauseAfterActions,
         });
         phase = 'execution';
         const result = await session.run();

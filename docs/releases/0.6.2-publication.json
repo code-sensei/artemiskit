@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "milestone": "0.6.2",
+  "recordedAt": "2026-09-26T14:06:41.407004+00:00",
+  "candidate": "aa1946aebae1bb9841eb359a006cc71b869a6e6e",
+  "npm": "published-and-verified",
+  "registryGate": "passed-exact-versions-integrities-and-latest",
+  "installedArchiveIntegrity": "all-12-match-retained-publication-archives",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.22",
+      "integrity": "sha512-YzfzZjX1bXRhGarVIxyBpzQBp42qfoV3vj3Y/gBU52vF2z9ag+Kz2ZDzK0QOApujlXdApiOZFb17rDzIO7E/rg==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-anthropic@0.1.22"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.11",
+      "integrity": "sha512-/H6JpCQ6pNHOLjzyhrD1gBvUc8rMXvrdxwRYGV+sfXmhYYrV0RQWe/do4nqFLgSi5JIvzrjLM0oN77wLldvWQg==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-deepagents@0.2.11"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.11",
+      "integrity": "sha512-wvlDXh+ljrRANepHEwNC9kNqFDVNPUTlyvCbpoYAhEWIkET7E6WPnq/OEIzcZ4rzW4D6+uhWdCnFYPwBcRd+eg==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-langchain@0.2.11"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.10",
+      "integrity": "sha512-96RT9IiZXggvlvZih//O2tPOucWF+n6aG1HpXTHC/ZkYTVPZv/bhjvr85W4pfY/7LI/0H7Te3Y6Zf9rqlwsuqw==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-ling@0.1.10"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.1.22",
+      "integrity": "sha512-gbFBJFgWlYA2y9VrPQbO2gCvzA5xb9Urpmqk8bZr39heFYE1FBsM0IcevzJLkvdwyxtyaKfa+jyReob9nNdOLQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-openai@0.1.22"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.10",
+      "integrity": "sha512-gVpx4Suj4YS/a4azYltSEMTN9OMy4FX8T8uMPXjYkFm9GIO+jjcQUDwoAMQlPPSu9mz/0icNnq0F4MkI0/nvSA==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-trueforge@0.1.10"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.22",
+      "integrity": "sha512-sTiv+5Mk3nNcYmncvwzTSSoR8NNT6IJv2NDtSvLuAjjCSof/wDYw3CRs8FN9LWBKypSjg/woCq8+/7O+udr03g==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/adapter-vercel-ai@0.1.22"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.6.1",
+      "integrity": "sha512-IDoIrphckptyQgG5Q11nuZgBcMrpQDdfD/SvPlD24UHf233c0F9OXdDVPgwi0xy507/P+FedJz7f5YhFmRnf/w==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/cli@0.6.1"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.6.2",
+      "integrity": "sha512-l/SDDInCYg4zlaLrAUax8znne3p650sp2MQVATk+7pNQm52IRsZiv5+83L+MQ/VVdciHbqfJ93um26/HBhMwyw==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/core@0.6.2"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.10",
+      "integrity": "sha512-ZtvitLtHzH95aM+/FKI8rToSbuXvtXNhTgU6yZl6FAgJBxnX6jxUcL+RsKZfrv0D49CC4+F54xABCWa0HXadtQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/redteam@0.3.10"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.4.9",
+      "integrity": "sha512-AHCL3yEwrlhPw/I5YRhn7IMkrXJLyC7FNLHs8t8YBlLvZB3uJurax4qSixZ6cJrD6apA33eZ5lwkQyH2dkorsQ==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/reports@0.4.9"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.6.1",
+      "integrity": "sha512-T1HODmSagz6cdihwouqvsvyKecgKIdDT5kDuxd2i83XUsFMmkNwea8oj1E4uRO8R2lwxUbbXrh/ivskGlAc4dw==",
+      "state": "published",
+      "localAnnotatedTag": "@artemiskit/sdk@0.6.1"
+    }
+  ],
+  "localMilestoneTag": "v0.6.2",
+  "remote": {
+    "status": "blocked",
+    "milestoneTag": "absent",
+    "githubRelease": "absent",
+    "reason": "Automatic approval review rejected git push origin main --follow-tags: approval required by policy, but AskForApproval is set to Never"
+  },
+  "registryConsumer": {
+    "source": "npm-registry",
+    "completedAt": "2026-09-26T14:04:35.207Z",
+    "repositoryRevision": "aa1946aebae1bb9841eb359a006cc71b869a6e6e",
+    "runtimes": {
+      "node": "v24.18.0",
+      "bun": "1.3.10"
+    },
+    "packages": {
+      "@artemiskit/adapter-anthropic": "0.1.22",
+      "@artemiskit/adapter-deepagents": "0.2.11",
+      "@artemiskit/adapter-langchain": "0.2.11",
+      "@artemiskit/adapter-ling": "0.1.10",
+      "@artemiskit/adapter-openai": "0.1.22",
+      "@artemiskit/adapter-trueforge": "0.1.10",
+      "@artemiskit/adapter-vercel-ai": "0.1.22",
+      "@artemiskit/cli": "0.6.1",
+      "@artemiskit/core": "0.6.2",
+      "@artemiskit/mcp-docker-sandbox": "0.1.0",
+      "@artemiskit/redteam": "0.3.10",
+      "@artemiskit/reports": "0.4.9",
+      "@artemiskit/sdk": "0.6.1"
+    },
+    "checks": [
+      "node-imports",
+      "bun-imports",
+      "workflow-schema",
+      "approval-permissions",
+      "openai-tool-continuation",
+      "ling-tool-continuation",
+      "native-workflow-sessions",
+      "deterministic-outcomes-and-json-schema",
+      "explicit-semantic-judge-and-separate-usage",
+      "saved-v1-v2-compatibility",
+      "task-outcome-cli-exits-and-judge-cancellation",
+      "bun-cli",
+      "workflow-cli-execution-preflight-interruption",
+      "real-docker-node-bun-sdk-and-cli",
+      "typescript-nodenext",
+      "typescript-bundler"
+    ],
+    "limitations": [
+      "No external model calls; other providers import-only.",
+      "CLI/MCP retain Bun runtime.",
+      "Docker requires the fixed local image and a trusted local daemon.",
+      "TypeScript uses skipLibCheck for third-party declarations."
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import {
   type AdapterConfig,
+  type AgentTarget,
   type AgentWorkflowSession,
   ArtemisError,
   createAdapter,
@@ -20,22 +21,36 @@ export async function prepareWorkflowSession(
   const workflow = file ? await loadAgentWorkflow(file) : validateAgentWorkflow(options.workflow);
   let target = options.target;
   if (!target) {
-    let client = options.client;
-    if (!client) {
-      try {
-        client = await createAdapter({
+    if (options.client) target = createModelClientTarget(options.client);
+    else {
+      let initialized: Promise<AgentTarget> | undefined;
+      const getTarget = () => {
+        initialized ??= createAdapter({
           ...config.providerConfig,
           ...options.providerConfig,
           provider: workflow.target.provider,
           defaultModel: workflow.target.model,
           maxRetries: 0,
-        } as AdapterConfig);
-      } catch {
-        // Provider factories may put credentials or configuration values in their diagnostics.
-        throw new ArtemisError('Unable to initialize workflow target', 'PROVIDER_UNAVAILABLE');
-      }
+        } as AdapterConfig)
+          .then(createModelClientTarget)
+          .catch(() => {
+            throw new ArtemisError('Unable to initialize workflow target', 'PROVIDER_UNAVAILABLE');
+          });
+        return initialized;
+      };
+      target = options.checkpoint
+        ? {
+            provider: workflow.target.provider,
+            capabilities: async (limits, signal) =>
+              (await getTarget()).capabilities(limits, signal),
+            turn: async (request, signal) => (await getTarget()).turn(request, signal),
+            drain: async (limits) =>
+              initialized
+                ? ((await initialized).drain?.(limits) ?? { pendingOperations: 0 })
+                : { pendingOperations: 0 },
+          }
+        : await getTarget();
     }
-    target = createModelClientTarget(client);
   }
   return createAgentWorkflowSession({
     workflow,
@@ -48,5 +63,7 @@ export async function prepareWorkflowSession(
     cleanupTimeoutMs: options.cleanupTimeoutMs,
     semanticJudge: options.semanticJudge,
     onEvent: options.onEvent,
+    checkpoint: options.checkpoint,
+    pauseAfterActions: options.pauseAfterActions,
   });
 }

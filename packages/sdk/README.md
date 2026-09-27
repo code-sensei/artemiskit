@@ -62,15 +62,22 @@ console.log(result.record); // bounded metadata with separate execution and task
 // result.state and result.transcript contain sensitive working data.
 ```
 
-`kit.runWorkflow(options)` creates and runs a fresh session in one call. Supply a `client` or
+`kit.runWorkflow(options)` creates and runs a session in one call; fresh execution is the default. Supply a `client` or
 `target` to use an existing trusted adapter or target. The same native controls apply through the
 CLI and SDK: declared tools and permissions, cumulative budgets, explicit preflight, cancellation,
 and cleanup evidence. Workflows use fresh simulated state or a disposable Docker filesystem.
 The 0.6.2 milestone independently verifies declared artifacts, state, schemas, traces and policy.
 Use explicit `semanticJudge` configuration for declared qualitative criteria. Target and judge usage
-remain separate; `readWorkflowRecord` validates V1/V2 saved metadata without making model calls.
+remain separate; `readWorkflowRecord` validates V1/V2/V3 saved metadata without making model calls.
 See [workflow outcomes](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-outcomes.md)
 for usage, denominators, compatibility and publication status.
+
+For explicit private recovery, pass `checkpoint: { directory, mode: 'create', configurationId }`
+and optionally `pauseAfterActions`. A later process uses the same authorized configuration and
+`mode: 'resume'`. `session.pause()` requests a safe boundary; `session.cancel()` still cancels.
+Checkpoints retain sensitive conversation and state with cumulative budgets and the original
+deadline. A paused result is not task success. See the [0.6.3 recovery guide](https://github.com/code-sensei/artemiskit/blob/main/docs/workflow-recovery.md)
+for complete examples, fault schedules, refusal conditions and qualification status.
 
 The root and `/types` entry points expose workflow result/session/event types. Low-level
 `createAgentWorkflowSession` and `runAgentWorkflow` are available for explicit target composition.

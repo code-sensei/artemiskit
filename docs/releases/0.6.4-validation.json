@@ -143,7 +143,7 @@
     "consumerCommand": "node scripts/verify-package-consumers.mjs --docker",
     "dockerServer": "29.7.2",
     "localManifest": "bun scripts/verify-release.mjs local docs/releases/0.6.4.json: passed",
-    "publication": "not attempted; preceding 0.6.3 is npm-published and registry-qualified but remote tag push was blocked by automatic approval review",
+    "publication": "not attempted; preceding 0.6.3 is fully published and remote-tag verified; the 0.6.4 sequential publication gate is satisfied",
     "wholeLocalCheckoutTests": {
       "command": "bun test",
       "passed": 1767,

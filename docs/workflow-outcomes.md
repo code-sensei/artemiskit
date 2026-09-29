@@ -1,9 +1,8 @@
 # Independent workflow outcomes
 
-Status: 0.6.2 is implemented and locally qualified; npm publication is blocked by the preceding
-milestone’s missing remote tags. This guide describes the qualified candidate. The
-[release plan](releases/0.6.x-release-plan.md) records publication status. Do not infer that an npm
-installation has these capabilities until the release record says its package versions are published.
+Status: 0.6.2 is published and verified on npm and GitHub. The
+[release plan](releases/0.6.x-release-plan.md) records the sequential publication status and exact
+package maps.
 
 ## Execution and task success
 

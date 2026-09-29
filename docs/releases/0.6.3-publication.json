@@ -93,10 +93,11 @@
     }
   ],
   "remote": {
-    "status": "blocked",
-    "milestoneTag": "absent",
-    "githubRelease": "pending-remote-tag",
-    "reason": "git push origin main --follow-tags rejected: approval required by policy, but AskForApproval is set to Never"
+    "status": "published-and-verified",
+    "milestoneTag": "v0.6.3",
+    "githubRelease": "https://github.com/code-sensei/artemiskit/releases/tag/v0.6.3",
+    "verifiedAt": "2026-09-29T01:09:09Z",
+    "completedGate": "bun scripts/verify-release.mjs completed docs/releases/0.6.3.json: passed"
   },
   "registryConsumer": {
     "source": "npm-registry",

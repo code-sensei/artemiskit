@@ -310,6 +310,7 @@ describe('registry transport without live credentials or writes', () => {
   });
 });
 
+// Two shell paths share one test deadline; each child also has its own bounded timeout.
 test('shell entrypoint cleans temporary auth on success/failure and never rewrites source manifests', () => {
   for (const exit of [0, 17]) {
     const directory = mkdtempSync(join(tmpdir(), 'artemis-publish-shell-test-'));
@@ -336,6 +337,7 @@ test('shell entrypoint cleans temporary auth on success/failure and never rewrit
     const result = spawnSync('/bin/bash', ['publish.sh', '--dry-run'], {
       cwd: directory,
       encoding: 'utf8',
+      timeout: 5000,
       env: {
         PATH: `${bin}:/usr/bin:/bin`,
         NPM_API_KEY: 'dummy-test-only',
@@ -350,7 +352,7 @@ test('shell entrypoint cleans temporary auth on success/failure and never rewrit
     expect(result.stdout).not.toContain('Packages published successfully');
     expect(readFileSync(join(directory, 'git-calls'), 'utf8')).not.toContain('commit');
   }
-});
+}, 15000);
 
 test('accepted upload followed by npm failure reconciles through status403/404 without resend', async () => {
   for (const http of [403, 404]) {

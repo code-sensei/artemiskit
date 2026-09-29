@@ -65,5 +65,6 @@
   "devDependencies": {
     "@types/bun": "^1.1.0",
     "typescript": "^5.3.0"
-  }
+  },
+  "files": ["bin", "dist", "src", "README.md", "LICENSE"]
 }

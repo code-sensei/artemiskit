@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   assertPackedDependencies,
+  assertPackedFileList,
   normalizePackument,
   packCandidate,
   publishPackages,
@@ -526,4 +527,69 @@ test('unchanged dependencies and reciprocal peer declarations do not introduce f
   f.metadata.set(core.name, published(core));
   await publishPackages({ packages, candidate }, f.io);
   expect(f.uploads).toEqual([sdk.name]);
+});
+
+describe('package runtime-artifact boundary', () => {
+  test('refuses local run/checkpoint/configuration paths without echoing their names', () => {
+    expect(() =>
+      assertPackedFileList('package/package.json\npackage/src/index.ts\npackage/.env.example')
+    ).not.toThrow();
+    for (const path of [
+      'package/artemis-runs/private.json',
+      'package/.artemis-checkpoint/state.json',
+      'package/artemis-output/report.html',
+      'package/agent-evaluation-runs/run.json',
+      'package/ai-trace/run.json',
+      'package/.env',
+      'package/src/.env.production',
+      'package/.git/config',
+      'package/node_modules/private/file',
+      '/package/absolute',
+      'package/../outside',
+      'package/src/../../outside',
+      'package/./file',
+      'package//file',
+      'outside/file',
+      'package/file\tprivate',
+    ]) {
+      expect(() => assertPackedFileList(`package/package.json\n${path}`)).toThrow(
+        'Package archive contains unsafe or local runtime files'
+      );
+    }
+  });
+  test('actual CLI allowlist excludes ignored local evidence while retaining runtime sources', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'artemis-cli-pack-boundary-'));
+    const cli = JSON.parse(
+      readFileSync(new URL('../packages/cli/package.json', import.meta.url), 'utf8')
+    );
+    const pkg = { name: '@artemiskit/cli', version: '0.6.3', location: directory };
+    for (const folder of ['bin', 'dist', 'src', 'artemis-runs', '.artemis-checkpoint'])
+      mkdirSync(join(directory, folder));
+    for (const file of ['bin/artemis.ts', 'dist/index.js', 'src/cli.ts'])
+      writeFileSync(join(directory, file), 'export {};\n');
+    for (const file of ['artemis-runs/private.json', '.artemis-checkpoint/state.json'])
+      writeFileSync(join(directory, file), '{"private":"fixture"}');
+    writeFileSync(
+      join(directory, 'package.json'),
+      JSON.stringify({ name: pkg.name, version: pkg.version })
+    );
+    const archive = join(mkdtempSync(join(tmpdir(), 'artemis-cli-archive-')), 'candidate.tgz');
+    await expect(packCandidate(pkg, [pkg], archive, null)).rejects.toThrow(
+      'unsafe or local runtime files'
+    );
+    writeFileSync(
+      join(directory, 'package.json'),
+      JSON.stringify({ name: pkg.name, version: pkg.version, files: cli.files })
+    );
+    await packCandidate(pkg, [pkg], archive, null);
+    const listing = spawnSync('tar', ['-tf', archive], { encoding: 'utf8' });
+    expect(listing.status).toBe(0);
+    for (const file of ['bin/artemis.ts', 'dist/index.js', 'src/cli.ts'])
+      expect(listing.stdout).toContain(`package/${file}`);
+    expect(listing.stdout).not.toContain('private.json');
+    expect(listing.stdout).not.toContain('state.json');
+    expect(readFileSync(join(directory, 'artemis-runs/private.json'), 'utf8')).toBe(
+      '{"private":"fixture"}'
+    );
+  });
 });

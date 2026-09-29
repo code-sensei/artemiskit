@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPackedFileList } from './npm-publication.mjs';
 
 // Default: qualify built tarballs. --registry: qualify exact workspace versions from npm.
 // Both modes retain an isolated installation and execute only loopback-provider checks.
@@ -72,6 +73,7 @@ for (const { location, manifest } of packages) {
   assert.ok(existsSync(join(location, 'dist/index.js')), `Build first: ${manifest.name}`);
   const archive = join(directory, `${manifest.name.replace(/[@/]/g, '-')}-${manifest.version}.tgz`);
   run('bun', ['pm', 'pack', '--ignore-scripts', '--filename', archive, '--quiet'], location);
+  assertPackedFileList(run('tar', ['-tf', archive], root));
   candidates.push(archive);
 }
 writeFileSync(

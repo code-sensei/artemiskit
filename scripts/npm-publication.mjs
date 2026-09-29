@@ -70,6 +70,41 @@ export function assertPackedDependencies(packed, source, packages) {
   }
 }
 
+/** Reject machine-local evidence/configuration before any upload or fresh install. */
+export function assertPackedFileList(listing) {
+  const entries = listing.split('\n').filter(Boolean);
+  if (!entries.length) throw new Error('Empty package archive');
+  const forbidden = new Set([
+    '.git',
+    'node_modules',
+    'artemis-runs',
+    'artemis-output',
+    '.artemis-checkpoint',
+    'agent-evaluation-runs',
+    'ai-trace',
+  ]);
+  for (const entry of entries) {
+    const parts = entry.replace(/\/$/, '').split('/');
+    if (
+      parts[0] !== 'package' ||
+      parts.length < 2 ||
+      Array.from(entry).some(
+        (character) =>
+          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 || character === '\\'
+      ) ||
+      parts.some(
+        (part) =>
+          !part ||
+          part === '.' ||
+          part === '..' ||
+          forbidden.has(part) ||
+          (part.startsWith('.env') && part !== '.env.example')
+      )
+    )
+      throw new Error('Package archive contains unsafe or local runtime files');
+  }
+}
+
 function publicVersion(metadata, pkg, integrity) {
   const published = normalizePackument(metadata).versions[pkg.version];
   if (!published) return false;
@@ -270,6 +305,7 @@ export async function packCandidate(pkg, packages, archive, receipt) {
     .digest('base64')}`;
   if (receipt && integrity !== receipt.integrity)
     throw new Error('Retained tarball integrity mismatch');
+  assertPackedFileList(await command('tar', ['-tf', archive]));
   const packed = JSON.parse(await command('tar', ['-xOf', archive, 'package/package.json']));
   assertPackedDependencies(packed, pkg, packages);
   return { archive, integrity };

@@ -500,7 +500,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Implementation complete through 0.6.4; 0.6.0–0.6.3 published on npm/GitHub; 0.6.4 reports locally qualified and pending publication
+**Status:** Implementation complete and published through 0.6.4 on npm and GitHub
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -541,9 +541,9 @@ or a certification.
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | Execution fields shipped in 0.6.1; independent outcomes verified on npm in 0.6.2 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | Basic execution shipped in 0.6.1; recovery V3 published and verified in 0.6.3 |
 | No default execution path discovers tools or performs live side effects | ✅ 0.6.1 published and verified |
-| Technical, executive, and comprehensive reports derive from the same saved evidence | 0.6.4 locally qualified; unpublished |
+| Technical, executive, and comprehensive reports derive from the same saved evidence | ✅ 0.6.4 published and verified |
 | Optional AI SDK then Pi integrations pass shared controls; fx stays experimental pending qualification | 📋 After shared 0.6.1 interface; separately releasable |
-| Exact npm package map and remote package/milestone tags verified sequentially | 📋 Every 0.6.x publication |
+| Exact npm package map and remote package/milestone tags verified sequentially | ✅ 0.6.0–0.6.4 published and verified |
 
 ## 0.7 — Comparative benchmark execution
 

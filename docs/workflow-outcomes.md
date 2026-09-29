@@ -1,8 +1,8 @@
 # Independent workflow outcomes
 
-Status: 0.6.2 is published and verified on npm and GitHub. The
-[release plan](releases/0.6.x-release-plan.md) records the sequential publication status and exact
-package maps.
+Status: outcome verification shipped in 0.6.2, and its offline assessment reports shipped in 0.6.4;
+both are published and verified on npm and GitHub. The [release plan](releases/0.6.x-release-plan.md)
+records the sequential publication status and exact package maps.
 
 ## Execution and task success
 

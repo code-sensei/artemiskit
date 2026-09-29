@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "milestone": "0.6.4",
+  "recordedAt": "2026-09-29T23:53:51Z",
+  "candidate": "4eaaec14961b17a99e1570581337a24e8b8a97d5",
+  "npm": "published-and-verified",
+  "registryGate": "bun scripts/verify-release.mjs registry docs/releases/0.6.4.json: passed",
+  "installedArchiveIntegrity": "all-12-match-registry-integrities",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.24",
+      "integrity": "sha512-V6m848CD44NhpkAAgXKgboco4abIdRIfKKf6nAVWeQqcYNxfwoI12SWC3c4HIxNu5T7eVno/n1TcWqhQhWT6gQ==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-anthropic@0.1.24"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.13",
+      "integrity": "sha512-TVxVKmymKxjTf5wswlgWEMdw2USn2+G6CNjIn5uGVsHokxAAs0cu1FbSUcnn0GfWT0ucWzKwdB/0YE/1B3cMFw==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-deepagents@0.2.13"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.13",
+      "integrity": "sha512-qMK1+9nMnBcHcgLZNIPdJM0QmlI/Lvnx5VK4VyN+0iUHOjWpsL1bnpUfbaI+Yf3xbQMTMwxOSRKRj0e6uvkkIg==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-langchain@0.2.13"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.12",
+      "integrity": "sha512-O4gZYguNkdKtowefCdWdpzdFpRak1yXkdSQfsq3/IFF3mCqNs68aqNOGFeqTUHG6qxaXtArv7zepB1D/IbjM9g==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-ling@0.1.12"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.1.24",
+      "integrity": "sha512-NYBvtAsBmyrfNjCzdTyZIwU1FIKflIuNv+GqSXC4VoUSYTqHErtHV5fOunFdrGOFP2yYLXCM0pFiQt0UvDm62Q==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-openai@0.1.24"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.12",
+      "integrity": "sha512-RMMRqbBDZWAPkdOFMtEx5wphuw6jMa76yinuKmE/5sIYWQc3urwQJTNDq8LQfJwT5nUau0bLREbf8hBKkBd+PA==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-trueforge@0.1.12"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.24",
+      "integrity": "sha512-iwXJ65bsbfQewrIZ+mobveEJJ/VaUfn32ZOiMKaqAuRNjtHFLPe4LGnZklL1rjYCTmruKrpF7KgeHkbGaxaGlg==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-vercel-ai@0.1.24"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.6.3",
+      "integrity": "sha512-LIHexL37Vd3V5Xzr1pNwp2up1I99wD3lnlY57d3H/+aI1MsS3MGjZ3vmIxuhu80lFK8ADsvYrTPyDJLFXwxULQ==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/cli@0.6.3"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.6.4",
+      "integrity": "sha512-X0Diu79wXhs75mk1e9iq0MYBUmoL8RTU5gaeZmV9wJmi7gtRQVAMFeRk759pDAIiwJatXZe2wz7pv5hlsd++9g==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/core@0.6.4"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.12",
+      "integrity": "sha512-NgOK6+2Zf5sLqoQCnhGBwcRO//aaqsHn/jltyTuMwQotubIho0NNaNnOuWTrlLvM8TpKPo/Hdz9fbsg7lP9Mgg==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/redteam@0.3.12"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.5.0",
+      "integrity": "sha512-j4fwDf1qNqEkf3FpP9HYtOpdNFdRrmSP3RA17Xw07N2iXjRC5H0TuHKl8/94HfMbWD71trhuG7VFeSSbgoILBQ==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/reports@0.5.0"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.6.3",
+      "integrity": "sha512-74qNL0Z4f5eGJSO87MLIsAJM/WlRtQd9QwjpOv4jeBxJ8wbHlvYjuiJk53BqECGMFZZ9Zcdu4R7EorzTkHpyfQ==",
+      "state": "published",
+      "annotatedTag": "@artemiskit/sdk@0.6.3"
+    }
+  ],
+  "remote": {
+    "status": "published-and-verified",
+    "milestoneTag": "v0.6.4",
+    "candidate": "4eaaec14961b17a99e1570581337a24e8b8a97d5",
+    "remoteTagsVerified": 13,
+    "completedGate": "bun scripts/verify-release.mjs completed docs/releases/0.6.4.json: passed",
+    "githubRelease": "https://github.com/code-sensei/artemiskit/releases/tag/v0.6.4",
+    "githubPublishedAt": "2026-09-29T23:52:36Z"
+  },
+  "registryConsumer": {
+    "source": "npm-registry",
+    "runtimes": {
+      "node": "v24.18.0",
+      "bun": "1.3.10"
+    },
+    "checks": [
+      "Node and Bun public imports",
+      "CLI and SDK workflow execution, recovery and Docker",
+      "offline reports CLI/SDK all views and formats",
+      "V1/V2/V3 denominators, resume deduplication and no-clobber outputs",
+      "TypeScript NodeNext and bundler consumers"
+    ],
+    "status": "passed"
+  }
+}

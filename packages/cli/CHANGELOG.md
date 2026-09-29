@@ -1,5 +1,20 @@
 # @artemiskit/cli
 
+## 0.6.3
+
+### Patch Changes
+
+- 5c35b04: Add deterministic offline workflow assessments in technical, executive and comprehensive HTML/Markdown views. Strict saved V1/V2/V3 records share one canonical report model, evidence links, explicit measurement denominators and compatible resume accounting. Expose `akit workflow report` and matching synchronous SDK functions with bounded input and no-overwrite exports. No provider calls, inferred pricing or task rescoring occur. Core receives a release-alignment patch identifying the coherent 0.6.4 milestone; its workflow record contract remains unchanged.
+- Updated dependencies [5c35b04]
+  - @artemiskit/reports@0.5.0
+  - @artemiskit/core@0.6.4
+  - @artemiskit/adapter-deepagents@0.2.13
+  - @artemiskit/adapter-langchain@0.2.13
+  - @artemiskit/adapter-ling@0.1.12
+  - @artemiskit/adapter-openai@0.1.24
+  - @artemiskit/adapter-vercel-ai@0.1.24
+  - @artemiskit/redteam@0.3.12
+
 ## 0.6.2
 
 ### Patch Changes

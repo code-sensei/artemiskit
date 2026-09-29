@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies [5c35b04]
+  - @artemiskit/core@0.6.4
+
 ## 0.1.11
 
 ### Patch Changes

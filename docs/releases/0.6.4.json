@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "milestone": "0.6.4",
+  "tag": "v0.6.4",
+  "previous": "0.6.3",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.24"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.13"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.13"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.12"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.1.24"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.12"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.24"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.6.3"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.6.4"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.12"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.5.0"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.6.3"
+    }
+  ]
+}

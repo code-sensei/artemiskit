@@ -261,12 +261,18 @@ Publication waits for the preceding 0.6.2 remote tags; no 0.6.3 npm upload or ta
 
 #### 0.6.4 — Professional assessment-report foundation
 
+**Implementation complete and locally qualified; unpublished.** CLI and SDK share a canonical
+V1/V2/V3 report model with three HTML/Markdown views, stable evidence links, honest denominators
+and compatible resume accounting. See the [report guide](docs/workflow-reports.md) and
+[release record](docs/releases/0.6.4.md). Publication follows the completed 0.6.3 release gate.
+
 - Generate a deterministic, decision-grade assessment report from sanitized saved evidence without
   a new model call.
 - Support technical, executive, and comprehensive report views from the same canonical evidence.
   The comprehensive view combines scope, target configuration, methodology, coverage and
-  exclusions, valid and invalid measurement counts, scenario-level strengths and weaknesses,
-  failure modes, limitations, recommendations, and a technical appendix.
+  exclusions, valid and invalid measurement counts, retained criterion-level strengths and weaknesses,
+  failure modes, limitations, recommendations, and a technical appendix. Scenario identity remains
+  unavailable when absent from the saved evidence.
 - Provide professional HTML and Markdown layouts plus a technical appendix that links findings to
   manifest evidence, rather than presenting raw test logs as the assessment deliverable.
 - Use the same canonical report model for CLI exports and SDK generation. Show runtime versus task
@@ -275,6 +281,16 @@ Publication waits for the preceding 0.6.2 remote tags; no 0.6.3 npm upload or ta
 - Verify deterministic regeneration from saved evidence without provider credentials/network/model
   calls, stable finding-to-evidence references, historical/unsupported manifest handling, and redaction.
   Inspect technical, executive and comprehensive HTML at desktop/mobile widths and exported Markdown.
+- Accept strict public V1/V2/V3 workflow evidence, with at most 50 records / 8 MiB per assessment;
+  CLI inputs are regular non-symlink files up to 1 MiB each and output paths must be new.
+  Legacy prompt-response reports retain their separate API; private checkpoints and unsupported
+  future schemas refuse generation. Export success is distinct from assessed task success.
+- Deduplicate identical records and compatible cumulative resumed attempts. Only final eligible
+  passed/failed logical tasks enter the success denominator; historical, preflight, invalid and
+  unavailable evidence stays visible separately. Do not infer statistical independence or ranking.
+- Preserve privacy with digest identities for arbitrary saved labels. Missing scenario definitions,
+  exact harness versions, full policy declarations and pricing are explicit unknowns; the current
+  installation is not a substitute for provenance absent from the saved record.
 - Exit only when an independent reviewer can understand scope, findings, uncertainty and next actions
   without reading raw logs. AI-generated narrative, SaaS/Loki integration, public leaderboards and
   certification claims are outside this milestone.
@@ -484,7 +500,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Partial — 0.6.0/0.6.1 published; 0.6.2 outcomes verified on npm (remote tags pending); 0.6.3 recovery locally qualified (unpublished); reports planned
+**Status:** Partial — 0.6.0/0.6.1 published; 0.6.2 outcomes verified on npm (remote tags pending); 0.6.3 recovery locally qualified (unpublished); reports locally qualified (unpublished)
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -525,7 +541,7 @@ or a certification.
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | Execution fields shipped in 0.6.1; independent outcomes verified on npm in 0.6.2 |
 | Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | Basic execution shipped in 0.6.1; recovery V3 locally qualified in unpublished 0.6.3 |
 | No default execution path discovers tools or performs live side effects | ✅ 0.6.1 published and verified |
-| Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 0.6.4 |
+| Technical, executive, and comprehensive reports derive from the same saved evidence | 0.6.4 locally qualified; unpublished |
 | Optional AI SDK then Pi integrations pass shared controls; fx stays experimental pending qualification | 📋 After shared 0.6.1 interface; separately releasable |
 | Exact npm package map and remote package/milestone tags verified sequentially | 📋 Every 0.6.x publication |
 

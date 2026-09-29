@@ -211,10 +211,10 @@ sandbox and fresh-consumer evidence; outcome scoring stays in 0.6.2.
 
 #### 0.6.2 — Independent outcome verification
 
-**Published and verified on npm; GitHub push blocked.** Independent assertions, bounded semantic
-judging, V2 evidence, CLI/SDK outcomes and fresh installed Node/Bun/Docker checks pass. See the
-[0.6.2 release record](docs/releases/0.6.2.md) for exact validation and package versions. All twelve npm versions and fresh registry consumers pass; annotated local tags are ready.
-Automatic approval review blocks the remaining GitHub push.
+**Published and verified on npm and GitHub.** Independent assertions, bounded semantic
+judging, V2 evidence and fresh installed Node/Bun/Docker checks pass. All twelve package versions
+and annotated remote package/milestone tags are verified. See the
+[0.6.2 release record](docs/releases/0.6.2.md) for validation and exact versions.
 See the [outcome guide](docs/workflow-outcomes.md) for assertions, bounded judging, validity
 denominators and historical compatibility.
 
@@ -235,11 +235,11 @@ denominators and historical compatibility.
 
 #### 0.6.3 — Fault, recovery, and bounded agent evidence
 
-**Implementation complete and locally qualified; unpublished.** Independent review accepted the
-checkpoint store, recovery engine and CLI/SDK integration. All 1,683 tests, 13 package builds and
-typechecks, and fresh installed Node/Bun/TypeScript/real Docker consumers pass. See the
+**Published and registry-qualified on npm; remote push blocked.** Independent review accepted the
+checkpoint store, recovery engine and CLI/SDK integration. All 1,683 tests, 13 builds/typechecks,
+fresh tarball and registry-installed Node/Bun/TypeScript/real Docker consumers pass. See the
 [0.6.3 release record](docs/releases/0.6.3.md) and [recovery guide](docs/workflow-recovery.md).
-Publication waits for the preceding 0.6.2 remote tags; no 0.6.3 npm upload or tag is claimed.
+All twelve npm packages are published; automatic approval review blocks the normal tag push.
 
 - Support declared fault injections: unavailable tools, stale/incomplete data, malformed results,
   timeouts, conflicting instructions, and bounded retries.
@@ -484,7 +484,7 @@ See [reproducible evidence](docs/reproducible-evidence.md) for the current publi
 
 ## 0.6 — Native agent harness and professional assessment reports
 
-**Status:** Partial — 0.6.0/0.6.1 published; 0.6.2 outcomes verified on npm (remote tags pending); 0.6.3 recovery locally qualified (unpublished); reports planned
+**Status:** Partial — 0.6.0–0.6.2 published on npm/GitHub; 0.6.3 recovery npm verified (remote tags pending); reports planned
 **Goal:** run real tool-using agents inside declared, reproducible environments and independently
 verify what they did.
 
@@ -518,12 +518,12 @@ or a certification.
 | Fresh disposable environments support multi-turn workflows | ✅ 0.6.1 published and verified |
 | Original-argument validation, cumulative budgets, bounded preflight and truthful usage | ✅ 0.6.1 published and verified |
 | Cancellation tracks pending host work and preserves interrupted execution evidence | ✅ 0.6.1 published and verified |
-| Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 0.6.3 locally qualified; unpublished |
-| Durable CLI/SDK resume preserves state, identity, authority and consumed budgets | 0.6.3 locally qualified; unpublished |
-| Deterministic checks verify artifacts, final state, schemas, traces, and acceptance conditions | 0.6.2 npm verified; remote tags pending |
-| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | 0.6.2 npm verified; remote tags pending |
+| Controlled faults cover unavailable tools, incomplete data, conflicting instructions, and bounded retries | 0.6.3 npm verified; remote tags pending |
+| Durable CLI/SDK resume preserves state, identity, authority and consumed budgets | 0.6.3 npm verified; remote tags pending |
+| Deterministic checks verify artifacts, final state, schemas, traces, and acceptance conditions | ✅ 0.6.2 published and verified |
+| Strict LLM judging is limited to declared semantic dimensions and cannot be sole outcome evidence | ✅ 0.6.2 published and verified |
 | Task failure, policy violation, infrastructure error, unsupported capability, and invalid measurement remain distinct | Execution fields shipped in 0.6.1; independent outcomes verified on npm in 0.6.2 |
-| Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | Basic execution shipped in 0.6.1; recovery V3 locally qualified in unpublished 0.6.3 |
+| Sanitized trace, policy, state, and recovery evidence is retained under bounded schemas | Basic execution shipped in 0.6.1; recovery V3 npm verified in 0.6.3; remote tags pending |
 | No default execution path discovers tools or performs live side effects | ✅ 0.6.1 published and verified |
 | Technical, executive, and comprehensive reports derive from the same saved evidence | 📋 0.6.4 |
 | Optional AI SDK then Pi integrations pass shared controls; fx stays experimental pending qualification | 📋 After shared 0.6.1 interface; separately releasable |

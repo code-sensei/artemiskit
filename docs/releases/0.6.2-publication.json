@@ -94,10 +94,11 @@
   ],
   "localMilestoneTag": "v0.6.2",
   "remote": {
-    "status": "blocked",
-    "milestoneTag": "absent",
-    "githubRelease": "absent",
-    "reason": "Automatic approval review rejected git push origin main --follow-tags: approval required by policy, but AskForApproval is set to Never"
+    "status": "published-and-verified",
+    "milestoneTag": "v0.6.2",
+    "githubRelease": "https://github.com/code-sensei/artemiskit/releases/tag/v0.6.2",
+    "verifiedAt": "2026-09-29T00:33:03.427961+00:00",
+    "gate": "bun scripts/verify-release.mjs completed docs/releases/0.6.2.json: passed"
   },
   "registryConsumer": {
     "source": "npm-registry",

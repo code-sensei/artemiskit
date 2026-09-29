@@ -65,6 +65,39 @@ describe('workflow report renderers', () => {
     }
   }
 
+  test('short evidence labels follow canonical order while preserving full targets and digests', () => {
+    const report = rendererFixture();
+    const replacements = new Map(
+      report.evidence.map((item, index) => [item.id, `e-${String(index + 1).repeat(64)}`])
+    );
+    for (const item of report.evidence) item.id = replacements.get(item.id) ?? item.id;
+    for (const finding of report.findings)
+      finding.evidenceIds = finding.evidenceIds.map((id) => replacements.get(id) ?? id);
+    for (const section of report.sections)
+      for (const row of section.rows)
+        row.evidenceIds = row.evidenceIds.map((id) => replacements.get(id) ?? id);
+    report.evidence.reverse();
+    for (const view of views) {
+      const html = renderWorkflowReportHTML(report, { view });
+      const markdown = renderWorkflowReportMarkdown(report, { view });
+      for (const [index, item] of report.evidence.entries()) {
+        const label = `Evidence ${index + 1}`;
+        expect(html).toContain(`<a href="#evidence-${item.id}">${label}</a>`);
+        expect(markdown).toContain(`[${label}](#evidence-${item.id})`);
+        expect(html).toContain(`<h3>${label}</h3>`);
+        expect(markdown).toContain(`### ${label}`);
+        expect(html).toContain(`<dd class="mono">${item.id}</dd>`);
+        expect(html).toContain(item.sha256);
+        expect(markdown).toContain(item.sha256);
+        expect(html).not.toContain(`>${item.id}</a>`);
+      }
+      expect(html).toContain('.metric:last-child{grid-column:1/-1}');
+      expect(html).toContain(
+        '<dt>Success denominator (passed / eligible)</dt><dd>1 / 2</dd></div></dl>'
+      );
+    }
+  });
+
   test('defaults to comprehensive and makes view emphasis explicit', () => {
     for (const render of renderers) {
       const report = rendererFixture();

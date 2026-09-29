@@ -328,3 +328,14 @@ export type {
   DockerWorkflowEnvironmentOptions,
   WorkflowEnvironmentInitializationError,
 } from '@artemiskit/core';
+export type {
+  WorkflowReport,
+  WorkflowReportView,
+  WorkflowReportFormat,
+  WorkflowReportOptions,
+  GenerateWorkflowReportOptions,
+  WorkflowReportFinding,
+  WorkflowReportEvidence,
+  WorkflowReportRow,
+  WorkflowReportSection,
+} from '@artemiskit/reports';

@@ -247,6 +247,23 @@ const outputResult = await guardian.validateOutput(llmResponse);
 | `guardian` | Block violations and log |
 | `hybrid` | Block critical, log others |
 
+## Offline workflow reports
+
+```ts
+import { ArtemisKit, createWorkflowReport, generateWorkflowReport } from '@artemiskit/sdk';
+
+const assessment = createWorkflowReport(savedRecord); // object, JSON string, or record array
+const html = generateWorkflowReport(savedRecord, { view: 'comprehensive', format: 'html' });
+const markdown = new ArtemisKit().generateWorkflowReport(savedRecord, {
+  view: 'executive', format: 'markdown',
+});
+```
+
+These synchronous functions share `@artemiskit/reports` and never initialize providers, restore
+checkpoints or rescore tasks. `renderWorkflowReportHTML` and `renderWorkflowReportMarkdown` render
+an existing canonical model. Invalid/unavailable measurements, historical evidence and cumulative
+resumed attempts keep their original meaning. See the [guide](../../docs/workflow-reports.md).
+
 ## License
 
 Apache-2.0

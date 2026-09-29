@@ -40,6 +40,11 @@ import {
   TypoMutation,
   UnsafeResponseDetector,
 } from '@artemiskit/redteam';
+import {
+  type GenerateWorkflowReportOptions,
+  createWorkflowReport,
+  generateWorkflowReport,
+} from '@artemiskit/reports';
 import { nanoid } from 'nanoid';
 import { prepareWorkflowSession } from './workflow';
 
@@ -132,9 +137,19 @@ export class ArtemisKit {
     return prepareWorkflowSession(options, this.config);
   }
 
-  /** Execute a workflow; task verification is explicitly unavailable until outcome scoring. */
+  /** Execute a workflow and independently evaluate its declared outcomes. */
   async runWorkflow(options: WorkflowRunOptions) {
     return (await this.createWorkflowSession(options)).run();
+  }
+
+  /** Project saved evidence without running a workflow or loading provider configuration. */
+  createWorkflowReport(input: unknown) {
+    return createWorkflowReport(input);
+  }
+
+  /** Generate HTML or Markdown offline; task failures remain visible in a successful export. */
+  generateWorkflowReport(input: unknown, options?: GenerateWorkflowReportOptions) {
+    return generateWorkflowReport(input, options);
   }
 
   // ==========================================================================

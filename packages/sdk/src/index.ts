@@ -487,3 +487,22 @@ export type {
   MultiTurnValidationResult,
   ValidateMessageOptions,
 } from './guardian';
+
+// Offline reports never initialize target or judge clients.
+export {
+  createWorkflowReport,
+  generateWorkflowReport,
+  renderWorkflowReportHTML,
+  renderWorkflowReportMarkdown,
+} from '@artemiskit/reports';
+export type {
+  WorkflowReport,
+  WorkflowReportView,
+  WorkflowReportFormat,
+  WorkflowReportOptions,
+  GenerateWorkflowReportOptions,
+  WorkflowReportFinding,
+  WorkflowReportEvidence,
+  WorkflowReportRow,
+  WorkflowReportSection,
+} from '@artemiskit/reports';

@@ -206,4 +206,5 @@ policy for the data being evaluated.
 Historical prompt-response manifests and reports retain their existing contract. Workflow records
 have their own schema and must not be passed to legacy report generators as if they were scored
 scenario results. The [0.6.3 recovery guide](workflow-recovery.md) covers declared faults, bounded
-retries and explicit private checkpoint/resume. Professional workflow reports remain 0.6.4.
+retries and explicit private checkpoint/resume. The [0.6.4 report guide](workflow-reports.md) covers
+offline assessment views from saved records.

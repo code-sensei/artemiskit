@@ -10,6 +10,7 @@ Welcome to the ArtemisKit documentation. This guide covers configuration, storag
 | [Storage](./storage/README.md) | Storage backends for evaluation results |
 | [Assurance improvements](./v0.4-assurance-improvements.md) | Post-v0.4 technical plan for trustworthy scenario-based assessments |
 | [Agent-workflow design](./agent-workflow.md) | Workflow contract and scoped execution/scoring/recovery/report increments |
+| [Workflow assessment reports](./workflow-reports.md) | Offline technical, executive and comprehensive HTML/Markdown from saved evidence |
 | [Faults and durable recovery](./workflow-recovery.md) | 0.6.3 fault schedules, bounded retries, private checkpoints and CLI/SDK resume |
 | [Workflow outcomes](./workflow-outcomes.md) | Independent assertions, bounded judging, task validity and saved records |
 | [Controlled execution](./workflow-execution.md) | 0.6.1 sessions, environments, budgets, preflight and evidence retention |

@@ -14,6 +14,7 @@ import { loadConfig } from '../config/loader';
 import { buildAdapterConfig } from '../utils/adapter';
 import { workflowTransportIdentity } from '../utils/workflow-identity';
 import { WorkflowJudgeConfigError, prepareWorkflowJudge } from '../utils/workflow-judge';
+import { workflowReportCommand } from './workflow-report';
 
 interface WorkflowExecutionOptions {
   config?: string;
@@ -316,5 +317,6 @@ export function workflowCommand(): Command {
     });
     workflow.addCommand(command);
   }
+  workflow.addCommand(workflowReportCommand());
   return workflow;
 }

@@ -228,6 +228,19 @@ akit run my-scenario.yaml
 - [`@artemiskit/redteam`](https://www.npmjs.com/package/@artemiskit/redteam) - Security testing
 - [`@artemiskit/reports`](https://www.npmjs.com/package/@artemiskit/reports) - HTML report generation
 
+## Offline workflow reports
+
+```sh
+akit workflow report evidence.json --output assessment.html
+akit workflow report evidence.json --format markdown --view executive --output executive.md
+```
+
+Technical, executive and comprehensive views use the same saved V1/V2/V3 evidence; comprehensive
+is the default. Multiple input files are supported with duplicate/resumed-attempt accounting.
+No provider credentials, model calls or Docker are needed. Output files must be new paths; omission
+of `--output` writes only the report to stdout. Exit `0` means export success, not a passed task.
+See the [workflow report guide](../../docs/workflow-reports.md) for limits and provenance.
+
 ## License
 
 Apache-2.0

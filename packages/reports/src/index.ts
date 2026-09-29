@@ -35,3 +35,18 @@ export {
   generateValidationJUnitReport,
   type JUnitReportOptions,
 } from './junit/generator';
+
+// Offline workflow assessments from sanitized saved records.
+export { createWorkflowReport } from './workflow/model';
+export { renderWorkflowReportHTML, renderWorkflowReportMarkdown } from './workflow/render';
+export { generateWorkflowReport, type GenerateWorkflowReportOptions } from './workflow/generator';
+export type {
+  WorkflowReport,
+  WorkflowReportView,
+  WorkflowReportFormat,
+  WorkflowReportOptions,
+  WorkflowReportFinding,
+  WorkflowReportEvidence,
+  WorkflowReportRow,
+  WorkflowReportSection,
+} from './workflow/types';

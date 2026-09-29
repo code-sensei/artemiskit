@@ -111,7 +111,8 @@ malicious host. Custom targets, environments and judge clients remain trusted ex
 
 Historical prompt-response manifests and report readers retain their existing contract. These
 workflow records must not be presented to legacy report generators as scored prompt scenarios.
-Professional workflow reports remain 0.6.4. See [faults and durable recovery](workflow-recovery.md)
+The [0.6.4 report guide](workflow-reports.md) covers offline views and denominators.
+See [faults and durable recovery](workflow-recovery.md)
 for the 0.6.3 contract, CLI/SDK interfaces and qualification boundary.
 
 ## Bounded JSON schemas

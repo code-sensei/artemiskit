@@ -34,6 +34,29 @@ const html = await generateHTMLReport(manifest);
 await writeFile('report.html', html);
 ```
 
+## Workflow assessments
+
+Milestone 0.6.4 adds offline HTML and Markdown assessments from saved workflow records. Legacy
+prompt-response report functions keep their existing contract.
+
+```ts
+import {
+  createWorkflowReport, generateWorkflowReport,
+  renderWorkflowReportHTML, renderWorkflowReportMarkdown,
+} from '@artemiskit/reports';
+
+const model = createWorkflowReport(savedRecords);
+const html = renderWorkflowReportHTML(model, { view: 'technical' });
+const markdown = renderWorkflowReportMarkdown(model, { view: 'executive' });
+const complete = generateWorkflowReport(savedRecords); // comprehensive HTML by default
+```
+
+Inputs are saved V1/V2/V3 records or JSON strings, singly or as an array (maximum 50 records / 8 MiB).
+Malformed, private and unsupported evidence is refused. The canonical model includes scope,
+methodology, valid/invalid coverage, findings/actions, target/judge usage, recovery limits and stable
+JSON-pointer/digest references. All views disclose uncertainty. Digests identify evidence; they
+are not authenticity signatures or certification. See the [guide](../../docs/workflow-reports.md).
+
 ## Report Types
 
 ### Run Reports

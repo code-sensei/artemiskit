@@ -123,7 +123,13 @@ for (const { manifest } of packages) {
     );
   }
 }
-for (const file of ['runtime.mjs', 'types.mts', 'workflow-cli.mjs', 'workflow-recovery.mjs']) {
+for (const file of [
+  'runtime.mjs',
+  'types.mts',
+  'workflow-cli.mjs',
+  'workflow-recovery.mjs',
+  'workflow-report.mjs',
+]) {
   copyFileSync(join(fixtures, file), join(directory, file));
 }
 copyFileSync(
@@ -167,6 +173,9 @@ for (const runtime of ['node', 'bun']) {
   );
 }
 console.log(run('node', ['workflow-cli.mjs', ...(docker ? ['--docker'] : [])], directory, 120_000));
+for (const runtime of ['node', 'bun']) {
+  console.log(`${runtime}: ${run(runtime, ['workflow-report.mjs'], directory, 120_000)}`);
+}
 const compiler = join(root, 'node_modules/typescript/bin/tsc');
 for (const [module, resolution] of [
   ['NodeNext', 'NodeNext'],
@@ -207,6 +216,8 @@ const report = {
     'deterministic-outcomes-and-json-schema',
     'explicit-semantic-judge-and-separate-usage',
     'saved-v1-v2-v3-compatibility',
+    'offline-workflow-reports-three-views-html-markdown-cli-sdk',
+    'report-resume-denominators-evidence-links-redaction-no-clobber',
     'separate-process-sdk-checkpoint-resume-node-bun',
     'checkpoint-identity-budgets-cursor-terminal-refusal-privacy',
     'task-outcome-cli-exits-and-judge-cancellation',

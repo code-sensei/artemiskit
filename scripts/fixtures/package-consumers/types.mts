@@ -13,11 +13,15 @@ import {
   createAgentWorkflowSession,
   createDockerWorkflowEnvironmentFactory,
   createModelClientTarget,
+  createWorkflowReport,
   evaluateWorkflowDeterministicOutcomes,
   evaluateWorkflowSemantics,
   executeSimulatedTool,
+  generateWorkflowReport,
   listWorkflowTools,
   readWorkflowRecord,
+  renderWorkflowReportHTML,
+  renderWorkflowReportMarkdown,
   runAgentWorkflow,
 } from '@artemiskit/sdk';
 import { scenario } from '@artemiskit/sdk/builders';
@@ -27,6 +31,7 @@ import { artemiskitMatchers } from '@artemiskit/sdk/matchers';
 import type {
   AgentWorkflowRecord,
   DockerWorkflowEnvironmentOptions,
+  GenerateWorkflowReportOptions,
   RunResult,
   SavedWorkflowRecord,
   WorkflowCheckpointOptions,
@@ -34,6 +39,8 @@ import type {
   WorkflowJudgeOptions,
   WorkflowOutcomeAssessment,
   WorkflowRecoveryEvidence,
+  WorkflowReport,
+  WorkflowReportView,
   WorkflowRetry,
   WorkflowRunOptions,
 } from '@artemiskit/sdk/types';
@@ -146,3 +153,21 @@ const invalidFault: WorkflowFault = {
   kind: 'live-network',
 };
 void [checkpoint, resumedOptions, recovery, fault, retry, incompleteCheckpoint, invalidFault];
+
+const assessment: WorkflowReport = createWorkflowReport([saved]);
+const view: WorkflowReportView = 'executive';
+const reporting: GenerateWorkflowReportOptions = { view, format: 'markdown' };
+const exported: string = generateWorkflowReport(saved, reporting);
+const wrappedReport: WorkflowReport = kit.createWorkflowReport(saved);
+const wrappedText: string = kit.generateWorkflowReport(saved, reporting);
+// @ts-expect-error unsupported formats must remain closed
+const invalidReportOptions: GenerateWorkflowReportOptions = { format: 'pdf' };
+void [
+  assessment,
+  exported,
+  wrappedReport,
+  wrappedText,
+  invalidReportOptions,
+  renderWorkflowReportHTML(assessment),
+  renderWorkflowReportMarkdown(assessment),
+];

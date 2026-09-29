@@ -1,7 +1,7 @@
 {
   "source": "local-tarballs",
-  "completedAt": "2026-09-29T00:23:44.100Z",
-  "repositoryRevision": "5c35b042970021fcf10e4ea93175d837161052d4",
+  "completedAt": "2026-09-29T00:39:49.291Z",
+  "repositoryRevision": "0432ed55c95c59e10cb290be556ceee444932add",
   "runtimes": {
     "node": "v24.18.0",
     "bun": "1.3.10"
@@ -50,110 +50,6 @@
     "Docker requires the fixed local image and a trusted local daemon.",
     "TypeScript uses skipLibCheck for third-party declarations."
   ],
-  "qualifiedPackageRevision": "53d112d4f477d6da9535a4cf007f51a346fda660",
-  "revisionNote": "Consumer ran with version edits in the working tree at repositoryRevision; exact package changes committed at qualifiedPackageRevision. Release documentation is outside package payloads.",
-  "archiveInspection": {
-    "archives": [
-      {
-        "archive": "-artemiskit-adapter-anthropic-0.1.24.tgz",
-        "files": 8,
-        "bytes": 134766,
-        "sha512": "57a9bce3c083e38361a640008172a06e8728e1a6c875121f28a7fa9c0556790a9c60dc5fc28235d92582ddce0723136ee53ede567a3f9f54dc5aa8508564fa81",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-deepagents-0.2.13.tgz",
-        "files": 15,
-        "bytes": 16468,
-        "sha512": "4d5c552a6ca62b18d37f9c2cc2581610c770d944a7dbe1ba08d8c89f9b8656c1e8931000b3472ed456d251c9e7d067d64f4b9c5b32b0741ff4604ff507770c17",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-langchain-0.2.13.tgz",
-        "files": 15,
-        "bytes": 11626,
-        "sha512": "a8c2b5fbd9cc9c17077202d93483dd24cd109a523f2ef9f1e552b857237ed225073a35a9b0bd5b9e951f6da23e61fdf16d0313330c4e4912918f47babaf92422",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-ling-0.1.12.tgz",
-        "files": 12,
-        "bytes": 152508,
-        "sha512": "3b8819620b8d91d2ada3079f09d59da73745a516a4d725e475241fb2adff205177982a8db3af1aa8d38615ea935071baab1697b40aefef37a90750ff21b8ccf6",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-openai-0.1.24.tgz",
-        "files": 15,
-        "bytes": 160761,
-        "sha512": "35806fb40b019b2adf3630b3753c9923053514829f948b8dbfe1aa4970b8568512613a8712bb475797ceba715dac63853f6c982d708cd2916242dd14bc39bad9",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-trueforge-0.1.12.tgz",
-        "files": 18,
-        "bytes": 53604,
-        "sha512": "44c311a9b04365600f91d38532d131e70a61bb0ea331aefaca29ee2a613fe6c218590737babc10253343abc2d07c9c13e6751abb46cb4446dff2104a90177e3c",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-adapter-vercel-ai-0.1.24.tgz",
-        "files": 14,
-        "bytes": 236965,
-        "sha512": "8b05c9eb96ec6df41ec2b219fa6a1bbde10927f55a51f9f7d993a230a6aa02e44d8ed1c52cf7b82c69d99252f5ae36024e6aee2aba45eca81e1e46c66b168696",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-cli-0.6.3.tgz",
-        "files": 129,
-        "bytes": 1026653,
-        "sha512": "734853025fb6b025ed77b641651ee0ee0e3c4c2567250f754e5f13ce39b860faeaf919212294ec851b5f5db30ec1692e15db478b79156b8ad62b329a50b1371e",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-core-0.6.4.tgz",
-        "files": 302,
-        "bytes": 575831,
-        "sha512": "5f40e2bbbf705e1b3be669357bd8aad0c601526a0bf114d4e6069e66657dc099a2ee0b5141500c15e464ef9f690c0222c096ad5d97b6c33ee9bf9865b1dfbef6",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-mcp-docker-sandbox-0.1.0.tgz",
-        "files": 23,
-        "bytes": 216570,
-        "sha512": "36bf71ee0d532349862ec5f8cabe7e5fc764bd7baa9429aa9ba0755d9abbed6ecbf2c32c877eb0cfe52c3765d8078b74b42ddbcee42e69df3670d70a7006a915",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-redteam-0.3.12.tgz",
-        "files": 95,
-        "bytes": 201723,
-        "sha512": "36038aebed997f9b0baa84029e1181c1c44efff69aaac1e7fe396dc93b8cc10a2db9b221a3434d68d9ceb964eb94bbccf13a4a3e8fc7773f5f6ec83b94ff4c82",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-reports-0.5.0.tgz",
-        "files": 50,
-        "bytes": 129303,
-        "sha512": "8f87f00dfd6a36a1247f71693fd1d8b4ea5d345751ae648fdd1035ed7c34ecdda25e3442e47d13b872a5f3ff781df31b583ef5b6b86e1bb54579249b82820b05",
-        "entryMtimes": [499162500]
-      },
-      {
-        "archive": "-artemiskit-sdk-0.6.3.tgz",
-        "files": 92,
-        "bytes": 238361,
-        "sha512": "ef8a8d2f46787f97862523bcecc2c8b0024cfd6951b5077d4308e93afe23781c49f306c796f623ba2264e7706a10218c15967d65c76ee11ec4a2bcd3907a727d",
-        "entryMtimes": [499162500]
-      }
-    ],
-    "checks": [
-      "package-relative paths",
-      "no links or traversal",
-      "no .env/.git/node_modules paths",
-      "SHA512 recorded",
-      "all 13 committed-source repacks match tested archives"
-    ]
-  },
   "browserVerification": [
     {
       "view": "technical",
@@ -216,11 +112,6 @@
       "print": "pass"
     }
   ],
-  "validationLimits": [
-    "macOS arm64; Chromium desktop/mobile/print only; no complete assistive technology audit",
-    "No external model inference; reporting runs offline",
-    "One initial full-suite publisher-shell mock timeout under concurrent checks; unchanged suite rerun passed"
-  ],
   "browserContrast": {
     "elements": 1377,
     "min": 6.790771099359033,
@@ -229,10 +120,10 @@
   "integratedValidation": {
     "install": "bun install --frozen-lockfile --ignore-scripts: passed",
     "tests": {
-      "command": "bun test",
-      "passed": 1730,
+      "command": "bun test packages scripts examples",
+      "passed": 1732,
       "failed": 0,
-      "assertions": 7852,
+      "assertions": 7877,
       "files": 107
     },
     "build": {
@@ -252,6 +143,134 @@
     "consumerCommand": "node scripts/verify-package-consumers.mjs --docker",
     "dockerServer": "29.7.2",
     "localManifest": "bun scripts/verify-release.mjs local docs/releases/0.6.4.json: passed",
-    "publication": "not attempted; preceding 0.6.3 is npm-published and registry-qualified but remote tag push was blocked by automatic approval review"
+    "publication": "not attempted; preceding 0.6.3 is npm-published and registry-qualified but remote tag push was blocked by automatic approval review",
+    "wholeLocalCheckoutTests": {
+      "command": "bun test",
+      "passed": 1767,
+      "failed": 0,
+      "assertions": 7981,
+      "files": 113,
+      "scopeNote": "Includes 35 additional ignored local tests outside the version-controlled release. The packages/scripts/examples command separately verifies the distributable source scope."
+    },
+    "testRevision": "4bf01df"
+  },
+  "validationLimits": [
+    "macOS arm64; Chromium desktop/mobile/print only; no complete assistive technology audit",
+    "No external model inference; reporting runs offline",
+    "Publisher-shell test shared 5s deadline timed out twice across qualification; test now has 5s per child/15s combined with all assertions retained. Production deadlines and CI unchanged.",
+    "Unchanged 5ms semantic late-usage test failed once during final tracked run; direct 35 tests / 375 assertions and unchanged full tracked 1732 tests / 7877 assertions rerun passed. Timing sensitivity remains a test limitation."
+  ],
+  "qualifiedPackageRevision": "0432ed55c95c59e10cb290be556ceee444932add",
+  "revisionNote": "Final consumer includes the CLI runtime-artifact exclusion and publisher guard; exact package changes committed at qualifiedPackageRevision. Subsequent release documentation does not change package payloads.",
+  "archiveInspection": {
+    "archives": [
+      {
+        "archive": "-artemiskit-adapter-anthropic-0.1.24.tgz",
+        "files": 8,
+        "bytes": 134766,
+        "sha512": "57a9bce3c083e38361a640008172a06e8728e1a6c875121f28a7fa9c0556790a9c60dc5fc28235d92582ddce0723136ee53ede567a3f9f54dc5aa8508564fa81",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-deepagents-0.2.13.tgz",
+        "files": 15,
+        "bytes": 16468,
+        "sha512": "4d5c552a6ca62b18d37f9c2cc2581610c770d944a7dbe1ba08d8c89f9b8656c1e8931000b3472ed456d251c9e7d067d64f4b9c5b32b0741ff4604ff507770c17",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-langchain-0.2.13.tgz",
+        "files": 15,
+        "bytes": 11626,
+        "sha512": "a8c2b5fbd9cc9c17077202d93483dd24cd109a523f2ef9f1e552b857237ed225073a35a9b0bd5b9e951f6da23e61fdf16d0313330c4e4912918f47babaf92422",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-ling-0.1.12.tgz",
+        "files": 12,
+        "bytes": 152508,
+        "sha512": "3b8819620b8d91d2ada3079f09d59da73745a516a4d725e475241fb2adff205177982a8db3af1aa8d38615ea935071baab1697b40aefef37a90750ff21b8ccf6",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-openai-0.1.24.tgz",
+        "files": 15,
+        "bytes": 160761,
+        "sha512": "35806fb40b019b2adf3630b3753c9923053514829f948b8dbfe1aa4970b8568512613a8712bb475797ceba715dac63853f6c982d708cd2916242dd14bc39bad9",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-trueforge-0.1.12.tgz",
+        "files": 18,
+        "bytes": 53604,
+        "sha512": "44c311a9b04365600f91d38532d131e70a61bb0ea331aefaca29ee2a613fe6c218590737babc10253343abc2d07c9c13e6751abb46cb4446dff2104a90177e3c",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-adapter-vercel-ai-0.1.24.tgz",
+        "files": 14,
+        "bytes": 236965,
+        "sha512": "8b05c9eb96ec6df41ec2b219fa6a1bbde10927f55a51f9f7d993a230a6aa02e44d8ed1c52cf7b82c69d99252f5ae36024e6aee2aba45eca81e1e46c66b168696",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-cli-0.6.3.tgz",
+        "files": 127,
+        "bytes": 1019039,
+        "sha512": "2c81dec4bdfb55ddd5e57cebd69370a76ba9d48f7dc03de59e5639edddc7ffe688d4cb12dcc1a3677be6231ba1bbcd2514af000ecbd8ad33f20c92c55f0c542d",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-core-0.6.4.tgz",
+        "files": 302,
+        "bytes": 575831,
+        "sha512": "5f40e2bbbf705e1b3be669357bd8aad0c601526a0bf114d4e6069e66657dc099a2ee0b5141500c15e464ef9f690c0222c096ad5d97b6c33ee9bf9865b1dfbef6",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-mcp-docker-sandbox-0.1.0.tgz",
+        "files": 23,
+        "bytes": 216570,
+        "sha512": "36bf71ee0d532349862ec5f8cabe7e5fc764bd7baa9429aa9ba0755d9abbed6ecbf2c32c877eb0cfe52c3765d8078b74b42ddbcee42e69df3670d70a7006a915",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-redteam-0.3.12.tgz",
+        "files": 95,
+        "bytes": 201723,
+        "sha512": "36038aebed997f9b0baa84029e1181c1c44efff69aaac1e7fe396dc93b8cc10a2db9b221a3434d68d9ceb964eb94bbccf13a4a3e8fc7773f5f6ec83b94ff4c82",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-reports-0.5.0.tgz",
+        "files": 50,
+        "bytes": 129303,
+        "sha512": "8f87f00dfd6a36a1247f71693fd1d8b4ea5d345751ae648fdd1035ed7c34ecdda25e3442e47d13b872a5f3ff781df31b583ef5b6b86e1bb54579249b82820b05",
+        "entryMtimes": [499162500]
+      },
+      {
+        "archive": "-artemiskit-sdk-0.6.3.tgz",
+        "files": 92,
+        "bytes": 238361,
+        "sha512": "ef8a8d2f46787f97862523bcecc2c8b0024cfd6951b5077d4308e93afe23781c49f306c796f623ba2264e7706a10218c15967d65c76ee11ec4a2bcd3907a727d",
+        "entryMtimes": [499162500]
+      }
+    ],
+    "checks": [
+      "package-relative paths",
+      "no links or traversal",
+      "no .env/.git/node_modules or known runtime/checkpoint paths",
+      "SHA512 recorded",
+      "all 13 committed-root repacks match final tested archives; ignored local record preserved"
+    ]
+  },
+  "packagingBoundary": {
+    "publisherTests": {
+      "passed": 28,
+      "failed": 0,
+      "assertions": 166
+    },
+    "priorFinding": "An ignored local redaction-test record was present in the prior published CLI0.6.2 archive. Current CLI0.6.3 excludes local runtime artifacts; older immutable versions and local files are unchanged.",
+    "fullLocalSuite": "passed; final tracked-source suite1732tests7877assertions also passed"
   }
 }

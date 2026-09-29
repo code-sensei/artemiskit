@@ -1,10 +1,10 @@
 # Agent-workflow design guide
 
-> **Status:** The 0.6.0 contract is published. The 0.6.1 execution milestone is published
-> to npm and registry-qualified; remote tags await an approval-blocked GitHub push. See the [execution guide](workflow-execution.md) and
-> [release plan](releases/0.6.x-release-plan.md) for publication status. The 0.6.2 source adds [independent task scoring](workflow-outcomes.md); publication remains gated
-> on sequential remote tags. Durable recovery and workflow reports remain later milestones. Existing real-agent examples
-> remain documented in [agent evaluation](../examples/agent-evaluation/README.md).
+> **Status:** The source includes the 0.6.0 contract, 0.6.1 execution,
+> [0.6.2 outcomes](workflow-outcomes.md), [0.6.3 recovery](workflow-recovery.md), and
+> [0.6.4 offline reports](workflow-reports.md). See the
+> [release plan](releases/0.6.x-release-plan.md) for exact sequential npm/GitHub publication status.
+> Existing real-agent examples remain documented in [agent evaluation](../examples/agent-evaluation/README.md).
 
 The published 0.6.0 package map and validation remain in its [release record](releases/0.6.0.md).
 Package versions are independent; use each milestone's exact package map when installing.
@@ -289,19 +289,28 @@ result, environment, and cleanup contracts. The SDK `ArtemisKit` wrapper uses th
 
 ## Report views (0.6.4)
 
-All report views derive from the same saved, sanitized manifest and workflow evidence.
+The CLI `akit workflow report` and SDK `generateWorkflowReport` derive all three views from
+the same strict saved V1/V2/V3 workflow records. HTML and Markdown generation is deterministic,
+offline, and independent of provider configuration. Legacy prompt-response manifests retain their
+existing report API. See the [report guide](workflow-reports.md) for runnable examples and limits.
 
 | View | Intended content |
 | --- | --- |
 | Technical | Full methodology, configuration, case/workflow outcomes, evidence, limitations, and appendices |
-| Executive | Scope, readiness, key strengths, material risks, and evidence-grounded next actions |
+| Executive | Scope, observed strengths, material risks, uncertainty and evidence-grounded next actions |
 | Comprehensive | Executive and technical content combined with coverage, findings, failure modes, recommendations, and evidence appendix |
 
-The comprehensive report is the canonical cohesive deliverable. It should include scope and
-exclusions; target configuration; methodology; validity denominator; scenario and workflow
-coverage; strengths and weaknesses; failure modes; policy/tool evidence; costs only when attested;
-comparison eligibility where relevant; limitations; recommendations; and traceable artifact
-references.
+The comprehensive report is the default deliverable. Its scope, exclusions, validity denominator,
+assertion findings, policy/tool evidence, target/judge usage and recovery limitations link to stable
+evidence pointers and digests. Requested/observed identities are hashed rather than exposing
+arbitrary saved labels. Missing scenario definitions, harness versions, policy detail, pricing and
+coverage remain unavailable; a report cannot reconstruct them from current configuration.
+
+Identical records count once; compatible resumed attempts contribute one final logical task outcome.
+Preflight-only, historical, unavailable and invalid results remain outside the eligible task-success
+denominator. These are descriptive assessments of selected retained evidence, not readiness
+certification, model rankings or proof of independent statistical repetitions. No new evaluation or
+model-generated narrative is performed.
 
 Later optional AI-assisted narrative may tailor these views for an audience, but it may only use
 sanitized retained evidence. It must disclose its model/configuration and must not change scores,

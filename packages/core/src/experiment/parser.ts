@@ -104,7 +104,7 @@ const manifest = z
   .object({
     schema_version: z.literal('1'),
     id: identifier,
-    mode: z.enum(['fixture', 'live']),
+    mode: z.enum(['fixture', 'live']).default('fixture'),
     identities: identity,
     tasks: z.array(task).min(1).max(MAX_TASKS),
     targets: z.array(target).min(1).max(MAX_TARGETS),

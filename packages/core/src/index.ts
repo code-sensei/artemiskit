@@ -27,6 +27,9 @@ export * from './provenance';
 // Comparison eligibility
 export * from './comparison';
 
+// Comparative experiment contracts and execution
+export * from './experiment';
+
 // Utilities
 export * from './utils';
 

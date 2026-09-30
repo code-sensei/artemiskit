@@ -57,6 +57,8 @@ const MANIFEST: ExperimentManifest = {
 describe('parseExperimentManifest', () => {
   test('accepts bounded scenario and workflow tasks with provider-neutral targets', () => {
     expect(parseExperimentManifest(MANIFEST)).toEqual(MANIFEST);
+    const { mode: _mode, ...withoutMode } = MANIFEST;
+    expect(parseExperimentManifest(withoutMode).mode).toBe('fixture');
   });
 
   test('rejects duplicate task, target, capability, and retry identities', () => {

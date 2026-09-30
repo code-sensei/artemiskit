@@ -401,13 +401,9 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: beforeCoordinate });
         stopReason ??= beforeCoordinate;
       } else {
-        let stoppedWithinRetry: ExperimentStopReason | undefined;
         for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
           const beforeAttempt = budgetReason(manifest, state);
-          if (beforeAttempt) {
-            stoppedWithinRetry = beforeAttempt;
-            break;
-          }
+          if (beforeAttempt) throw invalid();
           const attempt = attempts[attemptIndex];
           const effectiveBefore =
             manifest.mode === 'live' ? Math.max(state.requests, state.reserved) : state.requests;
@@ -440,7 +436,11 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
             state.cost += attempt.usage.cost.amount;
           }
           if (attempt.error_code === 'usage_unreported') state.halt = 'usage_unreported';
-          if (attempt.error_code === 'invalid_executor_result' && manifest.mode === 'live')
+          if (
+            (attempt.error_code === 'invalid_executor_result' ||
+              attempt.error_code === 'cost_currency_mismatch') &&
+            manifest.mode === 'live'
+          )
             state.halt = 'usage_invalid';
           if (attempt.error_code === 'budget_exceeded') state.halt = 'budget_exceeded';
           if (state.halt) {
@@ -450,21 +450,37 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         }
         if (!attempts.length) throw invalid();
         const afterAttempts = budgetReason(manifest, state);
+        const last = attempts[attempts.length - 1];
+        const lastIsRetryable = manifest.retry_policy.retry_on.includes(last.status as never);
         if (completionCode === 'budget_exhausted') {
-          if (!afterAttempts || status !== 'incomplete') throw invalid();
+          if (
+            !afterAttempts ||
+            state.halt !== undefined ||
+            status !== 'incomplete' ||
+            !lastIsRetryable ||
+            attempts.length >= manifest.retry_policy.max_attempts
+          )
+            throw invalid();
           runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: afterAttempts });
           stopReason ??= afterAttempts;
         } else {
-          const last = attempts[attempts.length - 1];
           const expectedCode =
             last.error_code === 'usage_unreported'
               ? 'usage_unreported'
-              : last.error_code === 'invalid_executor_result' && manifest.mode === 'live'
+              : (last.error_code === 'invalid_executor_result' ||
+                    last.error_code === 'cost_currency_mismatch') &&
+                  manifest.mode === 'live'
                 ? 'usage_invalid'
                 : last.error_code === 'budget_exceeded'
                   ? 'budget_exceeded'
                   : 'terminal';
-          if (completionCode !== expectedCode || status !== last.status || stoppedWithinRetry)
+          if (
+            completionCode !== expectedCode ||
+            status !== last.status ||
+            (lastIsRetryable &&
+              attempts.length < manifest.retry_policy.max_attempts &&
+              state.halt === undefined)
+          )
             throw invalid();
         }
       }
@@ -773,6 +789,30 @@ export function createExperimentReport(input: unknown): ExperimentReport {
       ],
       'Manifest controls'
     );
+    if (run.manifest.live)
+      row(
+        controls,
+        '/manifest/live',
+        run.manifest.live,
+        [
+          'live controls',
+          `concurrency ceiling ${run.manifest.live.concurrency_ceiling}; stop conditions ${run.manifest.live.stop_conditions.join(', ')}`,
+          'declared controls enforced by the V1 live runner',
+        ],
+        'Declared live execution controls'
+      );
+    if (run.live_authorization)
+      row(
+        controls,
+        '/live_authorization',
+        run.live_authorization,
+        [
+          'live authorization',
+          `${run.live_authorization.decision_id}; ${run.live_authorization.decided_at}; approved by ${run.live_authorization.approved_by}; reason ${run.live_authorization.reason}`,
+          'saved host authorization decision for this bounded live run',
+        ],
+        'Live authorization decision'
+      );
 
     const summaries = section(
       'summaries',
@@ -780,17 +820,17 @@ export function createExperimentReport(input: unknown): ExperimentReport {
       'Counts are descriptive for this selected evidence. They are not a universal ranking or confidence estimate.',
       ['Dimension', 'Key', 'Passed', 'Valid denominator', 'Planned', 'Observed valid outcome rate']
     );
-    const groups: [string, ExperimentSummaryGroup[]][] = [
-      ['target', run.summaries.targets],
-      ['task', run.summaries.tasks],
-      ['language', run.summaries.languages],
-      ['policy', run.summaries.policies],
+    const groups: [string, string, ExperimentSummaryGroup[]][] = [
+      ['target', 'targets', run.summaries.targets],
+      ['task', 'tasks', run.summaries.tasks],
+      ['language', 'languages', run.summaries.languages],
+      ['policy', 'policies', run.summaries.policies],
     ];
-    for (const [dimension, values] of groups)
+    for (const [dimension, path, values] of groups)
       values.forEach((group, index) =>
         row(
           summaries,
-          `/summaries/${dimension}s/${index}`,
+          `/summaries/${path}/${index}`,
           group,
           [
             dimension,

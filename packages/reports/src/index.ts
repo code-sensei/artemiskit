@@ -7,6 +7,26 @@
 export { generateHTMLReport } from './html/generator';
 export { generateJSONReport, type JSONReportOptions } from './json/generator';
 
+// Comparative experiment reports
+export { generateExperimentReport } from './experiment/generator';
+export type { GenerateExperimentReportOptions } from './experiment/generator';
+export { createExperimentReport } from './experiment/model';
+export {
+  renderExperimentReportHTML,
+  renderExperimentReportMarkdown,
+} from './experiment/render';
+export type {
+  ExperimentReport,
+  ExperimentReportEvidence,
+  ExperimentReportFinding,
+  ExperimentReportFormat,
+  ExperimentReportOptions,
+  ExperimentReportRow,
+  ExperimentReportSection,
+  ExperimentReportSummary,
+  ExperimentReportView,
+} from './experiment/types';
+
 // Red team reports
 export { generateRedTeamHTMLReport } from './html/redteam-generator';
 

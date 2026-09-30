@@ -121,7 +121,10 @@ describe('canonical experiment report model', () => {
       cost: { amount: 0.1, currency: 'USD' },
     });
     expect(report.findings.some((finding) => finding.title.includes('stopped'))).toBe(true);
-    expect(JSON.stringify(report)).toContain('request_budget_exhausted');
+    const text = JSON.stringify(report);
+    expect(text).toContain('request_budget_exhausted');
+    expect(text).toContain('concurrency ceiling 1');
+    expect(text).toContain('Bounded report fixture');
   });
 });
 
@@ -185,6 +188,9 @@ describe('strict saved-result validation', () => {
       (value) => value.results.reverse(),
       (value) => {
         value.manifest.budgets.max_requests = 1;
+      },
+      (value) => {
+        value.results[5].attempts.pop();
       },
     ];
     for (const mutate of mutations) {

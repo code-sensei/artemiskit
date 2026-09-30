@@ -9,6 +9,18 @@ const identity = (digit: string) => ({
   digest: digit.repeat(64),
 });
 
+const LIVE_CONTROLS = {
+  concurrency_ceiling: 1 as const,
+  stop_conditions: [
+    'request_budget_exhausted',
+    'token_budget_exhausted',
+    'cost_budget_exhausted',
+    'usage_unreported',
+    'usage_invalid',
+    'budget_exceeded',
+  ] as const,
+};
+
 const MANIFEST: ExperimentManifest = {
   schema_version: '1',
   id: 'provider-comparison',
@@ -24,6 +36,11 @@ const MANIFEST: ExperimentManifest = {
     {
       id: 'answer-case',
       kind: 'scenario_evaluation',
+      source: {
+        kind: 'scenario_evaluation',
+        path: 'scenarios/answer.yaml',
+        artifact: identity('1'),
+      },
       required_capabilities: ['text'],
       language: 'en-NG',
       policy: 'customer-service',
@@ -31,6 +48,11 @@ const MANIFEST: ExperimentManifest = {
     {
       id: 'resolve-case',
       kind: 'agent_workflow',
+      source: {
+        kind: 'agent_workflow',
+        path: 'workflows/resolve.yaml',
+        artifact: identity('2'),
+      },
       required_capabilities: ['text', 'tools'],
     },
   ],
@@ -50,6 +72,8 @@ const MANIFEST: ExperimentManifest = {
     },
   ],
   repetitions: 3,
+  concurrency: 1,
+  exclusions: [],
   retry_policy: { max_attempts: 2, retry_on: ['infrastructure_failed'] },
   budgets: { max_requests: 24 },
 };
@@ -62,6 +86,9 @@ describe('parseExperimentManifest', () => {
   });
 
   test('rejects duplicate task, target, capability, and retry identities', () => {
+    expect(() =>
+      parseExperimentManifest({ ...MANIFEST, targets: [MANIFEST.targets[0]] })
+    ).toThrow();
     expect(() =>
       parseExperimentManifest({ ...MANIFEST, tasks: [MANIFEST.tasks[0], MANIFEST.tasks[0]] })
     ).toThrow();
@@ -98,6 +125,65 @@ describe('parseExperimentManifest', () => {
     ).toThrow('target settings must not contain credentials or secrets');
   });
 
+  test('requires safe resolvable task sources whose kind matches the task', () => {
+    expect(() =>
+      parseExperimentManifest({
+        ...MANIFEST,
+        tasks: [
+          {
+            ...MANIFEST.tasks[0],
+            source: { ...MANIFEST.tasks[0].source, path: '../answer.yaml' },
+          },
+        ],
+      })
+    ).toThrow('task source must be a safe relative path');
+    expect(() =>
+      parseExperimentManifest({
+        ...MANIFEST,
+        tasks: [
+          {
+            ...MANIFEST.tasks[0],
+            source: { ...MANIFEST.tasks[0].source, kind: 'agent_workflow' },
+          },
+        ],
+      })
+    ).toThrow('task source kind must match task kind');
+  });
+
+  test('validates serial concurrency, seed semantics, and non-overlapping exclusions', () => {
+    expect(() => parseExperimentManifest({ ...MANIFEST, concurrency: 2 })).toThrow();
+    expect(() =>
+      parseExperimentManifest({
+        ...MANIFEST,
+        seed: {
+          value: 4_294_967_295,
+          strategy: 'increment_by_repetition',
+          require_support: false,
+        },
+      })
+    ).toThrow('incremented seed exceeds the v1 seed range');
+    expect(() =>
+      parseExperimentManifest({
+        ...MANIFEST,
+        exclusions: [{ id: 'missing', reason: 'not applicable', task_id: 'unknown' }],
+      })
+    ).toThrow('exclusion references an unknown task');
+    expect(() =>
+      parseExperimentManifest({
+        ...MANIFEST,
+        exclusions: [
+          { id: 'answer-all', reason: 'not applicable', task_id: 'answer-case' },
+          {
+            id: 'answer-a',
+            reason: 'duplicate selection',
+            task_id: 'answer-case',
+            target_id: 'fixture-a',
+          },
+        ],
+      })
+    ).toThrow('exclusions must not overlap');
+  });
+
   test('requires request, token, and cost boundaries for live execution', () => {
     expect(() => parseExperimentManifest({ ...MANIFEST, mode: 'live' })).toThrow(
       'live experiments require an explicit token limit'
@@ -111,8 +197,12 @@ describe('parseExperimentManifest', () => {
           max_tokens: 50_000,
           max_cost: { amount: 5, currency: 'USD' },
         },
+        live: LIVE_CONTROLS,
       }).mode
     ).toBe('live');
+    expect(() => parseExperimentManifest({ ...MANIFEST, live: LIVE_CONTROLS })).toThrow(
+      'fixture experiments must not declare live execution controls'
+    );
   });
 
   test('rejects unknown fields and malformed identities', () => {

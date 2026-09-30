@@ -13,8 +13,10 @@ import type {
   ExperimentOperationalSummary,
   ExperimentRemainingBudget,
   ExperimentRunResult,
+  ExperimentStopReason,
   ExperimentSummary,
   ExperimentSummaryGroup,
+  ExperimentTaskKind,
   RunExperimentOptions,
 } from './types';
 
@@ -32,6 +34,41 @@ const usage = z
     cost: cost.optional(),
   })
   .strict();
+const contentIdentity = z
+  .object({
+    schema_version: z.literal('1'),
+    algorithm: z.literal('sha256'),
+    digest: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+const taskEvidence = z.union([
+  z
+    .object({
+      kind: z.literal('scenario_evaluation'),
+      availability: z.literal('available'),
+      artifact: contentIdentity,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('scenario_evaluation'),
+      availability: z.literal('unavailable'),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('agent_workflow'),
+      availability: z.literal('available'),
+      artifact: contentIdentity,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('agent_workflow'),
+      availability: z.literal('unavailable'),
+    })
+    .strict(),
+]);
 const output = z
   .object({
     status: z.enum([
@@ -43,6 +80,7 @@ const output = z
       'infrastructure_failed',
     ]),
     usage,
+    evidence: taskEvidence,
     error_code: errorCode.optional(),
   })
   .strict();
@@ -51,20 +89,24 @@ const liveAuthorization = z
     approved: z.literal(true),
     decision_id: errorCode,
     decided_at: z.string().datetime({ offset: true }),
+    approved_by: z.string().trim().min(1).max(128),
+    reason: z.string().trim().min(1).max(256),
   })
   .strict();
 
 interface BudgetState {
-  requests: number;
+  executorInvocations: number;
+  reservedLiveRequests: number;
+  reportedRequests: number;
   tokens: number;
   cost: number;
-  halted: boolean;
+  haltReason?: ExperimentStopReason;
 }
 
 interface NormalizedOutput {
   output: ExperimentAttemptOutput;
   completionCode: ExperimentCompletionCode;
-  halt: boolean;
+  haltReason?: ExperimentStopReason;
 }
 
 /** Build the complete deterministic task × target × repetition matrix. */
@@ -89,10 +131,27 @@ export async function runExperiment(
 
   const tasks = new Map(manifest.tasks.map((task) => [task.id, task]));
   const targets = new Map(manifest.targets.map((target) => [target.id, target]));
-  const budget: BudgetState = { requests: 0, tokens: 0, cost: 0, halted: false };
+  const budget: BudgetState = {
+    executorInvocations: 0,
+    reservedLiveRequests: 0,
+    reportedRequests: 0,
+    tokens: 0,
+    cost: 0,
+  };
   const results: ExperimentCoordinateResult[] = [];
+  const runtimeExclusions: ExperimentRunResult['runtime_exclusions'] = [];
+  let runStopReason: ExperimentStopReason | undefined;
 
   for (const coordinate of buildMatrix(manifest)) {
+    if (coordinate.declared_exclusion) {
+      results.push({
+        coordinate,
+        status: 'excluded',
+        completion_code: 'declared_exclusion',
+        attempts: [],
+      });
+      continue;
+    }
     if (coordinate.missing_capabilities.length > 0) {
       results.push({
         coordinate,
@@ -107,8 +166,14 @@ export async function runExperiment(
     const target = targets.get(coordinate.target_id);
     if (!task || !target) throw new Error('Experiment matrix references an unknown task or target');
 
-    if (!hasRemainingBudget(manifest, budget)) {
+    const initialStopReason = budgetStopReason(manifest, budget);
+    if (initialStopReason) {
       results.push(incompleteWithoutAttempt(coordinate));
+      runtimeExclusions.push({
+        coordinate_id: coordinate.coordinate_id,
+        reason: initialStopReason,
+      });
+      runStopReason ??= initialStopReason;
       continue;
     }
 
@@ -121,25 +186,39 @@ export async function runExperiment(
       attemptNumber <= manifest.retry_policy.max_attempts;
       attemptNumber += 1
     ) {
-      if (!hasRemainingBudget(manifest, budget)) {
+      const retryStopReason = budgetStopReason(manifest, budget);
+      if (retryStopReason) {
         terminalStatus = 'incomplete';
         completionCode = 'budget_exhausted';
+        runtimeExclusions.push({
+          coordinate_id: coordinate.coordinate_id,
+          reason: retryStopReason,
+        });
+        runStopReason ??= retryStopReason;
         break;
       }
 
       const remaining = remainingBudget(manifest, budget);
-      const raw = await invokeExecutor(options.execute_attempt, {
-        experiment_id: manifest.id,
-        coordinate,
-        task,
-        target,
-        retry_chain_id: coordinate.coordinate_id,
-        attempt_number: attemptNumber,
-        remaining_budget: remaining,
-      });
-      const normalized = normalizeOutput(raw, manifest, remaining);
+      budget.executorInvocations += 1;
+      if (manifest.mode === 'live') budget.reservedLiveRequests += 1;
+      const raw = await invokeExecutor(
+        options.execute_attempt,
+        structuredClone({
+          experiment_id: manifest.id,
+          coordinate: structuredClone(coordinate),
+          task: structuredClone(task),
+          target: structuredClone(target),
+          retry_chain_id: coordinate.coordinate_id,
+          attempt_number: attemptNumber,
+          remaining_budget: structuredClone(remaining),
+        })
+      );
+      const normalized = normalizeOutput(raw, manifest, remaining, task.kind);
       consumeUsage(budget, normalized.output.usage);
-      if (normalized.halt) budget.halted = true;
+      if (normalized.haltReason) {
+        budget.haltReason = normalized.haltReason;
+        runStopReason ??= normalized.haltReason;
+      }
 
       attempts.push({
         ...normalized.output,
@@ -151,7 +230,7 @@ export async function runExperiment(
       completionCode = normalized.completionCode;
 
       if (
-        normalized.halt ||
+        normalized.haltReason !== undefined ||
         !isRetryable(normalized.output.status, manifest.retry_policy.retry_on) ||
         attemptNumber === manifest.retry_policy.max_attempts
       ) {
@@ -163,14 +242,23 @@ export async function runExperiment(
   }
 
   const overall = summarize(results);
+  const completion = {
+    matrix_complete:
+      results.length === manifest.tasks.length * manifest.targets.length * manifest.repetitions,
+    execution_complete: overall.incomplete === 0,
+    valid_measurement_coverage_complete: overall.valid === overall.planned,
+  };
   return {
     schema_version: '1',
     experiment_id: manifest.id,
     mode: manifest.mode,
-    manifest,
-    identities: manifest.identities,
-    live_authorization: authorization,
-    complete: overall.incomplete === 0,
+    manifest: structuredClone(manifest),
+    identities: structuredClone(manifest.identities),
+    live_authorization: authorization ? structuredClone(authorization) : undefined,
+    completion,
+    stop_reason: runStopReason,
+    runtime_exclusions: structuredClone(runtimeExclusions),
+    complete: completion.valid_measurement_coverage_complete,
     results,
     summaries: {
       overall,
@@ -178,7 +266,7 @@ export async function runExperiment(
       tasks: groupSummaries(results, (result) => result.coordinate.task_id),
       languages: groupSummaries(results, (result) => result.coordinate.language ?? 'und'),
       policies: groupSummaries(results, (result) => result.coordinate.policy ?? 'unclassified'),
-      operational: operationalSummary(results),
+      operational: operationalSummary(results, budget),
     },
     uncertainty: {
       method: 'none',
@@ -200,6 +288,12 @@ function buildMatrix(manifest: ExperimentManifest): ExperimentCoordinate[] {
       const missing = task.required_capabilities.filter(
         (capability) => !capabilities.has(capability)
       );
+      if (manifest.seed?.require_support && !capabilities.has('seed')) missing.push('seed');
+      const declaredExclusion = manifest.exclusions.find(
+        (item) =>
+          (item.task_id === undefined || item.task_id === task.id) &&
+          (item.target_id === undefined || item.target_id === target.id)
+      );
       for (let repetition = 1; repetition <= manifest.repetitions; repetition += 1) {
         coordinates.push({
           coordinate_id: coordinateId(manifest.id, task.id, target.id, repetition),
@@ -209,7 +303,14 @@ function buildMatrix(manifest: ExperimentManifest): ExperimentCoordinate[] {
           repetition_index: repetition,
           language: task.language,
           policy: task.policy,
-          missing_capabilities: missing,
+          seed:
+            manifest.seed === undefined
+              ? undefined
+              : manifest.seed.strategy === 'fixed'
+                ? manifest.seed.value
+                : manifest.seed.value + repetition - 1,
+          missing_capabilities: [...missing],
+          declared_exclusion: declaredExclusion ? structuredClone(declaredExclusion) : undefined,
         });
       }
     }
@@ -264,6 +365,7 @@ async function invokeExecutor(
     return {
       status: 'infrastructure_failed',
       usage: { requests: 0 },
+      evidence: { kind: input.task.kind, availability: 'unavailable' },
       error_code: 'executor_error',
     };
   }
@@ -272,28 +374,56 @@ async function invokeExecutor(
 function normalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
-  remaining: ExperimentRemainingBudget
+  remaining: ExperimentRemainingBudget,
+  expectedKind: ExperimentTaskKind
 ): NormalizedOutput {
   const parsed = output.safeParse(raw);
-  if (!parsed.success) return invalidOutput('invalid_executor_result', manifest.mode === 'live');
+  if (!parsed.success) {
+    return invalidOutput(
+      'invalid_executor_result',
+      expectedKind,
+      manifest.mode === 'live' ? 'usage_invalid' : undefined
+    );
+  }
 
   const result = parsed.data;
+  if (result.evidence.kind !== expectedKind) {
+    return invalidOutput('evidence_kind_mismatch', expectedKind, undefined, result.usage);
+  }
+  if (
+    (result.status === 'passed' ||
+      result.status === 'task_failed' ||
+      result.status === 'policy_failed') &&
+    result.evidence.availability !== 'available'
+  ) {
+    return invalidOutput('evidence_unavailable', expectedKind, undefined, result.usage);
+  }
   if (
     manifest.mode === 'live' &&
     (result.usage.tokens === undefined || result.usage.cost === undefined)
   ) {
     return {
-      output: { status: 'incomplete', usage: result.usage, error_code: 'usage_unreported' },
+      output: {
+        status: 'incomplete',
+        usage: result.usage,
+        evidence: result.evidence,
+        error_code: 'usage_unreported',
+      },
       completionCode: 'usage_unreported',
-      halt: true,
+      haltReason: 'usage_unreported',
     };
   }
   if (result.usage.cost && manifest.budgets.max_cost) {
     if (result.usage.cost.currency !== manifest.budgets.max_cost.currency) {
-      return invalidOutput('cost_currency_mismatch', manifest.mode === 'live', {
-        requests: result.usage.requests,
-        tokens: result.usage.tokens,
-      });
+      return invalidOutput(
+        'cost_currency_mismatch',
+        expectedKind,
+        manifest.mode === 'live' ? 'usage_invalid' : undefined,
+        {
+          requests: result.usage.requests,
+          tokens: result.usage.tokens,
+        }
+      );
     }
   }
   if (
@@ -302,33 +432,58 @@ function normalizeOutput(
     (remaining.cost !== undefined && (result.usage.cost?.amount ?? 0) > remaining.cost.amount)
   ) {
     return {
-      output: { status: 'incomplete', usage: result.usage, error_code: 'budget_exceeded' },
+      output: {
+        status: 'incomplete',
+        usage: result.usage,
+        evidence: result.evidence,
+        error_code: 'budget_exceeded',
+      },
       completionCode: 'budget_exceeded',
-      halt: true,
+      haltReason: 'budget_exceeded',
     };
   }
-  return { output: result, completionCode: 'terminal', halt: false };
+  return { output: result, completionCode: 'terminal' };
 }
 
 function invalidOutput(
   code: string,
-  halt: boolean,
+  expectedKind: ExperimentTaskKind,
+  haltReason?: ExperimentStopReason,
   invalidUsage: ExperimentAttemptUsage = { requests: 0 }
 ): NormalizedOutput {
   return {
-    output: { status: 'invalid', usage: invalidUsage, error_code: code },
-    completionCode: halt ? 'usage_unreported' : 'terminal',
-    halt,
+    output: {
+      status: 'invalid',
+      usage: invalidUsage,
+      evidence: { kind: expectedKind, availability: 'unavailable' },
+      error_code: code,
+    },
+    completionCode: haltReason === 'usage_invalid' ? 'usage_invalid' : 'terminal',
+    haltReason,
   };
 }
 
-function hasRemainingBudget(manifest: ExperimentManifest, used: BudgetState): boolean {
-  return (
-    !used.halted &&
-    used.requests < manifest.budgets.max_requests &&
-    (manifest.budgets.max_tokens === undefined || used.tokens < manifest.budgets.max_tokens) &&
-    (manifest.budgets.max_cost === undefined || used.cost < manifest.budgets.max_cost.amount)
-  );
+function effectiveRequests(manifest: ExperimentManifest, used: BudgetState): number {
+  return manifest.mode === 'live'
+    ? Math.max(used.reportedRequests, used.reservedLiveRequests)
+    : used.reportedRequests;
+}
+
+function budgetStopReason(
+  manifest: ExperimentManifest,
+  used: BudgetState
+): ExperimentStopReason | undefined {
+  if (used.haltReason) return used.haltReason;
+  if (effectiveRequests(manifest, used) >= manifest.budgets.max_requests) {
+    return 'request_budget_exhausted';
+  }
+  if (manifest.budgets.max_tokens !== undefined && used.tokens >= manifest.budgets.max_tokens) {
+    return 'token_budget_exhausted';
+  }
+  if (manifest.budgets.max_cost !== undefined && used.cost >= manifest.budgets.max_cost.amount) {
+    return 'cost_budget_exhausted';
+  }
+  return undefined;
 }
 
 function remainingBudget(
@@ -337,7 +492,7 @@ function remainingBudget(
 ): ExperimentRemainingBudget {
   const maxCost = manifest.budgets.max_cost;
   return {
-    requests: manifest.budgets.max_requests - used.requests,
+    requests: Math.max(0, manifest.budgets.max_requests - effectiveRequests(manifest, used)),
     tokens:
       manifest.budgets.max_tokens === undefined
         ? undefined
@@ -349,7 +504,7 @@ function remainingBudget(
 }
 
 function consumeUsage(used: BudgetState, attemptUsage: ExperimentAttemptUsage): void {
-  used.requests += attemptUsage.requests;
+  used.reportedRequests += attemptUsage.requests;
   used.tokens += attemptUsage.tokens ?? 0;
   used.cost += attemptUsage.cost?.amount ?? 0;
 }
@@ -371,6 +526,7 @@ function emptySummary(): ExperimentSummary {
     valid: 0,
     invalid: 0,
     unsupported: 0,
+    excluded: 0,
     incomplete: 0,
     failed: 0,
     passed: 0,
@@ -407,9 +563,14 @@ function groupSummaries(
   return [...groups].map(([groupKey, group]) => ({ key: groupKey, summary: summarize(group) }));
 }
 
-function operationalSummary(results: ExperimentCoordinateResult[]): ExperimentOperationalSummary {
+function operationalSummary(
+  results: ExperimentCoordinateResult[],
+  budget: BudgetState
+): ExperimentOperationalSummary {
   const summary: ExperimentOperationalSummary = {
     ...summarize(results),
+    executor_invocations: budget.executorInvocations,
+    reserved_live_requests: budget.reservedLiveRequests,
     attempts: 0,
     retry_attempts: 0,
     requests: 0,

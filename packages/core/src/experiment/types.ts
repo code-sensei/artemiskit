@@ -11,9 +11,18 @@ export interface ExperimentIdentity {
   profile?: ContentIdentity;
 }
 
+export interface ExperimentTaskSource {
+  kind: ExperimentTaskKind;
+  /** Safe repository-relative scenario or workflow definition. */
+  path: string;
+  /** Identity of the exact source artifact the host must load and verify. */
+  artifact: ContentIdentity;
+}
+
 export interface ExperimentTask {
   id: string;
   kind: ExperimentTaskKind;
+  source: ExperimentTaskSource;
   required_capabilities: string[];
   language?: string;
   policy?: string;
@@ -48,6 +57,33 @@ export interface ExperimentBudgets {
   max_cost?: ExperimentCostLimit;
 }
 
+export interface ExperimentSeed {
+  value: number;
+  strategy: 'fixed' | 'increment_by_repetition';
+  require_support: boolean;
+}
+
+export interface ExperimentExclusion {
+  id: string;
+  reason: string;
+  task_id?: string;
+  target_id?: string;
+}
+
+export type ExperimentStopReason =
+  | 'request_budget_exhausted'
+  | 'token_budget_exhausted'
+  | 'cost_budget_exhausted'
+  | 'usage_unreported'
+  | 'usage_invalid'
+  | 'budget_exceeded';
+
+export interface ExperimentLiveControls {
+  /** V1 executes serially; the explicit ceiling prevents accidental parallel live calls. */
+  concurrency_ceiling: 1;
+  stop_conditions: ExperimentStopReason[];
+}
+
 export interface ExperimentManifest {
   schema_version: '1';
   id: string;
@@ -56,8 +92,13 @@ export interface ExperimentManifest {
   tasks: ExperimentTask[];
   targets: ExperimentTarget[];
   repetitions: number;
+  /** V1 supports deterministic serial execution only. */
+  concurrency: 1;
+  seed?: ExperimentSeed;
+  exclusions: ExperimentExclusion[];
   retry_policy: ExperimentRetryPolicy;
   budgets: ExperimentBudgets;
+  live?: ExperimentLiveControls;
 }
 
 export type ExperimentComparisonStatus = 'compatible' | 'qualified' | 'incomparable';
@@ -87,9 +128,33 @@ export type ExperimentAttemptStatus =
   | 'invalid'
   | 'incomplete'
   | 'infrastructure_failed'
-  | 'unsupported';
+  | 'unsupported'
+  | 'excluded';
 
-export type ExecutedExperimentAttemptStatus = Exclude<ExperimentAttemptStatus, 'unsupported'>;
+export type ExecutedExperimentAttemptStatus = Exclude<
+  ExperimentAttemptStatus,
+  'unsupported' | 'excluded'
+>;
+
+export type ExperimentTaskEvidence =
+  | {
+      kind: 'scenario_evaluation';
+      availability: 'available';
+      artifact: ContentIdentity;
+    }
+  | {
+      kind: 'scenario_evaluation';
+      availability: 'unavailable';
+    }
+  | {
+      kind: 'agent_workflow';
+      availability: 'available';
+      artifact: ContentIdentity;
+    }
+  | {
+      kind: 'agent_workflow';
+      availability: 'unavailable';
+    };
 
 export interface ExperimentAttemptUsage {
   requests: number;
@@ -103,6 +168,7 @@ export interface ExperimentAttemptUsage {
 export interface ExperimentAttemptOutput {
   status: ExecutedExperimentAttemptStatus;
   usage: ExperimentAttemptUsage;
+  evidence: ExperimentTaskEvidence;
   /** Sanitized machine-readable code; arbitrary provider error text is not retained. */
   error_code?: string;
 }
@@ -115,7 +181,9 @@ export interface ExperimentCoordinate {
   repetition_index: number;
   language?: string;
   policy?: string;
+  seed?: number;
   missing_capabilities: string[];
+  declared_exclusion?: ExperimentExclusion;
 }
 
 export interface ExperimentRemainingBudget {
@@ -147,8 +215,10 @@ export interface ExperimentAttemptEvidence extends ExperimentAttemptOutput {
 export type ExperimentCompletionCode =
   | 'terminal'
   | 'capability_unsupported'
+  | 'declared_exclusion'
   | 'budget_exhausted'
   | 'usage_unreported'
+  | 'usage_invalid'
   | 'budget_exceeded';
 
 export interface ExperimentCoordinateResult {
@@ -165,6 +235,7 @@ export interface ExperimentSummary {
   valid: number;
   invalid: number;
   unsupported: number;
+  excluded: number;
   incomplete: number;
   failed: number;
   passed: number;
@@ -179,12 +250,28 @@ export interface ExperimentSummaryGroup {
 }
 
 export interface ExperimentOperationalSummary extends ExperimentSummary {
+  executor_invocations: number;
+  reserved_live_requests: number;
   attempts: number;
   retry_attempts: number;
   requests: number;
   tokens: number;
   cost?: ExperimentCostLimit;
   attempt_statuses: Record<ExecutedExperimentAttemptStatus, number>;
+}
+
+export interface ExperimentCompletion {
+  /** Every declared coordinate has an explicit terminal record. */
+  matrix_complete: boolean;
+  /** No coordinate ended incomplete because execution stopped early. */
+  execution_complete: boolean;
+  /** Every declared coordinate produced a valid passed or failed measurement. */
+  valid_measurement_coverage_complete: boolean;
+}
+
+export interface ExperimentRuntimeExclusion {
+  coordinate_id: string;
+  reason: ExperimentStopReason;
 }
 
 export interface ExperimentUncertainty {
@@ -201,6 +288,10 @@ export interface ExperimentRunResult {
   manifest: ExperimentManifest;
   identities: ExperimentIdentity;
   live_authorization?: ExperimentLiveAuthorization;
+  completion: ExperimentCompletion;
+  stop_reason?: ExperimentStopReason;
+  runtime_exclusions: ExperimentRuntimeExclusion[];
+  /** Alias for valid measurement coverage, retained for simple consumers. */
   complete: boolean;
   results: ExperimentCoordinateResult[];
   summaries: {
@@ -218,6 +309,8 @@ export interface ExperimentLiveAuthorization {
   approved: true;
   decision_id: string;
   decided_at: string;
+  approved_by: string;
+  reason: string;
 }
 
 export interface RunExperimentOptions {

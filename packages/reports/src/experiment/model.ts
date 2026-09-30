@@ -140,6 +140,38 @@ function integer(value: unknown): number {
   return value;
 }
 
+function datetime(value: unknown): string {
+  const candidate = text(value);
+  const match =
+    /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.(\d+))?(?:Z|[+-]\d\d(?::?\d\d))$/.exec(
+      candidate
+    );
+  if (!match) throw invalid();
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const days =
+    month === 2
+      ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+        ? 29
+        : 28
+      : [4, 6, 9, 11].includes(month)
+        ? 30
+        : 31;
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > days ||
+    Number(hourText) > 23 ||
+    Number(minuteText) > 59 ||
+    Number(secondText) > 59
+  )
+    throw invalid();
+  return candidate;
+}
+
 function boolean(value: unknown): boolean {
   if (typeof value !== 'boolean') throw invalid();
   return value;
@@ -189,7 +221,7 @@ const STOP_REASONS = [
   'budget_exceeded',
 ] as const;
 
-function validateAttempt(value: unknown, coordinate: ExperimentCoordinateResult['coordinate']) {
+function validateAttempt(value: unknown) {
   const attempt = object(value);
   keys(
     attempt,
@@ -204,8 +236,8 @@ function validateAttempt(value: unknown, coordinate: ExperimentCoordinateResult[
 
   const usage = object(attempt.usage);
   keys(usage, ['requests'], ['tokens', 'cost']);
-  integer(usage.requests);
-  if (usage.tokens !== undefined) integer(usage.tokens);
+  if (integer(usage.requests) > 1_000_000) throw invalid();
+  if (usage.tokens !== undefined && integer(usage.tokens) > 10_000_000_000) throw invalid();
   if (usage.cost !== undefined) {
     const cost = object(usage.cost);
     keys(cost, ['amount', 'currency']);
@@ -216,7 +248,6 @@ function validateAttempt(value: unknown, coordinate: ExperimentCoordinateResult[
 
   const evidence = object(attempt.evidence);
   keys(evidence, ['kind', 'availability'], ['artifact']);
-  if (evidence.kind !== coordinate.task_kind) throw invalid();
   oneOf(evidence.kind, ['scenario_evaluation', 'agent_workflow'] as const);
   oneOf(evidence.availability, ['available', 'unavailable'] as const);
   if (evidence.availability === 'available') {
@@ -323,6 +354,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
   oneOf(input.mode, ['fixture', 'live'] as const);
   const manifest = parseExperimentManifest(input.manifest);
   if (
+    !same(input.manifest, manifest) ||
     input.experiment_id !== manifest.id ||
     input.mode !== manifest.mode ||
     !same(input.identities, manifest.identities)
@@ -334,12 +366,17 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
     keys(authorization, ['approved', 'decision_id', 'decided_at', 'approved_by', 'reason']);
     if (authorization.approved !== true) throw invalid();
     text(authorization.decision_id, IDENTIFIER);
-    const decidedAt = text(authorization.decided_at);
-    if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(decidedAt))
-      throw invalid();
+    datetime(authorization.decided_at);
     const approvedBy = text(authorization.approved_by);
     const reason = text(authorization.reason);
-    if (!approvedBy.trim() || approvedBy.length > 128 || !reason.trim() || reason.length > 256)
+    if (
+      approvedBy !== approvedBy.trim() ||
+      !approvedBy ||
+      approvedBy.length > 128 ||
+      reason !== reason.trim() ||
+      !reason ||
+      reason.length > 256
+    )
       throw invalid();
   } else if (input.live_authorization !== undefined) throw invalid();
 
@@ -366,7 +403,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
     if (!same(raw.coordinate, expected)) throw invalid();
     const status = oneOf(raw.status, STATUSES);
     const completionCode = oneOf(raw.completion_code, COMPLETION_CODES);
-    const attempts = array(raw.attempts).map((attempt) => validateAttempt(attempt, expected));
+    const attempts = array(raw.attempts).map(validateAttempt);
     if (attempts.length > manifest.retry_policy.max_attempts) throw invalid();
     attempts.forEach((attempt, attemptIndex) => {
       const number = attemptIndex + 1;
@@ -375,6 +412,16 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         attempt.retry_chain_id !== expected.coordinate_id ||
         attempt.attempt_id !== hash(`${expected.coordinate_id}:${String(number)}`)
       )
+        throw invalid();
+      const missingLiveUsage =
+        manifest.mode === 'live' &&
+        (attempt.usage.tokens === undefined || attempt.usage.cost === undefined);
+      const usageHaltPreemptedEvidenceNormalization =
+        completionCode === 'usage_unreported' &&
+        attemptIndex === attempts.length - 1 &&
+        attempt.status === 'incomplete' &&
+        missingLiveUsage;
+      if (attempt.evidence.kind !== expected.task_kind && !usageHaltPreemptedEvidenceNormalization)
         throw invalid();
       if (
         attemptIndex > 0 &&
@@ -401,6 +448,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: beforeCoordinate });
         stopReason ??= beforeCoordinate;
       } else {
+        let lastExceeded = false;
         for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
           const beforeAttempt = budgetReason(manifest, state);
           if (beforeAttempt) throw invalid();
@@ -422,11 +470,17 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
             attempt.usage.requests > remainingRequests ||
             (remainingTokens !== undefined && (attempt.usage.tokens ?? 0) > remainingTokens) ||
             (remainingCost !== undefined && (attempt.usage.cost?.amount ?? 0) > remainingCost);
+          const isLastAttempt = attemptIndex === attempts.length - 1;
+          const missingLiveUsage =
+            manifest.mode === 'live' &&
+            (attempt.usage.tokens === undefined || attempt.usage.cost === undefined);
           if (
-            exceeded &&
-            (attempt.status !== 'incomplete' || attempt.error_code !== 'budget_exceeded')
+            missingLiveUsage &&
+            (!isLastAttempt || !['usage_unreported', 'usage_invalid'].includes(completionCode))
           )
             throw invalid();
+          if (exceeded && (!isLastAttempt || completionCode !== 'budget_exceeded')) throw invalid();
+          lastExceeded = exceeded;
           state.requests += attempt.usage.requests;
           state.tokens += attempt.usage.tokens ?? 0;
           if (attempt.usage.cost) {
@@ -434,18 +488,6 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
             state.currency ??= attempt.usage.cost.currency;
             state.mixedCost ||= state.currency !== attempt.usage.cost.currency;
             state.cost += attempt.usage.cost.amount;
-          }
-          if (attempt.error_code === 'usage_unreported') state.halt = 'usage_unreported';
-          if (
-            (attempt.error_code === 'invalid_executor_result' ||
-              attempt.error_code === 'cost_currency_mismatch') &&
-            manifest.mode === 'live'
-          )
-            state.halt = 'usage_invalid';
-          if (attempt.error_code === 'budget_exceeded') state.halt = 'budget_exceeded';
-          if (state.halt) {
-            stopReason ??= state.halt;
-            if (attemptIndex !== attempts.length - 1) throw invalid();
           }
         }
         if (!attempts.length) throw invalid();
@@ -464,24 +506,29 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
           runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: afterAttempts });
           stopReason ??= afterAttempts;
         } else {
-          const expectedCode =
-            last.error_code === 'usage_unreported'
-              ? 'usage_unreported'
-              : (last.error_code === 'invalid_executor_result' ||
-                    last.error_code === 'cost_currency_mismatch') &&
-                  manifest.mode === 'live'
-                ? 'usage_invalid'
-                : last.error_code === 'budget_exceeded'
-                  ? 'budget_exceeded'
-                  : 'terminal';
+          const missingLiveUsage =
+            manifest.mode === 'live' &&
+            (last.usage.tokens === undefined || last.usage.cost === undefined);
+          if (completionCode === 'usage_unreported') {
+            if (!missingLiveUsage || last.status !== 'incomplete') throw invalid();
+            state.halt = 'usage_unreported';
+          } else if (completionCode === 'usage_invalid') {
+            if (!missingLiveUsage || last.status !== 'invalid') throw invalid();
+            state.halt = 'usage_invalid';
+          } else if (completionCode === 'budget_exceeded') {
+            if (!lastExceeded || last.status !== 'incomplete') throw invalid();
+            state.halt = 'budget_exceeded';
+          } else if (completionCode !== 'terminal' || missingLiveUsage || lastExceeded) {
+            throw invalid();
+          }
           if (
-            completionCode !== expectedCode ||
             status !== last.status ||
             (lastIsRetryable &&
               attempts.length < manifest.retry_policy.max_attempts &&
               state.halt === undefined)
           )
             throw invalid();
+          if (state.halt) stopReason ??= state.halt;
         }
       }
     }

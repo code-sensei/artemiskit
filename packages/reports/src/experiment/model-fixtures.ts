@@ -192,6 +192,133 @@ export async function liveBudgetResult(): Promise<ExperimentRunResult> {
   });
 }
 
+export async function adapterErrorCollisionResult(
+  mode: 'fixture' | 'live',
+  errorCode: string
+): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const live = mode === 'live';
+  const manifest = experimentManifest({
+    mode,
+    tasks: [base.tasks[1]],
+    repetitions: 1,
+    exclusions: [],
+    seed: undefined,
+    retry_policy: { max_attempts: 1, retry_on: [] },
+    budgets: live
+      ? { max_requests: 10, max_tokens: 100, max_cost: { amount: 1, currency: 'USD' } }
+      : { max_requests: 10 },
+    live: live
+      ? {
+          concurrency_ceiling: 1,
+          stop_conditions: [
+            'request_budget_exhausted',
+            'token_budget_exhausted',
+            'cost_budget_exhausted',
+            'usage_unreported',
+            'usage_invalid',
+            'budget_exceeded',
+          ],
+        }
+      : undefined,
+  });
+  return runExperiment(manifest, {
+    live_authorization: live
+      ? {
+          approved: true,
+          decision_id: 'collision-approval',
+          decided_at: '2026-09-30T12:00:00Z',
+          approved_by: 'fixture operator',
+          reason: 'Test unrestricted adapter error codes',
+        }
+      : undefined,
+    execute_attempt: async (input) => ({
+      status: 'invalid',
+      usage: live
+        ? { requests: 1, tokens: 1, cost: { amount: 0.01, currency: 'USD' } }
+        : { requests: 1 },
+      evidence: evidence(input.coordinate.task_kind, false),
+      error_code: errorCode,
+    }),
+  });
+}
+
+/** A structurally consistent reproduction of the live missing-usage result emitted before core cycle 3. */
+export async function preFixLiveMissingUsageResult(): Promise<ExperimentRunResult> {
+  const result = await statusExperimentResult('invalid');
+  result.mode = 'live';
+  result.manifest.mode = 'live';
+  result.manifest.budgets = {
+    max_requests: 10,
+    max_tokens: 100,
+    max_cost: { amount: 1, currency: 'USD' },
+  };
+  result.manifest.live = {
+    concurrency_ceiling: 1,
+    stop_conditions: [
+      'request_budget_exhausted',
+      'token_budget_exhausted',
+      'cost_budget_exhausted',
+      'usage_unreported',
+      'usage_invalid',
+      'budget_exceeded',
+    ],
+  };
+  result.live_authorization = {
+    approved: true,
+    decision_id: 'pre-fix-approval',
+    decided_at: '2026-09-30T12:00:00Z',
+    approved_by: 'fixture operator',
+    reason: 'Reproduce pre-fix saved evidence',
+  };
+  result.summaries.operational.reserved_live_requests =
+    result.summaries.operational.executor_invocations;
+  return result;
+}
+
+/** A cycle-3 result where live usage enforcement precedes evidence-kind normalization. */
+export async function liveUsageUnreportedResult(): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const manifest = experimentManifest({
+    mode: 'live',
+    tasks: [base.tasks[1]],
+    repetitions: 1,
+    exclusions: [],
+    seed: undefined,
+    retry_policy: { max_attempts: 1, retry_on: [] },
+    budgets: { max_requests: 10, max_tokens: 100, max_cost: { amount: 1, currency: 'USD' } },
+    live: {
+      concurrency_ceiling: 1,
+      stop_conditions: [
+        'request_budget_exhausted',
+        'token_budget_exhausted',
+        'cost_budget_exhausted',
+        'usage_unreported',
+        'usage_invalid',
+        'budget_exceeded',
+      ],
+    },
+  });
+  const result = await runExperiment(manifest, {
+    live_authorization: {
+      approved: true,
+      decision_id: 'usage-unreported-approval',
+      decided_at: '2026-09-30T12:00:00Z',
+      approved_by: 'fixture operator',
+      reason: 'Exercise live usage enforcement order',
+    },
+    execute_attempt: async (input) => ({
+      status: 'passed',
+      usage: { requests: 0 },
+      evidence: evidence(input.coordinate.task_kind),
+    }),
+  });
+
+  // Core cycle 3 preserves the raw evidence when usage enforcement halts normalization first.
+  result.results[0].attempts[0].evidence.kind = 'scenario_evaluation';
+  return result;
+}
+
 export function reverseKeys(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(reverseKeys);

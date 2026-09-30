@@ -2,8 +2,11 @@ import { beforeAll, describe, expect, test } from 'bun:test';
 import type { ExperimentRunResult } from '@artemiskit/core';
 import { createExperimentReport } from './model';
 import {
+  adapterErrorCollisionResult,
   liveBudgetResult,
+  liveUsageUnreportedResult,
   mixedExperimentResult,
+  preFixLiveMissingUsageResult,
   reverseKeys,
   statusExperimentResult,
 } from './model-fixtures';
@@ -126,6 +129,20 @@ describe('canonical experiment report model', () => {
     expect(text).toContain('concurrency ceiling 1');
     expect(text).toContain('Bounded report fixture');
   });
+
+  test('accepts unrestricted adapter error-code collisions in fixture and live terminal results', async () => {
+    for (const mode of ['fixture', 'live'] as const) {
+      for (const errorCode of ['usage_unreported', 'budget_exceeded', 'invalid_executor_result']) {
+        const collision = await adapterErrorCollisionResult(mode, errorCode);
+        expect(collision.stop_reason).toBeUndefined();
+        expect(collision.results.every((item) => item.completion_code === 'terminal')).toBe(true);
+        expect(createExperimentReport(collision).summary).toMatchObject({
+          invalid: 2,
+          incomplete: 0,
+        });
+      }
+    }
+  });
 });
 
 describe('strict saved-result validation', () => {
@@ -218,5 +235,63 @@ describe('strict saved-result validation', () => {
       mutate(value);
       expect(() => createExperimentReport(value)).toThrow(error);
     }
+  });
+
+  test('rejects pre-fix live missing-usage evidence without matching stop semantics', async () => {
+    const preFix = await preFixLiveMissingUsageResult();
+    expect(preFix.results.every((item) => item.completion_code === 'terminal')).toBe(true);
+    expect(preFix.results.every((item) => item.attempts[0].usage.tokens === undefined)).toBe(true);
+    expect(preFix.stop_reason).toBeUndefined();
+    expect(() => createExperimentReport(preFix)).toThrow(error);
+  });
+
+  test('accepts the enforced live usage halt before evidence-kind normalization', async () => {
+    const enforced = await liveUsageUnreportedResult();
+    expect(enforced.results[0]).toMatchObject({
+      status: 'incomplete',
+      completion_code: 'usage_unreported',
+      attempts: [{ status: 'incomplete', error_code: 'usage_unreported' }],
+    });
+    expect(enforced.results[0].attempts[0].evidence.kind).not.toBe(
+      enforced.results[0].coordinate.task_kind
+    );
+    expect(enforced.stop_reason).toBe('usage_unreported');
+    expect(createExperimentReport(enforced).summary).toMatchObject({
+      incomplete: 2,
+      executorInvocations: 1,
+    });
+  });
+
+  test('requires the exact canonical manifest instead of accepting parser defaults or normalization', () => {
+    const { mode: _mode, ...manifestWithoutMode } = structuredClone(mixed.manifest);
+    const missingMode = { ...structuredClone(mixed), manifest: manifestWithoutMode };
+    expect(() => createExperimentReport(missingMode)).toThrow(error);
+
+    const paddedProvider = structuredClone(mixed);
+    paddedProvider.manifest.targets[0].provider = ` ${paddedProvider.manifest.targets[0].provider} `;
+    expect(() => createExperimentReport(paddedProvider)).toThrow(error);
+  });
+
+  test('matches core authorization datetime and normalized text constraints', () => {
+    for (const decidedAt of ['2026-99-99T99:99:99Z', '2026-02-30T12:00:00Z']) {
+      const value = structuredClone(live);
+      if (value.live_authorization) value.live_authorization.decided_at = decidedAt;
+      expect(() => createExperimentReport(value)).toThrow(error);
+    }
+    const padded = structuredClone(live);
+    if (padded.live_authorization) padded.live_authorization.approved_by = ' fixture operator ';
+    expect(() => createExperimentReport(padded)).toThrow(error);
+  });
+
+  test('enforces the public per-attempt usage bounds', () => {
+    const requests = structuredClone(mixed);
+    requests.results[0].attempts[0].usage.requests = 1_000_001;
+    requests.summaries.operational.requests += 1_000_000;
+    expect(() => createExperimentReport(requests)).toThrow(error);
+
+    const tokens = structuredClone(mixed);
+    tokens.results[0].attempts[0].usage.tokens = 10_000_000_001;
+    tokens.summaries.operational.tokens += 9_999_999_997;
+    expect(() => createExperimentReport(tokens)).toThrow(error);
   });
 });

@@ -4,6 +4,7 @@ import { createExperimentReport } from './model';
 import {
   adapterErrorCollisionResult,
   liveBudgetResult,
+  liveRunnerHaltResult,
   liveUsageUnreportedResult,
   mixedExperimentResult,
   preFixLiveMissingUsageResult,
@@ -132,7 +133,13 @@ describe('canonical experiment report model', () => {
 
   test('accepts unrestricted adapter error-code collisions in fixture and live terminal results', async () => {
     for (const mode of ['fixture', 'live'] as const) {
-      for (const errorCode of ['usage_unreported', 'budget_exceeded', 'invalid_executor_result']) {
+      for (const errorCode of [
+        'usage_unreported',
+        'usage_invalid',
+        'budget_exceeded',
+        'invalid_executor_result',
+        'cost_currency_mismatch',
+      ]) {
         const collision = await adapterErrorCollisionResult(mode, errorCode);
         expect(collision.stop_reason).toBeUndefined();
         expect(collision.results.every((item) => item.completion_code === 'terminal')).toBe(true);
@@ -260,6 +267,68 @@ describe('strict saved-result validation', () => {
       incomplete: 2,
       executorInvocations: 1,
     });
+  });
+
+  test('accepts exact core results for every runner-owned live halt shape', async () => {
+    for (const [cause, completionCode] of [
+      ['usage_unreported', 'usage_unreported'],
+      ['invalid_executor_result', 'usage_invalid'],
+      ['cost_currency_mismatch', 'usage_invalid'],
+      ['budget_exceeded', 'budget_exceeded'],
+    ] as const) {
+      const result = await liveRunnerHaltResult(cause);
+      expect(result.results[0]).toMatchObject({
+        completion_code: completionCode,
+        attempts: [{ error_code: cause }],
+      });
+      expect(result.stop_reason).toBe(completionCode);
+      expect(createExperimentReport(result).summary).toMatchObject({
+        attempted: 1,
+        incomplete: completionCode === 'usage_invalid' ? 1 : 2,
+        invalid: completionCode === 'usage_invalid' ? 1 : 0,
+      });
+    }
+  });
+
+  test('rejects mutated runner-owned nonterminal codes and normalized evidence pairings', async () => {
+    for (const cause of [
+      'usage_unreported',
+      'invalid_executor_result',
+      'cost_currency_mismatch',
+      'budget_exceeded',
+    ] as const) {
+      const result = await liveRunnerHaltResult(cause);
+      result.results[0].attempts[0].error_code = 'adapter_arbitrary';
+      expect(() => createExperimentReport(result)).toThrow(error);
+    }
+
+    const invalidExecutor = await liveRunnerHaltResult('invalid_executor_result');
+    invalidExecutor.results[0].attempts[0].usage.requests = 1;
+    invalidExecutor.summaries.operational.requests = 1;
+    expect(() => createExperimentReport(invalidExecutor)).toThrow(error);
+
+    const costMismatch = await liveRunnerHaltResult('cost_currency_mismatch');
+    costMismatch.results[0].attempts[0].usage.tokens = undefined;
+    costMismatch.summaries.operational.tokens = 0;
+    expect(() => createExperimentReport(costMismatch)).toThrow(error);
+
+    const invalidEvidence = await liveRunnerHaltResult('invalid_executor_result');
+    invalidEvidence.results[0].attempts[0].evidence = {
+      kind: invalidEvidence.results[0].coordinate.task_kind,
+      availability: 'available',
+      artifact: { schema_version: '1', algorithm: 'sha256', digest: 'f'.repeat(64) },
+    };
+    expect(() => createExperimentReport(invalidEvidence)).toThrow(error);
+  });
+
+  test('rejects reported cost in a currency other than the manifest maximum', () => {
+    const changed = structuredClone(live);
+    const attemptCost = changed.results[0].attempts[0].usage.cost;
+    const summaryCost = changed.summaries.operational.cost;
+    if (!attemptCost || !summaryCost) throw new Error('Expected the live fixture to report cost');
+    attemptCost.currency = 'EUR';
+    summaryCost.currency = 'EUR';
+    expect(() => createExperimentReport(changed)).toThrow(error);
   });
 
   test('requires the exact canonical manifest instead of accepting parser defaults or normalization', () => {

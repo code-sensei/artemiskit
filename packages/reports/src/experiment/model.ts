@@ -466,6 +466,12 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
               : manifest.budgets.max_cost.amount - state.cost;
           state.invocations += 1;
           if (manifest.mode === 'live') state.reserved += 1;
+          if (
+            attempt.usage.cost !== undefined &&
+            manifest.budgets.max_cost !== undefined &&
+            attempt.usage.cost.currency !== manifest.budgets.max_cost.currency
+          )
+            throw invalid();
           const exceeded =
             attempt.usage.requests > remainingRequests ||
             (remainingTokens !== undefined && (attempt.usage.tokens ?? 0) > remainingTokens) ||
@@ -510,13 +516,42 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
             manifest.mode === 'live' &&
             (last.usage.tokens === undefined || last.usage.cost === undefined);
           if (completionCode === 'usage_unreported') {
-            if (!missingLiveUsage || last.status !== 'incomplete') throw invalid();
+            if (
+              !missingLiveUsage ||
+              last.status !== 'incomplete' ||
+              last.error_code !== 'usage_unreported'
+            )
+              throw invalid();
             state.halt = 'usage_unreported';
           } else if (completionCode === 'usage_invalid') {
-            if (!missingLiveUsage || last.status !== 'invalid') throw invalid();
+            const normalizedInvalidEvidence =
+              last.evidence.kind === expected.task_kind &&
+              last.evidence.availability === 'unavailable';
+            const invalidExecutorResult =
+              last.error_code === 'invalid_executor_result' &&
+              last.usage.requests === 0 &&
+              last.usage.tokens === undefined &&
+              last.usage.cost === undefined;
+            const costCurrencyMismatch =
+              last.error_code === 'cost_currency_mismatch' &&
+              manifest.budgets.max_cost !== undefined &&
+              last.usage.tokens !== undefined &&
+              last.usage.cost === undefined;
+            if (
+              !missingLiveUsage ||
+              last.status !== 'invalid' ||
+              !normalizedInvalidEvidence ||
+              (!invalidExecutorResult && !costCurrencyMismatch)
+            )
+              throw invalid();
             state.halt = 'usage_invalid';
           } else if (completionCode === 'budget_exceeded') {
-            if (!lastExceeded || last.status !== 'incomplete') throw invalid();
+            if (
+              !lastExceeded ||
+              last.status !== 'incomplete' ||
+              last.error_code !== 'budget_exceeded'
+            )
+              throw invalid();
             state.halt = 'budget_exceeded';
           } else if (completionCode !== 'terminal' || missingLiveUsage || lastExceeded) {
             throw invalid();

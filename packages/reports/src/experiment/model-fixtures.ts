@@ -319,6 +319,64 @@ export async function liveUsageUnreportedResult(): Promise<ExperimentRunResult> 
   return result;
 }
 
+export type LiveRunnerHalt =
+  | 'usage_unreported'
+  | 'invalid_executor_result'
+  | 'cost_currency_mismatch'
+  | 'budget_exceeded';
+
+/** Produce each runner-owned live halt through the public core executor boundary. */
+export async function liveRunnerHaltResult(cause: LiveRunnerHalt): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const manifest = experimentManifest({
+    mode: 'live',
+    tasks: [base.tasks[1]],
+    repetitions: 1,
+    exclusions: [],
+    seed: undefined,
+    retry_policy: { max_attempts: 1, retry_on: [] },
+    budgets: { max_requests: 10, max_tokens: 100, max_cost: { amount: 1, currency: 'USD' } },
+    live: {
+      concurrency_ceiling: 1,
+      stop_conditions: [
+        'request_budget_exhausted',
+        'token_budget_exhausted',
+        'cost_budget_exhausted',
+        'usage_unreported',
+        'usage_invalid',
+        'budget_exceeded',
+      ],
+    },
+  });
+  return runExperiment(manifest, {
+    live_authorization: {
+      approved: true,
+      decision_id: `runner-${cause}`,
+      decided_at: '2026-09-30T12:00:00Z',
+      approved_by: 'fixture operator',
+      reason: 'Exercise an exact runner-owned halt shape',
+    },
+    execute_attempt: async (input) => {
+      if (cause === 'invalid_executor_result') return null as never;
+      if (cause === 'usage_unreported') {
+        return {
+          status: 'passed',
+          usage: { requests: 0 },
+          evidence: evidence(input.coordinate.task_kind),
+        };
+      }
+      return {
+        status: 'passed',
+        usage:
+          cause === 'cost_currency_mismatch'
+            ? { requests: 1, tokens: 1, cost: { amount: 0.01, currency: 'EUR' } }
+            : { requests: 11, tokens: 1, cost: { amount: 0.01, currency: 'USD' } },
+        evidence: evidence(input.coordinate.task_kind),
+      };
+    },
+  });
+}
+
 export function reverseKeys(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(reverseKeys);

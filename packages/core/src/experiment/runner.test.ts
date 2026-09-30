@@ -332,6 +332,93 @@ describe('runExperiment', () => {
     expect(result.complete).toBe(false);
   });
 
+  test('enforces live usage reporting before normalizing malformed task evidence', async () => {
+    const live = parseExperimentManifest({
+      ...MANIFEST,
+      mode: 'live',
+      tasks: [MANIFEST.tasks[0]],
+      repetitions: 1,
+      retry_policy: { max_attempts: 1, retry_on: [] },
+      budgets: {
+        max_requests: 10,
+        max_tokens: 100,
+        max_cost: { amount: 1, currency: 'USD' },
+      },
+      live: LIVE_CONTROLS,
+    });
+
+    for (const [decisionId, evidence] of [
+      [
+        'wrong-kind-missing-usage',
+        {
+          kind: 'agent_workflow' as const,
+          availability: 'available' as const,
+          artifact: identity('f'),
+        },
+      ],
+      [
+        'unavailable-missing-usage',
+        { kind: 'scenario_evaluation' as const, availability: 'unavailable' as const },
+      ],
+    ] as const) {
+      let calls = 0;
+      const result = await runExperiment(live, {
+        live_authorization: authorization(decisionId),
+        execute_attempt: async () => {
+          calls += 1;
+          return {
+            status: 'passed',
+            usage: { requests: 0 },
+            evidence,
+          };
+        },
+      });
+
+      expect(calls).toBe(1);
+      expect(result.results[0]).toMatchObject({
+        status: 'incomplete',
+        completion_code: 'usage_unreported',
+        attempts: [{ status: 'incomplete', error_code: 'usage_unreported' }],
+      });
+      expect(result.results[1]).toMatchObject({
+        status: 'incomplete',
+        completion_code: 'budget_exhausted',
+        attempts: [],
+      });
+      expect(result.stop_reason).toBe('usage_unreported');
+      expect(result.summaries.operational.executor_invocations).toBe(1);
+      expect(result.complete).toBe(false);
+    }
+
+    let completeUsageCalls = 0;
+    const completeUsageMismatch = await runExperiment(live, {
+      live_authorization: authorization('wrong-kind-complete-usage'),
+      execute_attempt: async () => {
+        completeUsageCalls += 1;
+        return {
+          status: 'passed',
+          usage: { requests: 1, tokens: 1, cost: { amount: 0.01, currency: 'USD' } },
+          evidence: {
+            kind: 'agent_workflow',
+            availability: 'available',
+            artifact: identity('f'),
+          },
+        };
+      },
+    });
+
+    expect(completeUsageCalls).toBe(2);
+    expect(completeUsageMismatch.results.map((result) => result.completion_code)).toEqual([
+      'terminal',
+      'terminal',
+    ]);
+    expect(completeUsageMismatch.results[0].attempts[0]).toMatchObject({
+      status: 'invalid',
+      error_code: 'evidence_kind_mismatch',
+    });
+    expect(completeUsageMismatch.stop_reason).toBeUndefined();
+  });
+
   test('requires positive host authorization before invoking a live executor', async () => {
     let calls = 0;
     const live = parseExperimentManifest({

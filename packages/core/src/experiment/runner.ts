@@ -387,17 +387,6 @@ function normalizeOutput(
   }
 
   const result = parsed.data;
-  if (result.evidence.kind !== expectedKind) {
-    return invalidOutput('evidence_kind_mismatch', expectedKind, undefined, result.usage);
-  }
-  if (
-    (result.status === 'passed' ||
-      result.status === 'task_failed' ||
-      result.status === 'policy_failed') &&
-    result.evidence.availability !== 'available'
-  ) {
-    return invalidOutput('evidence_unavailable', expectedKind, undefined, result.usage);
-  }
   if (
     manifest.mode === 'live' &&
     (result.usage.tokens === undefined || result.usage.cost === undefined)
@@ -412,6 +401,17 @@ function normalizeOutput(
       completionCode: 'usage_unreported',
       haltReason: 'usage_unreported',
     };
+  }
+  if (result.evidence.kind !== expectedKind) {
+    return invalidOutput('evidence_kind_mismatch', expectedKind, undefined, result.usage);
+  }
+  if (
+    (result.status === 'passed' ||
+      result.status === 'task_failed' ||
+      result.status === 'policy_failed') &&
+    result.evidence.availability !== 'available'
+  ) {
+    return invalidOutput('evidence_unavailable', expectedKind, undefined, result.usage);
   }
   if (result.usage.cost && manifest.budgets.max_cost) {
     if (result.usage.cost.currency !== manifest.budgets.max_cost.currency) {

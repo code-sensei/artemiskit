@@ -377,6 +377,112 @@ export async function liveRunnerHaltResult(cause: LiveRunnerHalt): Promise<Exper
   });
 }
 
+export interface CoreOutputCase {
+  label: string;
+  result: ExperimentRunResult;
+}
+
+const MATRIX_TOKENS = [undefined, 1, 101] as const;
+const MATRIX_COSTS = [
+  undefined,
+  { amount: 0.1, currency: 'USD' },
+  { amount: 2, currency: 'USD' },
+  { amount: 0.1, currency: 'EUR' },
+  { amount: 2, currency: 'EUR' },
+] as const;
+
+/**
+ * Run every combination of executor usage, currency, budget overrun, evidence kind, evidence
+ * availability, status, mode and retry policy through the public core runner. Each result is an
+ * authoritative core output that a saved-evidence report must accept.
+ */
+export async function coreOutputMatrix(): Promise<CoreOutputCase[]> {
+  const base = experimentManifest();
+  const cases: CoreOutputCase[] = [];
+  for (const mode of ['fixture', 'live'] as const)
+    for (const maxAttempts of [1, 2])
+      for (const status of ['passed', 'invalid'] as const)
+        for (const kindMatches of [true, false])
+          for (const available of [true, false])
+            for (const tokens of MATRIX_TOKENS)
+              for (const cost of MATRIX_COSTS)
+                for (const requests of [1, 11]) {
+                  const label = JSON.stringify({
+                    mode,
+                    maxAttempts,
+                    status,
+                    kindMatches,
+                    available,
+                    tokens,
+                    cost,
+                    requests,
+                  });
+                  const manifest = experimentManifest({
+                    mode,
+                    tasks: [base.tasks[1]],
+                    repetitions: 1,
+                    exclusions: [],
+                    seed: undefined,
+                    retry_policy: {
+                      max_attempts: maxAttempts,
+                      retry_on: ['invalid', 'incomplete'],
+                    },
+                    budgets: {
+                      max_requests: 10,
+                      max_tokens: 100,
+                      max_cost: { amount: 1, currency: 'USD' },
+                    },
+                    ...(mode === 'live'
+                      ? {
+                          live: {
+                            concurrency_ceiling: 1,
+                            stop_conditions: [
+                              'request_budget_exhausted',
+                              'token_budget_exhausted',
+                              'cost_budget_exhausted',
+                              'usage_unreported',
+                              'usage_invalid',
+                              'budget_exceeded',
+                            ],
+                          },
+                        }
+                      : {}),
+                  });
+                  const result = await runExperiment(manifest, {
+                    ...(mode === 'live'
+                      ? {
+                          live_authorization: {
+                            approved: true,
+                            decision_id: 'core-output-matrix',
+                            decided_at: '2026-10-08T12:00:00Z',
+                            approved_by: 'fixture operator',
+                            reason: 'Exercise every core normalization precedence path',
+                          },
+                        }
+                      : {}),
+                    execute_attempt: async (input) => {
+                      const expectedKind = input.coordinate.task_kind;
+                      const kind = kindMatches
+                        ? expectedKind
+                        : expectedKind === 'agent_workflow'
+                          ? 'scenario_evaluation'
+                          : 'agent_workflow';
+                      return {
+                        status,
+                        usage: {
+                          requests,
+                          ...(tokens === undefined ? {} : { tokens }),
+                          ...(cost === undefined ? {} : { cost: { ...cost } }),
+                        },
+                        evidence: evidence(kind, available),
+                      };
+                    },
+                  });
+                  cases.push({ label, result });
+                }
+  return cases;
+}
+
 export function reverseKeys(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(reverseKeys);

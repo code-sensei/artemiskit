@@ -3,6 +3,7 @@ import type { ExperimentRunResult } from '@artemiskit/core';
 import { createExperimentReport } from './model';
 import {
   adapterErrorCollisionResult,
+  coreOutputMatrix,
   liveBudgetResult,
   liveRunnerHaltResult,
   liveUsageUnreportedResult,
@@ -288,6 +289,58 @@ describe('strict saved-result validation', () => {
         invalid: completionCode === 'usage_invalid' ? 1 : 0,
       });
     }
+  });
+
+  test('accepts every core output across combined usage, currency, budget, and evidence failures', async () => {
+    const cases = await coreOutputMatrix();
+    expect(cases.length).toBe(960);
+    const rejected = cases.filter(({ result }) => {
+      try {
+        createExperimentReport(result);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    expect(rejected.map(({ label }) => label)).toEqual([]);
+  });
+
+  test('rejects retained foreign-currency or overrun usage outside runner-normalized evidence', async () => {
+    const runnerNormalized = [
+      'evidence_kind_mismatch',
+      'evidence_unavailable',
+      'cost_currency_mismatch',
+    ];
+    let disguised = 0;
+    for (const { label, result } of await coreOutputMatrix()) {
+      const { budgets } = result.manifest;
+      result.results.forEach((coordinateResult, resultIndex) => {
+        coordinateResult.attempts.forEach((attempt, attemptIndex) => {
+          const { usage } = attempt;
+          const carriesUnsafeUsage =
+            usage.cost?.currency === 'EUR' ||
+            usage.requests > budgets.max_requests ||
+            (usage.tokens ?? 0) > (budgets.max_tokens ?? Number.POSITIVE_INFINITY) ||
+            (usage.cost?.amount ?? 0) > (budgets.max_cost?.amount ?? Number.POSITIVE_INFINITY);
+          if (!runnerNormalized.includes(attempt.error_code ?? '') || !carriesUnsafeUsage) return;
+
+          for (const disguise of ['error_code', 'evidence'] as const) {
+            const forged = structuredClone(result);
+            const forgedAttempt = forged.results[resultIndex].attempts[attemptIndex];
+            if (disguise === 'error_code') forgedAttempt.error_code = 'adapter_arbitrary';
+            else
+              forgedAttempt.evidence = {
+                kind: forged.results[resultIndex].coordinate.task_kind,
+                availability: 'available',
+                artifact: { schema_version: '1', algorithm: 'sha256', digest: 'f'.repeat(64) },
+              };
+            expect(() => createExperimentReport(forged), `${disguise} ${label}`).toThrow(error);
+            disguised += 1;
+          }
+        });
+      });
+    }
+    expect(disguised).toBeGreaterThan(100);
   });
 
   test('rejects mutated runner-owned nonterminal codes and normalized evidence pairings', async () => {

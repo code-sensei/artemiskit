@@ -3,12 +3,14 @@ import { types } from 'node:util';
 import {
   type ExperimentAttemptEvidence,
   type ExperimentAttemptStatus,
+  type ExperimentCompletionCode,
   type ExperimentCoordinateResult,
   type ExperimentManifest,
   type ExperimentRunResult,
   type ExperimentStopReason,
   type ExperimentSummary,
   type ExperimentSummaryGroup,
+  type ExperimentTaskKind,
   buildExperimentMatrix,
   parseExperimentManifest,
 } from '@artemiskit/core';
@@ -307,6 +309,67 @@ function grouped(
   return [...groups].map(([key, values]) => ({ key, summary: summarize(values) }));
 }
 
+const EVIDENCE_NORMALIZATION_CODES = ['evidence_kind_mismatch', 'evidence_unavailable'];
+
+/**
+ * Return the completion codes the core runner could have assigned to a saved attempt.
+ *
+ * Mirrors core's normalization precedence: malformed executor output, missing live usage,
+ * evidence kind, evidence availability, cost currency, then budget overrun. Each earlier step
+ * keeps the usage it received, so a later condition (a foreign currency or an overrun) can
+ * legitimately remain in its evidence. An empty set means no core path produces the attempt.
+ */
+function coreCompletions(
+  attempt: ExperimentAttemptEvidence,
+  manifest: ExperimentManifest,
+  expectedKind: ExperimentTaskKind,
+  exceeded: boolean
+): Set<ExperimentCompletionCode> {
+  const { status, usage, evidence, error_code: errorCode } = attempt;
+  const isLive = manifest.mode === 'live';
+  const maxCost = manifest.budgets.max_cost;
+  const usageComplete = usage.tokens !== undefined && usage.cost !== undefined;
+  const runnerInvalidCompletion = isLive ? 'usage_invalid' : 'terminal';
+  const completions = new Set<ExperimentCompletionCode>();
+
+  if (
+    status === 'invalid' &&
+    evidence.kind === expectedKind &&
+    evidence.availability === 'unavailable'
+  ) {
+    if (
+      errorCode === 'invalid_executor_result' &&
+      usage.requests === 0 &&
+      usage.tokens === undefined &&
+      usage.cost === undefined
+    )
+      completions.add(runnerInvalidCompletion);
+    if (EVIDENCE_NORMALIZATION_CODES.includes(errorCode ?? '') && (!isLive || usageComplete))
+      completions.add('terminal');
+    if (
+      errorCode === 'cost_currency_mismatch' &&
+      maxCost !== undefined &&
+      usage.cost === undefined &&
+      (!isLive || usage.tokens !== undefined)
+    )
+      completions.add(runnerInvalidCompletion);
+  }
+  if (isLive && !usageComplete) {
+    if (status === 'incomplete' && errorCode === 'usage_unreported')
+      completions.add('usage_unreported');
+    return completions;
+  }
+
+  // Executor output that reached the budget check unchanged.
+  const currencyMatches =
+    usage.cost === undefined || maxCost === undefined || usage.cost.currency === maxCost.currency;
+  if (!currencyMatches || evidence.kind !== expectedKind) return completions;
+  if (!exceeded) completions.add('terminal');
+  else if (status === 'incomplete' && errorCode === 'budget_exceeded')
+    completions.add('budget_exceeded');
+  return completions;
+}
+
 interface BudgetState {
   invocations: number;
   reserved: number;
@@ -413,16 +476,6 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         attempt.attempt_id !== hash(`${expected.coordinate_id}:${String(number)}`)
       )
         throw invalid();
-      const missingLiveUsage =
-        manifest.mode === 'live' &&
-        (attempt.usage.tokens === undefined || attempt.usage.cost === undefined);
-      const usageHaltPreemptedEvidenceNormalization =
-        completionCode === 'usage_unreported' &&
-        attemptIndex === attempts.length - 1 &&
-        attempt.status === 'incomplete' &&
-        missingLiveUsage;
-      if (attempt.evidence.kind !== expected.task_kind && !usageHaltPreemptedEvidenceNormalization)
-        throw invalid();
       if (
         attemptIndex > 0 &&
         !manifest.retry_policy.retry_on.includes(attempts[attemptIndex - 1].status as never)
@@ -448,7 +501,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
         runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: beforeCoordinate });
         stopReason ??= beforeCoordinate;
       } else {
-        let lastExceeded = false;
+        let lastCompletions = new Set<ExperimentCompletionCode>();
         for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
           const beforeAttempt = budgetReason(manifest, state);
           if (beforeAttempt) throw invalid();
@@ -466,27 +519,14 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
               : manifest.budgets.max_cost.amount - state.cost;
           state.invocations += 1;
           if (manifest.mode === 'live') state.reserved += 1;
-          if (
-            attempt.usage.cost !== undefined &&
-            manifest.budgets.max_cost !== undefined &&
-            attempt.usage.cost.currency !== manifest.budgets.max_cost.currency
-          )
-            throw invalid();
           const exceeded =
             attempt.usage.requests > remainingRequests ||
             (remainingTokens !== undefined && (attempt.usage.tokens ?? 0) > remainingTokens) ||
             (remainingCost !== undefined && (attempt.usage.cost?.amount ?? 0) > remainingCost);
-          const isLastAttempt = attemptIndex === attempts.length - 1;
-          const missingLiveUsage =
-            manifest.mode === 'live' &&
-            (attempt.usage.tokens === undefined || attempt.usage.cost === undefined);
-          if (
-            missingLiveUsage &&
-            (!isLastAttempt || !['usage_unreported', 'usage_invalid'].includes(completionCode))
-          )
-            throw invalid();
-          if (exceeded && (!isLastAttempt || completionCode !== 'budget_exceeded')) throw invalid();
-          lastExceeded = exceeded;
+          const completions = coreCompletions(attempt, manifest, expected.task_kind, exceeded);
+          // Only the final attempt can carry a halting completion; earlier ones were retried.
+          if (attemptIndex < attempts.length - 1 && !completions.has('terminal')) throw invalid();
+          lastCompletions = completions;
           state.requests += attempt.usage.requests;
           state.tokens += attempt.usage.tokens ?? 0;
           if (attempt.usage.cost) {
@@ -504,6 +544,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
           if (
             !afterAttempts ||
             state.halt !== undefined ||
+            !lastCompletions.has('terminal') ||
             status !== 'incomplete' ||
             !lastIsRetryable ||
             attempts.length >= manifest.retry_policy.max_attempts
@@ -512,50 +553,8 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
           runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: afterAttempts });
           stopReason ??= afterAttempts;
         } else {
-          const missingLiveUsage =
-            manifest.mode === 'live' &&
-            (last.usage.tokens === undefined || last.usage.cost === undefined);
-          if (completionCode === 'usage_unreported') {
-            if (
-              !missingLiveUsage ||
-              last.status !== 'incomplete' ||
-              last.error_code !== 'usage_unreported'
-            )
-              throw invalid();
-            state.halt = 'usage_unreported';
-          } else if (completionCode === 'usage_invalid') {
-            const normalizedInvalidEvidence =
-              last.evidence.kind === expected.task_kind &&
-              last.evidence.availability === 'unavailable';
-            const invalidExecutorResult =
-              last.error_code === 'invalid_executor_result' &&
-              last.usage.requests === 0 &&
-              last.usage.tokens === undefined &&
-              last.usage.cost === undefined;
-            const costCurrencyMismatch =
-              last.error_code === 'cost_currency_mismatch' &&
-              manifest.budgets.max_cost !== undefined &&
-              last.usage.tokens !== undefined &&
-              last.usage.cost === undefined;
-            if (
-              !missingLiveUsage ||
-              last.status !== 'invalid' ||
-              !normalizedInvalidEvidence ||
-              (!invalidExecutorResult && !costCurrencyMismatch)
-            )
-              throw invalid();
-            state.halt = 'usage_invalid';
-          } else if (completionCode === 'budget_exceeded') {
-            if (
-              !lastExceeded ||
-              last.status !== 'incomplete' ||
-              last.error_code !== 'budget_exceeded'
-            )
-              throw invalid();
-            state.halt = 'budget_exceeded';
-          } else if (completionCode !== 'terminal' || missingLiveUsage || lastExceeded) {
-            throw invalid();
-          }
+          if (!lastCompletions.has(completionCode)) throw invalid();
+          if (completionCode !== 'terminal') state.halt = completionCode as ExperimentStopReason;
           if (
             status !== last.status ||
             (lastIsRetryable &&

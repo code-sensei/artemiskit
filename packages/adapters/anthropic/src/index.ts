@@ -14,6 +14,13 @@ import type {
 } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 
+/**
+ * Send requests through the runtime's WHATWG fetch. Without this, the Node-targeted bundle uses the
+ * SDK's node-fetch fallback, which calls the deprecated url.parse() and prints a DEP0169 warning.
+ * Resolved per call so test doubles installed on globalThis.fetch still apply.
+ */
+const runtimeFetch = (...args: Parameters<typeof fetch>) => globalThis.fetch(...args);
+
 interface AnthropicConfig extends BaseAdapterConfig {
   provider: 'anthropic';
 }
@@ -27,6 +34,7 @@ export class AnthropicAdapter implements ModelClient {
     this.config = config as AnthropicConfig;
 
     this.client = new Anthropic({
+      fetch: runtimeFetch,
       apiKey: this.config.apiKey,
       baseURL: this.config.baseUrl,
       timeout: this.config.timeout ?? 60000,

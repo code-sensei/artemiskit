@@ -14,6 +14,13 @@ import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
 import type { AzureOpenAIAdapterConfig, OpenAIAdapterConfig } from './types';
 
+/**
+ * Send requests through the runtime's WHATWG fetch. Without this, the Node-targeted bundle uses the
+ * SDK's node-fetch fallback, which calls the deprecated url.parse() and prints a DEP0169 warning.
+ * Resolved per call so test doubles installed on globalThis.fetch still apply.
+ */
+const runtimeFetch = (...args: Parameters<typeof fetch>) => globalThis.fetch(...args);
+
 export class OpenAIAdapter implements ModelClient {
   private client: OpenAI;
   private embeddingClient: OpenAI | null = null;
@@ -28,6 +35,7 @@ export class OpenAIAdapter implements ModelClient {
       this.provider = 'azure-openai';
 
       this.client = new OpenAI({
+        fetch: runtimeFetch,
         apiKey: azureConfig.apiKey,
         baseURL: `https://${azureConfig.resourceName}.openai.azure.com/openai/deployments/${azureConfig.deploymentName}`,
         defaultQuery: { 'api-version': azureConfig.apiVersion },
@@ -39,6 +47,7 @@ export class OpenAIAdapter implements ModelClient {
       // Create separate client for embeddings if a different deployment is specified
       if (azureConfig.embeddingDeploymentName) {
         this.embeddingClient = new OpenAI({
+          fetch: runtimeFetch,
           apiKey: azureConfig.apiKey,
           baseURL: `https://${azureConfig.resourceName}.openai.azure.com/openai/deployments/${azureConfig.embeddingDeploymentName}`,
           defaultQuery: { 'api-version': azureConfig.apiVersion },
@@ -52,6 +61,7 @@ export class OpenAIAdapter implements ModelClient {
       this.provider = 'openai';
 
       this.client = new OpenAI({
+        fetch: runtimeFetch,
         apiKey: openaiConfig.apiKey,
         baseURL: openaiConfig.baseUrl,
         organization: openaiConfig.organization,

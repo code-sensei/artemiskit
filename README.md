@@ -10,6 +10,12 @@
 
 📚 **[Documentation](https://artemiskit.vercel.app)** | 🚀 **[Getting Started](https://artemiskit.vercel.app/docs/cli/getting-started/)**
 
+## Introduction video
+
+[![Watch the ArtemisKit introduction](https://artemiskit.dev/videos/artemiskit-introduction-thumbnail.png)](https://artemiskit.dev/docs/getting-started/#watch-the-introduction)
+
+See how to install the CLI, write a scenario, and inspect your first test result.
+
 ## Features
 
 - **Scenario-Based Testing** - Define test cases in YAML with multi-turn conversation support

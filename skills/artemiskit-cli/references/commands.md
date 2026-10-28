@@ -36,4 +36,4 @@ Use run IDs returned by the actual storage and confirm both runs are compatible 
 
 `akit init` creates configuration and may write environment-template files; inspect the destination and options before running. `--force` can overwrite existing configuration. Run `akit init --help` and choose the least intrusive mode.
 
-For agent workflow commands, inspect `akit workflow --help` and the [workflow guides](https://www.artemiskit.dev/docs/workflows/contract/); `akit workflow report --help` covers offline reports from saved workflow records. Keep execution, policy status, verified outcomes and unavailable measures distinct.
+For agent workflow authoring, execution, recovery and offline assessments, see [agent workflow guidance](workflows.md) and `akit workflow --help`. Keep execution, policy status, verified outcomes and unavailable measures distinct.

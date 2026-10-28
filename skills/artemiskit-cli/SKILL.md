@@ -45,7 +45,7 @@ For syntax, supported expectations and examples, read [scenario guidance](refere
 - `akit redteam`: exercise declared adversarial cases and selected mutations against an authorized target. OWASP mappings are scoped technical checks, not compliance or certification.
 - `akit stress`: measure behavior under the explicitly authorized request volume, concurrency and duration. Do not describe cost estimates from a local OpenAI-compatible endpoint as actual local spend without a supported pricing basis.
 - `akit history`, `akit report` and `akit compare`: inspect stored runs, generate reports and compare compatible runs. A comparison is meaningful only when scope, configuration and evidence are comparable.
-- `akit workflow`: for supported agent-workflow versions, use `--help` and the [workflow documentation](https://www.artemiskit.dev/docs/workflows/contract/) for controlled execution, independent outcomes, recovery and offline reporting. Execution completion is not proof of task success.
+- `akit init agent-workflow` and `akit workflow`: author workflows, preflight tool support, execute or resume a controlled session, and generate offline assessments. For the 0.6.3 CLI, see [agent workflow guidance](references/workflows.md). Execution completion or report generation is not proof of task success.
 
 Local run manifests use the configured storage adapter, which defaults to `./artemis-runs` when no other storage is configured; paths and filenames are determined by the adapter and project. `akit report` writes generated reports to `./artemis-output` by default, and `--export-output` controls separate run exports. Check actual output instead of assuming a fixed manifest filename.
 

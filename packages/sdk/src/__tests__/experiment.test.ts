@@ -141,7 +141,10 @@ describe('validateExperimentFile', () => {
     const fixture = await writeExperimentFixture({
       target: (target) =>
         target.id === 'qwen-small'
-          ? { ...target, settings: { ...target.settings, reasoning_effort: 'maximum' } }
+          ? {
+              ...target,
+              settings: { ...(target.settings as object), reasoning_effort: 'maximum' },
+            }
           : target,
     });
     const validation = await validateExperimentFile(fixture.file);
@@ -1181,6 +1184,7 @@ describe('createExperimentLiveAuthorization', () => {
         } catch (caught) {
           return caught as ExperimentSurfaceError;
         }
+        return undefined;
       })();
       expect(error?.exitCode).toBe(3);
     }

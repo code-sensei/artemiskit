@@ -316,7 +316,9 @@ describe('private durable workflow checkpoint storage', () => {
     await writeFile(join(guarded, 'recovery.lock'), 'orphaned guard', { mode: 0o600 });
     await expect(resume(guarded)).rejects.toMatchObject({ code: 'busy' });
     expect(await readFile(join(guarded, 'recovery.lock'), 'utf8')).toBe('orphaned guard');
-  });
+    // The orphaned guard is refused only after the store's 100 polls 10 ms apart (about 1 s
+    // idle); timer and file latency under machine load stretch that past the 5 s default.
+  }, 30_000);
 
   test('detects external generation rollback on a live lease', async () => {
     const path = await directory();

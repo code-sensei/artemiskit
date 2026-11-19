@@ -227,8 +227,11 @@ export interface ExperimentCoordinate {
 }
 
 /**
- * Budget an attempt may still consume. Under concurrency it is the attempt's admission grant:
- * already net of everything consumed and of every grant held by other in-flight attempts.
+ * Budget granted to an attempt. Serially it is the whole remaining budget, and reported use
+ * above it halts the run. Under concurrency it is the attempt's admission grant, already net of
+ * everything consumed and of every grant held by other in-flight attempts; when it is the
+ * pair's declared demand it is a reservation that the attempt's use may exceed, drawing on the
+ * run's uncommitted budget.
  */
 export interface ExperimentRemainingBudget {
   requests: number;

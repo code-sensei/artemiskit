@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, setDefaultTimeout } from 'bun:test';
 import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type DockerRunRequest, createDockerWorkspace } from './workspace';
 
+// Most tests create a workspace whose Git baseline runs real git init, add and commit
+// subprocesses (each bounded by the 10 s default operation timeout). They take 0.1-1.2 s on a
+// quiet machine; process start-up under load averages 30-60 multiplies that past the 5 s default.
+setDefaultTimeout(30_000);
 const temporaryPaths: string[] = [];
 
 afterEach(async () => {

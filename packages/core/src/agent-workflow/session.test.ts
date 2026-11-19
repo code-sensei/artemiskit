@@ -10,6 +10,7 @@ import {
   resolveWorkflowInitialState,
 } from './environment';
 import { validateAgentWorkflow } from './parser';
+import { readWorkflowRecord } from './records';
 import type { AgentWorkflow } from './schema';
 import { createAgentWorkflowSession, runAgentWorkflow } from './session';
 import {
@@ -625,5 +626,67 @@ describe('native workflow session host', () => {
     await writeFile(join(root, 'fixtures', 'state.yaml'), 'a: &x [1]\nb: *x\n');
     workflow.workflow.initial_state = 'fixtures/state.yaml';
     await expect(resolveWorkflowInitialState(workflow, root)).rejects.toThrow();
+  });
+});
+
+describe('host-bound generation settings', () => {
+  test('without bound settings requests carry only the workflow max tokens and temperature', async () => {
+    const workflow = fixture();
+    workflow.target.generation = { max_tokens: 64, temperature: 0.2 };
+    const t = target([answer()]);
+    const result = await runAgentWorkflow({ workflow, target: t });
+    expect(result.record.execution).toBe('completed');
+    expect(t.requests[0].generation).toEqual({ maxTokens: 64, temperature: 0.2 });
+    expect(result.record.configuration?.generation).toEqual({ maxTokens: 64, temperature: 0.2 });
+  });
+
+  test('sends top_p, presence penalty and seed with every model request and records them', async () => {
+    const workflow = fixture();
+    workflow.workflow.turns.push({ role: 'user', content: 'Explain.' });
+    const t = target([answer([call()]), answer(), answer()]);
+    const generation = {
+      topP: 0.8,
+      presencePenalty: 1.5,
+      seed: 4242,
+      reasoningEffort: 'none' as const,
+    };
+    const result = await runAgentWorkflow({ workflow, target: t, generation });
+    expect(result.record.execution).toBe('completed');
+    expect(t.requests).toHaveLength(3);
+    for (const request of t.requests) {
+      expect(request.generation).toEqual({
+        maxTokens: 1024,
+        temperature: 0,
+        topP: 0.8,
+        presencePenalty: 1.5,
+        seed: 4242,
+      });
+    }
+    expect(result.record.configuration?.generation).toEqual({
+      maxTokens: 1024,
+      temperature: 0,
+      ...generation,
+    });
+    expect(readWorkflowRecord(JSON.stringify(result.record)).configuration?.generation).toEqual(
+      result.record.configuration?.generation
+    );
+  });
+
+  test.each([
+    { topP: 1.5 },
+    { presencePenalty: -3 },
+    { seed: 1.5 },
+    { reasoningEffort: 'maximum' },
+    { temperature: 0.5 },
+  ])('refuses invalid bound settings %o before any request', async (generation) => {
+    const t = target([answer()]);
+    const result = await runAgentWorkflow({
+      workflow: fixture(),
+      target: t,
+      generation: generation as never,
+    });
+    expect(result.record.execution).toBe('invalid');
+    expect(result.record.reason).toBe('invalid_options');
+    expect(t.requests).toHaveLength(0);
   });
 });

@@ -29,6 +29,11 @@ import {
 } from './environment';
 import { applyWorkflowFaultInstruction, planWorkflowFault } from './faults';
 import {
+  type AgentWorkflowGeneration,
+  AgentWorkflowGenerationSchema,
+  workflowRequestGeneration,
+} from './generation';
+import {
   type WorkflowCheckpointOptions,
   WorkflowCheckpointOptionsSchema,
   type WorkflowRecoveryEvidence,
@@ -108,7 +113,8 @@ export interface AgentWorkflowExecutionRecord {
     sha256: string;
     provider: { sha256: string; display?: string };
     model: { sha256: string; display?: string };
-    generation: { maxTokens: number; temperature: number };
+    /** Settings sent with every target model request; host-bound fields only when bound. */
+    generation: { maxTokens: number; temperature: number } & AgentWorkflowGeneration;
     limits: AgentWorkflow['environment']['policy']['budgets'];
   };
   taskVerification: WorkflowOutcomeAssessment['status'];
@@ -185,6 +191,13 @@ export interface AgentWorkflowSessionOptions {
   preflightOnly?: boolean;
   /** Explicit independent judge and its own limits. Never inferred from the target. */
   semanticJudge?: WorkflowJudgeOptions;
+  /**
+   * Host-bound request settings for this run (for example an experiment target's sampling and a
+   * repetition's seed). `topP`, `presencePenalty` and `seed` are sent with every target model
+   * request; `reasoningEffort` is recorded only. Semantic judge requests keep their own settings.
+   * Omitted: requests carry only the workflow's `max_tokens` and `temperature`, as before.
+   */
+  generation?: AgentWorkflowGeneration;
   signal?: AbortSignal;
   /** Total bounded drain/snapshot/close period: 1000 ms simulated, 6000 ms sandbox by default. */
   cleanupTimeoutMs?: number;
@@ -371,6 +384,11 @@ export function createAgentWorkflowSession(
           },
         }
       : undefined;
+  const parsedGeneration = AgentWorkflowGenerationSchema.safeParse(options.generation ?? {});
+  const generationValid = parsedGeneration.success;
+  const boundGeneration: AgentWorkflowGeneration = parsedGeneration.success
+    ? parsedGeneration.data
+    : {};
   let sessionState: AgentWorkflowSession['state'] = 'idle';
   let promise: Promise<AgentWorkflowResult> | undefined;
   let workflow: AgentWorkflow | undefined;
@@ -440,6 +458,7 @@ export function createAgentWorkflowSession(
             generation: {
               maxTokens: workflow.target.generation?.max_tokens ?? 1024,
               temperature: workflow.target.generation?.temperature ?? 0,
+              ...boundGeneration,
             },
             limits: structuredClone(workflow.environment.policy.budgets),
           },
@@ -733,6 +752,7 @@ export function createAgentWorkflowSession(
       generation: {
         maxTokens: Math.min(workflow.target.generation?.max_tokens ?? 1024, remainingTokens),
         temperature: workflow.target.generation?.temperature ?? 0,
+        ...workflowRequestGeneration(boundGeneration),
       },
       budgets: {
         timeoutMs: Math.max(1, budget.timeout_ms - (Date.now() - started)),
@@ -1171,6 +1191,7 @@ export function createAgentWorkflowSession(
       if (!workflow) throw new Stop('invalid', 'invalid_workflow');
       if (
         !judgeValid ||
+        !generationValid ||
         !Number.isInteger(cleanupMs) ||
         cleanupMs < 1 ||
         cleanupMs > 10_000 ||

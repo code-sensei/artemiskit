@@ -19,7 +19,14 @@ const request: AgentTurnRequest = {
     },
   ],
   model: 'requested-model',
-  generation: { maxTokens: 200, temperature: 0, topP: 1, seed: 1, stop: ['END'] },
+  generation: {
+    maxTokens: 200,
+    temperature: 0,
+    topP: 1,
+    presencePenalty: 1.5,
+    seed: 1,
+    stop: ['END'],
+  },
   budgets: { timeoutMs: 1000, maxToolCalls: 2 },
 };
 const call = {

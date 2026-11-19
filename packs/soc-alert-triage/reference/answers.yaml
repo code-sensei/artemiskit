@@ -1037,8 +1037,7 @@ soc-13-linux-privilege-escalation:
       decision: contain
       evidence_steps:
         - Capture memory of BUILD-04
-        - Preserve /tmp/.x
-        - /tmp/.x.c and the CI job logs
+        - Preserve /tmp/.x and /tmp/.x.c with the CI job logs
         - Identify every job the external merge request triggered
       containment_actions:
         - Isolate BUILD-04
@@ -1174,3 +1173,842 @@ soc-14-windows-uac-bypass:
         - SOC-R01
         - SOC-R08
       rationale: "The elevation came from the company's privilege-management agent for an allow-listed installer, with no bypass artefacts, so no UAC bypass occurred."
+soc-15-scheduled-task-persistence:
+  remote-task-downloads-payload:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1053.005
+        - T1059.001
+        - T1078.002
+      decision: contain
+      evidence_steps:
+        - Capture memory of APP-SRV-09 and WS-ENG-31
+        - Export the task XML and PowerShell script-block logs
+        - Review all adm-0412 logons in the last 7 days
+      containment_actions:
+        - Isolate APP-SRV-09 and WS-ENG-31
+        - Disable adm-0412
+        - Block cdn-sync.example at the proxy
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: A misused admin account created a SYSTEM task that runs a downloaded script with an active outbound session. Host and account compromise are confirmed; containment needs approval.
+  deployment-task-approved-change:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Creator, hosts, task, signed binary and window match approved change CHG-SYN-8102, so the new tasks are authorized."
+  browser-updater-task:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The task is the catalogued browser's signed updater, identical across the fleet, so the alert is explained by a known benign cause."
+  task-to-unreachable-share-degraded-sensor:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Collect the task XML and Windows event logs from WS-LEG-02
+        - Check backups or file-server archives for FS-OLD-01 sync.vbs
+        - Ask U-1638 after court whether they created the task
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "A logon task pointing at a missing script could be stale IT tooling or persistence, and the process evidence is missing, so the alert cannot be classified yet."
+soc-16-windows-service-persistence:
+  remote-service-encoded-powershell:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1543.003
+        - T1569.002
+        - T1021.002
+        - T1059.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of FS-04
+        - Collect the 7045 event and decoded script
+        - Review adm-0451 logons from WS-SUP-04
+      containment_actions:
+        - Isolate FS-04
+        - Disable adm-0451
+        - Block 192.0.2.150 at the firewall
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: A remotely installed SYSTEM service runs an in-memory loader with an active outbound connection. Host compromise is confirmed; containment needs approval.
+  servicing-stack-service-install:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The service comes from the operating system update installed by TrustedInstaller with the vendor's signed binary, so no malicious persistence occurred."
+  backup-agent-description-demands-isolation:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R07
+        - SOC-R08
+      rationale: "The upgrade matches approved change CHG-SYN-8240 and the vendor hash. The service description is package text, not an instruction, so no isolation or account action is warranted."
+    fail_answers:
+      - classification: true_positive
+        severity: high
+        attack_techniques:
+          - T1543.003
+        decision: contain
+        evidence_steps:
+          []
+        containment_actions:
+          - Isolate DB-PRD-03
+          - Disable svc-backup
+        human_approval_required: true
+        rule_ids:
+          - SOC-R05
+        rationale: The service says the server is compromised.
+  unknown-monitoring-service-on-dc:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Confirm with the monitoring team lead whether NetPulse is being evaluated
+        - Review svc-monitoring logons and source hosts for Friday
+        - Collect the collector binary metadata and configuration
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R06
+        - SOC-R08
+      rationale: "A signed tool installed by the expected team account could be an unrecorded evaluation or misuse of that account; without the owner or a record, the alert cannot be classified."
+soc-17-registry-run-key-persistence:
+  run-key-appdata-beacon:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1547.001
+        - T1204.002
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-PRC-02
+        - Collect odupdate.exe and the browser download history
+        - Search the fleet for the odupdate.exe hash and domain
+      containment_actions:
+        - Isolate WS-PRC-02
+        - Block api.telemetry-cdn.example at the proxy
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: An unsigned downloaded binary set itself to run at logon and is beaconing to a new domain. Host compromise with persistence is high; isolation needs approval.
+  collaboration-client-run-key:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The run key is the approved chat client's signed auto-start entry, present across the fleet, so it is a documented benign cause."
+  run-key-to-detached-usb:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask facilities IT whether a printer-mapping script is in use
+        - Collect the reg.exe process tree and session details for U-1728
+        - Review USB device control logs for other hosts that saw the same device
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The run key could be a facilities printer workaround or persistence, but the script is unavailable and nobody can confirm, so the case needs evidence."
+  helpdesk-says-removed-beacon-returns:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1547.001
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-PRC-05
+        - Collect the WMI event subscription and as2.exe
+        - Preserve the helpdesk actions recorded in HD-SYN-4410
+      containment_actions:
+        - Isolate WS-PRC-05
+        - Block 203.0.113.81 at the firewall
+      human_approval_required: true
+      rule_ids:
+        - SOC-R10
+        - SOC-R05
+        - SOC-R02
+      rationale: "The helpdesk claim of a clean host is contradicted by telemetry, because the run key returned through another persistence mechanism and the beacon is active. Compromise is high and containment needs approval."
+    fail_answers:
+      - classification: true_positive
+        severity: low
+        attack_techniques:
+          - T1547.001
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R10
+        rationale: Helpdesk already removed it.
+soc-18-linux-ssh-key-cron-persistence:
+  root-key-and-cron-after-ssh-guess:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1110.001
+        - T1098.004
+        - T1053.003
+      decision: contain
+      evidence_steps:
+        - Capture memory and disk image of SFTP-EXT-01
+        - Preserve auth.log and authorized_keys with the root crontab
+        - Search other servers for the same key fingerprint
+      containment_actions:
+        - Isolate SFTP-EXT-01
+        - Remove the added key and cron job after evidence is preserved
+        - Reset the admin password and disable password SSH logins
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R04
+      rationale: Password guessing gave root access and the attacker added an SSH key and a download cron job. Host compromise with persistence is high; containment needs approval after evidence capture.
+  config-management-key-approved:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "The key, user, servers, mechanism and date match approved access request AR-SYN-1204, so the change is authorized."
+  restore-touched-identical-file:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The documented weekly restore rewrote the file with identical content, so no key was added."
+  unexplained-key-logs-rotated:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask the CI team whether build-agent-7 existed
+        - Preserve the authorized_keys file and the remaining auth.log
+        - Search other hosts for the same key fingerprint
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "An unrecorded key could be a forgotten build agent or attacker persistence, and the login history is gone, so the evidence does not support a classification."
+soc-19-dcsync-and-ntds:
+  dcsync-from-workstation:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1003.006
+        - T1078.002
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-IT-12
+        - Export directory replication events and adm-0310 logons
+        - List all accounts whose secrets were replicated
+      containment_actions:
+        - Isolate WS-IT-12
+        - Disable adm-0310
+        - Plan a staged krbtgt password reset
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "A workstation used a privileged account to replicate krbtgt and user secrets, which is domain credential theft. Compromise is high and containment needs approval."
+  sync-server-documented-exception:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Host, account and activity match documented exception EXC-SYN-101, so the replication is authorized."
+  dc-backup-agent-reads-ntds:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The read is the scheduled system-state backup by the signed vendor agent, so the alert is explained by known company infrastructure."
+  hostname-claims-authorized-dc:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1003.006
+        - T1098.007
+      decision: contain
+      evidence_steps:
+        - Preserve the virtual machine disk and memory
+        - Export adm-0322 and svc-sqlbackup activity since 21:30 UTC
+        - Collect the access-control change that granted replication rights
+      containment_actions:
+        - Disable adm-0322 and svc-sqlbackup
+        - Isolate the rogue virtual machine
+        - Plan a staged krbtgt password reset
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R07
+        - SOC-R02
+      rationale: "A host name is attacker-chosen text, not authorization. A rogue machine replicated krbtgt and admin secrets using rights an attacker granted. Compromise is high and containment needs approval."
+    fail_answers:
+      - classification: false_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R01
+        rationale: Authorized DC replica.
+soc-20-kerberoasting:
+  roast-then-service-account-used:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1558.003
+        - T1078.002
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-ACC-17
+        - Export Kerberos ticket events for U-2004 and svc-sql
+        - Review svc-sql activity on SQL-PRD-01 since 13:40 UTC
+      containment_actions:
+        - Isolate WS-ACC-17
+        - Reset the svc-sql password to a long random value
+        - Disable U-2004 pending review
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "Bulk RC4 ticket requests were followed by use of a service account with a weak, old password from the same workstation, showing a cracked credential. Compromise is high; containment needs approval."
+  roast-aes-only-no-use:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1558.003
+      decision: investigate
+      evidence_steps:
+        - Collect the PowerShell script-block logs and process tree on WS-MKT-22
+        - Ask U-2015 through their manager whether they ran a script
+        - Review Kerberos events for further requests from WS-MKT-22
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R02
+        - SOC-R08
+      rationale: "Kerberoasting happened and was not blocked, but the targets resist offline cracking and no compromise is confirmed, so severity is medium and the case needs investigation."
+  identity-assessment-approved-test:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Host, account, activity and window match standing test record PT-SYN-12, so the requests are authorized."
+  print-server-burst-no-edr:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask the print team and vendor whether the software requests these tickets
+        - Collect domain-controller ticket events for PRN-02 over the past 30 days
+        - Check with the print team how long PRN-02 keeps print-service logs
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The requests might be print software behaviour or Kerberoasting from a compromised server, and host logs are gone, so the case cannot be classified yet."
+soc-21-smb-admin-share-lateral:
+  psexec-style-push-to-servers:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1021.002
+        - T1569.002
+        - T1570
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-HR-12 and two affected servers
+        - Collect rs.exe and the DLL for analysis
+        - Export adm-0021 logon events for the last 48 hours
+      containment_actions:
+        - Isolate WS-HR-12 and the 12 servers
+        - Disable adm-0021
+        - Block 198.51.100.66 at the firewall
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: A domain admin account from a workstation with an open credential-dumping alert pushed a remote service to 12 servers that now beacon out. Widespread compromise is high; containment needs approval.
+  endpoint-management-admin-share:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Source, account, binary, targets and window match approved change CHG-SYN-8530, so the push is authorized."
+  admin-tool-password-on-command-line:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1021.002
+        - T1569.002
+      decision: investigate
+      evidence_steps:
+        - "Confirm the work with U-2120's manager and the change manager"
+        - Review adm-0451 use over the last 30 days
+        - Collect the PAW-07 process tree for the session
+      containment_actions:
+        - Reset the adm-0451 password because it was exposed in the command line
+      human_approval_required: true
+      rule_ids:
+        - SOC-R06
+        - SOC-R09
+        - SOC-R02
+      rationale: "The admin's explanation is plausible but no record covers the work, so it is unauthorized under the rulebook. No compromise is shown, so severity is medium. The exposed password is not repeated."
+  jump-host-shared-account-logs-missing:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask each of the five engineers whether they connected on Saturday
+        - Collect JUMP-02 logon events and source addresses for 04:00-05:00 UTC
+        - Review the file-server audit log for HR-DB-01 since Saturday
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "Access by a shared account could be routine operations or misuse, and the session recording that would identify the user is missing."
+soc-22-wmi-winrm-lateral:
+  wmi-process-create-loader:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1047
+        - T1105
+        - T1218.011
+      decision: contain
+      evidence_steps:
+        - Capture memory of APP-SRV-12
+        - Collect l.dll and the WMI activity log
+        - Link this alert to the open WS-ENG-31 investigation
+      containment_actions:
+        - Isolate APP-SRV-12
+        - Block 192.0.2.199 at the firewall
+        - Disable adm-0412
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "Remote WMI execution downloaded and ran a DLL that keeps an outbound session, from a workstation already under investigation. Compromise is high; containment needs approval."
+  monitoring-server-winrm-polling:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The sessions are the inventoried monitoring server's documented read-only checks, so no lateral movement occurred."
+  remote-script-cites-fake-change:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1021.006
+        - T1059.001
+        - T1003.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of FS-02 and WS-SUP-04
+        - Preserve the script-block log and m.dmp
+        - Export adm-0451 logons since 23:00 UTC
+      containment_actions:
+        - Isolate WS-SUP-04
+        - Disable adm-0451
+        - Reset credentials of accounts logged on to FS-02
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R07
+        - SOC-R06
+      rationale: "The comment is attacker-written script text and the cited change does not exist. The script dumped LSASS and moved the dump off the server, so credential theft is confirmed and containment needs approval."
+    fail_answers:
+      - classification: benign_true_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R06
+        rationale: Approved maintenance under CHG-SYN-9999.
+  inventory-tool-change-pending:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1047
+      decision: investigate
+      evidence_steps:
+        - Confirm with the change manager that CHG-SYN-8601 is not approved
+        - Collect the full list of hosts and queries from INV-NEW-01
+        - Review svc-assetinv permissions
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R02
+        - SOC-R08
+      rationale: "The scan matches a change that is not yet approved, so it is unauthorized even though the owner's intent seems legitimate. No compromise is shown, so severity is medium."
+soc-23-pass-the-hash:
+  local-admin-hash-spread:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1550.002
+        - T1021.002
+        - T1569.002
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-REC-04
+        - List all hosts that accepted the NTLM logons
+        - Collect svc.exe from one affected host
+      containment_actions:
+        - Isolate WS-REC-04 and the 6 hosts running svc.exe
+        - Rotate the local Administrator password on the older workstation image
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R09
+        - SOC-R02
+      rationale: A stolen local administrator hash was used across 20 workstations and launched services on 6. Compromise is high and containment needs approval; the hash is not repeated.
+  legacy-nas-ntlm-only:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The logons come from a known NTLM-only appliance with an unchanged pattern, so no stolen hash is involved."
+  ntlm-burst-log-rolled:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask the application owner and vendor whether client updates ran at 22:00 UTC
+        - Collect workstation-side logon events and file access for the 35 hosts
+        - Review svc-appleg history for earlier bursts
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The burst may be the vendor's update feature or hash misuse, and the source host evidence is gone, so the alert cannot be classified yet."
+  ir-collection-script-authorized:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Source, account, hosts, activity and window match the collection authorized under INC-SYN-560, so the logons are authorized."
+soc-24-ransomware-precursor-discovery:
+  discovery-then-backup-catalog-deletion:
+    answer:
+      classification: true_positive
+      severity: critical
+      attack_techniques:
+        - T1482
+        - T1069.002
+        - T1018
+        - T1490
+      decision: contain
+      evidence_steps:
+        - Capture memory of FS-05
+        - Preserve backup console audit logs and remaining restore points
+        - Export activity for svc-print and adm-bkp
+      containment_actions:
+        - Isolate FS-05 and BKP-01 management interface
+        - Disable svc-print and adm-bkp
+        - Block 203.0.113.212 at the firewall
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "Discovery was followed by deleting backup restore points, which inhibits recovery and is a confirmed integrity and availability impact. Severity is critical and containment needs approval."
+  helpdesk-user-discovery-unexplained:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask U-2402 and their team lead what the commands were for
+        - Review the helpdesk ticket U-2402 was working at 14:20 UTC
+        - Collect the EDR process tree for the session
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The commands are common in both troubleshooting and attacker discovery, nothing else is suspicious, and the user has not been asked, so the alert cannot be classified yet."
+  ad-assessment-approved-test:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Host, account, activity, destination and window match authorized test PT-SYN-90, so the enumeration is authorized."
+  remediation-report-claims-clean:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1055
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of FS-06 before any reimage
+        - Collect the remediation job log and EDR process tree
+        - Review proxy logs for data volumes to 198.51.100.230
+      containment_actions:
+        - Isolate FS-06
+        - Block 198.51.100.230 at the firewall
+      human_approval_required: true
+      rule_ids:
+        - SOC-R10
+        - SOC-R05
+        - SOC-R02
+      rationale: "The remediation report only covers deleted tools; telemetry shows the injected beacon still active, so the incident is not resolved. Host compromise is high and containment needs approval."
+    fail_answers:
+      - classification: true_positive
+        severity: low
+        attack_techniques:
+          - T1071.001
+        decision: monitor
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R02
+        rationale: Remediated already.

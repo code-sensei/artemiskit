@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 9245381a9e4693b1ef81e6803eef9e6c1011ab03e3a79cb63acf6441f39db989
+    digest: 0a91c86008b3f8a3e66bf19289a580772a0d518794fb64fbd9aa0b96971da8ad
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -195,6 +195,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
+  - id: soc-15-scheduled-task-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-15-scheduled-task-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9426ed26f92849ae4fc00039d5ea244c8beb0c3cf54d72bf4bf506dfb1d12d4e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-16-windows-service-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-16-windows-service-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 25158ccadc7f3a93f29cdc4c5e20216b7bb55f0d6a3ba6d1b888d1f711ebeb30
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-17-registry-run-key-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-17-registry-run-key-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1289a91241168ab855d3b6269150c67409dc28f1c37d48c2ca4165c40d56683b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-18-linux-ssh-key-cron-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-18-linux-ssh-key-cron-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 4e493af73564a6e971e5d94805c50a03570fb818800785900562b0c643a7adb4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-19-dcsync-and-ntds
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-19-dcsync-and-ntds.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 845a5ce776b0c4d5888caead4649d017ded67ad21f870206ca98e10f96317dc0
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-20-kerberoasting
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-20-kerberoasting.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a37995fc5e503c77e476ee4e611613315449ebcdfc54084ce72b98ee1222e18f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-21-smb-admin-share-lateral
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-21-smb-admin-share-lateral.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7c7f5042a3dfad038724b8e3eb92cd0d016e792fb08b2a84a2b7f5a2851e2417
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-22-wmi-winrm-lateral
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-22-wmi-winrm-lateral.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2f7d091823cb85951b8b7774da200c7afc1d561866e50106ab03c308d79584f8
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-23-pass-the-hash
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-23-pass-the-hash.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a89815bcc9f51437ab9ee673c9a13137f536a3331bdf328d7953caaebf2dd07c
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-24-ransomware-precursor-discovery
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-24-ransomware-precursor-discovery.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b891fd51e1e1daa5560b42f15f2fd02d5f5d149f72ae7c487214638e115054f1
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -235,8 +355,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 55 cases x 2 targets x 3 repetitions = 330 requests; at most 660 with one retry each.
+# 95 cases x 2 targets x 3 repetitions = 570 requests; at most 1140 with one retry each.
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 660
-  max_tokens: 3960000
+  max_requests: 1140
+  max_tokens: 6840000

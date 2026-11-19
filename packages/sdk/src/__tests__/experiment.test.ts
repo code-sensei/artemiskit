@@ -380,6 +380,37 @@ describe('runExperimentFile (live mode)', () => {
       server.stop(true);
     }
   });
+  test('awaits an async target config resolver for non-loopback live targets', async () => {
+    const resolved: string[] = [];
+    const fixture = await writeExperimentFixture({
+      overrides: liveOverrides({
+        budgets: { max_requests: 20, max_tokens: 10_000, max_cost: { amount: 1, currency: 'USD' } },
+      }),
+      target: (target) => ({
+        ...target,
+        settings: { base_url: 'https://models.example.com/v1' },
+        deployment: { locality: 'remote', cost_basis: 'metered' },
+        weights: undefined,
+      }),
+    });
+    const outcome = await runExperimentFile({
+      experiment: fixture.file,
+      outputDir: path.join(fixture.directory, 'out'),
+      liveAuthorization: createExperimentLiveAuthorization({
+        approvedBy: 'test-operator',
+        reason: 'resolver failure path only',
+      }),
+      resolveTargetConfig: async (target) => {
+        resolved.push(target.id);
+        throw new Error('no transport configured');
+      },
+    });
+
+    expect(resolved[0]).toBe('qwen-small');
+    // The client is unavailable, so the metered attempt reports neither usage nor cost.
+    expect(outcome.result?.stop_reason).toBe('usage_unreported');
+    expect(outcome.exitCode).toBe(EXPERIMENT_EXIT_CODES.stopped);
+  });
 });
 
 describe('createExperimentLiveAuthorization', () => {

@@ -147,7 +147,9 @@ export interface RunExperimentFileOptions {
    * Live mode only: provider transport settings for a target (API key, timeout, organization).
    * The target's `settings.base_url`, provider and model always take precedence.
    */
-  resolveTargetConfig?: (target: ExperimentTarget) => Partial<AdapterConfig> | undefined;
+  resolveTargetConfig?: (
+    target: ExperimentTarget
+  ) => Partial<AdapterConfig> | undefined | Promise<Partial<AdapterConfig> | undefined>;
   /** Live mode only: supply your own client per target instead of the built-in adapters. */
   createClient?: (target: ExperimentTarget) => ModelClient | Promise<ModelClient>;
   /** Per-case model request timeout in milliseconds. */
@@ -276,7 +278,7 @@ async function bindLiveClient(
   options: RunExperimentFileOptions
 ): Promise<ModelClient> {
   if (options.createClient) return options.createClient(target);
-  const configured = options.resolveTargetConfig?.(target) ?? {};
+  const configured = (await options.resolveTargetConfig?.(target)) ?? {};
   const settingsBaseUrl = target.settings?.base_url;
   const baseUrl = typeof settingsBaseUrl === 'string' ? settingsBaseUrl : configured.baseUrl;
   const loopback = typeof baseUrl === 'string' && isLoopbackEndpoint(baseUrl);

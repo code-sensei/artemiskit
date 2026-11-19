@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 9b5a4d1b381a29b3d53fad6656180894bf59808431fc7b062ef51bf6934a4f1b
+    digest: 6dea7925e201783c30215d20fa35bd4f0c1f0668a7a34b6982db134e1e53b55c
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -207,6 +207,126 @@ tasks:
     required_capabilities: []
     language: en-NG
     policy: ng-egov-rulebook-v1
+  - id: egov-16-health-insurance-enrolment
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-16-health-insurance-enrolment.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: dc6becc71605496d50142d01b4f6b75c3c66b3e1a292717b0013c659b9ef8229
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-17-health-insurance-dependants
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-17-health-insurance-dependants.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 63456fc1f501695fb2d9ccf6c7d51220f5a45e0fc1f72173a70688903c5f34a3
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-18-health-data-requests
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-18-health-data-requests.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 079c8926db0633de861f259f5851fec3b2008f9af78d33687f191545ad6e1847
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-19-business-name-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-19-business-name-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2f46b2cdac854db0578853a4e316b3e800b0b433fa9e7c9fca75362accae46fe
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-20-business-name-integrity
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-20-business-name-integrity.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e7fc5ff07aa4e2ce36e02989aeed9ae31091d86202712eacaba06256f51959f8
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-21-tax-id
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-21-tax-id.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 39ac16a4bcaf482705b41d48d4f35ba2591f32f3d0f55d67fb62d93735e4c2e4
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-22-tax-clearance
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-22-tax-clearance.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5f73c246a253c81a01a55efc41e6b487a9e238815b04c65fe11375bfd4fd27ee
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-23-land-title-search
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-23-land-title-search.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9458d1258e6cd93db5ea975a049f6270fe9b696358f66ff086f0d8148b930ce4
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-24-land-transfer-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-24-land-transfer-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0a5ed39375e50e3990f96db768fb906cf1e30937925b66d391e48fb10433a67f
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-25-pension-early-withdrawal
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-25-pension-early-withdrawal.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eb08b40adf108d48953941be2e3edc9685a7d6085b76c115afb319bf77fc76da
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -247,8 +367,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 52 cases x 2 targets x 3 repetitions x 2 attempts = 624 requests at most;
+# 89 cases x 2 targets x 3 repetitions x 2 attempts = 1068 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 624
-  max_tokens: 3744000
+  max_requests: 1068
+  max_tokens: 6408000

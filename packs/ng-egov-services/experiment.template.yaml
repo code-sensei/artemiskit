@@ -68,8 +68,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 52 cases x 2 targets x 3 repetitions x 2 attempts = 624 requests at most;
+# 89 cases x 2 targets x 3 repetitions x 2 attempts = 1068 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 624
-  max_tokens: 3744000
+  max_requests: 1068
+  max_tokens: 6408000

@@ -289,6 +289,7 @@ describe('SimilarityEvaluator', () => {
       {
         type: 'similarity',
         value: 'Text B',
+        // @ts-expect-error the schema always fills threshold; this exercises the evaluator's own fallback.
         threshold: undefined, // Testing default threshold (0.75)
       },
       mockContext

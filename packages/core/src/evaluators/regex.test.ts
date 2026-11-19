@@ -42,8 +42,7 @@ describe('RegexEvaluator', () => {
       pattern: 'Name: (?<name>\\w+), Age: (?<age>\\d+)',
     });
     expect(result.passed).toBe(true);
-    expect(result.details?.groups?.name).toBe('John');
-    expect(result.details?.groups?.age).toBe('30');
+    expect(result.details?.groups).toEqual({ name: 'John', age: '30' });
   });
 
   test('handles invalid regex gracefully', async () => {

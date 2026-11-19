@@ -2,7 +2,7 @@
  * Tests for inline custom matcher evaluator
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import type { Expected } from '../scenario/schema';
 import { InlineEvaluator, SUPPORTED_EXPRESSIONS } from './inline';
 

@@ -3,7 +3,7 @@ import { validateAgentWorkflow } from './parser';
 import { readWorkflowRecord } from './records';
 import type { AgentWorkflow } from './schema';
 import type { WorkflowJudgeOptions } from './semantic';
-import { createAgentWorkflowSession, runAgentWorkflow } from './session';
+import { type AgentWorkflowRecord, createAgentWorkflowSession, runAgentWorkflow } from './session';
 import type { AgentTarget, AgentTurnResult } from './target';
 
 function workflow(): AgentWorkflow {
@@ -191,7 +191,7 @@ describe('session outcome orchestration and saved evidence', () => {
     expect(result.record.taskVerification).toBe('unavailable');
     expect(result.record.outcomes.semantic.assertions[0].reason).toBe('judge_not_configured');
     expect(result.record.outcomes.task.eligible).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('judge pass, fail and malformed results stay separate from target execution and usage', async () => {
     for (const [text, expected] of [
@@ -217,7 +217,9 @@ describe('session outcome orchestration and saved evidence', () => {
         'finished',
       ]);
       expect(result.record.events.at(-1)?.phase).toBe('evaluation');
-      expect(readWorkflowRecord(JSON.stringify(result.record))).toEqual(result.record);
+      expect(readWorkflowRecord(JSON.stringify(result.record))).toEqual<AgentWorkflowRecord>(
+        result.record
+      );
     }
   });
   test('failed deterministic prerequisites skip judge initialization and preserve a valid failure denominator', async () => {
@@ -242,7 +244,7 @@ describe('session outcome orchestration and saved evidence', () => {
     expect(result.record.outcomes.semantic.assertions[0].reason).toBe('prerequisite_failed');
     expect(j.calls).toBe(0);
     expect(j.probes).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('unmeasured target execution cannot trigger a judge or count as a valid task', async () => {
     const j = judge();
@@ -259,7 +261,7 @@ describe('session outcome orchestration and saved evidence', () => {
     expect(result.record.outcomes.reason).toBe('target_usage_unavailable');
     expect(result.record.outcomes.task.eligible).toBe(0);
     expect(j.probes).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('invalid judge limits fail before target or judge spending', async () => {
     const j = judge();
@@ -278,7 +280,7 @@ describe('session outcome orchestration and saved evidence', () => {
     expect(result.record.reason).toBe('invalid_options');
     expect(turns).toBe(0);
     expect(j.probes).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('session cancellation remains active during judge evaluation', async () => {
     const j = judge();
@@ -314,7 +316,7 @@ describe('session outcome orchestration and saved evidence', () => {
     expect(result.record.outcomes.task.eligible).toBe(0);
     expect(result.record.outcomes.semantic.usage.reported.total).toBe(5);
     expect(session.state).toBe('completed');
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('admitted judge limits are immutable across target execution', async () => {
     const j = judge();
@@ -455,7 +457,7 @@ test('preflight does not score the workflow or initialize a configured judge', a
   expect(result.record.outcomes.deterministic.counts.declared).toBe(0);
   expect(result.record.outcomes.semantic.counts.declared).toBe(0);
   expect(j.probes).toBe(0);
-  expect(readWorkflowRecord(result.record)).toEqual(result.record);
+  expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
 });
 
 test('a valid semantic failure with later unavailable judging retains truthful coverage', async () => {
@@ -479,5 +481,5 @@ test('a valid semantic failure with later unavailable judging retains truthful c
     valid: 1,
     declared: 2,
   });
-  expect(readWorkflowRecord(result.record)).toEqual(result.record);
+  expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
 });

@@ -40,6 +40,11 @@ export interface GenerateOptions {
   maxTokens?: number;
   temperature?: number;
   topP?: number;
+  /**
+   * Presence penalty (-2 to 2). Sent by the OpenAI-compatible adapter as `presence_penalty`;
+   * adapters without such a request field ignore it.
+   */
+  presencePenalty?: number;
   seed?: number;
   stop?: string[];
   functions?: FunctionDefinition[];

@@ -95,6 +95,7 @@ export class OpenAIAdapter implements ModelClient {
         ...tokenParams,
         temperature: options.temperature,
         top_p: options.topP,
+        presence_penalty: options.presencePenalty,
         seed: options.seed,
         stop: options.stop,
         tools: options.tools,

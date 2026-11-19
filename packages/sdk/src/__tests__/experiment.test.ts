@@ -21,7 +21,7 @@ import {
   runExperimentFile,
   validateExperimentFile,
 } from '../index';
-import { LIVE_CONTROLS, writeExperimentFixture } from './experiment-fixtures';
+import { LIVE_CONTROLS, LOOPBACK_BASE_URL, writeExperimentFixture } from './experiment-fixtures';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -140,6 +140,128 @@ describe('validateExperimentFile', () => {
     expect(validation.checks.find((check) => check.id === 'qwen-small')?.code).toBe(
       'invalid_reasoning_effort'
     );
+  });
+
+  test('accepts in-range target generation settings and lists them', async () => {
+    const fixture = await writeExperimentFixture({
+      target: (target) =>
+        target.id === 'qwen-large'
+          ? {
+              ...target,
+              settings: {
+                base_url: LOOPBACK_BASE_URL,
+                reasoning_effort: 'medium',
+                temperature: 1,
+                top_p: 0.95,
+                presence_penalty: 1.5,
+                max_output_tokens: 32768,
+              },
+            }
+          : target,
+    });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(true);
+    expect(validation.checks.filter((check) => check.code === 'generation_settings')).toEqual([
+      {
+        subject: 'target',
+        id: 'qwen-large',
+        status: 'ok',
+        code: 'generation_settings',
+        message:
+          'temperature 1, top_p 0.95, presence_penalty 1.5, max_output_tokens 32768 replace task values for this target',
+      },
+    ]);
+  });
+
+  test.each([
+    [
+      { temperature: 2.5 },
+      'invalid_generation_setting',
+      'settings.temperature must be a number from 0 to 2',
+    ],
+    [{ top_p: -0.1 }, 'invalid_generation_setting', 'settings.top_p must be a number from 0 to 1'],
+    [{ top_k: 0 }, 'invalid_generation_setting', 'settings.top_k must be an integer of at least 1'],
+    [{ min_p: 2 }, 'invalid_generation_setting', 'settings.min_p must be a number from 0 to 1'],
+    [
+      { presence_penalty: 3 },
+      'invalid_generation_setting',
+      'settings.presence_penalty must be a number from -2 to 2',
+    ],
+    [
+      { max_output_tokens: 200000 },
+      'invalid_generation_setting',
+      'settings.max_output_tokens must be an integer from 1 to 131072',
+    ],
+    [
+      { max_tokens: 4096 },
+      'unknown_generation_setting',
+      'settings.max_tokens is not supported; use max_output_tokens',
+    ],
+    [
+      { num_predict: 512 },
+      'unknown_generation_setting',
+      'settings.num_predict is not supported; use max_output_tokens',
+    ],
+    [{ seed: 1 }, 'unknown_generation_setting', 'declare the experiment seed'],
+    [
+      { frequency_penalty: 0.5 },
+      'unknown_generation_setting',
+      'not a supported generation setting',
+    ],
+    [{ top_k: 20 }, 'generation_setting_unsupported', "Ollama's /v1 endpoint) have no top_k field"],
+    [{ min_p: 0 }, 'generation_setting_unsupported', 'Modelfile PARAMETER min_p'],
+  ])('rejects target settings %p with %s', async (extra, code, message) => {
+    const fixture = await writeExperimentFixture({
+      target: (target) =>
+        target.id === 'qwen-small'
+          ? { ...target, settings: { base_url: LOOPBACK_BASE_URL, ...extra } }
+          : target,
+    });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.exitCode).toBe(2);
+    const errors = validation.checks.filter((check) => check.status === 'error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ subject: 'target', id: 'qwen-small', code });
+    expect(errors[0].message).toContain(message);
+  });
+
+  test('rejects presence_penalty for a provider whose adapter does not send it', async () => {
+    const fixture = await writeExperimentFixture({
+      target: (target) =>
+        target.id === 'qwen-small'
+          ? {
+              ...target,
+              provider: 'anthropic',
+              settings: { base_url: LOOPBACK_BASE_URL, presence_penalty: 1 },
+            }
+          : target,
+    });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.checks.find((check) => check.status === 'error')).toMatchObject({
+      code: 'generation_setting_unsupported',
+      message: 'settings.presence_penalty is not sent by the anthropic adapter; remove it',
+    });
+  });
+
+  test('warns about a non-generation setting that is never sent', async () => {
+    const fixture = await writeExperimentFixture({
+      target: (target) =>
+        target.id === 'qwen-small'
+          ? { ...target, settings: { base_url: LOOPBACK_BASE_URL, quantization: 'q4_K_M' } }
+          : target,
+    });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(true);
+    expect(validation.checks.find((check) => check.status === 'warning')).toMatchObject({
+      code: 'target_setting_unused',
+      message: 'settings.quantization is recorded with the target but not sent to the model',
+    });
   });
 
   test('distinguishes an unreadable file (1) from an invalid manifest (2)', async () => {
@@ -499,6 +621,125 @@ describe('runExperimentFile (live mode)', () => {
       for (const file of outcome.evidence) {
         const saved = JSON.parse(await readFile(file.path, 'utf8'));
         expect(saved.resolved_config.reasoning_effort).toBe('none');
+      }
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test('sends each target generation settings and repetition seed, and saves them as evidence', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const body = (await request.json()) as Record<string, unknown>;
+        bodies.push(body);
+        return Response.json({
+          id: 'local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'Abuja' } },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      const thinking = {
+        reasoning_effort: 'medium',
+        temperature: 1,
+        top_p: 0.95,
+        presence_penalty: 1.5,
+        max_output_tokens: 32768,
+      };
+      const fixture = await writeExperimentFixture({
+        overrides: liveOverrides({
+          repetitions: 3,
+          seed: { value: 40, strategy: 'increment_by_repetition', require_support: false },
+        }),
+        target: (target) => ({
+          ...target,
+          settings:
+            target.id === 'qwen-large'
+              ? { base_url: baseUrl, ...thinking }
+              : { base_url: baseUrl, reasoning_effort: 'none' },
+        }),
+      });
+      const outcome = await runExperimentFile({
+        experiment: fixture.file,
+        outputDir: path.join(fixture.directory, 'out'),
+        liveAuthorization: createExperimentLiveAuthorization({
+          approvedBy: 'test-operator',
+          reason: 'loopback stub server only',
+        }),
+      });
+
+      expect(outcome.status).not.toBe('invalid');
+      expect(bodies).toHaveLength(12);
+      const sampling = (body: Record<string, unknown>) => ({
+        temperature: body.temperature,
+        top_p: body.top_p,
+        top_k: body.top_k,
+        min_p: body.min_p,
+        presence_penalty: body.presence_penalty,
+        max_tokens: body.max_tokens,
+        reasoning_effort: body.reasoning_effort,
+      });
+      const large = bodies.filter((body) => body.model === 'qwen3.5:9b');
+      const small = bodies.filter((body) => body.model === 'qwen3.5:4b');
+      for (const body of large) {
+        expect(sampling(body)).toEqual({
+          temperature: 1,
+          top_p: 0.95,
+          top_k: undefined,
+          min_p: undefined,
+          presence_penalty: 1.5,
+          max_tokens: 32768,
+          reasoning_effort: 'medium',
+        });
+      }
+      // The fixture tasks declare no temperature or max tokens, so nothing else is sent.
+      for (const body of small) {
+        expect(sampling(body)).toEqual({
+          temperature: undefined,
+          top_p: undefined,
+          top_k: undefined,
+          min_p: undefined,
+          presence_penalty: undefined,
+          max_tokens: undefined,
+          reasoning_effort: 'none',
+        });
+      }
+      for (const group of [large, small]) {
+        expect(group.map((body) => body.seed).sort()).toEqual([40, 40, 41, 41, 42, 42]);
+      }
+
+      expect(outcome.evidence).toHaveLength(12);
+      for (const file of outcome.evidence) {
+        const saved = JSON.parse(await readFile(file.path, 'utf8'));
+        const repetition = saved.attempt_evidence.repetition.index;
+        if (saved.config.model === 'qwen3.5:9b') {
+          expect(saved.resolved_config).toMatchObject({
+            temperature: 1,
+            top_p: 0.95,
+            presence_penalty: 1.5,
+            max_tokens: 32768,
+            seed: 39 + repetition,
+            reasoning_effort: 'medium',
+          });
+        } else {
+          expect(saved.resolved_config).toEqual({
+            provider: 'openai',
+            model: 'qwen3.5:4b',
+            seed: 39 + repetition,
+            reasoning_effort: 'none',
+            source: {},
+          });
+        }
       }
     } finally {
       server.stop(true);

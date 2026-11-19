@@ -116,3 +116,62 @@ describe('OpenAIAdapter reasoning effort', () => {
     }
   );
 });
+
+describe('OpenAIAdapter sampling parameters', () => {
+  /** Loopback stub that records each request body. */
+  function recordingAdapter() {
+    const bodies: Record<string, unknown>[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      fetch: async (request) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return Response.json({
+          id: 'sampling-fixture',
+          object: 'chat.completion',
+          created: 0,
+          model: 'fixture-model',
+          choices: [
+            { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'ok' } },
+          ],
+        });
+      },
+    });
+    servers.push(server);
+    const adapter = new OpenAIAdapter({
+      provider: 'openai',
+      apiKey: 'test-placeholder',
+      baseUrl: `http://127.0.0.1:${server.port}/v1`,
+      maxRetries: 0,
+    });
+    return { adapter, bodies };
+  }
+
+  test('sends temperature, top_p, presence_penalty, seed and max_tokens as given', async () => {
+    const { adapter, bodies } = recordingAdapter();
+    await adapter.generate({
+      prompt: 'hi',
+      model: 'qwen3.5:9b',
+      temperature: 0.7,
+      topP: 0.8,
+      presencePenalty: 1.5,
+      seed: 41,
+      maxTokens: 4096,
+    });
+    expect(bodies[0]).toMatchObject({
+      temperature: 0.7,
+      top_p: 0.8,
+      presence_penalty: 1.5,
+      seed: 41,
+      max_tokens: 4096,
+    });
+  });
+
+  test('omits sampling parameters that were not given', async () => {
+    const { adapter, bodies } = recordingAdapter();
+    await adapter.generate({ prompt: 'hi', model: 'qwen3.5:9b' });
+    for (const key of ['temperature', 'top_p', 'presence_penalty', 'seed', 'max_tokens']) {
+      expect(bodies[0]).not.toHaveProperty(key);
+    }
+  });
+});

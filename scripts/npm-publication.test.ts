@@ -363,6 +363,46 @@ test('shell entrypoint cleans temporary auth on success/failure and never rewrit
   }
 }, 15000);
 
+// Packages resolve each other's types and modules through dist/, so type checks and tests run
+// against stale or missing builds unless the build comes first (as in CI since ca0aae5).
+test('shell entrypoint builds before it type-checks or tests the candidate', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'artemis-publish-order-test-'));
+  mkdirSync(join(directory, '.changeset'));
+  writeFileSync(
+    join(directory, 'publish.sh'),
+    readFileSync(new URL('./publish.sh', import.meta.url))
+  );
+  const stubs = join(directory, 'stubs.sh');
+  writeFileSync(
+    stubs,
+    [
+      'npm() { printf "fixture-user\\n"; }',
+      'git() { if [ "$1" = branch ]; then printf "main\\n"; fi; }',
+      'bun() { printf "%s\\n" "$*" >> "$MOCK_DIRECTORY/bun-calls"; return 0; }',
+      '',
+    ].join('\n')
+  );
+  const result = spawnSync('/bin/bash', ['publish.sh', '--dry-run'], {
+    cwd: directory,
+    encoding: 'utf8',
+    timeout: 5000,
+    env: {
+      PATH: '/usr/bin:/bin',
+      BASH_ENV: stubs,
+      NPM_API_KEY: 'dummy-test-only',
+      MOCK_DIRECTORY: directory,
+      TMPDIR: directory,
+    },
+  });
+  expect(result.status).toBe(0);
+  const calls = readFileSync(join(directory, 'bun-calls'), 'utf8').trim().split('\n');
+  const build = calls.indexOf('run build');
+  expect(build).toBeGreaterThan(calls.indexOf('install --frozen-lockfile'));
+  expect(build).toBeLessThan(calls.indexOf('run typecheck'));
+  expect(build).toBeLessThan(calls.indexOf('test'));
+  expect(calls.at(-1)).toBe('scripts/npm-publication.mjs --dry-run');
+}, 10000);
+
 test('accepted upload followed by npm failure reconciles through status403/404 without resend', async () => {
   for (const http of [403, 404]) {
     const f = fixture();

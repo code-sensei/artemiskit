@@ -173,34 +173,35 @@ echo -e "${YELLOW}[2/8] Installing dependencies...${NC}"
 bun install --frozen-lockfile
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
-# Step 3: Run type checking
+# Step 3: Build all packages. Packages resolve each other's types and modules through dist/,
+# so type checks and tests must run against this build, never a stale or missing one.
 echo ""
-echo -e "${YELLOW}[3/8] Running type check...${NC}"
+echo -e "${YELLOW}[3/8] Building packages...${NC}"
+bun run build
+echo -e "${GREEN}✓ Build completed${NC}"
+
+# Step 4: Run type checking
+echo ""
+echo -e "${YELLOW}[4/8] Running type check...${NC}"
 bun run typecheck
 echo -e "${GREEN}✓ Type check passed${NC}"
 
-# Step 4: Run tests
+# Step 5: Run tests
 if [ "$SKIP_TESTS" = false ]; then
   echo ""
-  echo -e "${YELLOW}[4/8] Running tests...${NC}"
+  echo -e "${YELLOW}[5/8] Running tests...${NC}"
   bun test
   echo -e "${GREEN}✓ Tests passed${NC}"
 else
   echo ""
-  echo -e "${YELLOW}[4/8] Skipping tests (--skip-tests)${NC}"
+  echo -e "${YELLOW}[5/8] Skipping tests (--skip-tests)${NC}"
 fi
 
-# Step 5: Run linting
+# Step 6: Run linting
 echo ""
-echo -e "${YELLOW}[5/8] Running linter...${NC}"
+echo -e "${YELLOW}[6/8] Running linter...${NC}"
 bun run lint
 echo -e "${GREEN}✓ Linting passed${NC}"
-
-# Step 6: Build all packages
-echo ""
-echo -e "${YELLOW}[6/8] Building packages...${NC}"
-bun run build
-echo -e "${GREEN}✓ Build completed${NC}"
 
 # Step 7: Handle changesets
 echo ""

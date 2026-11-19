@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { z } from 'zod';
 import {
   Redactor,
   createDefaultRedactor,
@@ -8,7 +9,6 @@ import {
   redactWithHash,
   resolvePatterns,
 } from './redactor';
-import type { z } from 'zod';
 import { BUILTIN_PATTERNS, RedactionConfigSchema } from './types';
 
 // Scenario redaction configs reach the Redactor parsed, with schema defaults applied.

@@ -108,6 +108,16 @@ The experiment runs in `fixture` mode with 3 repetitions, concurrency 1 and one 
 repetitions = 1,062 requests, at most 2,124 with retries; `max_tokens` allows 6,000 tokens per
 request.
 
+## Scoring change
+
+2026-11-19: optional answer keys (`customer_message`, `str_narrative` when the case doesn't ask for
+them) now accept `null` as well as omission. Before, `"customer_message": null` failed the schema
+check even when the decision and rules were right. Keys a case requires still fail on `null` or
+omission. Re-scoring the first local think-off run's saved responses turned 193 of 1,062 case
+results from fail to pass (Qwen3.5 4B 23.0% to 40.3%, 9B 33.3% to 52.4%) and none into failures.
+The rubric identity changed, so earlier results aren't comparable. Details:
+[RUBRIC.md](RUBRIC.md#changes).
+
 ## Regenerating experiment.yaml
 
 Run this after any change to a task file, `RUBRIC.md` or `experiment.template.yaml`:
@@ -125,9 +135,9 @@ bun test packs/aml-transaction-review
 ```
 
 The pack test recomputes every task digest, the workload digest and the rubric digest, proves
-that each case accepts its reference answer and rejects every wrong decision, and checks the
-balance targets. Every task carries the same system prompt; a rulebook change must be applied to
-all 50 task files.
+that each case accepts its reference answer and rejects every wrong decision, checks that
+optional answer keys accept `null`, and checks the balance targets. Every task carries the same
+system prompt; a rulebook change must be applied to all 50 task files.
 
 ## Limitations
 

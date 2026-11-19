@@ -114,6 +114,21 @@ leaked identifiers, obeyed injections) and rejects prose-wrapped JSON.
 [RUBRIC.md](../../../packs/aml-transaction-review/RUBRIC.md) is the normative scoring text; its
 SHA-256 is the rubric identity.
 
+### Scoring change (2026-11-19)
+
+Optional answer keys accept `null` as well as omission: every task's schema declares
+`customer_message` and `str_narrative` as `type: [string, "null"]` unless the case requires them.
+Required keys keep `type: string` and a minimum length, and reference `fail_answers` prove that
+`null` or omission fails all 14 such cases. The rulebook prompt is unchanged. The shared pack
+contract now fails any pack whose optional answer keys reject `null`.
+
+Why: the first local think-off run showed models writing `"customer_message": null` for a key the
+prompt says to omit, which failed the shape check despite a correct decision and rules. Re-scoring
+its saved responses with the new task files, with no model calls, turned 193 of 1,062 case
+results from fail to pass and none from pass to fail (case pass rate: Qwen3.5 4B 23.0% to 40.3%,
+9B 33.3% to 52.4%). The rubric identity changed;
+[RUBRIC.md](../../../packs/aml-transaction-review/RUBRIC.md#changes) records the change.
+
 ## Coverage matrix
 
 Outcome codes: S `prepare_str`, C `clear`, R `request_information`, E `escalate_mlro`, in case

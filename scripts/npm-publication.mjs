@@ -17,6 +17,27 @@ const registryURL = 'https://registry.npmjs.org';
 const namePattern = /^@artemiskit\/[a-z][a-z0-9-]*$/;
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
+/**
+ * Package identity and the dependency groups publication reads to order uploads.
+ * @typedef {object} PublicationPackage
+ * @property {string} name
+ * @property {string} version
+ * @property {Record<string, string>} [dependencies]
+ * @property {Record<string, string>} [optionalDependencies]
+ */
+
+/**
+ * The milestone release manifest fields publication reads.
+ * @typedef {object} PublicationManifest
+ * @property {string} tag
+ * @property {{ name: string, version: string }[]} packages
+ */
+
+/**
+ * Injectable registry transport; defaults to the global `fetch`.
+ * @typedef {(url: string, init: RequestInit) => Promise<Response>} RegistryFetcher
+ */
+
 // npm 12 returns [packument] for npm info --json; never interpret that as an empty registry.
 export function normalizePackument(value) {
   const result = Array.isArray(value) && value.length === 1 ? value[0] : value;
@@ -154,6 +175,16 @@ function dependencyOrder(items) {
   return ordered;
 }
 
+/**
+ * @param {object} options
+ * @param {PublicationPackage[]} options.packages
+ * @param {string} options.candidate Commit SHA being published.
+ * @param {PublicationManifest} [options.manifest] Milestone manifest; omitted for
+ *   independent package releases.
+ * @param {boolean} [options.dryRun]
+ * @param {number} [options.timeoutMs]
+ * @param {any} io Registry, receipt, packing, tagging and clock operations.
+ */
 export async function publishPackages(
   { packages, candidate, manifest, dryRun = false, timeoutMs = 600_000 },
   io
@@ -333,6 +364,10 @@ async function workspacePackages() {
   return packages;
 }
 
+/**
+ * @param {string} name
+ * @param {RegistryFetcher} [fetcher]
+ */
 export async function registryRequest(name, fetcher = fetch) {
   const response = await fetcher(`${registryURL}/${encodeURIComponent(name)}`, {
     signal: AbortSignal.timeout(15_000),
@@ -342,6 +377,11 @@ export async function registryRequest(name, fetcher = fetch) {
   return normalizePackument(await response.json());
 }
 
+/**
+ * @param {{ name: string, version: string }} pkg
+ * @param {string} token
+ * @param {RegistryFetcher} [fetcher]
+ */
 export async function statusRequest(pkg, token, fetcher = fetch) {
   const response = await fetcher(
     `${registryURL}/-/package/${encodeURIComponent(pkg.name)}/version/${pkg.version}/status`,

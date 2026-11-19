@@ -316,7 +316,7 @@ the earlier critical-workflows design). Provisions used:
 (e.g. exchange or transfer) in small amounts, or in amounts under record-keeping or reporting
 thresholds"; "A customer's funds which are sourced directly from third-party mixing services or
 wallet tumblers"; "Customers that operate as an unregistered/unlicensed VASP on peer-to-peer
-[exchange websites]" (AML-R17; aml-24 to aml-26).
+(P2P) exchange websites" (AML-R17; aml-24 to aml-26).
 
 **FATF–Egmont (2018), Concealment of Beneficial Ownership** —
 `https://www.aml.gov.sa/en-us/GuidanceReports/Concealment%20of%20Beneficial%20Ownership.pdf`

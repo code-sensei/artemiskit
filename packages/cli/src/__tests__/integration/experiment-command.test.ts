@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, mock, setDefaultTimeout, test } from 'bun:test';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,11 @@ import {
   LIVE_CONTROLS,
   writeExperimentFixture,
 } from '../../../../sdk/src/__tests__/experiment-fixtures';
+
+// Most tests spawn the CLI two or three times in sequence. Each spawn takes about 1 s idle but
+// several seconds under machine load, which exceeded the 5 s default; every spawn keeps its own
+// 20 s kill timer.
+setDefaultTimeout(30_000);
 
 const cli = fileURLToPath(new URL('../../../bin/artemis.ts', import.meta.url));
 

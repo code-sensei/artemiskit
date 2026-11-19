@@ -233,6 +233,7 @@ describe('detectToolAbuseFromTrace', () => {
       steps: [
         {
           type: 'action',
+          content: 'Call delete_records',
           tool: 'delete_records',
           toolInput: { table: 'users' },
         },
@@ -250,6 +251,7 @@ describe('detectToolAbuseFromTrace', () => {
       steps: [
         {
           type: 'action',
+          content: 'Call query_database',
           tool: 'query_database',
           toolInput: { admin: true, bypass_auth: true },
         },
@@ -267,6 +269,7 @@ describe('detectToolAbuseFromTrace', () => {
       steps: [
         {
           type: 'action',
+          content: 'Call execute',
           tool: 'execute',
           toolInput: { command: 'rm -rf /important' },
         },
@@ -284,6 +287,7 @@ describe('detectToolAbuseFromTrace', () => {
       steps: [
         {
           type: 'action',
+          content: 'Call search',
           tool: 'search',
           toolInput: { query: 'weather today' },
         },
@@ -306,6 +310,7 @@ describe('detectToolAbuseFromTrace', () => {
       steps: [
         {
           type: 'action',
+          content: 'Call custom_dangerous_tool',
           tool: 'custom_dangerous_tool',
           toolInput: {},
         },

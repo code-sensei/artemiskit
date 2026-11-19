@@ -5,7 +5,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
   CvssCalculator,
-  type CvssScore,
   DETECTION_CVSS_SCORES,
   MUTATION_CVSS_SCORES,
   SeverityMapper,

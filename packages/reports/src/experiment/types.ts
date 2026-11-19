@@ -3,6 +3,7 @@ import type {
   ExperimentCostLimit,
   ExperimentSummary,
 } from '@artemiskit/core';
+import type { ExperimentCaseLevelSummary } from './case-level';
 
 export type ExperimentReportView = 'technical' | 'executive' | 'comprehensive';
 export type ExperimentReportFormat = 'html' | 'markdown';
@@ -69,7 +70,10 @@ export interface ExperimentReport {
   title: string;
   scope: string[];
   methodology: string[];
+  /** Coordinate-level counts (task × target × repetition). */
   summary: ExperimentReportSummary;
+  /** Individual scenario cases from verified per-attempt evidence, or why they are unavailable. */
+  caseLevel: ExperimentCaseLevelSummary;
   findings: ExperimentReportFinding[];
   sections: ExperimentReportSection[];
   evidence: ExperimentReportEvidence[];

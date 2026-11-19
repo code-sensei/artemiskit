@@ -1,10 +1,13 @@
 import { types } from 'node:util';
+import type { ExperimentCaseEvidenceFiles } from './case-level';
 import { createExperimentReport } from './model';
 import { renderExperimentReportHTML, renderExperimentReportMarkdown } from './render';
 import type { ExperimentReportFormat, ExperimentReportOptions } from './types';
 
 export interface GenerateExperimentReportOptions extends ExperimentReportOptions {
   format?: ExperimentReportFormat;
+  /** Saved per-attempt evidence bytes by recorded SHA-256; enables the case-level summary. */
+  caseEvidence?: ExperimentCaseEvidenceFiles;
 }
 
 /** Generate a report without loading a task, provider, credential, environment, or network. */
@@ -22,7 +25,7 @@ export function generateExperimentReport(
     Reflect.ownKeys(descriptors).some(
       (key) =>
         typeof key !== 'string' ||
-        !['format', 'view'].includes(key) ||
+        !['format', 'view', 'caseEvidence'].includes(key) ||
         !('value' in descriptors[key])
     )
   )
@@ -34,7 +37,7 @@ export function generateExperimentReport(
     !['technical', 'executive', 'comprehensive'].includes(view)
   )
     throw new Error('Invalid experiment report options');
-  const report = createExperimentReport(input);
+  const report = createExperimentReport(input, { caseEvidence: descriptors.caseEvidence?.value });
   return format === 'html'
     ? renderExperimentReportHTML(report, { view })
     : renderExperimentReportMarkdown(report, { view });

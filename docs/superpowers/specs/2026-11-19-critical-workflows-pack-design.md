@@ -1,5 +1,16 @@
 # Critical-workflows benchmark pack — design
 
+> **Superseded (19 November 2026).** The single 13-task pack described here was split into three
+> packs of at least 50 tasks each. `packs/critical-workflows/` no longer exists. Use the pack designs:
+>
+> - [aml-transaction-review](2026-11-19-aml-transaction-review-pack-design.md)
+> - [soc-alert-triage](2026-11-19-soc-alert-triage-pack-design.md)
+> - [ng-egov-services](2026-11-19-ng-egov-services-pack-design.md)
+>
+> This document is kept unchanged below as the record of the original source verification, which
+> the three pack designs build on. Its task list, rulebook versions and manifest details are
+> historical.
+
 **Status:** draft — unreviewed. Results produced with this pack are not claims until a qualified
 reviewer for each domain signs off (see the pack README).
 **Date:** 19 November 2026

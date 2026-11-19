@@ -79,7 +79,8 @@ const CURRENCY = /^[A-Z]{3}$/;
  * Create an attempt executor that runs `scenario_evaluation` tasks with `runScenario`.
  *
  * Status precedence: request budget stop → `incomplete`; any transport/provider case error →
- * `infrastructure_failed`; any invalid measurement → `invalid`; any failed valid case →
+ * `infrastructure_failed`; any response cut off at its token limit → `invalid`
+ * (`response_truncated`); any invalid measurement → `invalid`; any failed valid case →
  * `task_failed`; otherwise `passed`. `policy_failed` is never emitted.
  */
 export function createScenarioExperimentExecutor(
@@ -162,9 +163,7 @@ async function runAndReport(
     return output('infrastructure_failed', meter.usage(), unavailable(), 'scenario_run_failed');
   }
 
-  const classification = meter.budgetStopped()
-    ? { status: 'incomplete' as const, error_code: 'request_budget_exhausted' }
-    : classifyCases(manifest.cases);
+  const classification = classifyAttempt(meter, manifest.cases);
   const artifact = runManifestIdentity(manifest);
 
   if (options.onEvidence) {
@@ -268,6 +267,21 @@ function scenarioConflict(scenario: Scenario, target: ExperimentTarget): string 
     return 'scenario_retries_unsupported';
   }
   return undefined;
+}
+
+/**
+ * A response cut off at its token limit is not a valid answer to score: it measures the
+ * environment's context or output cap, not the target's decision. It ranks below provider
+ * errors and above other invalid measurements.
+ */
+function classifyAttempt(meter: ClientMeter, cases: CaseResult[]): Classification {
+  if (meter.budgetStopped())
+    return { status: 'incomplete', error_code: 'request_budget_exhausted' };
+  const classification = classifyCases(cases);
+  if (classification.status === 'infrastructure_failed' || !meter.truncated()) {
+    return classification;
+  }
+  return { status: 'invalid', error_code: 'response_truncated' };
 }
 
 function classifyCases(cases: CaseResult[]): Classification {

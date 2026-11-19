@@ -15,6 +15,8 @@ export interface ClientMeter {
   usage(): ExperimentAttemptUsage;
   /** True when a request was refused because the attempt's request budget was spent. */
   budgetStopped(): boolean;
+  /** True when any response stopped at its token limit (`finishReason: 'length'`). */
+  truncated(): boolean;
 }
 
 /** Thrown in place of a model request that would exceed the attempt's request budget. */
@@ -35,6 +37,7 @@ export function meterClient(client: ModelClient, maxRequests: number): ClientMet
   let outstanding = 0;
   let usageUnreported = false;
   let stopped = false;
+  let truncated = false;
 
   const admit = (): void => {
     if (requests >= maxRequests) {
@@ -52,6 +55,7 @@ export function meterClient(client: ModelClient, maxRequests: number): ClientMet
       admit();
       try {
         const result = await client.generate(options);
+        if (result?.finishReason === 'length') truncated = true;
         if (reportsUsage(result)) tokens += result.tokens.total;
         else usageUnreported = true;
         return result;
@@ -82,6 +86,7 @@ export function meterClient(client: ModelClient, maxRequests: number): ClientMet
     client: metered,
     usage: () => (usageUnreported || outstanding > 0 ? { requests } : { requests, tokens }),
     budgetStopped: () => stopped,
+    truncated: () => truncated,
   };
 }
 

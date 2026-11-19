@@ -32,6 +32,28 @@ describe('meterClient', () => {
     expect((await meter.client.capabilities()).maxContext).toBe(1024);
   });
 
+  test('flags responses that stopped at their token limit', async () => {
+    let finishReason: GenerateResult['finishReason'] = 'stop';
+    const meter = meterClient(
+      fixtureClient({
+        generate: async () => ({
+          id: 'fixture',
+          model: 'fixture-model',
+          text: '',
+          tokens: { prompt: 4, completion: 2, total: 6 },
+          latencyMs: 1,
+          finishReason,
+        }),
+      }),
+      5
+    );
+    await meter.client.generate({ prompt: 'a' });
+    expect(meter.truncated()).toBe(false);
+    finishReason = 'length';
+    await meter.client.generate({ prompt: 'b' });
+    expect(meter.truncated()).toBe(true);
+  });
+
   test('reports zero tokens when no request was made', () => {
     expect(meterClient(fixtureClient(), 1).usage()).toEqual({ requests: 0, tokens: 0 });
   });

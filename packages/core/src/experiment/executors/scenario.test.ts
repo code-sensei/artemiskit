@@ -270,6 +270,8 @@ interface FixtureBehaviour {
   /** Throw a provider error for prompts containing this text. */
   failOn?: string;
   usageAvailable?: boolean;
+  /** Report every target answer as cut off at its token limit. */
+  truncated?: boolean;
   never?: boolean;
   /** Per-request tool behaviour: call a tool by name, or throw a provider error. */
   toolScript?: Array<{ call: string } | 'throw'>;
@@ -344,6 +346,7 @@ function fixtureClients(
           tokens: { prompt: 7, completion: 3, total: 10 },
           latencyMs: 1,
           ...(behaviour.usageAvailable === false ? { usageAvailable: false } : {}),
+          ...(behaviour.truncated && !isGrader ? { finishReason: 'length' as const } : {}),
         };
       },
     };
@@ -397,6 +400,25 @@ describe('createScenarioExperimentExecutor status mapping', () => {
     expect(fixtures.targets).toEqual([LOCAL_TARGET.id, METERED_TARGET.id]);
     expect(fixtures.closed).toBe(2);
     expect(result.summaries.overall.passed).toBe(2);
+  });
+
+  test('maps a response cut off at its token limit to invalid, even when it would pass', async () => {
+    const fixtures = fixtureClients({ [METERED_TARGET.id]: { truncated: true } });
+    const result = await runExperiment(experiment([scenarioTask('scenarios/answer.yaml')]), {
+      execute_attempt: createScenarioExperimentExecutor({
+        root,
+        repetitions: 1,
+        createClient: fixtures.createClient,
+      }),
+    });
+
+    expect(attemptFor(result, LOCAL_TARGET.id).status).toBe('passed');
+    const truncated = attemptFor(result, METERED_TARGET.id);
+    expect(truncated.status).toBe('invalid');
+    expect(truncated.error_code).toBe('response_truncated');
+    expect(truncated.evidence.availability).toBe('available');
+    expect(result.summaries.overall.invalid).toBe(1);
+    expect(result.summaries.overall.valid).toBe(1);
   });
 
   test('maps a failed valid case to task_failed', async () => {

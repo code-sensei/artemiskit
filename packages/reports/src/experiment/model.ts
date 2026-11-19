@@ -221,6 +221,7 @@ const COMPLETION_CODES = [
   'usage_unreported',
   'usage_invalid',
   'budget_exceeded',
+  'halted_in_flight',
 ] as const;
 const STOP_REASONS = [
   'request_budget_exhausted',
@@ -338,6 +339,12 @@ function grouped(
 const EVIDENCE_NORMALIZATION_CODES = ['evidence_kind_mismatch', 'evidence_unavailable'];
 
 /**
+ * Core's overrun label: `budget_exceeded` for the attempt that overran a budget,
+ * `halted_in_flight` for one settling after an overrun had already halted a concurrent run.
+ */
+type OverrunCode = 'budget_exceeded' | 'halted_in_flight';
+
+/**
  * Return the completion codes the core runner could have assigned to a saved attempt.
  *
  * Mirrors core's normalization precedence: malformed executor output, missing live usage,
@@ -349,7 +356,7 @@ function coreCompletions(
   attempt: ExperimentAttemptEvidence,
   manifest: ExperimentManifest,
   expectedKind: ExperimentTaskKind,
-  exceeded: boolean,
+  overrun: OverrunCode | undefined,
   costApplies: boolean
 ): Set<ExperimentCompletionCode> {
   const { status, usage, evidence, error_code: errorCode } = attempt;
@@ -393,9 +400,8 @@ function coreCompletions(
   const currencyMatches =
     usage.cost === undefined || maxCost === undefined || usage.cost.currency === maxCost.currency;
   if (!currencyMatches || evidence.kind !== expectedKind) return completions;
-  if (!exceeded) completions.add('terminal');
-  else if (status === 'incomplete' && errorCode === 'budget_exceeded')
-    completions.add('budget_exceeded');
+  if (!overrun) completions.add('terminal');
+  else if (status === 'incomplete' && errorCode === overrun) completions.add(overrun);
   return completions;
 }
 
@@ -780,11 +786,21 @@ function replayAdmissions(
       : attempt.usage.requests > granted.requests ||
         (granted.tokens !== undefined && (attempt.usage.tokens ?? 0) > granted.tokens) ||
         (granted.cost !== undefined && (attempt.usage.cost?.amount ?? 0) > granted.cost);
+    // A concurrent attempt settling after an overrun already halted the run did not cause it.
+    const haltedByOverrun =
+      concurrent &&
+      state.halt !== undefined &&
+      !withinBudget(manifest, state, { requests: 0 }, 'consumed');
+    const overrun: OverrunCode | undefined = exceeded
+      ? haltedByOverrun
+        ? 'halted_in_flight'
+        : 'budget_exceeded'
+      : undefined;
     const completions = coreCompletions(
       attempt,
       manifest,
       replay.coordinate.task_kind,
-      exceeded,
+      overrun,
       replay.costApplies
     );
     consume(state, attempt);
@@ -814,7 +830,11 @@ function replayAdmissions(
     if (replay.completionCode === 'terminal') {
       if (lastIsRetryable && replay.attempts.length < maxAttempts) throw invalid();
     } else {
-      const halt = replay.completionCode as ExperimentStopReason;
+      // An attempt halted in flight stopped because of an earlier `budget_exceeded` overrun.
+      const halt =
+        replay.completionCode === 'halted_in_flight'
+          ? 'budget_exceeded'
+          : (replay.completionCode as ExperimentStopReason);
       state.halt ??= halt;
       stopReason ??= halt;
     }

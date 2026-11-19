@@ -443,6 +443,60 @@ describe('runExperiment with bounded concurrency', () => {
     });
   });
 
+  test('labels attempts settling after an overrun halted the run halted_in_flight, not budget_exceeded', async () => {
+    // Verifier finding 3: concurrency 3, max_tokens 30, reservations of 10 tokens. The first
+    // attempt to settle uses 40 tokens; the two still in flight did not cause that overrun.
+    const outputs: ExperimentAttemptOutput[] = [
+      passed({ requests: 1, tokens: 40 }),
+      {
+        status: 'infrastructure_failed',
+        usage: { requests: 0, tokens: 0 },
+        evidence: { kind: 'scenario_evaluation', availability: 'unavailable' },
+        error_code: 'temporary',
+      },
+      passed({ requests: 1, tokens: 5 }),
+    ];
+    let calls = 0;
+    const result = await runExperiment(
+      manifest({
+        concurrency: 3,
+        tasks: [BASE.tasks[0]],
+        repetitions: 2,
+        budgets: { max_requests: 100, max_tokens: 30 },
+      }),
+      {
+        execute_attempt: withDemand(
+          async () => {
+            const position = calls;
+            calls += 1;
+            await delay(position * 3);
+            return outputs[position] as ExperimentAttemptOutput;
+          },
+          () => ({ requests: 1, tokens: 10 })
+        ),
+      }
+    );
+
+    expect(calls).toBe(3);
+    expect(
+      result.results.map(({ status, completion_code, attempts }) => [
+        status,
+        completion_code,
+        attempts.map((attempt) => [attempt.error_code, attempt.usage.tokens]),
+      ])
+    ).toEqual([
+      ['incomplete', 'budget_exceeded', [['budget_exceeded', 40]]],
+      ['incomplete', 'halted_in_flight', [['halted_in_flight', 0]]],
+      ['incomplete', 'halted_in_flight', [['halted_in_flight', 5]]],
+      ['incomplete', 'budget_exhausted', []],
+    ]);
+    expect(result.stop_reason).toBe('budget_exceeded');
+    expect(result.runtime_exclusions).toEqual([
+      { coordinate_id: result.results[3].coordinate.coordinate_id, reason: 'budget_exceeded' },
+    ]);
+    expect(result.summaries.operational.tokens).toBe(45);
+  });
+
   test('keeps the first halt when an in-flight attempt halts again', async () => {
     let calls = 0;
     const result = await runExperiment(

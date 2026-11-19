@@ -315,7 +315,12 @@ export type ExperimentCompletionCode =
   | 'budget_exhausted'
   | 'usage_unreported'
   | 'usage_invalid'
-  | 'budget_exceeded';
+  | 'budget_exceeded'
+  /**
+   * Concurrent runs only: the attempt settled after another attempt's overrun had already
+   * halted the run as `budget_exceeded`; it did not cause the overrun itself.
+   */
+  | 'halted_in_flight';
 
 export interface ExperimentCoordinateResult {
   coordinate: ExperimentCoordinate;

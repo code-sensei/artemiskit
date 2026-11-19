@@ -113,6 +113,13 @@ interface BudgetState {
   peakInFlight: number;
 }
 
+/**
+ * How an attempt's reported use overran the budget, if it did: `budget_exceeded` for the
+ * attempt that overran it, `halted_in_flight` for one that settled after an overrun had already
+ * halted the run (concurrent runs only).
+ */
+type OverrunCode = 'budget_exceeded' | 'halted_in_flight';
+
 interface NormalizedOutput {
   output: ExperimentAttemptOutput;
   completionCode: ExperimentCompletionCode;
@@ -210,8 +217,10 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
  * Settlement rule. With concurrency 1, reported use above the grant halts the run as
  * `budget_exceeded`, as before. Above 1, use beyond the attempt's reservation simply draws on
  * the pool: the run halts as `budget_exceeded` only when consumed use actually exceeds a
- * declared budget. Unused reservation returns to the pool; while use beyond reservations has
- * overdrawn it, nothing new starts until in-flight attempts settle. Cost is accounted in
+ * declared budget. Attempts still in flight then settle as `halted_in_flight`, not as
+ * `budget_exceeded`, because they did not cause the overrun. Unused reservation returns to the
+ * pool; while use beyond reservations has overdrawn it, nothing new starts until in-flight
+ * attempts settle. Cost is accounted in
  * integer micro-units: each amount rounds to nearest, but any positive amount is charged at
  * least one micro-unit.
  *
@@ -515,11 +524,12 @@ function recordSettlement(
   const { manifest, budget } = state;
   const { granted, attemptNumber } = attempt;
   // The attempt's own grant has already left the pool; see `runExperiment` for both rules.
-  const exceeds =
+  const overrun =
     manifest.concurrency > 1
-      ? (usage: ExperimentAttemptUsage) => !withinBudget(manifest, budget, usage, 'consumed')
-      : (usage: ExperimentAttemptUsage) => exceedsGrant(granted, usage);
-  const normalized = safelyNormalizeOutput(raw, manifest, exceeds, run.task.kind, run.target);
+      ? concurrentOverrun(manifest, budget)
+      : (usage: ExperimentAttemptUsage): OverrunCode | undefined =>
+          exceedsGrant(granted, usage) ? 'budget_exceeded' : undefined;
+  const normalized = safelyNormalizeOutput(raw, manifest, overrun, run.task.kind, run.target);
   consumeUsage(budget, normalized.output.usage);
   if (normalized.haltReason) {
     budget.haltReason ??= normalized.haltReason;
@@ -556,6 +566,23 @@ function recordSettlement(
     status: normalized.output.status,
     completion_code: normalized.completionCode,
     attempts: run.attempts,
+  };
+}
+
+/**
+ * Concurrent settlement rule: use overruns only when consumed use would exceed a declared
+ * budget. An attempt that settles after the run has halted, with consumed use already beyond a
+ * budget, did not cause that overrun, so it is labelled `halted_in_flight`.
+ */
+function concurrentOverrun(
+  manifest: ExperimentManifest,
+  budget: BudgetState
+): (usage: ExperimentAttemptUsage) => OverrunCode | undefined {
+  const haltedByOverrun =
+    budget.haltReason !== undefined && !withinBudget(manifest, budget, { requests: 0 }, 'consumed');
+  return (usage) => {
+    if (withinBudget(manifest, budget, usage, 'consumed')) return undefined;
+    return haltedByOverrun ? 'halted_in_flight' : 'budget_exceeded';
   };
 }
 
@@ -686,12 +713,12 @@ async function invokeExecutor(
 function safelyNormalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
-  exceeds: (usage: ExperimentAttemptUsage) => boolean,
+  overrun: (usage: ExperimentAttemptUsage) => OverrunCode | undefined,
   expectedKind: ExperimentTaskKind,
   target: ExperimentTarget
 ): NormalizedOutput {
   try {
-    return normalizeOutput(raw, manifest, exceeds, expectedKind, target);
+    return normalizeOutput(raw, manifest, overrun, expectedKind, target);
   } catch {
     return invalidOutput(
       'invalid_executor_result',
@@ -704,7 +731,7 @@ function safelyNormalizeOutput(
 function normalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
-  exceeds: (usage: ExperimentAttemptUsage) => boolean,
+  overrun: (usage: ExperimentAttemptUsage) => OverrunCode | undefined,
   expectedKind: ExperimentTaskKind,
   target: ExperimentTarget
 ): NormalizedOutput {
@@ -758,15 +785,16 @@ function normalizeOutput(
       );
     }
   }
-  if (exceeds(result.usage)) {
+  const overrunCode = overrun(result.usage);
+  if (overrunCode) {
     return {
       output: {
         status: 'incomplete',
         usage: result.usage,
         evidence: result.evidence,
-        error_code: 'budget_exceeded',
+        error_code: overrunCode,
       },
-      completionCode: 'budget_exceeded',
+      completionCode: overrunCode,
       haltReason: 'budget_exceeded',
     };
   }

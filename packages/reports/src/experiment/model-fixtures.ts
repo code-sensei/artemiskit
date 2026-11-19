@@ -526,6 +526,42 @@ export async function underDeclaredConcurrentResult(): Promise<ExperimentRunResu
   return runExperiment(manifest, { execute_attempt: execute });
 }
 
+/**
+ * A concurrent run halted by an overrun while two attempts are in flight: the first attempt to
+ * settle uses 40 of 30 tokens (`budget_exceeded`), and the other two, one of which used
+ * nothing, settle afterwards as `halted_in_flight`. The fourth coordinate is never admitted.
+ */
+export async function haltedInFlightResult(): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const manifest = experimentManifest({
+    tasks: [base.tasks[1]],
+    exclusions: [],
+    repetitions: 2,
+    concurrency: 3,
+    retry_policy: { max_attempts: 2, retry_on: ['infrastructure_failed'] },
+    budgets: { max_requests: 100, max_tokens: 30 },
+  });
+  let calls = 0;
+  const execute: ExperimentAttemptExecutor = async (input) => {
+    const position = calls;
+    calls += 1;
+    await yieldTurns(position * 5);
+    const kind = input.coordinate.task_kind;
+    if (position === 0)
+      return { status: 'passed', usage: { requests: 1, tokens: 40 }, evidence: evidence(kind) };
+    if (position === 1)
+      return {
+        status: 'infrastructure_failed',
+        usage: { requests: 0, tokens: 0 },
+        evidence: evidence(kind, false),
+        error_code: 'fixture_transport',
+      };
+    return { status: 'passed', usage: { requests: 1, tokens: 5 }, evidence: evidence(kind) };
+  };
+  execute.reserve = () => ({ requests: 1, tokens: 10 });
+  return runExperiment(manifest, { execute_attempt: execute });
+}
+
 /** Random executor output within, or occasionally outside, the attempt's grant. */
 function randomOutput(
   rng: ReturnType<typeof seededRandom>,

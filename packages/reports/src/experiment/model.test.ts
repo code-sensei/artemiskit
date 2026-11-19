@@ -6,6 +6,7 @@ import {
   concurrentExperimentResult,
   coreOutputMatrix,
   experimentManifest,
+  haltedInFlightResult,
   liveBudgetResult,
   liveRunnerHaltResult,
   liveUsageUnreportedResult,
@@ -756,6 +757,43 @@ describe('concurrent experiment results', () => {
       expect(result.stop_reason).toBe('budget_exceeded');
       expect(createExperimentReport(result).summary.passed).toBe(3);
     }
+  });
+
+  test('accepts attempts halted in flight and rejects either label on the other attempt', async () => {
+    const result = await haltedInFlightResult();
+    expect(result.results.map((item) => item.completion_code)).toEqual([
+      'budget_exceeded',
+      'halted_in_flight',
+      'halted_in_flight',
+      'budget_exhausted',
+    ]);
+    expect(result.stop_reason).toBe('budget_exceeded');
+    const report = createExperimentReport(result);
+    expect(report.summary.incomplete).toBe(4);
+    expect(JSON.stringify(report.sections)).toContain('"incomplete","halted_in_flight"');
+
+    const relabel = (index: number, code: 'budget_exceeded' | 'halted_in_flight') => {
+      const forged = structuredClone(result);
+      forged.results[index].completion_code = code;
+      for (const attempt of forged.results[index].attempts) attempt.error_code = code;
+      return forged;
+    };
+    // The attempt that overran cannot claim it was halted, and vice versa.
+    expect(() => createExperimentReport(relabel(0, 'halted_in_flight'))).toThrow(error);
+    expect(() => createExperimentReport(relabel(1, 'budget_exceeded'))).toThrow(error);
+    expect(() => createExperimentReport(relabel(2, 'budget_exceeded'))).toThrow(error);
+  });
+
+  test('rejects halted_in_flight on a serial result', async () => {
+    const serial = await liveRunnerHaltResult('budget_exceeded');
+    expect(serial.manifest.concurrency).toBe(1);
+    expect(createExperimentReport(serial).summary.incomplete).toBeGreaterThan(0);
+    const forged = structuredClone(serial);
+    const halted = forged.results.find((item) => item.completion_code === 'budget_exceeded');
+    if (!halted) throw new Error('Expected a budget_exceeded coordinate');
+    halted.completion_code = 'halted_in_flight';
+    for (const attempt of halted.attempts) attempt.error_code = 'halted_in_flight';
+    expect(() => createExperimentReport(forged)).toThrow(error);
   });
 
   test('accepts use beyond a reservation that the budget covers, and rejects forged halts', async () => {

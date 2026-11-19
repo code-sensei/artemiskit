@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 6dea7925e201783c30215d20fa35bd4f0c1f0668a7a34b6982db134e1e53b55c
+    digest: 33e87edc56585011021e28f38a55f574293311ca64ce3f8afc90128cb5bf10ff
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -327,6 +327,126 @@ tasks:
     required_capabilities: []
     language: en-NG
     policy: ng-egov-rulebook-v1
+  - id: egov-26-pension-death-benefit
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-26-pension-death-benefit.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a5774238d87b8d444d58362b8db2994bf89522a98d3d8a4f2ed1429726f596c3
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-27-pension-fraud-indicators
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-27-pension-fraud-indicators.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: cabc7b85b0f7876e5586ebcb4dcdb2f9eb6a78f7dc13d8dc98d112cc2a8a7b82
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-28-birth-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-28-birth-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 46344e236330422ed331d766a8f6a2aeea6eaf8ac32ee3c619214570e53a58a3
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-29-death-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-29-death-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6f15bb908175e02a04134e73bdd3ea366fa740b709ffe800d86669049d08abc7
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-30-certificate-copies
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-30-certificate-copies.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b29bb61c2b5c37336e23bf16a071a0763b98854332d807b87c814eae29594d4d
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-31-procurement-bidder-qualification
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-31-procurement-bidder-qualification.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e198dab7cb5b52ecec6f855ce04c075812d37325b38fa15da6cfad048131cff5
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-32-procurement-exclusion-grounds
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-32-procurement-exclusion-grounds.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1f4d34a2eed3657c2eafa5408532921d7d52a9f0c67d09a70f8f518d96bfae09
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-33-procurement-mobilisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-33-procurement-mobilisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: fe8fa9bba6b8b669177a1363f57b63434720a0fea9fed72f2590bd879434bc67
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-34-procurement-integrity
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-34-procurement-integrity.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d748164b89b542f0b27c5dda77aa7bd80029139ddda3924ae03a1a9f92bc2dae
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-35-foi-basic-access
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-35-foi-basic-access.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eedf925735fcdf12cd7c9354df0fbcdee9f8a98cbfd826ea30a0128c5206f161
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -367,8 +487,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 89 cases x 2 targets x 3 repetitions x 2 attempts = 1068 requests at most;
+# 126 cases x 2 targets x 3 repetitions x 2 attempts = 1512 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 1068
-  max_tokens: 6408000
+  max_requests: 1512
+  max_tokens: 9072000

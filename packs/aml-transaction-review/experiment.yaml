@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: d8fa5208128698b6978576c95c0d58508e54842911d06522a7a8fcb59a23f560
+    digest: 300398586f5336c79e42a6e240bdf87baebc249cb33a423e16a7910ac57b62f5
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -435,6 +435,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
+  - id: aml-35-tf-npo-diversion
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-35-tf-npo-diversion.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 76e819d70bb2b6415721676f0659e273431557547b6bd0c47369399fb0178bda
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-36-tf-crowdfunding
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-36-tf-crowdfunding.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 365dda30f6b8e7048c9686c55519e43639b887ef177753a2cd818097059c1f51
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-37-tf-individual-indicators
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-37-tf-individual-indicators.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c0216d3c8dfdf96b783e3d28e0c24943b64a81066dea8c92f3371da17c464576
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-38-explanations-that-resolve
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-38-explanations-that-resolve.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b4f63f00bfd998f5a432d060dc933612d9db88979e6ff360e7651db08591d8e7
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-39-explanations-that-fail
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-39-explanations-that-fail.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0a841eb956e35a0ebe8939613a43859f39d627e4930ba4b8578e5d5e861af77d
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-40-tipping-off-communications
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-40-tipping-off-communications.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: da299c74077cddcb5bce60e64db8d43928f2742427a1229202455bb10e2c9f92
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-41-str-narrative-minimisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-41-str-narrative-minimisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c0105ded2b6df03003cfa89f4ebae72d0219a19bc6fe87cfc7f940cacc14cd6a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-42-sensitive-data-exclusion
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-42-sensitive-data-exclusion.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d7c875ff9e3e733ff9fa3fb3d4cecd7d721e95b8dabd49a1ff9081ca7fdca21c
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-43-professional-client-account
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-43-professional-client-account.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 17fed5d86e9496331f5b2c90a2595f4d6d1ac9787fe7952bc77046969faf5cdd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-44-loan-back-and-early-repayment
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-44-loan-back-and-early-repayment.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 98761f50d667a2aa741f08f82088728260a87557f0b707f06ab2f57a7d6e8ee8
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -475,8 +595,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 120 cases x 2 targets x 3 repetitions = 720 requests; at most 1440 with one retry each.
+# 156 cases x 2 targets x 3 repetitions = 936 requests; at most 1872 with one retry each.
 # max_tokens allows 6,000 tokens per request (prompt, reasoning and answer).
 budgets:
-  max_requests: 1440
-  max_tokens: 8640000
+  max_requests: 1872
+  max_tokens: 11232000

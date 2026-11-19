@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 69eda97ce1e77157bb839f9a4dff4d396095c773085c6a6d1c7e044f12cfd20f
+    digest: 14af0e910aead1ab66d3a9e6634084d877a2eabbd37848135b8f7ea8f0b949a8
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -75,6 +75,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
+  - id: aml-05-smurfing-multiple-depositors
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-05-smurfing-multiple-depositors.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 320e7a0c05818b4ceb7bb36d51173ed2495732ae5590f22529a7f7adde814895
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-06-funnel-account-dispersed-deposits
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-06-funnel-account-dispersed-deposits.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 24e9ec603024795613e186479c8563227dbc8b33394fe05ddb7154f0a0341ee9
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-07-mule-recruitment-job-offer
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-07-mule-recruitment-job-offer.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5efca53a88bf722f061a383ab53501c8d7de84f3df0160c0705de46538abddca
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-08-app-fraud-recall
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-08-app-fraud-recall.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e9dcda553203ab623858180abe634198c211de00c7375c9d1add249ee63f4629
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-09-romance-fraud-mule
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-09-romance-fraud-mule.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d9cd26fbd916497637bf5648a4de19c1dbd1e62b39850c11bc5132fececc0ce3
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-10-tbml-over-invoicing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-10-tbml-over-invoicing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0200896c6391fa7f1ed1548781c69c4e650ea7f81ab98b1910384dcf3dedb264
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-11-tbml-under-invoicing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-11-tbml-under-invoicing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d3e7d323f51d68158ce4155b46c7b52cce33ffa009e31c535a979906c666e8c7
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-12-tbml-phantom-shipment
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-12-tbml-phantom-shipment.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 95bad2ee2c44356090b4878f15786bcf707a7f59904901d8b3d53bd0cf6e7715
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-13-tbml-third-party-payments
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-13-tbml-third-party-payments.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 92234cf3c51b4cedacef9708d5d35be73ab480c324197e66e5f81e712a35c2ca
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-14-shell-company-counterparties
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-14-shell-company-counterparties.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eca0cce83337b4a4309c221bf26617b42786a9c7cbdd69eb050a792c8b8fde4a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -115,8 +235,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 15 cases x 2 targets x 3 repetitions = 90 requests; at most 180 with one retry each.
+# 51 cases x 2 targets x 3 repetitions = 306 requests; at most 612 with one retry each.
 # max_tokens allows 6,000 tokens per request (prompt, reasoning and answer).
 budgets:
-  max_requests: 180
-  max_tokens: 1080000
+  max_requests: 612
+  max_tokens: 3672000

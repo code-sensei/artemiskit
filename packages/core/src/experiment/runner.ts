@@ -105,7 +105,7 @@ interface BudgetState {
   reportedRequests: number;
   tokens: number;
   cost: number;
-  /** Consumed cost in micro-units, each amount rounded up; used for demand fit checks. */
+  /** Consumed cost in integer micro-units, each amount rounded to nearest (concurrent runs). */
   costMicro: number;
   haltReason?: ExperimentStopReason;
   /** Grants held by in-flight attempts, keyed by admission ticket in admission order. */
@@ -136,10 +136,7 @@ interface CoordinateRun {
 }
 
 /** Admission outcome for the queue head. */
-type AdmissionDecision =
-  | { kind: 'admit'; grant: ExperimentRemainingBudget }
-  | { kind: 'wait' }
-  | { kind: 'skip' };
+type AdmissionDecision = { kind: 'admit'; grant: ExperimentRemainingBudget } | { kind: 'wait' };
 
 /** Mutable scheduler state shared by admissions and settlements of one run. */
 interface RunState {
@@ -198,25 +195,31 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
  * At most `manifest.concurrency` coordinates are in flight; attempts of one coordinate stay
  * serial (a retry re-enters at the head of the queue), and `results` keep matrix order.
  *
- * Admission rule, applied to the queue head whenever an attempt settles and at the start.
+ * Admission rule, applied to the queue head at the start and whenever an attempt settles.
  * Nothing is admitted after a halt, without a free slot, or once the declared budgets are
- * exhausted (the serial stop check on budget not consumed and not granted to in-flight
- * attempts). Then:
+ * exhausted. Then:
  * - with concurrency 1, the attempt receives the whole uncommitted budget (serial behaviour);
- * - if its pair declared a complete demand that fits beside every in-flight grant, it
- *   receives exactly that demand (cost compared in micro-units rounded against the budget);
- * - otherwise, while other attempts are in flight, it waits for them to settle, so unused
- *   grants return to the pool instead of shrinking its grant;
- * - with nothing in flight, it receives the whole uncommitted budget, exactly as a serial run
- *   would, unless its declared request demand exceeds the uncommitted requests: then the
- *   coordinate becomes a runtime exclusion (`request_budget_exhausted`) and later coordinates
- *   continue, so a budget shortfall is always recorded rather than left as an executor
- *   refusal.
- * Pairs without a complete demand therefore never overlap other attempts. The grant is the
- * executor's `remaining_budget`; reported use above it halts the run as `budget_exceeded`.
- * Consumed use plus outstanding grants never exceed a declared budget, and a concurrent run
- * measures every coordinate a serial run with the same budget measures when attempts stay
- * within their declared demands.
+ * - if its task × target pair declared a demand, and that demand fits the uncommitted pool
+ *   (budget minus consumed use minus the grants of in-flight attempts), it is granted exactly
+ *   that demand as a reservation;
+ * - otherwise, while other attempts are in flight, it waits for them to settle;
+ * - with nothing in flight, it receives the whole uncommitted budget, as a serial run would.
+ * A demand is a reservation, not a usage cap: pairs without one, or whose demand exceeds a
+ * declared run budget, never overlap other attempts.
+ *
+ * Settlement rule. With concurrency 1, reported use above the grant halts the run as
+ * `budget_exceeded`, as before. Above 1, use beyond the attempt's reservation simply draws on
+ * the pool: the run halts as `budget_exceeded` only when consumed use actually exceeds a
+ * declared budget. Unused reservation returns to the pool; while use beyond reservations has
+ * overdrawn it, nothing new starts until in-flight attempts settle. Cost is accounted in
+ * integer micro-units, rounded to nearest.
+ *
+ * Guarantees: an attempt starts only when consumed use plus every outstanding grant, its own
+ * included, stays within each declared budget (cost at micro-unit precision), so admission
+ * never commits more than the budget; only use an executor reports beyond its grant can exceed
+ * it, and that halts the run. With a budget sufficient for a serial run, concurrency never
+ * loses work. With an insufficient budget, which coordinates are measured may depend on
+ * timing, and the stop is recorded as a stop reason with runtime exclusions.
  */
 export async function runExperiment(
   value: ExperimentManifest,
@@ -396,6 +399,13 @@ function completeDemand(
     else if (parsed.cost?.currency === maxCost.currency) costAmount = parsed.cost.amount;
     else return undefined;
   }
+  // A demand above a declared run budget can never be reserved: treat it as no demand.
+  if (
+    parsed.requests > manifest.budgets.max_requests ||
+    (maxTokens !== undefined && (parsed.tokens ?? 0) > maxTokens) ||
+    (maxCost !== undefined && toMicro(costAmount ?? 0) > toMicro(maxCost.amount))
+  )
+    return undefined;
   return {
     requests: parsed.requests,
     ...(maxTokens === undefined ? {} : { tokens: parsed.tokens }),
@@ -423,8 +433,7 @@ function pump(state: RunState): void {
     );
     if (decision.kind === 'wait') return;
     state.queue.shift();
-    if (decision.kind === 'skip') excludeRun(state, run, 'request_budget_exhausted');
-    else startAttempt(state, run, decision.grant);
+    startAttempt(state, run, decision.grant);
   }
 }
 
@@ -433,13 +442,9 @@ function admissionDecision(
   budget: BudgetState,
   demand: ExperimentAttemptDemand | undefined
 ): AdmissionDecision {
-  if (manifest.concurrency > 1 && demand) {
-    if (demandFits(manifest, budget, demand)) return { kind: 'admit', grant: demandGrant(demand) };
-    if (budget.inFlight.size > 0) return { kind: 'wait' };
-    if (demand.requests > uncommittedBudget(manifest, budget).requests) return { kind: 'skip' };
-  } else if (budget.inFlight.size > 0) {
-    return { kind: 'wait' };
-  }
+  if (manifest.concurrency > 1 && demand && demandFits(manifest, budget, demand))
+    return { kind: 'admit', grant: demandGrant(demand) };
+  if (budget.inFlight.size > 0) return { kind: 'wait' };
   return { kind: 'admit', grant: serialGrant(manifest, budget) };
 }
 
@@ -504,7 +509,12 @@ function recordSettlement(
 ): void {
   const { manifest, budget } = state;
   const { granted, attemptNumber } = attempt;
-  const normalized = safelyNormalizeOutput(raw, manifest, granted, run.task.kind, run.target);
+  // The attempt's own grant has already left the pool; see `runExperiment` for both rules.
+  const exceeds =
+    manifest.concurrency > 1
+      ? (usage: ExperimentAttemptUsage) => !withinBudget(manifest, budget, usage, 'consumed')
+      : (usage: ExperimentAttemptUsage) => exceedsGrant(granted, usage);
+  const normalized = safelyNormalizeOutput(raw, manifest, exceeds, run.task.kind, run.target);
   consumeUsage(budget, normalized.output.usage);
   if (normalized.haltReason) {
     budget.haltReason ??= normalized.haltReason;
@@ -671,12 +681,12 @@ async function invokeExecutor(
 function safelyNormalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
-  remaining: ExperimentRemainingBudget,
+  exceeds: (usage: ExperimentAttemptUsage) => boolean,
   expectedKind: ExperimentTaskKind,
   target: ExperimentTarget
 ): NormalizedOutput {
   try {
-    return normalizeOutput(raw, manifest, remaining, expectedKind, target);
+    return normalizeOutput(raw, manifest, exceeds, expectedKind, target);
   } catch {
     return invalidOutput(
       'invalid_executor_result',
@@ -689,7 +699,7 @@ function safelyNormalizeOutput(
 function normalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
-  remaining: ExperimentRemainingBudget,
+  exceeds: (usage: ExperimentAttemptUsage) => boolean,
   expectedKind: ExperimentTaskKind,
   target: ExperimentTarget
 ): NormalizedOutput {
@@ -743,11 +753,7 @@ function normalizeOutput(
       );
     }
   }
-  if (
-    result.usage.requests > remaining.requests ||
-    (remaining.tokens !== undefined && (result.usage.tokens ?? 0) > remaining.tokens) ||
-    (remaining.cost !== undefined && (result.usage.cost?.amount ?? 0) > remaining.cost.amount)
-  ) {
+  if (exceeds(result.usage)) {
     return {
       output: {
         status: 'incomplete',
@@ -822,25 +828,26 @@ function admissionBlock(
   const uncommitted = uncommittedBudget(manifest, used);
   if (uncommitted.requests < 1) return 'request_budget_exhausted';
   if (uncommitted.tokens !== undefined && uncommitted.tokens <= 0) return 'token_budget_exhausted';
-  if (uncommitted.cost !== undefined && uncommitted.cost <= 0) return 'cost_budget_exhausted';
-  const maxCost = manifest.budgets.max_cost;
-  // Concurrent runs account cost in micro-units: below one unit of headroom nothing starts.
-  if (manifest.concurrency > 1 && maxCost && used.costMicro >= floorMicro(maxCost.amount))
-    return 'cost_budget_exhausted';
+  if (uncommitted.cost !== undefined) {
+    // Concurrent runs account cost in exact micro-units; serial runs keep their arithmetic.
+    const exhausted =
+      manifest.concurrency > 1 ? uncommittedCostMicro(manifest, used) <= 0 : uncommitted.cost <= 0;
+    if (exhausted) return 'cost_budget_exhausted';
+  }
   return undefined;
 }
 
 /**
  * The whole uncommitted budget: the grant a serial run hands its only attempt. A concurrent
- * run, which grants it only with nothing in flight, derives the cost from the micro-unit
- * ledger so consumed cost plus the grant stays strictly below `max_cost`.
+ * run, which grants it only with nothing in flight, takes the cost from the micro-unit ledger.
  */
 function serialGrant(manifest: ExperimentManifest, used: BudgetState): ExperimentRemainingBudget {
   const uncommitted = uncommittedBudget(manifest, used);
   const maxCost = manifest.budgets.max_cost;
-  let costAmount = uncommitted.cost;
-  if (maxCost && manifest.concurrency > 1)
-    costAmount = (floorMicro(maxCost.amount) - used.costMicro) / MICRO;
+  const costAmount =
+    maxCost && manifest.concurrency > 1
+      ? uncommittedCostMicro(manifest, used) / MICRO
+      : uncommitted.cost;
   return {
     requests: uncommitted.requests,
     tokens: uncommitted.tokens,
@@ -859,46 +866,69 @@ function demandGrant(demand: ExperimentAttemptDemand): ExperimentRemainingBudget
   };
 }
 
-/** A non-negative amount in micro-units, rounded strictly up. */
-function ceilMicro(amount: number): number {
-  return amount <= 0 ? 0 : Math.floor(amount * MICRO) + 1;
+/** A cost amount in integer micro-units, rounded to nearest. */
+function toMicro(amount: number): number {
+  return Math.round(amount * MICRO);
 }
 
-/** A positive limit in micro-units, rounded down and less one unit of headroom. */
-function floorMicro(amount: number): number {
-  return Math.floor(amount * MICRO) - 1;
+/** Cost limit minus consumed cost and in-flight cost grants, in micro-units. */
+function uncommittedCostMicro(manifest: ExperimentManifest, used: BudgetState): number {
+  let granted = 0;
+  for (const grant of used.inFlight.values()) granted += toMicro(grant.cost?.amount ?? 0);
+  return toMicro(manifest.budgets.max_cost?.amount ?? 0) - used.costMicro - granted;
 }
 
 /**
- * Whether `demand` fits beside consumed use and every in-flight grant. Cost is compared in
- * integer micro-units, consumption and grants rounded up and the limit rounded down with one
- * unit of headroom, so the real-valued sum of consumed cost and outstanding grants stays
- * below `max_cost` despite floating-point rounding.
+ * Whether `extra` stays within every declared budget. For an `admission` it must fit beside
+ * consumed use and every in-flight grant, plus one live request reservation. For `consumed`
+ * use at settlement only consumed use counts: a run halts only on a real overrun.
  */
+function withinBudget(
+  manifest: ExperimentManifest,
+  used: BudgetState,
+  extra: ExperimentAttemptUsage,
+  basis: 'admission' | 'consumed'
+): boolean {
+  const admission = basis === 'admission';
+  let grantedRequests = 0;
+  let grantedTokens = 0;
+  let grantedCost = 0;
+  if (admission)
+    for (const grant of used.inFlight.values()) {
+      grantedRequests += grant.requests;
+      grantedTokens += grant.tokens ?? 0;
+      grantedCost += toMicro(grant.cost?.amount ?? 0);
+    }
+  const requests = used.reportedRequests + grantedRequests + extra.requests;
+  const committedRequests =
+    manifest.mode === 'live'
+      ? Math.max(requests, used.reservedLiveRequests + (admission ? 1 : 0))
+      : requests;
+  if (committedRequests > manifest.budgets.max_requests) return false;
+  const { max_tokens: maxTokens, max_cost: maxCost } = manifest.budgets;
+  if (maxTokens !== undefined && used.tokens + grantedTokens + (extra.tokens ?? 0) > maxTokens)
+    return false;
+  return (
+    maxCost === undefined ||
+    used.costMicro + grantedCost + toMicro(extra.cost?.amount ?? 0) <= toMicro(maxCost.amount)
+  );
+}
+
+/** Whether `demand` fits the uncommitted pool as a new admission. */
 function demandFits(
   manifest: ExperimentManifest,
   used: BudgetState,
   demand: ExperimentAttemptDemand
 ): boolean {
-  let grantedRequests = 0;
-  let grantedTokens = 0;
-  let grantedCostMicro = 0;
-  for (const grant of used.inFlight.values()) {
-    grantedRequests += grant.requests;
-    grantedTokens += grant.tokens ?? 0;
-    grantedCostMicro += ceilMicro(grant.cost?.amount ?? 0);
-  }
-  const requests = used.reportedRequests + grantedRequests + demand.requests;
-  const committedRequests =
-    manifest.mode === 'live' ? Math.max(requests, used.reservedLiveRequests + 1) : requests;
-  if (committedRequests > manifest.budgets.max_requests) return false;
-  const { max_tokens: maxTokens, max_cost: maxCost } = manifest.budgets;
-  if (maxTokens !== undefined && used.tokens + grantedTokens + (demand.tokens ?? 0) > maxTokens)
-    return false;
+  return withinBudget(manifest, used, demand, 'admission');
+}
+
+/** Serial settlement rule: any reported use above the attempt's grant. */
+function exceedsGrant(granted: ExperimentRemainingBudget, usage: ExperimentAttemptUsage): boolean {
   return (
-    maxCost === undefined ||
-    used.costMicro + grantedCostMicro + ceilMicro(demand.cost?.amount ?? 0) <=
-      floorMicro(maxCost.amount)
+    usage.requests > granted.requests ||
+    (granted.tokens !== undefined && (usage.tokens ?? 0) > granted.tokens) ||
+    (granted.cost !== undefined && (usage.cost?.amount ?? 0) > granted.cost.amount)
   );
 }
 
@@ -915,7 +945,7 @@ function consumeUsage(used: BudgetState, attemptUsage: ExperimentAttemptUsage): 
   used.reportedRequests += attemptUsage.requests;
   used.tokens += attemptUsage.tokens ?? 0;
   used.cost += attemptUsage.cost?.amount ?? 0;
-  used.costMicro += ceilMicro(attemptUsage.cost?.amount ?? 0);
+  used.costMicro += toMicro(attemptUsage.cost?.amount ?? 0);
 }
 
 function incompleteWithoutAttempt(coordinate: ExperimentCoordinate): ExperimentCoordinateResult {

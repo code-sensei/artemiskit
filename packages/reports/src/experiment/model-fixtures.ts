@@ -501,37 +501,28 @@ export async function concurrentExperimentResult(): Promise<ExperimentRunResult>
 }
 
 /**
- * A concurrent run whose budget cannot cover one coordinate's declared request demand: that
- * coordinate becomes a runtime exclusion and later, smaller work is still measured.
+ * A concurrent run whose executor under-declares its demand: each attempt uses twice its
+ * reservation, which the pool covers, so the exactly sufficient budget measures everything.
  */
-export async function shortfallConcurrentResult(): Promise<ExperimentRunResult> {
+export async function underDeclaredConcurrentResult(): Promise<ExperimentRunResult> {
   const base = experimentManifest();
   const manifest = experimentManifest({
     tasks: [base.tasks[1]],
     exclusions: [],
-    repetitions: 2,
-    concurrency: 2,
+    repetitions: 3,
+    concurrency: 3,
     retry_policy: { max_attempts: 1, retry_on: [] },
-    budgets: { max_requests: 9 },
+    budgets: { max_requests: 24, max_tokens: 120 },
   });
-  const cases = (target: string) => (target === 'alpha' ? 5 : 2);
   const execute: ExperimentAttemptExecutor = async (input) => {
-    const needed = cases(input.target.id);
-    if (needed > input.remaining_budget.requests)
-      return {
-        status: 'incomplete',
-        usage: { requests: 0 },
-        evidence: evidence(input.coordinate.task_kind, false),
-        error_code: 'request_budget_insufficient',
-      };
-    await yieldTurns(3);
+    await yieldTurns(input.target.id === 'alpha' ? 9 : 2);
     return {
       status: 'passed',
-      usage: { requests: needed },
+      usage: { requests: 4, tokens: 20 },
       evidence: evidence(input.coordinate.task_kind),
     };
   };
-  execute.reserve = ({ target }) => ({ requests: cases(target.id) });
+  execute.reserve = () => ({ requests: 2, tokens: 10 });
   return runExperiment(manifest, { execute_attempt: execute });
 }
 

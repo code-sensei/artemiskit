@@ -14,8 +14,8 @@ import {
   preFixLiveMissingUsageResult,
   randomConcurrentResult,
   reverseKeys,
-  shortfallConcurrentResult,
   statusExperimentResult,
+  underDeclaredConcurrentResult,
 } from './model-fixtures';
 
 let mixed: ExperimentRunResult;
@@ -607,10 +607,10 @@ describe('concurrent experiment results', () => {
         },
       ],
       [
-        'usage above the grant',
+        'usage beyond the run budget left terminal',
         (value) => {
           const attempt = value.results[0].attempts[0];
-          attempt.usage.requests = admission(attempt).granted_budget.requests + 1;
+          attempt.usage.requests = value.manifest.budgets.max_requests + 1;
           value.summaries.operational.requests +=
             attempt.usage.requests - concurrent.results[0].attempts[0].usage.requests;
         },
@@ -623,27 +623,68 @@ describe('concurrent experiment results', () => {
     }
   });
 
-  test('accepts a recorded request shortfall and rejects hiding it', async () => {
-    const shortfall = await shortfallConcurrentResult();
-    expect(shortfall.results.map((item) => [item.status, item.completion_code])).toEqual([
-      ['passed', 'terminal'],
-      ['incomplete', 'budget_exhausted'],
-      ['passed', 'terminal'],
-      ['passed', 'terminal'],
-    ]);
-    expect(shortfall.stop_reason).toBe('request_budget_exhausted');
-    expect(createExperimentReport(shortfall).summary.incomplete).toBe(1);
+  test('validates exactly sufficient cost budgets measured fully at concurrency above 1', async () => {
+    const base = experimentManifest();
+    for (const [amount, count] of [
+      [0.25, 10],
+      [0.1, 10],
+      [0.5, 4],
+      [1, 6],
+    ] as const)
+      for (const declared of [true, false]) {
+        const execute = Object.assign(
+          async (input: {
+            coordinate: { task_kind: 'scenario_evaluation' | 'agent_workflow' };
+          }) => ({
+            status: 'passed' as const,
+            usage: { requests: 1, cost: { amount, currency: 'USD' } },
+            evidence: {
+              kind: input.coordinate.task_kind,
+              availability: 'available' as const,
+              artifact: {
+                schema_version: '1' as const,
+                algorithm: 'sha256' as const,
+                digest: 'c'.repeat(64),
+              },
+            },
+          }),
+          declared ? { reserve: () => ({ requests: 1, cost: { amount, currency: 'USD' } }) } : {}
+        );
+        const result = await runExperiment(
+          experimentManifest({
+            tasks: [base.tasks[1]],
+            exclusions: [],
+            repetitions: count / 2,
+            concurrency: 4,
+            retry_policy: { max_attempts: 1, retry_on: [] },
+            budgets: { max_requests: 100, max_cost: { amount: amount * count, currency: 'USD' } },
+          }),
+          { execute_attempt: execute }
+        );
+        expect(result.summaries.overall.passed, `${amount}×${count} ${declared}`).toBe(count);
+        expect(createExperimentReport(result).summary.passed).toBe(count);
+      }
+  });
 
-    const hidden = structuredClone(shortfall);
-    hidden.runtime_exclusions = [];
-    hidden.stop_reason = undefined;
-    expect(() => createExperimentReport(hidden)).toThrow(error);
+  test('accepts use beyond a reservation that the budget covers, and rejects forged halts', async () => {
+    const underDeclared = await underDeclaredConcurrentResult();
+    expect(underDeclared.summaries.overall).toMatchObject({ planned: 6, passed: 6 });
+    expect(underDeclared.stop_reason).toBeUndefined();
+    expect(underDeclared.summaries.operational).toMatchObject({ requests: 24, tokens: 120 });
+    expect(createExperimentReport(underDeclared).summary.passed).toBe(6);
 
-    const silent = structuredClone(shortfall);
-    silent.results[1].completion_code = 'terminal';
-    silent.runtime_exclusions = [];
-    silent.stop_reason = undefined;
-    expect(() => createExperimentReport(silent)).toThrow(error);
+    const halted = structuredClone(underDeclared);
+    halted.results[0].status = 'incomplete';
+    halted.results[0].completion_code = 'budget_exceeded';
+    halted.results[0].attempts[0].status = 'incomplete';
+    halted.results[0].attempts[0].error_code = 'budget_exceeded';
+    halted.stop_reason = 'budget_exceeded';
+    expect(() => createExperimentReport(halted)).toThrow(error);
+
+    const oversized = structuredClone(underDeclared);
+    const reservation = oversized.execution?.reservations[0];
+    if (reservation?.demand) reservation.demand.requests = 25;
+    expect(() => createExperimentReport(oversized)).toThrow(error);
   });
 
   test('rejects forged reservations, peaks and schedules a greedy runner cannot produce', () => {

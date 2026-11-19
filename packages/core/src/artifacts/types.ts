@@ -342,6 +342,14 @@ export interface ResolvedConfig {
   temperature?: number;
   /** Max tokens */
   max_tokens?: number;
+  /** Nucleus sampling `top_p` sent with each target request */
+  top_p?: number;
+  /** `presence_penalty` sent with each target request */
+  presence_penalty?: number;
+  /** Seed sent with each target request */
+  seed?: number;
+  /** Declared `reasoning_effort` sent with each request (for example `none` or `medium`) */
+  reasoning_effort?: string;
 
   /** Source tracking - where each value came from */
   source: {

@@ -156,7 +156,10 @@ export interface RunExperimentFileOptions {
   ) => Partial<AdapterConfig> | undefined | Promise<Partial<AdapterConfig> | undefined>;
   /** Live mode only: supply your own client per target instead of the built-in adapters. */
   createClient?: (target: ExperimentTarget) => ModelClient | Promise<ModelClient>;
-  /** Per-case model request timeout in milliseconds. */
+  /**
+   * Per-case model request timeout in milliseconds. Live targets bound through the built-in
+   * adapters also get an HTTP timeout of at least this value.
+   */
   timeoutMs?: number;
 }
 
@@ -187,6 +190,13 @@ export interface ExperimentFileRunOutcome {
  *
  * Refusals (`invalid`, `unauthorized`) return before any client is created or any attempt runs.
  * Output and persistence failures throw `ExperimentSurfaceError` (exit code 1).
+ *
+ * A target's generation settings (`temperature`, `top_p`, `presence_penalty`,
+ * `max_output_tokens`) replace each task's own values for that target's requests, and every
+ * request carries the coordinate's seed. `llm_grader` and embedding requests keep their own
+ * sampling and output length. `reasoning_effort` is adapter configuration, so it also applies to
+ * `llm_grader` requests made through the target's client. Each saved run manifest records the
+ * values sent in `resolved_config`.
  */
 export async function runExperimentFile(
   options: RunExperimentFileOptions
@@ -298,8 +308,22 @@ async function bindLiveClient(
       ? (configured.apiKey ?? LOCAL_ENDPOINT_PLACEHOLDER_API_KEY)
       : configured.apiKey,
     maxRetries: 0,
+    ...transportTimeoutConfig(configured.timeout, options.timeoutMs),
     ...reasoningEffortConfig(target),
   } as AdapterConfig);
+}
+
+/**
+ * The adapter's HTTP timeout must never be shorter than the run's per-case timeout, or long
+ * local generations are aborted by the transport (the OpenAI adapter defaults to 60 s) before
+ * the declared per-case limit applies. Without a per-case timeout the adapter default stands.
+ */
+function transportTimeoutConfig(
+  configuredMs: number | undefined,
+  perCaseMs: number | undefined
+): { timeout?: number } {
+  if (perCaseMs === undefined) return {};
+  return { timeout: Math.max(configuredMs ?? 0, perCaseMs) };
 }
 
 /** Map a target's declared `settings.reasoning_effort` onto the adapter option. */

@@ -12,8 +12,19 @@ import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelClient } from '../../adapters/types';
-import type { CaseResult, ContentIdentity, RunManifest } from '../../artifacts/types';
+import type {
+  CaseResult,
+  ContentIdentity,
+  ResolvedConfig,
+  RunManifest,
+} from '../../artifacts/types';
 import { getCaseEvaluationStatus } from '../../artifacts/types';
+import {
+  type GenerationSettings,
+  UNTRANSPORTED_GENERATION_SETTINGS,
+  readGenerationSettings,
+  toGenerationOverrides,
+} from '../../runner/generation';
 import { runScenario } from '../../runner/runner';
 import { validateScenario } from '../../scenario/parser';
 import type { Scenario } from '../../scenario/schema';
@@ -82,6 +93,12 @@ const CURRENCY = /^[A-Z]{3}$/;
  * `infrastructure_failed`; any response cut off at its token limit → `invalid`
  * (`response_truncated`); any invalid measurement → `invalid`; any failed valid case →
  * `task_failed`; otherwise `passed`. `policy_failed` is never emitted.
+ *
+ * Generation settings declared in `target.settings` (temperature, top_p, presence_penalty,
+ * max_output_tokens) replace the scenario's own for that target's requests; the coordinate's
+ * seed replaces the scenario seed. Evaluator (`llm_grader`) and embedding requests keep their
+ * own settings. A target declaring an out-of-range value, or `top_k`/`min_p` (which no request
+ * transport carries), is recorded `invalid` before any request is sent.
  */
 export function createScenarioExperimentExecutor(
   options: ScenarioExperimentExecutorOptions
@@ -120,6 +137,8 @@ async function executeAttempt(
   if (!scenario) return withoutRequests(task.kind, 'scenario_invalid');
   const conflict = scenarioConflict(scenario, target);
   if (conflict) return withoutRequests(task.kind, conflict);
+  const generation = targetGenerationSettings(target);
+  if (!generation.ok) return withoutRequests(task.kind, generation.code);
   if (scenario.cases.length > input.remaining_budget.requests) {
     return withoutRequests(task.kind, 'request_budget_insufficient', 'incomplete');
   }
@@ -134,7 +153,7 @@ async function executeAttempt(
 
   const meter = meterClient(client, input.remaining_budget.requests);
   try {
-    return await runAndReport(options, input, scenario, meter);
+    return await runAndReport(options, input, scenario, generation.settings, meter);
   } finally {
     await closeClient(client);
   }
@@ -144,15 +163,19 @@ async function runAndReport(
   options: ScenarioExperimentExecutorOptions,
   input: ExperimentAttemptInput,
   scenario: Scenario,
+  generation: GenerationSettings,
   meter: ClientMeter
 ): Promise<ExperimentAttemptOutput> {
   const { target, coordinate } = input;
+  const measured =
+    coordinate.seed === undefined ? scenario : { ...scenario, seed: coordinate.seed };
   let manifest: RunManifest;
   try {
     const run = await runScenario({
-      scenario: coordinate.seed === undefined ? scenario : { ...scenario, seed: coordinate.seed },
+      scenario: measured,
       client: meter.client,
-      resolvedConfig: { provider: target.provider, model: target.model, source: {} },
+      resolvedConfig: effectiveGenerationConfig(target, measured, generation),
+      generation: toGenerationOverrides(generation),
       concurrency: 1,
       retries: 0,
       timeout: options.timeoutMs,
@@ -193,6 +216,54 @@ async function runAndReport(
     if (cost) usage.cost = cost;
   }
   return output(classification.status, usage, evidence, classification.error_code);
+}
+
+type TargetGeneration = { ok: true; settings: GenerationSettings } | { ok: false; code: string };
+
+/** Read the target's generation settings, refusing values that could not be sent as declared. */
+function targetGenerationSettings(target: ExperimentTarget): TargetGeneration {
+  const { settings, issues } = readGenerationSettings(target.settings);
+  if (issues.length > 0) return { ok: false, code: 'generation_settings_invalid' };
+  if (UNTRANSPORTED_GENERATION_SETTINGS.some((key) => settings[key] !== undefined)) {
+    return { ok: false, code: 'generation_setting_unsupported' };
+  }
+  return { ok: true, settings };
+}
+
+/**
+ * The generation values every target request carried, recorded in the run manifest's
+ * `resolved_config` so the evidence shows the condition that was measured. Values that were not
+ * sent are absent: the serving runtime's own defaults applied to them. `source` marks whether
+ * temperature and max tokens came from the target (`config`) or the scenario.
+ */
+function effectiveGenerationConfig(
+  target: ExperimentTarget,
+  scenario: Scenario,
+  generation: GenerationSettings
+): ResolvedConfig {
+  const effort = target.settings?.reasoning_effort;
+  const temperature = generation.temperature ?? scenario.temperature;
+  const maxTokens = generation.max_output_tokens ?? scenario.maxTokens;
+  return {
+    provider: target.provider,
+    model: target.model,
+    ...(temperature !== undefined ? { temperature } : {}),
+    ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+    ...(generation.top_p !== undefined ? { top_p: generation.top_p } : {}),
+    ...(generation.presence_penalty !== undefined
+      ? { presence_penalty: generation.presence_penalty }
+      : {}),
+    ...(scenario.seed !== undefined ? { seed: scenario.seed } : {}),
+    ...(typeof effort === 'string' ? { reasoning_effort: effort } : {}),
+    source: {
+      ...(temperature !== undefined
+        ? { temperature: generation.temperature !== undefined ? 'config' : 'scenario' }
+        : {}),
+      ...(maxTokens !== undefined
+        ? { max_tokens: generation.max_output_tokens !== undefined ? 'config' : 'scenario' }
+        : {}),
+    },
+  };
 }
 
 /**

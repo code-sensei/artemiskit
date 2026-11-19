@@ -113,6 +113,18 @@ cases:
       values: ["delivered"]
 `;
 
+const SAMPLED_SCENARIO = `name: fixture-sampled
+temperature: 0
+maxTokens: 4096
+seed: 7
+cases:
+  - id: capital
+    prompt: "What is the capital of Nigeria?"
+    expected:
+      type: contains
+      values: ["Abuja"]
+`;
+
 const BROKEN_SCENARIO = 'name: fixture-broken\ncases: []\n';
 
 const SOURCES: Record<string, string> = {
@@ -123,6 +135,7 @@ const SOURCES: Record<string, string> = {
   'scenarios/pinned.yaml': PINNED_MODEL_SCENARIO,
   'scenarios/env.yaml': ENV_SCENARIO,
   'scenarios/broken.yaml': BROKEN_SCENARIO,
+  'scenarios/sampled.yaml': SAMPLED_SCENARIO,
   'scenarios/tools.yaml': TOOL_SCENARIO,
   'workflows/resolve.yaml': 'name: workflow\n',
 };
@@ -937,6 +950,49 @@ describe('createScenarioExperimentExecutor evidence', () => {
     }
   });
 
+  test('records the target-declared reasoning_effort in the run manifest', async () => {
+    const records: ScenarioExperimentEvidenceRecord[] = [];
+    const thinkingOff: ExperimentTarget = {
+      ...LOCAL_TARGET,
+      settings: { base_url: 'http://127.0.0.1:11434/v1', reasoning_effort: 'none' },
+    };
+    const thinkingOn: ExperimentTarget = {
+      ...LOCAL_TARGET_9B,
+      settings: { reasoning_effort: 'medium' },
+    };
+    const fixtures = fixtureClients({});
+    await runExperiment(
+      experiment([scenarioTask('scenarios/answer.yaml')], {
+        targets: [thinkingOff, thinkingOn, METERED_TARGET],
+      }),
+      {
+        execute_attempt: createScenarioExperimentExecutor({
+          root,
+          repetitions: 1,
+          createClient: fixtures.createClient,
+          onEvidence: (record) => {
+            records.push(record);
+          },
+        }),
+      }
+    );
+
+    const effortByModel = Object.fromEntries(
+      records.map((record) => [
+        record.manifest.config.model,
+        record.manifest.resolved_config?.reasoning_effort,
+      ])
+    );
+    expect(effortByModel).toEqual({
+      [thinkingOff.model]: 'none',
+      [thinkingOn.model]: 'medium',
+      [METERED_TARGET.model]: undefined,
+    });
+    for (const record of records) {
+      expect(runManifestIdentity(record.manifest)).toEqual(record.artifact);
+    }
+  });
+
   test('produces the same digest regardless of object key order', () => {
     const manifest = { b: 1, a: { d: [1, { z: 1, y: 2 }], c: 'x' } };
     const reordered = { a: { c: 'x', d: [1, { y: 2, z: 1 }] }, b: 1 };
@@ -1006,5 +1062,142 @@ describe('createScenarioExperimentExecutor options', () => {
     const output = await execute(input);
     expect(output.status).toBe('invalid');
     expect(output.error_code).toBe('repetition_out_of_range');
+  });
+});
+
+describe('createScenarioExperimentExecutor target generation settings', () => {
+  const THINKING: ExperimentTarget = {
+    ...LOCAL_TARGET_9B,
+    settings: {
+      reasoning_effort: 'medium',
+      temperature: 1,
+      top_p: 0.95,
+      presence_penalty: 1.5,
+      max_output_tokens: 32768,
+    },
+  };
+  const PLAIN: ExperimentTarget = { ...LOCAL_TARGET, settings: { reasoning_effort: 'none' } };
+
+  /** Record every request's options by target, answering correctly. */
+  function recordingClients() {
+    const requests: Array<{ target: string; options: GenerateOptions }> = [];
+    const createClient = (target: ExperimentTarget): ModelClient => ({
+      provider: 'openai',
+      async capabilities() {
+        return { streaming: false, functionCalling: false, toolUse: false, maxContext: 8192 };
+      },
+      async generate(options): Promise<GenerateResult> {
+        requests.push({ target: target.id, options });
+        return {
+          id: `r${requests.length}`,
+          model: target.model,
+          text: 'Abuja',
+          tokens: { prompt: 1, completion: 1, total: 2 },
+          latencyMs: 1,
+        };
+      },
+    });
+    return { requests, createClient };
+  }
+
+  async function run(targets: ExperimentTarget[], repetitions = 3) {
+    const clients = recordingClients();
+    const records: ScenarioExperimentEvidenceRecord[] = [];
+    const result = await runExperiment(
+      experiment([scenarioTask('scenarios/sampled.yaml')], {
+        targets,
+        repetitions,
+        seed: { value: 40, strategy: 'increment_by_repetition', require_support: false },
+      }),
+      {
+        execute_attempt: createScenarioExperimentExecutor({
+          root,
+          repetitions,
+          createClient: clients.createClient,
+          onEvidence: (record) => {
+            records.push(record);
+          },
+        }),
+      }
+    );
+    return { ...clients, records, result };
+  }
+
+  test('applies each target overrides and the scenario values otherwise, with the repetition seed', async () => {
+    const { requests } = await run([THINKING, PLAIN]);
+
+    const thinking = requests.filter((request) => request.target === THINKING.id);
+    const plain = requests.filter((request) => request.target === PLAIN.id);
+    expect(thinking.map((request) => request.options.seed)).toEqual([40, 41, 42]);
+    expect(plain.map((request) => request.options.seed)).toEqual([40, 41, 42]);
+    for (const { options } of thinking) {
+      expect(options).toMatchObject({
+        temperature: 1,
+        topP: 0.95,
+        presencePenalty: 1.5,
+        maxTokens: 32768,
+      });
+    }
+    for (const { options } of plain) {
+      expect(options).toMatchObject({ temperature: 0, maxTokens: 4096 });
+      expect(options).not.toHaveProperty('topP');
+      expect(options).not.toHaveProperty('presencePenalty');
+    }
+  });
+
+  test('records the effective settings sent in each run manifest', async () => {
+    const { records } = await run([THINKING, PLAIN]);
+
+    const byTarget = (model: string) =>
+      records
+        .filter((record) => record.manifest.config.model === model)
+        .map((record) => record.manifest.resolved_config);
+    expect(byTarget(THINKING.model)).toEqual(
+      [40, 41, 42].map((seed) => ({
+        provider: 'openai',
+        model: THINKING.model,
+        temperature: 1,
+        max_tokens: 32768,
+        top_p: 0.95,
+        presence_penalty: 1.5,
+        seed,
+        reasoning_effort: 'medium',
+        source: { temperature: 'config', max_tokens: 'config' },
+      }))
+    );
+    expect(byTarget(PLAIN.model)).toEqual(
+      [40, 41, 42].map((seed) => ({
+        provider: 'openai',
+        model: PLAIN.model,
+        temperature: 0,
+        max_tokens: 4096,
+        seed,
+        reasoning_effort: 'none',
+        source: { temperature: 'scenario', max_tokens: 'scenario' },
+      }))
+    );
+    for (const record of records) {
+      expect(record.manifest.execution_provenance?.target.generation?.seed).toBe(
+        record.manifest.resolved_config?.seed
+      );
+      expect(runManifestIdentity(record.manifest)).toEqual(record.artifact);
+    }
+  });
+
+  test.each([
+    ['generation_settings_invalid', { temperature: 3 }],
+    ['generation_settings_invalid', { max_output_tokens: 0 }],
+    ['generation_setting_unsupported', { top_k: 20 }],
+    ['generation_setting_unsupported', { min_p: 0 }],
+  ])('records %s for %p before any request', async (code, settings) => {
+    const { requests, result } = await run([{ ...LOCAL_TARGET, settings }, METERED_TARGET], 1);
+
+    expect(requests.filter((request) => request.target === LOCAL_TARGET.id)).toEqual([]);
+    expect(requests.filter((request) => request.target === METERED_TARGET.id)).toHaveLength(1);
+    expect(attemptFor(result, LOCAL_TARGET.id)).toMatchObject({
+      status: 'invalid',
+      error_code: code,
+      usage: { requests: 0, tokens: 0 },
+    });
   });
 });

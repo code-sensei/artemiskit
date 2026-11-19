@@ -424,6 +424,32 @@ function deploymentLabel(target: ExperimentTarget): string {
     : `${runtime}; metered cost`;
 }
 
+/** Target settings that change what each target request carries, in display order. */
+const GENERATION_LABEL_KEYS = [
+  'temperature',
+  'top_p',
+  'presence_penalty',
+  'max_output_tokens',
+  'reasoning_effort',
+] as const;
+
+/** Declared generation settings and the seed every request to this target carries. */
+function generationLabel(target: ExperimentTarget, manifest: ExperimentManifest): string {
+  const declared = GENERATION_LABEL_KEYS.filter((key) => target.settings?.[key] !== undefined).map(
+    (key) => `${key} ${target.settings?.[key]}`
+  );
+  return [declared.length > 0 ? declared.join('; ') : 'task values', seedLabel(manifest)].join(
+    '; '
+  );
+}
+
+function seedLabel(manifest: ExperimentManifest): string {
+  const seed = manifest.seed;
+  if (!seed) return 'no seed';
+  if (seed.strategy === 'fixed' || manifest.repetitions === 1) return `seed ${seed.value}`;
+  return `seeds ${seed.value}-${seed.value + manifest.repetitions - 1} by repetition`;
+}
+
 function targetById(manifest: ExperimentManifest, id: string): ExperimentTarget {
   const target = manifest.targets.find((item) => item.id === id);
   if (!target) throw invalid();
@@ -1127,6 +1153,19 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         `${run.manifest.mode} execution with ${run.manifest.exclusions.length} declared exclusions`,
       ],
       'Manifest controls'
+    );
+    run.manifest.targets.forEach((target, index) =>
+      row(
+        controls,
+        `/manifest/targets/${index}`,
+        target,
+        [
+          `generation: ${target.id}`,
+          generationLabel(target, run.manifest),
+          "sent with every request to this target; unset values follow each task and values never sent use the serving runtime's defaults. Each attempt's run evidence records the values sent (resolved_config)",
+        ],
+        'Declared target metadata'
+      )
     );
     if (run.manifest.live)
       row(

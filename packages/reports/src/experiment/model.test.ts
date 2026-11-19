@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
-import type { ExperimentRunResult } from '@artemiskit/core';
+import { type ExperimentRunResult, runExperiment } from '@artemiskit/core';
 import { createExperimentReport } from './model';
 import {
   adapterErrorCollisionResult,
   concurrentExperimentResult,
   coreOutputMatrix,
+  experimentManifest,
   liveBudgetResult,
   liveRunnerHaltResult,
   liveUsageUnreportedResult,
@@ -625,5 +626,62 @@ describe('concurrent experiment results', () => {
       granted_budget: { requests: 100, tokens: 100_000 },
     };
     expect(() => createExperimentReport(value)).toThrow(error);
+  });
+});
+
+describe('target generation settings', () => {
+  test('lists each target generation settings and seeds in the controls section', () => {
+    const report = createExperimentReport(mixed);
+    const controls = report.sections.find((section) => section.id === 'controls');
+    const generation = controls?.rows
+      .filter((row) => row.cells[0].startsWith('generation: '))
+      .map((row) => row.cells.slice(0, 2));
+    expect(generation).toEqual([
+      ['generation: alpha', 'temperature 0; seeds 40-41 by repetition'],
+      ['generation: beta', 'task values; seeds 40-41 by repetition'],
+    ]);
+  });
+
+  test('shows sampling overrides and reasoning effort declared by a target', async () => {
+    const base = experimentManifest();
+    const declared = await runExperiment(
+      experimentManifest({
+        tasks: [base.tasks[0]],
+        exclusions: [],
+        repetitions: 1,
+        seed: { value: 7, strategy: 'fixed', require_support: true },
+        targets: [
+          {
+            ...base.targets[0],
+            settings: {
+              reasoning_effort: 'medium',
+              temperature: 1,
+              top_p: 0.95,
+              presence_penalty: 1.5,
+              max_output_tokens: 32768,
+              base_url: 'http://127.0.0.1:11434/v1',
+            },
+          },
+          base.targets[1],
+        ],
+      }),
+      {
+        execute_attempt: async (input) => ({
+          status: 'passed',
+          usage: { requests: 1, tokens: 2 },
+          evidence: {
+            kind: input.task.kind,
+            availability: 'available',
+            artifact: { schema_version: '1', algorithm: 'sha256', digest: 'c'.repeat(64) },
+          },
+        }),
+      }
+    );
+    const controls = createExperimentReport(declared).sections.find(
+      (section) => section.id === 'controls'
+    );
+    expect(controls?.rows.find((row) => row.cells[0] === 'generation: alpha')?.cells[1]).toBe(
+      'temperature 1; top_p 0.95; presence_penalty 1.5; max_output_tokens 32768; reasoning_effort medium; seed 7'
+    );
   });
 });

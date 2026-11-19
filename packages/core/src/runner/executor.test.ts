@@ -432,3 +432,104 @@ describe('executeCase measurement integrity', () => {
     expect(JSON.stringify(result)).not.toContain('reviewer@example.com');
   });
 });
+
+describe('executeCase per-case timeout', () => {
+  const PER_CASE_TIMEOUT_MS = 60_000;
+  const scenario = ScenarioSchema.parse({
+    name: 'per-case timeout',
+    cases: [{ id: 'echo', prompt: 'Say ok', expected: { type: 'contains', values: ['ok'] } }],
+  });
+  const capabilities = async () => ({
+    streaming: false,
+    functionCalling: false,
+    toolUse: false,
+    maxContext: 1000,
+  });
+
+  it('clears the timeout timer once the request settles first', async () => {
+    const originalSetTimeout = globalThis.setTimeout;
+    const originalClearTimeout = globalThis.clearTimeout;
+    const pending = new Set<unknown>();
+    globalThis.setTimeout = ((handler: () => void, ms?: number) => {
+      const timer = originalSetTimeout(handler, ms);
+      if (ms === PER_CASE_TIMEOUT_MS) pending.add(timer);
+      return timer;
+    }) as typeof setTimeout;
+    globalThis.clearTimeout = ((timer?: ReturnType<typeof setTimeout>) => {
+      pending.delete(timer);
+      originalClearTimeout(timer);
+    }) as typeof clearTimeout;
+    let created = 0;
+    try {
+      const client: ModelClient = {
+        provider: 'stub',
+        capabilities,
+        generate: async () => {
+          created = pending.size;
+          return {
+            id: 'fast',
+            model: 'stub-model',
+            text: 'ok',
+            tokens: { prompt: 1, completion: 1, total: 2 },
+            latencyMs: 1,
+          };
+        },
+      };
+
+      const result = await executeCase(scenario.cases[0], {
+        client,
+        scenario,
+        timeout: PER_CASE_TIMEOUT_MS,
+      });
+
+      expect(result.status).toBe('passed');
+      expect(created).toBe(1);
+      expect(pending.size).toBe(0);
+    } finally {
+      globalThis.setTimeout = originalSetTimeout;
+      globalThis.clearTimeout = originalClearTimeout;
+    }
+  });
+
+  it('aborts the in-flight request when the timeout expires', async () => {
+    let received: AbortSignal | undefined;
+    const client: ModelClient = {
+      provider: 'stub',
+      capabilities,
+      generate: (options) => {
+        received = options.signal;
+        return new Promise((_, reject) => {
+          options.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      },
+    };
+
+    const result = await executeCase(scenario.cases[0], { client, scenario, timeout: 10 });
+
+    expect(result.status).toBe('error');
+    expect(result.attempt_evidence?.[0]?.error_code).toBe('timeout');
+    expect(received?.aborted).toBe(true);
+  });
+
+  it('passes no signal when no timeout is configured', async () => {
+    const requests: GenerateOptions[] = [];
+    const client: ModelClient = {
+      provider: 'stub',
+      capabilities,
+      generate: async (options) => {
+        requests.push(options);
+        return {
+          id: 'fast',
+          model: 'stub-model',
+          text: 'ok',
+          tokens: { prompt: 1, completion: 1, total: 2 },
+          latencyMs: 1,
+        };
+      },
+    };
+
+    await executeCase(scenario.cases[0], { client, scenario });
+
+    expect(requests[0]?.signal).toBeUndefined();
+  });
+});

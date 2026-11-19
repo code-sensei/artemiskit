@@ -1,0 +1,9 @@
+---
+"@artemiskit/core": minor
+---
+
+Add `createScenarioExperimentExecutor`, the built-in executor that runs `scenario_evaluation` tasks through the existing scenario runner with a host-supplied client per target. Each attempt resolves its source under an absolute root, verifies the SHA-256 of the exact file bytes before parsing, parses without `${VAR}` expansion, meters every model request against the remaining budget and hashes the run manifest as evidence (`runManifestIdentity`). Provider errors map to `infrastructure_failed`, invalid measurements to `invalid` and failed cases to `task_failed`. A response stopped at its token limit is recorded as invalid (`response_truncated`), not as a task failure. For scenarios it can bound, the executor declares a per-attempt demand so concurrent runs can admit it.
+
+`runScenario` accepts `generation` overrides (`GenerationOverrides`, with exported keys, ranges and readers) that replace the scenario's generation settings for target requests only; evaluator and embedding requests keep their own. `GenerateOptions` gains `presencePenalty`, the OpenAI adapter config type gains `reasoningEffort`, and run manifests may record `top_p`, `presence_penalty`, `seed` and the declared `reasoning_effort` in `resolved_config`. The per-case timeout timer is cleared when a request settles and aborts the request when it expires, so a finished run no longer stays alive until the timeout.
+
+Git provenance is now read once per working directory per process instead of spawning four `git` processes for every run manifest, which removes thousands of subprocesses from an experiment run. Manifest values and shape are unchanged, but within one process every manifest records the git state captured at the first run in that directory: a commit or edit made later in the same process isn't seen. Long-lived hosts that need a fresh read call the new `clearGitInfoCache()` export first.

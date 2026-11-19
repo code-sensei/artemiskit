@@ -4,7 +4,12 @@ import { mkdir, readFile, readdir, rename, rmdir, writeFile } from 'node:fs/prom
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { parseRemoteTag, validateReleaseManifest, verifyRelease } from './verify-release.mjs';
+import {
+  isMilestoneVersion,
+  parseRemoteTag,
+  validateReleaseManifest,
+  verifyRelease,
+} from './verify-release.mjs';
 
 const exec = promisify(execFile);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -366,14 +371,15 @@ async function main() {
   const packages = await workspacePackages();
   const core = packages.find((pkg) => pkg.name === '@artemiskit/core');
   let manifest;
-  if (core?.version.startsWith('0.6.')) {
+  // Every core version from 0.6.0 on identifies a milestone with a docs/releases manifest.
+  if (isMilestoneVersion(core?.version)) {
     const current = validateReleaseManifest(
       JSON.parse(await readFile(join(root, 'docs/releases', `${core.version}.json`), 'utf8'))
     );
     await verifyRelease(packageRelease ? 'completed' : 'prepublish', current);
     if (!packageRelease) manifest = current;
   } else if (packageRelease)
-    throw new Error('Independent package mode requires a completed 0.6.x milestone');
+    throw new Error('Independent package mode requires a completed milestone');
   const candidate = await command('git', ['rev-parse', 'HEAD']);
   if (!dryRun && (await command('git', ['status', '--porcelain'])))
     throw new Error(

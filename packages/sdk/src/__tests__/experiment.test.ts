@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, setDefaultTimeout, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -22,6 +22,12 @@ import {
   validateExperimentFile,
 } from '../index';
 import { LIVE_CONTROLS, LOOPBACK_BASE_URL, writeExperimentFixture } from './experiment-fixtures';
+
+// Each scenario attempt captures git provenance with synchronous git subprocesses
+// (packages/core/src/provenance/git.ts). Tests with a dozen attempts take about 1-2 s idle and
+// exceeded the 5 s default under machine load; this file-scoped timeout keeps them from
+// failing on time alone.
+setDefaultTimeout(30_000);
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

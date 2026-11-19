@@ -156,7 +156,10 @@ export interface RunExperimentFileOptions {
   ) => Partial<AdapterConfig> | undefined | Promise<Partial<AdapterConfig> | undefined>;
   /** Live mode only: supply your own client per target instead of the built-in adapters. */
   createClient?: (target: ExperimentTarget) => ModelClient | Promise<ModelClient>;
-  /** Per-case model request timeout in milliseconds. */
+  /**
+   * Per-case model request timeout in milliseconds. Live targets bound through the built-in
+   * adapters also get an HTTP timeout of at least this value.
+   */
   timeoutMs?: number;
 }
 
@@ -298,8 +301,22 @@ async function bindLiveClient(
       ? (configured.apiKey ?? LOCAL_ENDPOINT_PLACEHOLDER_API_KEY)
       : configured.apiKey,
     maxRetries: 0,
+    ...transportTimeoutConfig(configured.timeout, options.timeoutMs),
     ...reasoningEffortConfig(target),
   } as AdapterConfig);
+}
+
+/**
+ * The adapter's HTTP timeout must never be shorter than the run's per-case timeout, or long
+ * local generations are aborted by the transport (the OpenAI adapter defaults to 60 s) before
+ * the declared per-case limit applies. Without a per-case timeout the adapter default stands.
+ */
+function transportTimeoutConfig(
+  configuredMs: number | undefined,
+  perCaseMs: number | undefined
+): { timeout?: number } {
+  if (perCaseMs === undefined) return {};
+  return { timeout: Math.max(configuredMs ?? 0, perCaseMs) };
 }
 
 /** Map a target's declared `settings.reasoning_effort` onto the adapter option. */

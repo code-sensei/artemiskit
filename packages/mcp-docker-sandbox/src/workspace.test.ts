@@ -554,6 +554,7 @@ describe('Docker workspace', () => {
 
     const runRequest = requests.find(({ argv }) => argv[1] === 'run');
     const containerName = runRequest?.argv[runRequest.argv.indexOf('--name') + 1];
+    if (containerName === undefined) throw new Error('expected a named run container');
     await workspace.dispose();
     const cleanupRequests = requests.filter(({ argv }) => argv[1] === 'rm');
     expect(cleanupRequests).toHaveLength(2);
@@ -626,6 +627,7 @@ describe('Docker workspace', () => {
 
       const runRequest = requests.find(({ argv }) => argv[1] === 'run');
       const containerName = runRequest?.argv[runRequest.argv.indexOf('--name') + 1];
+      if (containerName === undefined) throw new Error('expected a named run container');
       await expect(workspace.dispose()).rejects.toMatchObject({
         code: 'SANDBOX_CLEANUP_UNCONFIRMED',
       });

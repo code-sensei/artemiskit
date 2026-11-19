@@ -476,12 +476,15 @@ describe('MCP sandbox server', () => {
   });
 });
 
-function structured(result: { structuredContent?: Record<string, unknown> }): Record<
-  string,
-  unknown
-> {
-  expect(result.structuredContent).toBeDefined();
-  return result.structuredContent ?? {};
+// callTool also types a legacy { toolResult } shape, so check the structured content at runtime.
+function structured(result: Awaited<ReturnType<Client['callTool']>>): Record<string, unknown> {
+  const { structuredContent } = result;
+  if (!isRecord(structuredContent)) throw new Error('expected structured tool content');
+  return structuredContent;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 async function makeFixture(): Promise<string> {

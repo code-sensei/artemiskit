@@ -43,6 +43,18 @@ export function describeTargetDeployment(target: ExperimentTarget): string {
   return `${weights}run locally via ${runtime}; ${cost}`;
 }
 
+/**
+ * Declared concurrency limit and, for concurrent runs, the recorded peak and caveat, e.g.
+ * "up to 4 coordinates in flight (declared limit); recorded peak 3; completion order and
+ * sampled outputs may differ from a serial run".
+ */
+export function describeConcurrency(result: ExperimentRunResult): string {
+  const limit = result.manifest.concurrency;
+  if (limit === 1) return '1 (serial)';
+  const peak = result.execution ? `; recorded peak ${result.execution.peak_in_flight}` : '';
+  return `up to ${limit} coordinates in flight (declared limit)${peak}; completion order and sampled outputs may differ from a serial run`;
+}
+
 /** Human-readable summary of a saved run. Makes no ranking or winner claim. */
 export function formatExperimentRunSummary(
   result: ExperimentRunResult,
@@ -56,6 +68,7 @@ export function formatExperimentRunSummary(
         : `live mode; approved by ${result.live_authorization?.approved_by ?? 'unknown'} (${result.live_authorization?.decision_id ?? 'no decision id'})`
     }`,
     `Matrix: ${summaries.overall.planned} planned coordinate(s) = ${manifest.tasks.length} task(s) × ${manifest.targets.length} target(s) × ${manifest.repetitions} repetition(s)`,
+    `Concurrency: ${describeConcurrency(result)}`,
     'Targets (declared order; counts describe this run only):',
   ];
   const groups = new Map(summaries.targets.map((group) => [group.key, group.summary]));

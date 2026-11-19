@@ -43,6 +43,14 @@ interface ExperimentRunCommandOptions {
 
 export function formatExperimentValidation(validation: ExperimentValidation): string {
   const lines = [`Experiment file: ${validation.file}`];
+  if (validation.concurrency !== undefined)
+    lines.push(
+      `Concurrency: ${
+        validation.concurrency === 1
+          ? '1 (serial)'
+          : `up to ${validation.concurrency} coordinates in flight (declared limit; live runs need --max-concurrency ${validation.concurrency})`
+      }`
+    );
   for (const check of validation.checks) {
     const subject = check.id ? `${check.subject} ${check.id}` : check.subject;
     lines.push(`  ${CHECK_SYMBOLS[check.status]} ${subject}: ${check.message}`);

@@ -853,6 +853,10 @@ describe('runExperimentFile (concurrent live mode)', () => {
     expect(outcome.evidence.map((item) => item.coordinate_id)).toEqual(
       result.results.map((item) => item.coordinate.coordinate_id)
     );
+    const summary = formatExperimentRunSummary(result);
+    expect(summary).toContain(
+      'Concurrency: up to 2 coordinates in flight (declared limit); recorded peak 2'
+    );
   });
 });
 

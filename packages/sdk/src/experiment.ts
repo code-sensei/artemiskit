@@ -50,6 +50,7 @@ import {
 export { ExperimentSurfaceError } from './experiment-files';
 export {
   EXPERIMENT_EXIT_CODES,
+  describeConcurrency,
   describeTargetDeployment,
   experimentRunStatus,
   formatExperimentRunSummary,

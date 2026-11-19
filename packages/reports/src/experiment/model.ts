@@ -471,7 +471,7 @@ interface BudgetState {
   tokens: number;
   /** Consumed cost amount, summed in settlement order as the runner's ledger sums it. */
   cost: number;
-  /** Consumed cost in micro-units, each amount rounded up, as core's concurrent ledger. */
+  /** Consumed cost in micro-units, each amount charged as core's concurrent ledger charges it. */
   costMicro: number;
   halt?: ExperimentStopReason;
   /** Grants of in-flight attempts keyed by admission ticket, in admission order. */
@@ -496,8 +496,11 @@ interface CoordinateReplay {
 type ReplayDecision = { kind: 'admit'; grant: ReplayedGrant } | { kind: 'wait' };
 
 const MICRO = 1_000_000;
-/** A cost amount in integer micro-units, rounded to nearest, as core's concurrent ledger. */
+/** A cost limit in integer micro-units, rounded to nearest, as core's concurrent ledger. */
 const toMicro = (amount: number) => Math.round(amount * MICRO);
+/** A reserved or consumed cost in micro-units: nearest, but at least one for any positive amount. */
+const chargedMicro = (amount: number) =>
+  amount > 0 ? Math.max(1, toMicro(amount)) : toMicro(amount);
 
 /**
  * Mirrors core's admission ledger: declared limits minus consumed use and minus every
@@ -541,7 +544,7 @@ function budgetReason(manifest: ExperimentManifest, state: BudgetState) {
 
 function uncommittedCostMicro(manifest: ExperimentManifest, state: BudgetState): number {
   let granted = 0;
-  for (const grant of state.inFlight.values()) granted += toMicro(grant.cost ?? 0);
+  for (const grant of state.inFlight.values()) granted += chargedMicro(grant.cost ?? 0);
   return toMicro(manifest.budgets.max_cost?.amount ?? 0) - state.costMicro - granted;
 }
 
@@ -578,7 +581,7 @@ function withinBudget(
     for (const grant of state.inFlight.values()) {
       grantedRequests += grant.requests;
       grantedTokens += grant.tokens ?? 0;
-      grantedCost += toMicro(grant.cost ?? 0);
+      grantedCost += chargedMicro(grant.cost ?? 0);
     }
   const requests = state.requests + grantedRequests + extra.requests;
   const committedRequests =
@@ -589,7 +592,7 @@ function withinBudget(
     return false;
   return (
     maxCost === undefined ||
-    state.costMicro + grantedCost + toMicro(extra.cost?.amount ?? 0) <= toMicro(maxCost.amount)
+    state.costMicro + grantedCost + chargedMicro(extra.cost?.amount ?? 0) <= toMicro(maxCost.amount)
   );
 }
 
@@ -626,7 +629,7 @@ function consume(state: BudgetState, attempt: ExperimentAttemptEvidence): void {
   state.requests += attempt.usage.requests;
   state.tokens += attempt.usage.tokens ?? 0;
   state.cost += attempt.usage.cost?.amount ?? 0;
-  state.costMicro += toMicro(attempt.usage.cost?.amount ?? 0);
+  state.costMicro += chargedMicro(attempt.usage.cost?.amount ?? 0);
 }
 
 /**
@@ -694,7 +697,7 @@ function validateExecution(
       requests > manifest.budgets.max_requests ||
       (maxTokens !== undefined && (demand.tokens as number) > maxTokens) ||
       (maxCost !== undefined &&
-        toMicro((demand.cost as ExperimentCostLimit).amount) > toMicro(maxCost.amount))
+        chargedMicro((demand.cost as ExperimentCostLimit).amount) > toMicro(maxCost.amount))
     )
       throw invalid();
     for (const replay of replays) replay.demand = demand as unknown as ExperimentAttemptDemand;

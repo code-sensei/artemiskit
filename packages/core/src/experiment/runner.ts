@@ -105,7 +105,7 @@ interface BudgetState {
   reportedRequests: number;
   tokens: number;
   cost: number;
-  /** Consumed cost in integer micro-units, each amount rounded to nearest (concurrent runs). */
+  /** Consumed cost in integer micro-units, each amount charged by `chargedMicro` (concurrent runs). */
   costMicro: number;
   haltReason?: ExperimentStopReason;
   /** Grants held by in-flight attempts, keyed by admission ticket in admission order. */
@@ -212,14 +212,19 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
  * the pool: the run halts as `budget_exceeded` only when consumed use actually exceeds a
  * declared budget. Unused reservation returns to the pool; while use beyond reservations has
  * overdrawn it, nothing new starts until in-flight attempts settle. Cost is accounted in
- * integer micro-units, rounded to nearest.
+ * integer micro-units: each amount rounds to nearest, but any positive amount is charged at
+ * least one micro-unit.
  *
  * Guarantees: an attempt starts only when consumed use plus every outstanding grant, its own
  * included, stays within each declared budget (cost at micro-unit precision), so admission
  * never commits more than the budget; only use an executor reports beyond its grant can exceed
  * it, and that halts the run. With a budget sufficient for a serial run, concurrency never
- * loses work. With an insufficient budget, which coordinates are measured may depend on
- * timing, and the stop is recorded as a stop reason with runtime exclusions.
+ * loses work, except that cost is accounted at micro-unit precision: with an exactly
+ * sufficient cost budget, per-attempt rounding can stop a concurrent run up to half a
+ * micro-unit per attempt early (up to one micro-unit for an attempt that costs less than
+ * half a micro-unit, since it is charged one), recorded as a stop. With an insufficient
+ * budget, which coordinates are measured may depend on timing, and the stop is recorded as a
+ * stop reason with runtime exclusions.
  */
 export async function runExperiment(
   value: ExperimentManifest,
@@ -403,7 +408,7 @@ function completeDemand(
   if (
     parsed.requests > manifest.budgets.max_requests ||
     (maxTokens !== undefined && (parsed.tokens ?? 0) > maxTokens) ||
-    (maxCost !== undefined && toMicro(costAmount ?? 0) > toMicro(maxCost.amount))
+    (maxCost !== undefined && chargedMicro(costAmount ?? 0) > toMicro(maxCost.amount))
   )
     return undefined;
   return {
@@ -866,15 +871,23 @@ function demandGrant(demand: ExperimentAttemptDemand): ExperimentRemainingBudget
   };
 }
 
-/** A cost amount in integer micro-units, rounded to nearest. */
+/** A cost limit in integer micro-units, rounded to nearest. */
 function toMicro(amount: number): number {
   return Math.round(amount * MICRO);
+}
+
+/**
+ * A reserved or consumed cost amount in integer micro-units: rounded to nearest, but any
+ * positive amount is charged at least one micro-unit, so sub-half-micro use is never free.
+ */
+function chargedMicro(amount: number): number {
+  return amount > 0 ? Math.max(1, toMicro(amount)) : toMicro(amount);
 }
 
 /** Cost limit minus consumed cost and in-flight cost grants, in micro-units. */
 function uncommittedCostMicro(manifest: ExperimentManifest, used: BudgetState): number {
   let granted = 0;
-  for (const grant of used.inFlight.values()) granted += toMicro(grant.cost?.amount ?? 0);
+  for (const grant of used.inFlight.values()) granted += chargedMicro(grant.cost?.amount ?? 0);
   return toMicro(manifest.budgets.max_cost?.amount ?? 0) - used.costMicro - granted;
 }
 
@@ -897,7 +910,7 @@ function withinBudget(
     for (const grant of used.inFlight.values()) {
       grantedRequests += grant.requests;
       grantedTokens += grant.tokens ?? 0;
-      grantedCost += toMicro(grant.cost?.amount ?? 0);
+      grantedCost += chargedMicro(grant.cost?.amount ?? 0);
     }
   const requests = used.reportedRequests + grantedRequests + extra.requests;
   const committedRequests =
@@ -910,7 +923,7 @@ function withinBudget(
     return false;
   return (
     maxCost === undefined ||
-    used.costMicro + grantedCost + toMicro(extra.cost?.amount ?? 0) <= toMicro(maxCost.amount)
+    used.costMicro + grantedCost + chargedMicro(extra.cost?.amount ?? 0) <= toMicro(maxCost.amount)
   );
 }
 
@@ -945,7 +958,7 @@ function consumeUsage(used: BudgetState, attemptUsage: ExperimentAttemptUsage): 
   used.reportedRequests += attemptUsage.requests;
   used.tokens += attemptUsage.tokens ?? 0;
   used.cost += attemptUsage.cost?.amount ?? 0;
-  used.costMicro += toMicro(attemptUsage.cost?.amount ?? 0);
+  used.costMicro += chargedMicro(attemptUsage.cost?.amount ?? 0);
 }
 
 function incompleteWithoutAttempt(coordinate: ExperimentCoordinate): ExperimentCoordinateResult {

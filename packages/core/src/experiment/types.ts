@@ -251,6 +251,12 @@ export interface ExperimentAttemptInput {
  * is a reservation, not a cap: use beyond it draws on the run's uncommitted budget, and only
  * use beyond a declared run budget halts the run. With nothing else in flight an attempt is
  * granted the whole remaining budget instead, as in a serial run.
+ *
+ * Concurrent runs account cost at micro-unit precision: each reserved or consumed amount is
+ * rounded to the nearest micro-unit, and any positive amount is charged at least one. With an
+ * exactly sufficient cost budget, that rounding can stop a concurrent run up to half a
+ * micro-unit per attempt early (one micro-unit for an attempt costing less than half of one),
+ * recorded as a stop.
  */
 export interface ExperimentAttemptDemand {
   requests: number;

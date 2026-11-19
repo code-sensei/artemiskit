@@ -630,6 +630,80 @@ describe('runExperiment with bounded concurrency', () => {
     }
   });
 
+  /** Fixture run whose coordinate at matrix position `index` costs `costs[index]` USD. */
+  const costRun = (
+    costs: readonly number[],
+    maxCost: number,
+    concurrency: ExperimentConcurrency,
+    declared: boolean
+  ) => {
+    const tasks = Array.from({ length: costs.length / 2 }, (_, index) => task(`c${index}`, '1'));
+    const cost = (taskId: string, targetId: string) =>
+      costs[Number(taskId.slice(1)) * 2 + (targetId === 'model-one' ? 0 : 1)] as number;
+    const execute: ExperimentAttemptExecutor = async (input) => {
+      await delay(input.target.id === 'model-two' ? 2 : 1);
+      return passed({
+        requests: 1,
+        cost: { amount: cost(input.task.id, input.target.id), currency: 'USD' },
+      });
+    };
+    if (declared)
+      execute.reserve = (request) => ({
+        requests: 1,
+        cost: { amount: cost(request.task.id, request.target.id), currency: 'USD' },
+      });
+    return runExperiment(
+      manifest({
+        concurrency,
+        tasks,
+        repetitions: 1,
+        seed: undefined,
+        retry_policy: { max_attempts: 1, retry_on: [] },
+        budgets: { max_requests: 1_000, max_cost: { amount: maxCost, currency: 'USD' } },
+      }),
+      { execute_attempt: execute }
+    );
+  };
+
+  test('charges sub-half-micro costs at least one micro-unit, so a concurrent run stops within max_cost', async () => {
+    // Verifier reproduction 3: 0.0000004 USD per attempt with max_cost 0.000001 used to run
+    // 40 of 40 attempts at concurrency 2 and 4 (16× the budget) without any stop.
+    const costs = Array.from({ length: 40 }, () => 0.0000004);
+    const serial = await costRun(costs, 0.000001, 1, false);
+    expect(serial.summaries.overall.passed).toBe(2);
+    expect(serial.stop_reason).toBe('budget_exceeded');
+    for (const declared of [true, false])
+      for (const concurrency of [2, 4] as const) {
+        const label = `declared ${declared} concurrency ${concurrency}`;
+        const result = await costRun(costs, 0.000001, concurrency, declared);
+        expect(result.summaries.overall.passed, label).toBe(1);
+        expect(result.stop_reason, label).toBe('cost_budget_exhausted');
+        expect(result.runtime_exclusions, label).toHaveLength(39);
+        expect(result.summaries.operational.cost?.amount, label).toBeLessThanOrEqual(0.000001);
+      }
+  });
+
+  test('an exactly sufficient cost budget can stop a concurrent run one coordinate early by per-attempt rounding, recorded as budget_exceeded', async () => {
+    // Verifier reproduction 1: each amount is a half micro-unit, so per-attempt rounding charges
+    // 301 + 122 + 601 + 241 = 1265 micro-units against a 1263 limit equal to the exact sum.
+    const costs = [0.0003005, 0.0001215, 0.0006005, 0.0002405];
+    const maxCost = 0.001263;
+    const serial = await costRun(costs, maxCost, 1, false);
+    expect(serial.summaries.overall.passed).toBe(4);
+    expect(serial.stop_reason).toBeUndefined();
+    for (const declared of [true, false])
+      for (const concurrency of [2, 4] as const) {
+        const label = `declared ${declared} concurrency ${concurrency}`;
+        const result = await costRun(costs, maxCost, concurrency, declared);
+        expect(result.summaries.overall.passed, label).toBe(3);
+        expect(result.stop_reason, label).toBe('budget_exceeded');
+        expect(
+          result.results.filter((item) => item.completion_code === 'budget_exceeded')
+        ).toHaveLength(1);
+        expect(result.summaries.operational.cost?.amount, label).toBeLessThanOrEqual(maxCost);
+      }
+  });
+
   test('treats a demand as a reservation: over-declared work completes, impossible demand runs alone', async () => {
     // Verifier reproduction: declares 6 requests, uses 5, max_requests 50, 5 tasks × 2 targets.
     const tasks = ['t1', 't2', 't3', 't4', 't5'].map((id, index) => task(id, String(index)));

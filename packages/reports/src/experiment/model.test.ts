@@ -666,6 +666,98 @@ describe('concurrent experiment results', () => {
       }
   });
 
+  /** Concurrent fixture run whose attempt at matrix position `index` costs `costs[index]` USD. */
+  const costRun = (
+    costs: readonly number[],
+    maxCost: number,
+    concurrency: 2 | 4,
+    declared: boolean
+  ) => {
+    const base = experimentManifest();
+    const position = (input: { coordinate: { target_id: string; repetition_index: number } }) =>
+      (input.coordinate.target_id === 'alpha' ? 0 : costs.length / 2) +
+      input.coordinate.repetition_index -
+      1;
+    const execute = Object.assign(
+      async (input: {
+        coordinate: {
+          task_kind: 'scenario_evaluation' | 'agent_workflow';
+          target_id: string;
+          repetition_index: number;
+        };
+      }) => ({
+        status: 'passed' as const,
+        usage: { requests: 1, cost: { amount: costs[position(input)] as number, currency: 'USD' } },
+        evidence: {
+          kind: input.coordinate.task_kind,
+          availability: 'available' as const,
+          artifact: {
+            schema_version: '1' as const,
+            algorithm: 'sha256' as const,
+            digest: 'c'.repeat(64),
+          },
+        },
+      }),
+      declared
+        ? {
+            reserve: () => ({ requests: 1, cost: { amount: costs[0] as number, currency: 'USD' } }),
+          }
+        : {}
+    );
+    return runExperiment(
+      experimentManifest({
+        tasks: [base.tasks[1]],
+        exclusions: [],
+        repetitions: costs.length / 2,
+        concurrency,
+        retry_policy: { max_attempts: 1, retry_on: [] },
+        budgets: { max_requests: 1_000, max_cost: { amount: maxCost, currency: 'USD' } },
+      }),
+      { execute_attempt: execute }
+    );
+  };
+
+  test('charges sub-half-micro costs at least one micro-unit and rejects a run that spent them free', async () => {
+    // Verifier reproduction 3: 0.0000004 USD per attempt against max_cost 0.000001.
+    const costs = Array.from({ length: 40 }, () => 0.0000004);
+    for (const declared of [true, false])
+      for (const concurrency of [2, 4] as const) {
+        const result = await costRun(costs, 0.000001, concurrency, declared);
+        expect(result.summaries.overall.passed).toBe(1);
+        expect(result.stop_reason).toBe('cost_budget_exhausted');
+        expect(createExperimentReport(result).summary.passed).toBe(1);
+      }
+
+    // The earlier ledger charged nothing, so every attempt received the same 1 micro-unit
+    // grant and all 40 ran. That schedule is no longer one the runner can produce.
+    const free = await costRun(
+      costs.map(() => 0),
+      0.000001,
+      2,
+      false
+    );
+    expect(free.summaries.overall.passed).toBe(40);
+    expect(createExperimentReport(free).summary.passed).toBe(40);
+    const forged = structuredClone(free);
+    for (const attempt of forged.results.flatMap((item) => item.attempts))
+      attempt.usage.cost = { amount: 0.0000004, currency: 'USD' };
+    let spent = 0;
+    for (let index = 0; index < 40; index += 1) spent += 0.0000004;
+    forged.summaries.operational.cost = { amount: spent, currency: 'USD' };
+    expect(() => createExperimentReport(forged)).toThrow(error);
+  });
+
+  test('accepts an exactly sufficient cost budget stopped one coordinate early by per-attempt rounding', async () => {
+    // Verifier reproduction 1: 301 + 122 + 601 + 241 = 1265 micro-units against 1263.
+    const costs = [0.0003005, 0.0001215, 0.0006005, 0.0002405];
+    for (const concurrency of [2, 4] as const) {
+      const result = await costRun(costs, 0.001263, concurrency, false);
+      expect(result.summaries.overall.passed).toBe(3);
+      expect(result.stop_reason).toBe('budget_exceeded');
+      expect(createExperimentReport(result).summary.passed).toBe(3);
+    }
+  });
+
   test('accepts use beyond a reservation that the budget covers, and rejects forged halts', async () => {
     const underDeclared = await underDeclaredConcurrentResult();
     expect(underDeclared.summaries.overall).toMatchObject({ planned: 6, passed: 6 });

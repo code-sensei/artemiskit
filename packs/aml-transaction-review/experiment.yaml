@@ -1,0 +1,122 @@
+# Draft, unreviewed experiment for the aml-transaction-review pack. See README.md before using
+# results; they are not claims until a qualified AML reviewer signs off.
+#
+# Targets are open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint. This is not native Ollama support. Local deployments have no metered
+# cost, so no cost is reported.
+#
+# Generated file: experiment.yaml is written from this template by
+#   bun packs/_tools/generate-experiment.ts packs/aml-transaction-review --language en --policy aml-rulebook-v1
+# Task source paths are relative to this directory (packs/aml-transaction-review/).
+# Identities (recomputed by pack.test.ts):
+#   task digest     = SHA-256 of the exact task file bytes
+#   workload digest = SHA-256 of JSON.stringify([[path, digest], ...]) sorted by path
+#   rubric digest   = SHA-256 of RUBRIC.md
+# Task `policy` names the synthetic rulebook the task is scored against (SYN-AML v1.0).
+schema_version: '1'
+id: aml-transaction-review-draft
+mode: fixture
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 69eda97ce1e77157bb839f9a4dff4d396095c773085c6a6d1c7e044f12cfd20f
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 22852ae2326f29b254297bfe580502d7a8bbb4172e5015e5ef8f4904429cc692
+tasks:
+  - id: aml-01-cash-structuring
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-01-cash-structuring.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: cca83ccecd61d4631543479c0f88c88141f0e08b9cab67e1fec87bedde6b6b2a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-02-pass-through
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-02-pass-through.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 19dedcec2b094032998250bd7c46cc4d1388e2a936e2aa366a391dc5fc1e98c1
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-03-pep-and-cdd
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-03-pep-and-cdd.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5948f7a28f0de144b2ef4d12d9f7eebb0e0f9792d26c002b2a3a9cf8626444ef
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-04-tipping-off-and-minimisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-04-tipping-off-and-minimisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2f2366218992aeb14f2f0f91b7b4a32b1b26506716c2fc2ec03b6e7d91c58d35
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+targets:
+  - id: qwen3.5-4b-local
+    provider: openai
+    model: qwen3.5:4b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-local
+    provider: openai
+    model: qwen3.5:9b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 15 cases x 2 targets x 3 repetitions = 90 requests; at most 180 with one retry each.
+# max_tokens allows 6,000 tokens per request (prompt, reasoning and answer).
+budgets:
+  max_requests: 180
+  max_tokens: 1080000

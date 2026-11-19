@@ -204,3 +204,25 @@ describe('experiment report generator options', () => {
     expect(called).toBe(0);
   });
 });
+
+describe('target generation settings in rendered views', () => {
+  test('appear in the technical and comprehensive views but not the executive view', async () => {
+    const result = await mixedExperimentResult();
+    // Markdown cells escape punctuation as numeric character references.
+    const label = {
+      html: 'generation: alpha',
+      markdown: 'generation&#58; alpha',
+    };
+    const settings = {
+      html: 'temperature 0; seeds 40-41 by repetition',
+      markdown: 'temperature 0; seeds 40&#45;41 by repetition',
+    };
+    for (const format of ['html', 'markdown'] as const) {
+      const render = (view: ExperimentReportView) =>
+        generateExperimentReport(result, { view, format });
+      expect(render('technical')).toContain(label[format]);
+      expect(render('comprehensive')).toContain(settings[format]);
+      expect(render('executive')).not.toContain(label[format]);
+    }
+  });
+});

@@ -174,7 +174,24 @@ async function checkTask(root: string, task: ExperimentTask): Promise<Experiment
   };
 }
 
+/** Values accepted for a target's `settings.reasoning_effort`. */
+export const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'] as const;
+
+export function isReasoningEffort(value: unknown): value is (typeof REASONING_EFFORTS)[number] {
+  return typeof value === 'string' && (REASONING_EFFORTS as readonly string[]).includes(value);
+}
+
 function checkTarget(target: ExperimentTarget): ExperimentCheck {
+  const effort = target.settings?.reasoning_effort;
+  if (effort !== undefined && !isReasoningEffort(effort)) {
+    return {
+      subject: 'target',
+      id: target.id,
+      status: 'error',
+      code: 'invalid_reasoning_effort',
+      message: `settings.reasoning_effort must be one of ${REASONING_EFFORTS.join(', ')}`,
+    };
+  }
   if (target.deployment?.cost_basis !== 'not_applicable') {
     return {
       subject: 'target',

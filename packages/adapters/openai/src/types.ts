@@ -2,6 +2,9 @@
  * OpenAI adapter types
  */
 
+/** Values accepted for `reasoning_effort`; `none` turns thinking off on servers that support it. */
+export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high';
+
 export interface OpenAIAdapterConfig {
   provider: 'openai';
   apiKey?: string;
@@ -10,6 +13,8 @@ export interface OpenAIAdapterConfig {
   timeout?: number;
   maxRetries?: number;
   organization?: string;
+  /** Opt-in `reasoning_effort` sent with every chat completion; omitted when unset. */
+  reasoningEffort?: OpenAIReasoningEffort;
 }
 
 export interface AzureOpenAIAdapterConfig {

@@ -166,6 +166,8 @@ export interface BaseAdapterConfig {
 export interface OpenAIAdapterConfig extends BaseAdapterConfig {
   provider: 'openai';
   organization?: string;
+  /** Opt-in `reasoning_effort`; `none` turns thinking off on servers that support it. */
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
 }
 
 /**

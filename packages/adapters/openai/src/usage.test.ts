@@ -69,3 +69,50 @@ describe('OpenAIAdapter usage availability', () => {
     expect(result.usageAvailable).toBe(false);
   });
 });
+
+describe('OpenAIAdapter reasoning effort', () => {
+  /** Loopback stub that records each request body. */
+  function recordingAdapter(reasoningEffort?: 'none' | 'medium') {
+    const bodies: Record<string, unknown>[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      fetch: async (request) => {
+        bodies.push((await request.json()) as Record<string, unknown>);
+        return Response.json({
+          id: 'reasoning-fixture',
+          object: 'chat.completion',
+          created: 0,
+          model: 'fixture-model',
+          choices: [
+            { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'ok' } },
+          ],
+        });
+      },
+    });
+    servers.push(server);
+    const adapter = new OpenAIAdapter({
+      provider: 'openai',
+      apiKey: 'test-placeholder',
+      baseUrl: `http://127.0.0.1:${server.port}/v1`,
+      maxRetries: 0,
+      ...(reasoningEffort ? { reasoningEffort } : {}),
+    });
+    return { adapter, bodies };
+  }
+
+  test('omits reasoning_effort unless configured', async () => {
+    const { adapter, bodies } = recordingAdapter();
+    await adapter.generate({ prompt: 'hi', model: 'fixture-model' });
+    expect(bodies[0]).not.toHaveProperty('reasoning_effort');
+  });
+
+  test.each(['none', 'medium'] as const)(
+    'sends reasoning_effort %s when configured',
+    async (effort) => {
+      const { adapter, bodies } = recordingAdapter(effort);
+      await adapter.generate({ prompt: 'hi', model: 'fixture-model' });
+      expect(bodies[0].reasoning_effort).toBe(effort);
+    }
+  );
+});

@@ -12,6 +12,7 @@ import type {
 } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
+import type { ReasoningEffort } from 'openai/resources/shared';
 import type { AzureOpenAIAdapterConfig, OpenAIAdapterConfig } from './types';
 
 /**
@@ -98,6 +99,7 @@ export class OpenAIAdapter implements ModelClient {
         stop: options.stop,
         tools: options.tools,
         response_format: options.responseFormat,
+        ...this.reasoningParams(),
       },
       {
         signal: options.signal,
@@ -222,6 +224,16 @@ export class OpenAIAdapter implements ModelClient {
       }
       return { role: m.role as 'system' | 'user' | 'assistant', content: m.content };
     });
+  }
+
+  /**
+   * `reasoning_effort` only when configured. The SDK's type predates `none` (accepted by
+   * OpenAI-compatible servers such as Ollama to disable thinking), hence the widening cast.
+   */
+  private reasoningParams(): { reasoning_effort?: ReasoningEffort } {
+    if (this.config.provider !== 'openai') return {};
+    const effort = (this.config as OpenAIAdapterConfig).reasoningEffort;
+    return effort === undefined ? {} : { reasoning_effort: effort as unknown as ReasoningEffort };
   }
 
   private mapFinishReason(reason: string | null): GenerateResult['finishReason'] {

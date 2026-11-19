@@ -41,7 +41,11 @@ import {
   type ExperimentRunStatus,
   experimentRunStatus,
 } from './experiment-summary';
-import { type ExperimentValidation, validateExperimentFile } from './experiment-validation';
+import {
+  type ExperimentValidation,
+  isReasoningEffort,
+  validateExperimentFile,
+} from './experiment-validation';
 
 export { ExperimentSurfaceError } from './experiment-files';
 export {
@@ -294,7 +298,16 @@ async function bindLiveClient(
       ? (configured.apiKey ?? LOCAL_ENDPOINT_PLACEHOLDER_API_KEY)
       : configured.apiKey,
     maxRetries: 0,
+    ...reasoningEffortConfig(target),
   } as AdapterConfig);
+}
+
+/** Map a target's declared `settings.reasoning_effort` onto the adapter option. */
+function reasoningEffortConfig(target: ExperimentTarget): { reasoningEffort?: string } {
+  const effort = target.settings?.reasoning_effort;
+  if (effort === undefined) return {};
+  if (!isReasoningEffort(effort)) throw new Error('invalid_reasoning_effort');
+  return { reasoningEffort: effort };
 }
 
 export interface ReportExperimentResultOptions {

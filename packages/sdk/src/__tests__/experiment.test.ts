@@ -127,6 +127,21 @@ describe('validateExperimentFile', () => {
     expect(JSON.stringify(validation.checks)).not.toContain('models.example.com');
   });
 
+  test('rejects an unknown reasoning_effort target setting', async () => {
+    const fixture = await writeExperimentFixture({
+      target: (target) =>
+        target.id === 'qwen-small'
+          ? { ...target, settings: { ...target.settings, reasoning_effort: 'maximum' } }
+          : target,
+    });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.checks.find((check) => check.id === 'qwen-small')?.code).toBe(
+      'invalid_reasoning_effort'
+    );
+  });
+
   test('distinguishes an unreadable file (1) from an invalid manifest (2)', async () => {
     const fixture = await writeExperimentFixture({ overrides: { concurrency: 4 } });
     const missing = await validateExperimentFile(path.join(fixture.directory, 'absent.yaml'));

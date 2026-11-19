@@ -266,6 +266,7 @@ export async function runExperimentFile(
     execute_attempt: executor,
     ...(live ? { live_authorization: pickAuthorization(options.liveAuthorization) } : {}),
   });
+  sortEvidence(evidence, result);
   const resultPath = await saveExperimentResult(outputDir, result);
   const status = experimentRunStatus(result);
   return {
@@ -306,6 +307,21 @@ function pickAuthorization(value: ExperimentLiveAuthorization | undefined) {
       ? {}
       : { approved_concurrency: authorization.approved_concurrency }),
   };
+}
+
+/**
+ * Concurrent attempts save evidence in completion order; list it in matrix order, then by
+ * attempt number, so the evidence index is deterministic.
+ */
+function sortEvidence(evidence: ExperimentEvidenceFile[], result: ExperimentRunResult): void {
+  const order = new Map(
+    result.results.map((item, index) => [item.coordinate.coordinate_id, index])
+  );
+  const position = (item: ExperimentEvidenceFile) =>
+    order.get(item.coordinate_id) ?? Number.MAX_SAFE_INTEGER;
+  evidence.sort(
+    (left, right) => position(left) - position(right) || left.attempt_number - right.attempt_number
+  );
 }
 
 /**

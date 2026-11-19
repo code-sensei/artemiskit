@@ -816,7 +816,7 @@ describe('runExperimentFile (concurrent live mode)', () => {
     }
   });
 
-  test('runs with an approved concurrency and records it', async () => {
+  test('runs with an approved concurrency, records it and lists evidence in matrix order', async () => {
     const fixture = await concurrentLive();
     const calls: string[] = [];
     const base = inMemoryClient('Fixture response, Abuja', calls);
@@ -850,6 +850,9 @@ describe('runExperimentFile (concurrent live mode)', () => {
     expect(result.live_authorization?.approved_concurrency).toBe(2);
     expect(result.execution?.peak_in_flight).toBe(2);
     expect(calls[0]).toBe('qwen-large');
+    expect(outcome.evidence.map((item) => item.coordinate_id)).toEqual(
+      result.results.map((item) => item.coordinate.coordinate_id)
+    );
   });
 });
 

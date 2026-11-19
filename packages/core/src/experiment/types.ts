@@ -106,9 +106,18 @@ export type ExperimentStopReason =
   | 'usage_invalid'
   | 'budget_exceeded';
 
+/**
+ * Maximum number of matrix coordinates in flight at once (integer 1..8). Attempts of one
+ * coordinate always run serially; `1` is fully serial execution.
+ */
+export type ExperimentConcurrency = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
 export interface ExperimentLiveControls {
-  /** V1 executes serially; the explicit ceiling prevents accidental parallel live calls. */
-  concurrency_ceiling: 1;
+  /**
+   * Host-approved upper bound on parallel live coordinates (integer 1..8). The manifest's
+   * `concurrency` must not exceed it, so parallel live calls are always an explicit decision.
+   */
+  concurrency_ceiling: ExperimentConcurrency;
   stop_conditions: ExperimentStopReason[];
 }
 
@@ -120,8 +129,11 @@ export interface ExperimentManifest {
   tasks: ExperimentTask[];
   targets: ExperimentTarget[];
   repetitions: number;
-  /** V1 supports deterministic serial execution only. */
-  concurrency: 1;
+  /**
+   * Coordinates allowed in flight at once. `1` keeps deterministic serial execution; larger
+   * values admit attempts under the fair-share budget rule documented on `runExperiment`.
+   */
+  concurrency: ExperimentConcurrency;
   seed?: ExperimentSeed;
   exclusions: ExperimentExclusion[];
   retry_policy: ExperimentRetryPolicy;

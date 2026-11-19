@@ -26,6 +26,7 @@ export type {
   ExperimentComparisonReasonCode,
   ExperimentComparisonStatus,
   ExperimentCompatibility,
+  ExperimentConcurrency,
   ExperimentCostLimit,
   ExperimentCoordinate,
   ExperimentCoordinateResult,

@@ -150,8 +150,7 @@ describe('parseExperimentManifest', () => {
     ).toThrow('task source kind must match task kind');
   });
 
-  test('validates serial concurrency, seed semantics, and non-overlapping exclusions', () => {
-    expect(() => parseExperimentManifest({ ...MANIFEST, concurrency: 2 })).toThrow();
+  test('validates seed semantics and non-overlapping exclusions', () => {
     expect(() =>
       parseExperimentManifest({
         ...MANIFEST,
@@ -182,6 +181,58 @@ describe('parseExperimentManifest', () => {
         ],
       })
     ).toThrow('exclusions must not overlap');
+  });
+
+  test('bounds concurrency to an integer from 1 to 8', () => {
+    for (const concurrency of [1, 2, 5, 8] as const) {
+      expect(parseExperimentManifest({ ...MANIFEST, concurrency }).concurrency).toBe(concurrency);
+    }
+    for (const concurrency of [0, -1, 9, 1.5, Number.NaN, '2', null]) {
+      expect(() =>
+        parseExperimentManifest({ ...MANIFEST, concurrency } as unknown as ExperimentManifest)
+      ).toThrow();
+    }
+  });
+
+  test('requires the live concurrency ceiling to cover the declared concurrency', () => {
+    const live = {
+      ...MANIFEST,
+      mode: 'live' as const,
+      budgets: {
+        max_requests: 24,
+        max_tokens: 50_000,
+        max_cost: { amount: 5, currency: 'USD' },
+      },
+    };
+    expect(
+      parseExperimentManifest({
+        ...live,
+        concurrency: 4,
+        live: { ...LIVE_CONTROLS, concurrency_ceiling: 4 },
+      }).live?.concurrency_ceiling
+    ).toBe(4);
+    expect(
+      parseExperimentManifest({
+        ...live,
+        concurrency: 2,
+        live: { ...LIVE_CONTROLS, concurrency_ceiling: 8 },
+      }).concurrency
+    ).toBe(2);
+    expect(() =>
+      parseExperimentManifest({
+        ...live,
+        concurrency: 4,
+        live: { ...LIVE_CONTROLS, concurrency_ceiling: 2 },
+      })
+    ).toThrow('concurrency must not exceed the live concurrency ceiling');
+    for (const ceiling of [0, 9, 2.5]) {
+      expect(() =>
+        parseExperimentManifest({
+          ...live,
+          live: { ...LIVE_CONTROLS, concurrency_ceiling: ceiling },
+        } as unknown as ExperimentManifest)
+      ).toThrow();
+    }
   });
 
   test('requires request, token, and cost boundaries for live execution', () => {

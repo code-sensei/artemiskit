@@ -8,6 +8,7 @@ const MAX_CAPABILITIES = 32;
 const MAX_SETTINGS = 32;
 const MAX_EXCLUSIONS = 100;
 const MAX_SEED = 4_294_967_295;
+const MAX_CONCURRENCY = 8;
 
 const identifier = z.string().regex(/^[a-z0-9][a-z0-9._:-]{0,63}$/);
 const boundedText = z.string().trim().min(1).max(128);
@@ -191,9 +192,10 @@ const stopReason = z.enum([
   'budget_exceeded',
 ]);
 const requiredStopReasons = stopReason.options;
+const concurrency = z.number().int().min(1).max(MAX_CONCURRENCY);
 const liveControls = z
   .object({
-    concurrency_ceiling: z.literal(1),
+    concurrency_ceiling: concurrency,
     stop_conditions: z
       .array(stopReason)
       .length(requiredStopReasons.length)
@@ -213,7 +215,7 @@ const manifest = z
     tasks: z.array(task).min(1).max(MAX_TASKS),
     targets: z.array(target).min(2).max(MAX_TARGETS),
     repetitions: z.number().int().min(1).max(100),
-    concurrency: z.literal(1),
+    concurrency,
     seed: seed.optional(),
     exclusions: z.array(exclusion).max(MAX_EXCLUSIONS),
     retry_policy: retryPolicy,
@@ -324,6 +326,13 @@ const manifest = z
         code: z.ZodIssueCode.custom,
         path: ['live'],
         message: 'live experiments require explicit live execution controls',
+      });
+    }
+    if (value.live !== undefined && value.concurrency > value.live.concurrency_ceiling) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['concurrency'],
+        message: 'concurrency must not exceed the live concurrency ceiling',
       });
     }
     if (value.mode === 'fixture' && value.live !== undefined) {

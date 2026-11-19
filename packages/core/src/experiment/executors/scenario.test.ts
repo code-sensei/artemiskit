@@ -21,11 +21,11 @@ import {
   runManifestIdentity,
 } from './scenario';
 
-// Every attempt here runs the real scenario runner, whose run manifest captures git provenance
-// with four synchronous git subprocesses (packages/core/src/provenance/git.ts): about 70 ms
-// per attempt when idle, several times that under full-suite or machine load. Tests with ten
-// or more attempts take 1.5-2 s idle and timed out at the 5 s default under load. This
-// file-scoped timeout keeps them from failing on time alone.
+// Every attempt here runs the real scenario runner. Git provenance is read once per working
+// directory per process (packages/core/src/provenance/git.ts), so only the first run spawns
+// git; the rest of each attempt still slows several-fold under full-suite or machine load, and
+// tests with ten or more attempts timed out at the 5 s default. This file-scoped timeout keeps
+// them from failing on time alone.
 setDefaultTimeout(30_000);
 
 const ANSWER_SCENARIO = `name: fixture-answer

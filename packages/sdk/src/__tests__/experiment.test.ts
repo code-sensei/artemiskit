@@ -29,10 +29,8 @@ import {
   writeExperimentFixture,
 } from './experiment-fixtures';
 
-// Each scenario attempt captures git provenance with synchronous git subprocesses
-// (packages/core/src/provenance/git.ts). Tests with a dozen attempts take about 1-2 s idle and
-// exceeded the 5 s default under machine load; this file-scoped timeout keeps them from
-// failing on time alone.
+// Tests here run up to a dozen real scenario attempts and exceeded the 5 s default with machine
+// load ~31. This file-scoped timeout keeps them from failing on time alone.
 setDefaultTimeout(30_000);
 
 const originalFetch = globalThis.fetch;

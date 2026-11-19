@@ -35,5 +35,5 @@ bun packs/_tools/generate-experiment.ts packs/<pack-id> --language <lang> --poli
 
 Shared checks live in [`_tools/pack-contract.ts`](_tools/pack-contract.ts): every pack must declare
 exactly its task files with matching SHA-256 digests, recompute its workload and rubric identities,
-use only deterministic evaluators, and prove that each case accepts its reference answer and rejects
-every wrong decision.
+use only deterministic evaluators, let every non-required answer key accept null as well as
+omission, and prove that each case accepts its reference answer and rejects every wrong decision.

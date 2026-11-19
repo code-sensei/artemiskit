@@ -364,7 +364,8 @@ describe('strict saved-result validation', () => {
       });
     }
     expect(disguised).toBeGreaterThan(100);
-  });
+    // Rechecks the 960-run core matrix (0.4 s idle); allow for full-suite and machine load.
+  }, 20_000);
 
   test('rejects mutated runner-owned nonterminal codes and normalized evidence pairings', async () => {
     for (const cause of [
@@ -507,7 +508,9 @@ describe('concurrent experiment results', () => {
     for (const reason of ['none', 'request_budget_exhausted', 'budget_exceeded'])
       expect(stops.has(reason)).toBe(true);
     expect(stops.size).toBeGreaterThan(4);
-  });
+    // 150 seeded concurrent runs take about 0.4 s idle but timed out at the 5 s default at
+    // load average 35 (6.4 s); allow for full-suite and machine load.
+  }, 20_000);
 
   test('rejects every random result whose recorded grant is forged', async () => {
     let forged = 0;

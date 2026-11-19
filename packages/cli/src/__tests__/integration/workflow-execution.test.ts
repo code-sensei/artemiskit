@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { mkdtemp, readFile, readdir, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,13 @@ import { buildAgentWorkflow } from '../../commands/agent-workflow';
 
 const cli = fileURLToPath(new URL('../../../bin/artemis.ts', import.meta.url));
 const servers: ReturnType<typeof Bun.serve>[] = [];
+// Each CLI child runs the TypeScript entry point from source: about 0.3-0.5 s on a quiet
+// machine, over 5 s at load averages 30-60. collect() kills a child after this bound, and each
+// test's timeout covers that bound for every child it runs in sequence, so a slow child fails
+// on its own exit evidence rather than a generic test timeout. Tests run one or two children
+// unless they pass a larger timeout.
+const CLI_CHILD_LIMIT_MS = 15_000;
+setDefaultTimeout(2 * CLI_CHILD_LIMIT_MS);
 afterEach(() => {
   for (const server of servers.splice(0)) server.stop(true);
 });
@@ -118,7 +125,7 @@ async function fixture(handler: (body: Body, request: Request) => Response | Pro
       }
     );
   const collect = async (child: ReturnType<typeof spawn>) => {
-    const timer = setTimeout(() => child.kill(), 15000);
+    const timer = setTimeout(() => child.kill(), CLI_CHILD_LIMIT_MS);
     try {
       const [exit, stdout, stderr] = await Promise.all([
         child.exited,
@@ -222,7 +229,8 @@ describe('native workflow CLI boundary', () => {
       expect(f.requests).toHaveLength(1);
       expect(JSON.parse(result.stdout).taskVerification).toBe('unavailable');
     }
-  });
+    // Three sequential CLI children, each bounded by CLI_CHILD_LIMIT_MS.
+  }, 45_000);
   test('preflight only uses challenge protocol, no fixture read or user turns, unavailable state export reported', async () => {
     const f = await fixture((body) => {
       const nonce = body.tools[0].function.parameters.properties.nonce?.const ?? '';
@@ -280,26 +288,35 @@ describe('native workflow CLI boundary', () => {
     expect(await readFile(join(f.directory, 'owned.json'), 'utf8')).toBe('KEEP');
     expect(await readdir(f.directory)).not.toContain('reserved.json');
     expect(f.requests).toHaveLength(0);
-  }, 30_000);
+    // Four sequential CLI children, each bounded by CLI_CHILD_LIMIT_MS.
+  }, 60_000);
   test('timeout and SIGINT save interrupted metadata and do not retry provider calls', async () => {
     for (const cancellation of [false, true]) {
       let requested!: () => void;
       const seen = new Promise<void>((done) => {
         requested = done;
       });
+      // Hold the provider response until the child has exited, so the deadline or SIGINT always
+      // lands while the request is in flight however slowly a loaded child handles either.
+      let release!: () => void;
+      const held = new Promise<void>((done) => {
+        release = done;
+      });
       const f = await fixture(async () => {
         requested();
-        await new Promise((done) => setTimeout(done, 800));
+        await held;
         return completion();
       });
       if (!cancellation) {
-        f.workflow.environment.policy.budgets.timeout_ms = 150;
+        // Long enough that a loaded child still sends its request before the deadline.
+        f.workflow.environment.policy.budgets.timeout_ms = 1000;
         await f.saveWorkflow(f.workflow);
       }
       const child = f.spawn('run', 'workflow.yaml', '--output', 'record.json');
-      await seen;
+      await Promise.race([seen, child.exited]);
       if (cancellation) child.kill('SIGINT');
       const result = await f.collect(child);
+      release();
       expect(result.exit).toBe(cancellation ? 130 : 6);
       expect(JSON.parse(await readFile(join(f.directory, 'record.json'), 'utf8')).execution).toBe(
         cancellation ? 'cancelled' : 'timeout'

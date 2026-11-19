@@ -111,5 +111,7 @@ describe('run command', () => {
       requested_model: 'fixture-requested-model',
       observed_models: ['fixture-observed-model'],
     });
-  });
+    // One CLI child from TypeScript source: about 0.5 s on a quiet machine, over 5 s at load
+    // averages 30-60. The child has no kill timer of its own.
+  }, 30_000);
 });

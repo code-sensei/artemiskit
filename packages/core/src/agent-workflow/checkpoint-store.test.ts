@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from 'bun:test';
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -17,6 +25,12 @@ import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type WorkflowCheckpointStore, openWorkflowCheckpointStore } from './checkpoint-store';
+
+// Three tests spawn Node children against a module bundled in beforeAll (each child is killed
+// after 6 s), and refusing an orphaned recovery guard waits for the store's 100 polls 10 ms
+// apart. They take up to 1.2 s on a quiet machine; process start-up, timer and file latency at
+// load averages 30-60 stretch them past the 5 s default.
+setDefaultTimeout(30_000);
 
 const roots: string[] = [];
 const leases: WorkflowCheckpointStore[] = [];

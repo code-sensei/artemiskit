@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { parseExperimentManifest } from './parser';
 import { buildExperimentMatrix, runExperiment } from './runner';
 import type {
@@ -107,6 +107,10 @@ async function yieldTurns(turns: number): Promise<void> {
 
 const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+// Several tests run dozens of full experiments whose attempts each wait on these 1-6 ms timers
+// (up to 0.9 s per test on a quiet machine). Timer latency under load averages 30-60 stretches
+// every wait, which can push a test past the 5 s default.
+setDefaultTimeout(30_000);
 
 /** Event-sorted admission evidence must be the exact permutation 0 .. 2 × attempts − 1. */
 function admissionEvents(result: ExperimentRunResult): number[] {

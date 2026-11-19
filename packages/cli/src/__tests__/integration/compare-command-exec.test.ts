@@ -109,5 +109,7 @@ describe('compare command execution', () => {
     const html = await readFile(htmlPath, 'utf8');
     expect(html).toContain('Run comparison unavailable');
     expect(html).not.toContain('Metrics Overview');
-  });
+    // One CLI child from TypeScript source: about 0.3 s on a quiet machine, over 5 s at load
+    // averages 30-60. The child has no kill timer of its own.
+  }, 30_000);
 });

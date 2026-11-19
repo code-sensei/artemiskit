@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -30,8 +30,15 @@ function completion(text: string, usage = true) {
     ...(usage ? { usage: { prompt_tokens: 3, completion_tokens: 1, total_tokens: 4 } } : {}),
   });
 }
+// Each CLI child runs the TypeScript entry point from source: about 0.5 s on a quiet machine,
+// over 5 s at load averages 30-60. collect() kills a child after this bound, and each test's
+// timeout covers that bound for every child it runs in sequence, so a slow child fails on its
+// own exit evidence rather than a generic test timeout. Tests run one or two children unless
+// they pass a larger timeout.
+const CLI_CHILD_LIMIT_MS = 15_000;
+setDefaultTimeout(2 * CLI_CHILD_LIMIT_MS);
 async function collect(child: ReturnType<typeof Bun.spawn>) {
-  const timer = setTimeout(() => child.kill(), 15000);
+  const timer = setTimeout(() => child.kill(), CLI_CHILD_LIMIT_MS);
   try {
     const [exit, stdout, stderr] = await Promise.all([
       child.exited,
@@ -173,7 +180,8 @@ describe('workflow outcome CLI composition', () => {
       expect(f.judgeRequests).toHaveLength(1);
       expect(result.stdout + result.stderr).not.toContain('PRIVATE-');
     }
-  }, 15000);
+    // Four sequential CLI children, each bounded by CLI_CHILD_LIMIT_MS.
+  }, 60_000);
   test('no flag never authorizes a judge, even if default target config includes judge settings', async () => {
     const f = await fixture();
     await writeFile(
@@ -246,7 +254,9 @@ describe('workflow outcome CLI composition', () => {
     expect((await f.run('--judge-config', '   ')).exit).toBe(2);
     expect(f.targetRequests).toHaveLength(0);
     expect(f.judgeRequests).toHaveLength(0);
-  }, 30000);
+    // Fourteen sequential CLI children (about 7 s on a quiet machine), each bounded by
+    // CLI_CHILD_LIMIT_MS.
+  }, 210_000);
   test('preflight rejects the judge flag without initializing either model', async () => {
     const f = await fixture();
     const result = await collect(

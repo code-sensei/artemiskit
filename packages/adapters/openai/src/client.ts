@@ -10,6 +10,7 @@ import type {
   ModelCapabilities,
   ModelClient,
 } from '@artemiskit/core';
+import { isLoopbackEndpoint } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
 import type { ReasoningEffort } from 'openai/resources/shared';
@@ -26,10 +27,17 @@ export class OpenAIAdapter implements ModelClient {
   private client: OpenAI;
   private embeddingClient: OpenAI | null = null;
   private config: OpenAIAdapterConfig | AzureOpenAIAdapterConfig;
+  /** True when `baseUrl` points at this machine (e.g. local Ollama); see tokenLimitParams. */
+  private readonly isLoopbackTarget: boolean;
   readonly provider: string;
 
   constructor(config: AdapterConfig) {
     this.config = config as OpenAIAdapterConfig | AzureOpenAIAdapterConfig;
+    const baseUrl = (config as OpenAIAdapterConfig).baseUrl;
+    this.isLoopbackTarget =
+      config.provider !== 'azure-openai' &&
+      typeof baseUrl === 'string' &&
+      isLoopbackEndpoint(baseUrl);
 
     if (config.provider === 'azure-openai') {
       const azureConfig = config as AzureOpenAIAdapterConfig;
@@ -78,15 +86,7 @@ export class OpenAIAdapter implements ModelClient {
 
     const messages = this.normalizePrompt(options.prompt);
 
-    // Determine which token limit parameter to use
-    // Newer models (GPT-4o, GPT-5, o1, o3) use max_completion_tokens
-    // Older models use max_tokens
-    const useNewTokenParam = this.shouldUseMaxCompletionTokens(model);
-    const tokenParams = options.maxTokens
-      ? useNewTokenParam
-        ? { max_completion_tokens: options.maxTokens }
-        : { max_tokens: options.maxTokens }
-      : {};
+    const tokenParams = this.tokenLimitParams(model, options.maxTokens);
 
     const response = await this.client.chat.completions.create(
       {
@@ -147,13 +147,7 @@ export class OpenAIAdapter implements ModelClient {
     const model = options.model || this.config.defaultModel || 'gpt-4';
     const messages = this.normalizePrompt(options.prompt);
 
-    // Determine which token limit parameter to use (same logic as generate)
-    const useNewTokenParam = this.shouldUseMaxCompletionTokens(model);
-    const tokenParams = options.maxTokens
-      ? useNewTokenParam
-        ? { max_completion_tokens: options.maxTokens }
-        : { max_tokens: options.maxTokens }
-      : {};
+    const tokenParams = this.tokenLimitParams(model, options.maxTokens);
 
     const stream = await this.client.chat.completions.create({
       model,
@@ -250,6 +244,25 @@ export class OpenAIAdapter implements ModelClient {
       default:
         return 'stop';
     }
+  }
+
+  /**
+   * The token limit field for this request, or nothing when no limit was given.
+   *
+   * Loopback endpoints always get `max_tokens`: local OpenAI-compatible servers such as Ollama
+   * ignore `max_completion_tokens`, and local model names (e.g. `ministral-3:8b`, `phi4-mini`)
+   * would otherwise match the OpenAI name patterns below and silently lose the cap. Every other
+   * endpoint (api.openai.com, Azure, remote compatible APIs) keeps the name-based selection.
+   */
+  private tokenLimitParams(
+    model: string,
+    maxTokens: number | undefined
+  ): { max_tokens?: number; max_completion_tokens?: number } {
+    if (!maxTokens) return {};
+    if (!this.isLoopbackTarget && this.shouldUseMaxCompletionTokens(model)) {
+      return { max_completion_tokens: maxTokens };
+    }
+    return { max_tokens: maxTokens };
   }
 
   /**

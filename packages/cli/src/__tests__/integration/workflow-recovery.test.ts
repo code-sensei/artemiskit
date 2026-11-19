@@ -17,7 +17,7 @@ describe('CLI private workflow recovery', () => {
       hostname: '127.0.0.1',
       port: 0,
       async fetch(request) {
-        const body = await request.json();
+        const body = (await request.json()) as { model: string; messages: { role: string }[] };
         requests++;
         const replies = body.messages.filter(
           (message: { role: string }) => message.role === 'tool'

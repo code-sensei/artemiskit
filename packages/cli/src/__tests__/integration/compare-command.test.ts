@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { ArtemisConfigSchema } from '../../config/schema.js';
 import { createStorage } from '../../utils/storage.js';
 import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
@@ -68,12 +69,14 @@ describe('Compare Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const comparison = await storage.compare?.('baseline-001', 'current-001');
+
+      if (!comparison?.delta) throw new Error('expected a comparison with metric deltas');
 
       expect(comparison.baseline.metrics.success_rate).toBe(0.8);
       expect(comparison.current.metrics.success_rate).toBe(1.0);
@@ -123,12 +126,14 @@ describe('Compare Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const comparison = await storage.compare?.('baseline-002', 'current-002');
+
+      if (!comparison?.delta) throw new Error('expected a comparison with metric deltas');
 
       // Success rate dropped by 0.4 (40%)
       expect(comparison.delta.successRate).toBeCloseTo(-0.4, 5);
@@ -161,12 +166,14 @@ describe('Compare Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const comparison = await storage.compare?.('same-001', 'same-001');
+
+      if (!comparison?.delta) throw new Error('expected a comparison with metric deltas');
 
       expect(comparison.delta.successRate).toBe(0);
       expect(comparison.delta.latency).toBe(0);
@@ -195,9 +202,9 @@ describe('Compare Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       await expect(storage.compare?.('non-existent', 'exists-001')).rejects.toThrow();
@@ -225,9 +232,9 @@ describe('Compare Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       await expect(storage.compare?.('exists-002', 'non-existent')).rejects.toThrow();

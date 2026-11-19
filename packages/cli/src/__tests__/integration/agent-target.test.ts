@@ -12,14 +12,14 @@ describe('agent targets through real adapter HTTP transports', () => {
       const bodies: { messages: Record<string, unknown>[]; tools: unknown[]; model: string }[] = [];
       const call = {
         id: 'call-document-1',
-        type: 'function',
+        type: 'function' as const,
         function: { name: 'read_document', arguments: '{"id":"doc-1"}' },
       };
       const server = Bun.serve({
         hostname: '127.0.0.1',
         port: 0,
         async fetch(req) {
-          bodies.push(await req.json());
+          bodies.push((await req.json()) as (typeof bodies)[number]);
           const first = bodies.length === 1;
           return Response.json({
             id: `completion-${bodies.length}`,

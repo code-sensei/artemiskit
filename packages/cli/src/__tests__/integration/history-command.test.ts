@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { ArtemisConfigSchema } from '../../config/schema.js';
 import { createStorage } from '../../utils/storage.js';
 import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
@@ -71,9 +72,9 @@ describe('History Command', () => {
 
       // Create storage and list using basePath
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ limit: 10 });
@@ -124,9 +125,9 @@ describe('History Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ scenario: 'scenario-a', limit: 10 });
@@ -159,9 +160,9 @@ describe('History Command', () => {
       }
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ limit: 3 });
@@ -171,9 +172,9 @@ describe('History Command', () => {
 
     it('should return empty array when no runs exist', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ limit: 10 });
@@ -205,9 +206,9 @@ describe('History Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ limit: 10 });
@@ -238,9 +239,9 @@ describe('History Command', () => {
       );
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const runs = await storage.list({ limit: 10 });

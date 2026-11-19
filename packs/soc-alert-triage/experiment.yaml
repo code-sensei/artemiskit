@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: dec5f7f11ae55c2ea9152134a9de7c0deb5dc02ed1bd956950969a63ef9ffc24
+    digest: 9245381a9e4693b1ef81e6803eef9e6c1011ab03e3a79cb63acf6441f39db989
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -75,6 +75,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
+  - id: soc-05-credential-phishing-link
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-05-credential-phishing-link.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 85364f1c535fbcbcb0d6c861cbb5b74cb721a657744956047cc5761a5aa79098
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-06-session-token-theft
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-06-session-token-theft.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9253b78f6f8632ef2bd1fdc58755a30dc74af32700c0651c68c23a16dc24493a
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-07-mfa-method-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-07-mfa-method-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 13f7525af759720ac5356fec61b4863c7c122b1baf08762b04857cb5230f245f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-08-impossible-travel
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-08-impossible-travel.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: ba7ec4d818f1411741d38949f4aaf7dc8d5b0b7e1ab70a7cebc5af261acb2af2
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-09-credential-stuffing-guessing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-09-credential-stuffing-guessing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 92ae777dfe08e4e941c5ece7d8fcbd5b8221f9027bb3a7657fa569c2add0e4f3
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-10-oauth-consent-abuse
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-10-oauth-consent-abuse.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b46013640c4b5bd176f0f66ce4688962a61bd633aa045c37232d5b49407e42b6
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-11-cloud-access-key-misuse
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-11-cloud-access-key-misuse.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: dcd5011e079cc3caf97a3dfbf58c04c7f6b2de77b6096ca5d827db294b5ba2e0
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-12-cloud-role-escalation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-12-cloud-role-escalation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eca03a1258f32bb015e32a58e0eddf584153f885ee751fb6b5e4b7ac05c16403
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-13-linux-privilege-escalation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-13-linux-privilege-escalation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a3a7325612046dffd80dcf96aac34a672dd0cd110601b3c99a4c3590b181f371
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-14-windows-uac-bypass
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-14-windows-uac-bypass.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bef6ccce7a96035747e132d5f5a3815f6bba3bb169b51f9d219387af7546c5c4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -115,8 +235,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 15 cases x 2 targets x 3 repetitions = 90 requests; at most 180 with one retry each.
+# 55 cases x 2 targets x 3 repetitions = 330 requests; at most 660 with one retry each.
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 180
-  max_tokens: 1080000
+  max_requests: 660
+  max_tokens: 3960000

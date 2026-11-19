@@ -296,19 +296,27 @@ describe('native workflow CLI boundary', () => {
       const seen = new Promise<void>((done) => {
         requested = done;
       });
+      // Hold the provider response until the child has exited, so the deadline or SIGINT always
+      // lands while the request is in flight however slowly a loaded child handles either.
+      let release!: () => void;
+      const held = new Promise<void>((done) => {
+        release = done;
+      });
       const f = await fixture(async () => {
         requested();
-        await new Promise((done) => setTimeout(done, 800));
+        await held;
         return completion();
       });
       if (!cancellation) {
-        f.workflow.environment.policy.budgets.timeout_ms = 150;
+        // Long enough that a loaded child still sends its request before the deadline.
+        f.workflow.environment.policy.budgets.timeout_ms = 1000;
         await f.saveWorkflow(f.workflow);
       }
       const child = f.spawn('run', 'workflow.yaml', '--output', 'record.json');
-      await seen;
+      await Promise.race([seen, child.exited]);
       if (cancellation) child.kill('SIGINT');
       const result = await f.collect(child);
+      release();
       expect(result.exit).toBe(cancellation ? 130 : 6);
       expect(JSON.parse(await readFile(join(f.directory, 'record.json'), 'utf8')).execution).toBe(
         cancellation ? 'cancelled' : 'timeout'

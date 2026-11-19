@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: ad651ce17f31c51d1df2d1755f71321880c433b76f30b725e1c262aa5deb2b35
+    digest: 74661dbd4489bb0b0ff524cb3ff76756f6da064e84ece5779a54c355c00780f5
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -527,7 +527,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 9adc389556cb03593f5049822683e7e13c9a93f2f14beb7574a7bbd4e3602c41
+        digest: 687358197efa83bb6896a57b838edada7a89637c2583e2f041a998e3fc5fcd4c
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1

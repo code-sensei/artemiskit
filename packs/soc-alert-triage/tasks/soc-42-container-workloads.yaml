@@ -94,7 +94,7 @@ cases:
       Host: BUILD-07. The container API on port 2375 was reachable from the internet after a
       firewall change last week.
       03:00 UTC API call from 198.51.100.111 creates container "sysupdate" from image
-      docker.io/xm-r1g/alpine-x:latest; process xmrig uses 100% of 32 cores and connects to
+      hub.registry.example/xm-r1g/alpine-x:latest; process xmrig uses 100% of 32 cores and connects to
       pool.mine-hub.example:3333. Builds on BUILD-07 are failing on timeouts.
       No change or test record covers this activity.
     expected:
@@ -202,7 +202,7 @@ cases:
     tags: [hard:insufficient-information]
     prompt: |
       ALERT (synthetic) SOC-ALRT-24203 - Cloud workload: sustained CPU in unlabelled pod
-      Cluster: apps-prod. Namespace: tools. Pod: helper-5d8b, image docker.io/library-utils/
+      Cluster: apps-prod. Namespace: tools. Pod: helper-5d8b, image hub.registry.example/library-utils/
       helper:latest (public, no signature), created 3 days ago by a deploy token shared by
       several teams. CPU at 95% since creation.
       Network policy logging is not enabled for the tools namespace, so destinations are unknown.

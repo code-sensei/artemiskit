@@ -190,6 +190,13 @@ export interface ExperimentFileRunOutcome {
  *
  * Refusals (`invalid`, `unauthorized`) return before any client is created or any attempt runs.
  * Output and persistence failures throw `ExperimentSurfaceError` (exit code 1).
+ *
+ * A target's generation settings (`temperature`, `top_p`, `presence_penalty`,
+ * `max_output_tokens`) replace each task's own values for that target's requests, and every
+ * request carries the coordinate's seed. `llm_grader` and embedding requests keep their own
+ * sampling and output length. `reasoning_effort` is adapter configuration, so it also applies to
+ * `llm_grader` requests made through the target's client. Each saved run manifest records the
+ * values sent in `resolved_config`.
  */
 export async function runExperimentFile(
   options: RunExperimentFileOptions

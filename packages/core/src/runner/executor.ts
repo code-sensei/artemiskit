@@ -217,7 +217,14 @@ async function executeCaseAttempt(
   context: ExecutorContext,
   timeout?: number
 ): Promise<CaseResult> {
-  const { client, scenario, requestedModel, redaction: cliRedaction, toolExecutor } = context;
+  const {
+    client,
+    scenario,
+    requestedModel,
+    generation,
+    redaction: cliRedaction,
+    toolExecutor,
+  } = context;
 
   // Merge scenario-level and case-level variables (case overrides scenario)
   const variables = mergeVariables(scenario.variables, testCase.variables);
@@ -246,8 +253,12 @@ async function executeCaseAttempt(
     client.generate({
       prompt: loopPrompt,
       model: testCase.model || requestedModel || scenario.model,
-      temperature: scenario.temperature,
-      maxTokens: scenario.maxTokens,
+      temperature: generation?.temperature ?? scenario.temperature,
+      maxTokens: generation?.maxTokens ?? scenario.maxTokens,
+      ...(generation?.topP !== undefined ? { topP: generation.topP } : {}),
+      ...(generation?.presencePenalty !== undefined
+        ? { presencePenalty: generation.presencePenalty }
+        : {}),
       seed: scenario.seed,
       tools,
       ...(signal ? { signal } : {}),

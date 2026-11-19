@@ -7,6 +7,7 @@ import type { CaseResult, CostProvenance, ResolvedConfig, RunManifest } from '..
 import type { RedactionConfig } from '../redaction/types';
 import type { Scenario } from '../scenario/schema';
 import type { ToolExecutor } from '../tools';
+import type { GenerationOverrides } from './generation';
 
 /**
  * Options for running a scenario
@@ -32,6 +33,11 @@ export interface RunOptions {
   repetition?: { index: number; total: number };
   /** Attested or operator-supplied monetary evidence; omitted means unavailable. */
   costProvenance?: CostProvenance;
+  /**
+   * Generation values that replace the scenario's own for target requests. Evaluator
+   * (`llm_grader`) and embedding requests keep their own settings.
+   */
+  generation?: GenerationOverrides;
   /** Redaction configuration (CLI overrides scenario) */
   redaction?: RedactionConfig;
   /** SDK-only executor for explicitly supplied real tools. */
@@ -66,6 +72,8 @@ export interface ExecutorContext {
   retries?: number;
   runId?: string;
   repetition?: { index: number; total: number };
+  /** Generation values that replace the scenario's own for target requests only. */
+  generation?: GenerationOverrides;
   /** Redaction configuration for this execution */
   redaction?: RedactionConfig;
   toolExecutor?: ToolExecutor;

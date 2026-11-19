@@ -25,6 +25,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     retries,
     repetition = { index: 1, total: 1 },
     costProvenance,
+    generation,
     redaction,
     toolExecutor,
     onCaseComplete,
@@ -60,6 +61,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
         retries: testCase.retries ?? retries,
         runId,
         repetition,
+        generation,
         redaction,
         toolExecutor,
       });
@@ -82,6 +84,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
             retries: testCase.retries ?? retries,
             runId,
             repetition,
+            generation,
             redaction,
             toolExecutor,
           });
@@ -120,6 +123,11 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     };
   }
 
+  // Record the values target requests carried: target overrides first, then the scenario's.
+  const temperature =
+    generation?.temperature ?? resolvedConfig?.temperature ?? scenario.temperature;
+  const maxTokens = generation?.maxTokens ?? resolvedConfig?.max_tokens ?? scenario.maxTokens;
+
   // Create manifest
   const manifest = createRunManifest({
     project,
@@ -127,7 +135,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       scenario: scenario.name,
       provider: client.provider,
       model: resolvedConfig?.model || scenario.model,
-      temperature: resolvedConfig?.temperature ?? scenario.temperature,
+      temperature,
       seed: scenario.seed,
     },
     resolvedConfig,
@@ -135,8 +143,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     executionProvenance: createExecutionProvenance({
       provider: client.provider,
       requestedModel: resolvedConfig?.model || scenario.model,
-      temperature: resolvedConfig?.temperature ?? scenario.temperature,
-      maxTokens: resolvedConfig?.max_tokens ?? scenario.maxTokens,
+      temperature,
+      maxTokens,
       seed: scenario.seed,
       cases: results,
     }),

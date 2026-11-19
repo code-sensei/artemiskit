@@ -2,7 +2,7 @@
  * Tests for LangChain adapter
  */
 
-import { describe, expect, it, mock, spyOn } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { LangChainAdapter, createLangChainAdapter } from './client';
 import type { LangChainRunnable, LangChainRunnableOutput } from './types';
 
@@ -27,7 +27,7 @@ function createMockRunnable(
   };
 
   if (options?.supportsStreaming) {
-    runnable.stream = mock(async function* (input) {
+    runnable.stream = mock(async function* () {
       const result = typeof outputOrFn === 'string' ? outputOrFn : 'streamed content';
       for (const char of result) {
         yield { content: char };
@@ -216,7 +216,7 @@ describe('LangChainAdapter', () => {
       const chunks: string[] = [];
       const onChunk = (chunk: string) => chunks.push(chunk);
 
-      for await (const chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
+      for await (const _chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
         // Collect
       }
 
@@ -231,7 +231,7 @@ describe('LangChainAdapter', () => {
       const chunks: string[] = [];
       const onChunk = (chunk: string) => chunks.push(chunk);
 
-      for await (const chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
+      for await (const _chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
         // Collect
       }
 

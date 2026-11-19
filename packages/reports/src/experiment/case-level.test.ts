@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
 import {
+  type ExperimentCaseCounts,
   type ExperimentCaseLevelAvailable,
   type ExperimentCaseLevelSummary,
   listExperimentCaseEvidenceDigests,
@@ -27,7 +28,7 @@ function available(summary: ExperimentCaseLevelSummary): ExperimentCaseLevelAvai
   return summary;
 }
 
-const counts = (values: Partial<Record<string, number | null>>): Record<string, number | null> => ({
+const counts = (values: Partial<ExperimentCaseCounts>): ExperimentCaseCounts => ({
   coordinates: 0,
   coordinatesWithCaseEvidence: 0,
   coordinatesWithoutCaseEvidence: 0,

@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 356360058875b6c23ec0481058620b1037ed3a4f60f895b0d0dfdef12e22b717
+    digest: d360e3688d6fb208b7612964173ad9dde17f34a218cedc3ee6226ea7d57da5f6
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -567,6 +567,90 @@ tasks:
     required_capabilities: []
     language: en-NG
     policy: ng-egov-rulebook-v1
+  - id: egov-46-complaints-officer-conduct
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-46-complaints-officer-conduct.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3134a7c94eef150085c7fce14ba459eee501fcecb4999689d1130462808ee3a3
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-47-appeals-across-services
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-47-appeals-across-services.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f8642a10e37e579cffbac38b2abe18f0cfa0b1efd26fc99641148ece7d69fb21
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-48-appeals-integrity
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-48-appeals-integrity.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d461bb8f423eb6281b6be17c3d463176a8998bd3df726967cea4074767ec3eb7
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-49-vulnerable-applicants
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-49-vulnerable-applicants.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 66766c1d034e7b06db7d262e7195d9f277082dabb3bf62224594e913bbcb8dd2
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-50-identity-across-services
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-50-identity-across-services.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c217eb162feed6631c74b70924589c9baa11e4ea6fdd67b29e01b61702cb0f93
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-51-cross-agency-data-match
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-51-cross-agency-data-match.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: cada93dbdac54ab4d3ac5c5c78e0936fac35c81ab7cf2b4567e76f8a4172378a
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-52-notices-across-services
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-52-notices-across-services.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3665d521ca814323cc3f1bf5d4a42913ad756c535d67245fa24e339899da1ba8
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -607,8 +691,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 159 cases x 2 targets x 3 repetitions x 2 attempts = 1908 requests at most;
+# 183 cases x 2 targets x 3 repetitions x 2 attempts = 2196 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 1908
-  max_tokens: 11448000
+  max_requests: 2196
+  max_tokens: 13176000

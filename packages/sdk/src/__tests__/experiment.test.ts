@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, setDefaultTimeout, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExperimentRunResult, GenerateResult, ModelClient } from '@artemiskit/core';
 import * as realCore from '../../../core/src/index';
@@ -21,7 +21,17 @@ import {
   runExperimentFile,
   validateExperimentFile,
 } from '../index';
-import { LIVE_CONTROLS, LOOPBACK_BASE_URL, writeExperimentFixture } from './experiment-fixtures';
+import {
+  FIXTURE_WORKFLOW,
+  LIVE_CONTROLS,
+  LOOPBACK_BASE_URL,
+  sha256,
+  writeExperimentFixture,
+} from './experiment-fixtures';
+
+// Tests here run up to a dozen real scenario attempts and exceeded the 5 s default with machine
+// load ~31. This file-scoped timeout keeps them from failing on time alone.
+setDefaultTimeout(30_000);
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -399,6 +409,156 @@ describe('runExperimentFile (fixture mode)', () => {
     expect(summary).toContain('cost not applicable (local targets only)');
     expect(summary).toContain('No ranking or winner is implied');
     expect(summary.indexOf('qwen-small')).toBeLessThan(summary.indexOf('qwen-large'));
+  });
+});
+
+/** A mixed fixture whose workflow task source is replaced by `content` (digest kept valid). */
+async function writeWorkflowFixture(
+  content: string,
+  overrides: Record<string, unknown> = {}
+): Promise<Awaited<ReturnType<typeof writeExperimentFixture>>> {
+  const fixture = await writeExperimentFixture({ workflow: true, overrides });
+  await writeFile(path.join(fixture.directory, 'tasks/workflow.yaml'), content);
+  const tasks = fixture.manifest.tasks as Array<{ source: { artifact: { digest: string } } }>;
+  tasks[1].source.artifact.digest = sha256(content);
+  await writeFile(fixture.file, JSON.stringify(fixture.manifest, null, 2));
+  return fixture;
+}
+
+describe('agent_workflow tasks', () => {
+  test('validation parses a workflow source and routes nothing to the network', async () => {
+    const network = forbidNetwork();
+    const fixture = await writeExperimentFixture({ workflow: true });
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(network.calls).toBe(0);
+    expect(validation.valid).toBe(true);
+    expect(validation.checks).toContainEqual({
+      subject: 'task',
+      id: 'workflow',
+      status: 'ok',
+      code: 'source_verified',
+      message:
+        'tasks/workflow.yaml: digest verified; agent workflow parsed (simulated environment, network denied)',
+    });
+    expect(validation.checks.some((check) => check.status === 'warning')).toBe(false);
+  });
+
+  test('validation rejects an invalid workflow without echoing its content', async () => {
+    const fixture = await writeWorkflowFixture(
+      `${FIXTURE_WORKFLOW.replace('network: denied', 'network: allowed')}# secret-marker\n`
+    );
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(false);
+    expect(validation.exitCode).toBe(2);
+    const check = validation.checks.find((item) => item.id === 'workflow');
+    expect(check).toMatchObject({ status: 'error', code: 'workflow_invalid' });
+    expect(JSON.stringify(validation.checks)).not.toContain('secret-marker');
+  });
+
+  test('validation warns about controls the workflow engine cannot honour', async () => {
+    const semantic = FIXTURE_WORKFLOW.replace(
+      'evidence:',
+      `  semantic:
+    - type: llm_judge
+      rubric: Replies.
+      mode: strict_assurance
+evidence:`
+    );
+    const fixture = await writeWorkflowFixture(semantic, {
+      seed: { value: 7, strategy: 'fixed', require_support: false },
+    });
+    const manifest = fixture.manifest as { targets: Array<Record<string, unknown>> };
+    manifest.targets[0].settings = { base_url: LOOPBACK_BASE_URL, top_p: 0.8 };
+    await writeFile(fixture.file, JSON.stringify(manifest, null, 2));
+    const validation = await validateExperimentFile(fixture.file);
+
+    expect(validation.valid).toBe(true);
+    const warnings = validation.checks.filter((check) => check.status === 'warning');
+    expect(warnings.map((check) => [check.code, check.id])).toEqual([
+      ['semantic_judge_unavailable', 'workflow'],
+      ['workflow_seed_unsupported', undefined],
+      ['workflow_setting_unsupported', 'qwen-small'],
+    ]);
+  });
+
+  test('runs one scenario and one workflow task on two targets with zero network calls', async () => {
+    const network = forbidNetwork();
+    const fixture = await writeExperimentFixture({ workflow: true });
+    const outputDir = path.join(fixture.directory, 'out');
+
+    const outcome = await runExperimentFile({ experiment: fixture.file, outputDir });
+
+    expect(network.calls).toBe(0);
+    expect(outcome.status).toBe('complete');
+    expect(outcome.exitCode).toBe(0);
+    const result = outcome.result as ExperimentRunResult;
+    expect(result.summaries.overall).toMatchObject({ planned: 4, valid: 4, passed: 4 });
+    const kinds = result.results.map((item) => [
+      item.coordinate.task_kind,
+      item.coordinate.target_id,
+      item.status,
+    ]);
+    expect(kinds).toEqual([
+      ['scenario_evaluation', 'qwen-small', 'passed'],
+      ['scenario_evaluation', 'qwen-large', 'passed'],
+      ['agent_workflow', 'qwen-small', 'passed'],
+      ['agent_workflow', 'qwen-large', 'passed'],
+    ]);
+
+    expect(outcome.evidence).toHaveLength(4);
+    for (const coordinate of result.results) {
+      const [attempt] = coordinate.attempts;
+      expect(attempt.evidence).toMatchObject({
+        kind: coordinate.coordinate.task_kind,
+        availability: 'available',
+      });
+      const digest = attempt.evidence.availability === 'available' && attempt.evidence.artifact;
+      const file = outcome.evidence.find(
+        (item) => item.coordinate_id === coordinate.coordinate.coordinate_id
+      );
+      expect(file?.sha256).toBe((digest as { digest: string }).digest);
+      const bytes = await readFile(file?.path as string);
+      expect(createHash('sha256').update(bytes).digest('hex')).toBe(file?.sha256 as string);
+      const saved = JSON.parse(bytes.toString('utf8'));
+      if (coordinate.coordinate.task_kind === 'agent_workflow') {
+        expect(saved).toMatchObject({
+          engine: 'native',
+          execution: 'completed',
+          policy: 'passed',
+          taskVerification: 'passed',
+          environment: 'simulated',
+        });
+        expect(saved.configuration.model.display).toBe(
+          coordinate.coordinate.target_id === 'qwen-small' ? 'qwen3.5:4b' : 'qwen3.5:9b'
+        );
+        expect(bytes.toString('utf8')).not.toContain('Fixture brief');
+      }
+    }
+  });
+
+  test('a workflow task whose state fixture is missing is recorded invalid, not run', async () => {
+    forbidNetwork();
+    const declaredState = '  initial_state:\n    documents:\n      brief: Fixture brief.\n';
+    expect(FIXTURE_WORKFLOW).toContain(declaredState);
+    const fixture = await writeWorkflowFixture(
+      FIXTURE_WORKFLOW.replace(declaredState, '  initial_state: missing/state.json\n')
+    );
+    const outcome = await runExperimentFile({
+      experiment: fixture.file,
+      outputDir: path.join(fixture.directory, 'out'),
+    });
+    const result = outcome.result as ExperimentRunResult;
+    const workflow = result.results.filter(
+      (item) => item.coordinate.task_kind === 'agent_workflow'
+    );
+    expect(workflow.map((item) => item.status)).toEqual(['invalid', 'invalid']);
+    expect(workflow[0].attempts[0]).toMatchObject({
+      error_code: 'workflow_fixture_invalid',
+      usage: { requests: 0, tokens: 0 },
+    });
+    expect(outcome.evidence).toHaveLength(2);
   });
 });
 

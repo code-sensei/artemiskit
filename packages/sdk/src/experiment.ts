@@ -10,12 +10,16 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import {
   type AdapterConfig,
+  type ContentIdentity,
+  type ExperimentAttemptExecutor,
   type ExperimentLiveAuthorization,
   type ExperimentRunResult,
   type ExperimentTarget,
+  type ExperimentTaskKind,
   type ModelClient,
   createAdapter,
   createScenarioExperimentExecutor,
+  createWorkflowExperimentExecutor,
   isLoopbackEndpoint,
   runExperiment,
 } from '@artemiskit/core';
@@ -30,8 +34,8 @@ import {
   defaultExperimentOutputDir,
   prepareEmptyDirectory,
   readBoundedText,
+  saveAttemptEvidence,
   saveExperimentResult,
-  saveRunEvidence,
   writeNewFile,
 } from './experiment-files';
 import { createExperimentFixtureClient } from './experiment-fixture';
@@ -64,6 +68,7 @@ export type {
   ExperimentValidation,
 } from './experiment-validation';
 export { createExperimentFixtureClient } from './experiment-fixture';
+export type { ExperimentFixtureClientOptions } from './experiment-fixture';
 
 /**
  * Non-secret API key sent to loopback OpenAI-compatible servers (such as Ollama) that ignore
@@ -172,13 +177,17 @@ export interface RunExperimentFileOptions {
   /** Live mode only: supply your own client per target instead of the built-in adapters. */
   createClient?: (target: ExperimentTarget) => ModelClient | Promise<ModelClient>;
   /**
-   * Per-case model request timeout in milliseconds. Live targets bound through the built-in
-   * adapters also get an HTTP timeout of at least this value.
+   * Per-case model request timeout in milliseconds for scenario tasks. Live targets bound
+   * through the built-in adapters also get an HTTP timeout of at least this value. Workflow
+   * tasks keep their own declared `timeout_ms`.
    */
   timeoutMs?: number;
 }
 
-/** Saved evidence for one executed attempt. */
+/**
+ * Saved evidence for one executed attempt: the scenario run manifest, or the metadata-only
+ * workflow record, as canonical JSON named by its SHA-256.
+ */
 export interface ExperimentEvidenceFile {
   coordinate_id: string;
   attempt_number: number;
@@ -202,6 +211,11 @@ export interface ExperimentFileRunOutcome {
 
 /**
  * Validate, then run an experiment file and save the V1 result plus per-attempt evidence.
+ *
+ * Each task runs through the built-in executor for its kind: `scenario_evaluation` tasks
+ * through the scenario runner and `agent_workflow` tasks through the native workflow engine
+ * (simulated or sandbox environment, network denied). Fixture targets never call a tool, so
+ * fixture workflow outcomes describe the pipeline, never a model.
  *
  * Refusals (`invalid`, `unauthorized`) return before any client is created or any attempt runs.
  * Output and persistence failures throw `ExperimentSurfaceError` (exit code 1).
@@ -245,22 +259,35 @@ export async function runExperimentFile(
   await prepareEmptyDirectory(outputDir);
 
   const evidence: ExperimentEvidenceFile[] = [];
-  const executor = createScenarioExperimentExecutor({
-    root: validation.root,
-    repetitions: manifest.repetitions,
-    timeoutMs: options.timeoutMs,
-    createClient: live
-      ? (target) => bindLiveClient(target, options)
-      : (target) => createExperimentFixtureClient(target),
-    onEvidence: async (record) => {
-      const file = await saveRunEvidence(outputDir, record.manifest, record.artifact.digest);
-      evidence.push({
-        coordinate_id: record.coordinate_id,
-        attempt_number: record.attempt_number,
-        sha256: record.artifact.digest,
-        path: file,
-      });
-    },
+  const saveEvidence = async (
+    attempt: { coordinate_id: string; attempt_number: number; artifact: ContentIdentity },
+    content: unknown
+  ) => {
+    const file = await saveAttemptEvidence(outputDir, content, attempt.artifact.digest);
+    evidence.push({
+      coordinate_id: attempt.coordinate_id,
+      attempt_number: attempt.attempt_number,
+      sha256: attempt.artifact.digest,
+      path: file,
+    });
+  };
+  const executor = routeByTaskKind({
+    scenario_evaluation: createScenarioExperimentExecutor({
+      root: validation.root,
+      repetitions: manifest.repetitions,
+      timeoutMs: options.timeoutMs,
+      createClient: live
+        ? (target) => bindLiveClient(target, options)
+        : (target) => createExperimentFixtureClient(target),
+      onEvidence: (record) => saveEvidence(record, record.manifest),
+    }),
+    agent_workflow: createWorkflowExperimentExecutor({
+      root: validation.root,
+      createClient: live
+        ? (target) => bindLiveClient(target, options)
+        : (target) => createExperimentFixtureClient(target, { toolUse: true }),
+      onEvidence: (record) => saveEvidence(record, record.record),
+    }),
   });
 
   const result = await runExperiment(manifest, {
@@ -279,6 +306,15 @@ export async function runExperimentFile(
     resultPath,
     evidence,
   };
+}
+
+/** One attempt executor that hands each task, and its demand request, to its kind's executor. */
+function routeByTaskKind(
+  executors: Record<ExperimentTaskKind, ExperimentAttemptExecutor>
+): ExperimentAttemptExecutor {
+  const execute: ExperimentAttemptExecutor = (input) => executors[input.task.kind](input);
+  execute.reserve = (request) => executors[request.task.kind].reserve?.(request);
+  return execute;
 }
 
 function refusal(

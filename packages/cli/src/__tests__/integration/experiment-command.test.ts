@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, mock, setDefaultTimeout, test } from 'bun:test';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,11 @@ import {
   LIVE_CONTROLS,
   writeExperimentFixture,
 } from '../../../../sdk/src/__tests__/experiment-fixtures';
+
+// Most tests spawn the CLI two or three times in sequence. Each spawn takes about 1 s idle but
+// several seconds under machine load, which exceeded the 5 s default; every spawn keeps its own
+// 20 s kill timer.
+setDefaultTimeout(30_000);
 
 const cli = fileURLToPath(new URL('../../../bin/artemis.ts', import.meta.url));
 
@@ -150,6 +155,17 @@ describe('akit experiment validate', () => {
     expect(result.stderr).not.toContain('10.0.0.5');
   });
 
+  test('parses an agent workflow task source', async () => {
+    const fixture = await writeExperimentFixture({ workflow: true });
+    const result = await invoke(fixture.directory, ['validate', fixture.file]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      '✓ task workflow: tasks/workflow.yaml: digest verified; agent workflow parsed (simulated environment, network denied)'
+    );
+    expectNoNetworkOrSecrets(result);
+  });
+
   test('exits 1 for an unreadable file', async () => {
     const fixture = await writeExperimentFixture();
     const result = await invoke(fixture.directory, ['validate', 'missing.yaml']);
@@ -191,6 +207,41 @@ describe('akit experiment run', () => {
     expect(result.stdout).toContain(
       `${path.join('two-target-fixture', stamp as string, 'result.json')}\n`
     );
+  });
+
+  test('runs one scenario and one workflow task on two targets offline', async () => {
+    const fixture = await writeExperimentFixture({ workflow: true });
+    const result = await invoke(fixture.directory, [
+      'run',
+      fixture.file,
+      '--output-dir',
+      'cli-out',
+    ]);
+    const sdk = await runExperimentFile({
+      experiment: fixture.file,
+      outputDir: path.join(fixture.directory, 'sdk-out'),
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.code).toBe(sdk.exitCode);
+    expectNoNetworkOrSecrets(result);
+    const outputDir = path.join(fixture.directory, 'cli-out');
+    const saved = JSON.parse(await readFile(path.join(outputDir, 'result.json'), 'utf8'));
+    expect(saved.summaries.overall).toEqual(sdk.result?.summaries.overall);
+    expect(saved.summaries.overall).toMatchObject({ planned: 4, valid: 4, passed: 4 });
+    const workflow = saved.results.filter(
+      (item: { coordinate: { task_kind: string } }) =>
+        item.coordinate.task_kind === 'agent_workflow'
+    );
+    expect(workflow).toHaveLength(2);
+    for (const item of workflow) {
+      const [attempt] = item.attempts;
+      expect(attempt.evidence).toMatchObject({ kind: 'agent_workflow', availability: 'available' });
+      const file = path.join(outputDir, 'evidence', `${attempt.evidence.artifact.digest}.json`);
+      const record = JSON.parse(await readFile(file, 'utf8'));
+      expect(record).toMatchObject({ engine: 'native', taskVerification: 'passed' });
+    }
+    expect(await readdir(path.join(outputDir, 'evidence'))).toHaveLength(4);
   });
 
   test('coverage-incomplete exit code matches the SDK', async () => {

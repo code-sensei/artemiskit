@@ -14,6 +14,7 @@ import {
   type GenerationSettingKey,
   isGenerationSettingKey,
   isLoopbackEndpoint,
+  parseAgentWorkflow,
   parseExperimentManifest,
   readGenerationSettings,
   validateScenario,
@@ -59,7 +60,8 @@ export const LOOPBACK_REQUIRED_MESSAGE =
  * Validate an experiment file without contacting any model or network endpoint.
  *
  * Checks the manifest contract; that each task source exists under the experiment directory and
- * its exact bytes match the declared SHA-256; that scenario sources parse; that every target
+ * its exact bytes match the declared SHA-256; that scenario and workflow sources parse; that
+ * workflow tasks can run as declared (warnings otherwise); that every target
  * declaring `cost_basis: not_applicable` names a loopback `settings.base_url`; and that target
  * generation settings are in range and sent by the target's provider adapter.
  */
@@ -120,14 +122,15 @@ export async function validateExperimentFile(
     message: `${manifest.mode} experiment: ${manifest.tasks.length} task(s) × ${manifest.targets.length} target(s) × ${manifest.repetitions} repetition(s)`,
   });
 
-  for (const task of manifest.tasks) checks.push(await checkTask(root, task));
+  for (const task of manifest.tasks) checks.push(...(await checkTask(root, task)));
   for (const target of manifest.targets) {
     checks.push(checkTarget(target), ...checkTargetSettings(target));
   }
+  checks.push(...checkWorkflowRunConditions(manifest));
   return finish(manifest);
 }
 
-async function checkTask(root: string, task: ExperimentTask): Promise<ExperimentCheck> {
+async function checkTask(root: string, task: ExperimentTask): Promise<ExperimentCheck[]> {
   const fail = (code: string, message: string): ExperimentCheck => ({
     subject: 'task',
     id: task.id,
@@ -142,46 +145,130 @@ async function checkTask(root: string, task: ExperimentTask): Promise<Experiment
     const realRoot = await realpath(root);
     const realFile = await realpath(resolved);
     if (!isInside(realRoot, realFile)) {
-      return fail('source_outside_root', `${task.source.path} resolves outside ${root}`);
+      return [fail('source_outside_root', `${task.source.path} resolves outside ${root}`)];
     }
     if (!(await stat(realFile)).isFile()) {
-      return fail('source_not_file', `${task.source.path} is not a regular file`);
+      return [fail('source_not_file', `${task.source.path} is not a regular file`)];
     }
     bytes = await readFile(realFile);
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT'
-      ? fail('source_missing', `${task.source.path} does not exist under ${root}`)
-      : fail('source_unreadable', `${task.source.path} is unreadable`);
+    return [
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+        ? fail('source_missing', `${task.source.path} does not exist under ${root}`)
+        : fail('source_unreadable', `${task.source.path} is unreadable`),
+    ];
   }
 
   if (sha256Hex(bytes) !== task.source.artifact.digest) {
-    return fail(
-      'source_digest_mismatch',
-      `${task.source.path}: SHA-256 of the file bytes does not match the declared digest`
-    );
+    return [
+      fail(
+        'source_digest_mismatch',
+        `${task.source.path}: SHA-256 of the file bytes does not match the declared digest`
+      ),
+    ];
   }
-  if (task.kind === 'agent_workflow') {
-    return {
-      subject: 'task',
-      id: task.id,
-      status: 'warning',
-      code: 'task_kind_unsupported',
-      message: `${task.source.path}: digest verified; agent_workflow tasks have no built-in experiment executor yet, so their coordinates will be recorded invalid`,
-    };
-  }
+  if (task.kind === 'agent_workflow') return checkWorkflowSource(task, bytes);
   try {
     const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     validateScenario(parseYaml(source));
   } catch {
-    return fail('scenario_invalid', `${task.source.path}: digest verified but scenario is invalid`);
+    return [
+      fail('scenario_invalid', `${task.source.path}: digest verified but scenario is invalid`),
+    ];
   }
-  return {
-    subject: 'task',
-    id: task.id,
-    status: 'ok',
-    code: 'source_verified',
-    message: `${task.source.path}: digest verified; scenario parsed`,
-  };
+  return [
+    {
+      subject: 'task',
+      id: task.id,
+      status: 'ok',
+      code: 'source_verified',
+      message: `${task.source.path}: digest verified; scenario parsed`,
+    },
+  ];
+}
+
+/**
+ * Parse a verified workflow source exactly as the executor does: no `${VAR}` expansion and no
+ * fixture dereferencing. Semantic outcomes need an independent judge that experiment runs do
+ * not configure, so they are reported as a warning.
+ */
+function checkWorkflowSource(task: ExperimentTask, bytes: Uint8Array): ExperimentCheck[] {
+  const check = (
+    status: ExperimentCheckStatus,
+    code: string,
+    message: string
+  ): ExperimentCheck => ({ subject: 'task', id: task.id, status, code, message });
+  let semanticOutcomes: number;
+  let environment: string;
+  try {
+    const workflow = parseAgentWorkflow(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    semanticOutcomes = workflow.outcomes.semantic?.length ?? 0;
+    environment = workflow.environment.type;
+  } catch {
+    return [
+      check(
+        'error',
+        'workflow_invalid',
+        `${task.source.path}: digest verified but agent workflow is invalid`
+      ),
+    ];
+  }
+  const checks = [
+    check(
+      'ok',
+      'source_verified',
+      `${task.source.path}: digest verified; agent workflow parsed (${environment} environment, network denied)`
+    ),
+  ];
+  if (semanticOutcomes > 0) {
+    checks.push(
+      check(
+        'warning',
+        'semantic_judge_unavailable',
+        `${task.source.path}: declares semantic outcomes, which need an independent judge that experiment runs do not configure; its coordinates will be recorded invalid`
+      )
+    );
+  }
+  return checks;
+}
+
+/** Target settings the workflow engine sends; any other generation setting is refused. */
+const WORKFLOW_GENERATION_SETTINGS: readonly GenerationSettingKey[] = [
+  'temperature',
+  'max_output_tokens',
+];
+
+/**
+ * Warn about experiment controls the workflow engine cannot honour. The executor records the
+ * affected workflow coordinates invalid rather than measuring a different condition.
+ */
+function checkWorkflowRunConditions(manifest: ExperimentManifest): ExperimentCheck[] {
+  if (!manifest.tasks.some((task) => task.kind === 'agent_workflow')) return [];
+  const checks: ExperimentCheck[] = [];
+  if (manifest.seed) {
+    checks.push({
+      subject: 'manifest',
+      status: 'warning',
+      code: 'workflow_seed_unsupported',
+      message:
+        'The workflow engine sends no seed, so agent_workflow coordinates of a seeded experiment will be recorded invalid',
+    });
+  }
+  for (const target of manifest.targets) {
+    const { settings } = readGenerationSettings(target.settings ?? {});
+    const unsent = GENERATION_SETTING_KEYS.filter(
+      (key) => settings[key] !== undefined && !WORKFLOW_GENERATION_SETTINGS.includes(key)
+    );
+    if (unsent.length === 0) continue;
+    checks.push({
+      subject: 'target',
+      id: target.id,
+      status: 'warning',
+      code: 'workflow_setting_unsupported',
+      message: `The workflow engine sends only ${WORKFLOW_GENERATION_SETTINGS.join(' and ')}; with settings.${unsent.join(', settings.')} this target's agent_workflow coordinates will be recorded invalid`,
+    });
+  }
+  return checks;
 }
 
 /** Values accepted for a target's `settings.reasoning_effort`. */

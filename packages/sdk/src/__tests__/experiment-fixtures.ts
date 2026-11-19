@@ -28,6 +28,52 @@ cases:
       values: ["Abuja"]
 `;
 
+/**
+ * Agent workflow that passes against the fixture client, which accepts tools but never calls
+ * one: the target must answer without reading the brief and without any undeclared tool.
+ */
+export const FIXTURE_WORKFLOW = `version: '1'
+kind: agent_workflow
+name: fixture-workflow
+target:
+  provider: openai
+  model: declared-model
+environment:
+  type: simulated
+  policy:
+    network: denied
+    side_effects: denied
+    permissions:
+      documents: read
+    budgets:
+      max_actions: 4
+      max_model_requests: 2
+      timeout_ms: 10000
+tools:
+  - read_document
+workflow:
+  system_instructions: Answer from the conversation; read the brief only when asked to.
+  initial_state:
+    documents:
+      brief: Fixture brief.
+  turns:
+    - role: user
+      content: Reply with anything.
+outcomes:
+  deterministic:
+    - type: tool_trace
+      tool: read_document
+      minimum_calls: 0
+      maximum_calls: 0
+    - type: policy
+      rule: no_undeclared_tool
+      expected: passed
+evidence:
+  trace: summary
+  artifacts: checksums
+  redact: true
+`;
+
 export const LOOPBACK_BASE_URL = 'http://127.0.0.1:11434/v1';
 
 export interface ExperimentFixtureOptions {
@@ -41,6 +87,11 @@ export interface ExperimentFixtureOptions {
   target?: (target: Record<string, unknown>) => Record<string, unknown>;
   /** Manifest file name (default `experiment.yaml`; the content is JSON, which YAML accepts). */
   fileName?: string;
+  /**
+   * Declare one scenario task (`pass`) and one agent workflow task (`workflow`) instead of the
+   * two scenario tasks.
+   */
+  workflow?: boolean;
 }
 
 export interface ExperimentFixture {
@@ -52,6 +103,7 @@ export interface ExperimentFixture {
 const SOURCES: Record<string, string> = {
   'tasks/pass.yaml': PASSING_SCENARIO,
   'tasks/fail.yaml': FAILING_SCENARIO,
+  'tasks/workflow.yaml': FIXTURE_WORKFLOW,
 };
 
 export function sha256(text: string): string {
@@ -94,11 +146,11 @@ export async function writeExperimentFixture(
       await writeFile(path.join(directory, relative), content);
     }
   }
-  const task = (id: string, sourcePath: string) => ({
+  const task = (id: string, sourcePath: string, kind = 'scenario_evaluation') => ({
     id,
-    kind: 'scenario_evaluation',
+    kind,
     source: {
-      kind: 'scenario_evaluation',
+      kind,
       path: sourcePath,
       artifact: {
         schema_version: '1',
@@ -119,7 +171,12 @@ export async function writeExperimentFixture(
     id: 'two-target-fixture',
     mode: 'fixture',
     identities: { schema_version: '1', workload: fixed('a'), rubric: fixed('b') },
-    tasks: [task('pass', 'tasks/pass.yaml'), task('fail', 'tasks/fail.yaml')],
+    tasks: [
+      task('pass', 'tasks/pass.yaml'),
+      options.workflow
+        ? task('workflow', 'tasks/workflow.yaml', 'agent_workflow')
+        : task('fail', 'tasks/fail.yaml'),
+    ],
     targets: [
       transform(localTarget('qwen-small', 'qwen3.5:4b')),
       transform(localTarget('qwen-large', 'qwen3.5:9b')),

@@ -207,7 +207,7 @@ function experimentRunCommand(): Command {
     )
     .option(
       '--timeout <ms>',
-      'Per-case model request timeout in milliseconds (also the minimum HTTP timeout for live targets)'
+      'Per-case model request timeout in milliseconds for scenario tasks; workflow tasks keep their declared timeout_ms (also the minimum HTTP timeout for live targets)'
     )
     .action(async (file: string, options: ExperimentRunCommandOptions) => {
       try {

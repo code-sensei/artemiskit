@@ -10,6 +10,15 @@ export type {
   ScenarioExperimentEvidenceRecord,
   ScenarioExperimentExecutorOptions,
 } from './executors/scenario';
+export {
+  createWorkflowExperimentExecutor,
+  workflowRecordIdentity,
+} from './executors/workflow';
+export type {
+  WorkflowExperimentCost,
+  WorkflowExperimentEvidenceRecord,
+  WorkflowExperimentExecutorOptions,
+} from './executors/workflow';
 export { parseExperimentManifest } from './parser';
 export {
   buildExperimentMatrix,

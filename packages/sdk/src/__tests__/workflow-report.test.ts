@@ -63,9 +63,12 @@ describe('SDK offline workflow reports', () => {
       providerConfig: { apiKey: 'not-a-credential' },
     });
     const fetch = globalThis.fetch;
-    globalThis.fetch = (() => {
-      throw new Error('Reporting attempted network');
-    }) as typeof fetch;
+    globalThis.fetch = Object.assign(
+      () => {
+        throw new Error('Reporting attempted network');
+      },
+      { preconnect: fetch.preconnect }
+    );
     try {
       const before = JSON.stringify(record);
       const model = createWorkflowReport(record);

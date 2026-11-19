@@ -150,7 +150,7 @@ describe('Contracts - defineEvaluator', () => {
       },
     });
 
-    const result = await evaluator.evaluate('This is a test response with many words', {} as any);
+    const result = await evaluator.evaluate('This is a test response with many words');
     expect(result.passed).toBe(true);
     expect(result.details).toBeDefined();
     expect(result.details?.wordCount).toBe(8); // "This is a test response with many words" = 8 words

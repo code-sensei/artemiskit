@@ -3,7 +3,7 @@
  * Tests for ArtemisKit class
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test';
 
 // Mock modules before importing ArtemisKit
 vi.mock('@artemiskit/core', () => ({
@@ -416,7 +416,6 @@ describe('ArtemisKit with custom client', () => {
     const kit = new ArtemisKit();
     const result = await kit.run({
       scenario: './test.yaml',
-      // @ts-expect-error - Testing with mock client
       client: mockClient,
     });
 

@@ -7,6 +7,7 @@ import {
   type AgentTarget,
   type AgentWorkflow,
   type AgentWorkflowEvent,
+  type AgentWorkflowRecord,
   createSimulatedWorkflowEnvironment,
   validateAgentWorkflow,
 } from '@artemiskit/core';
@@ -124,7 +125,9 @@ describe('SDK native workflow session', () => {
       );
       expect(calls).toBe(verdict === 'unconfigured' ? 0 : 1);
       expect(closed).toBe(0);
-      expect(readWorkflowRecord(JSON.parse(JSON.stringify(result.record)))).toEqual(result.record);
+      expect(
+        readWorkflowRecord(JSON.parse(JSON.stringify(result.record)))
+      ).toEqual<AgentWorkflowRecord>(result.record);
       expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
     }
   });
@@ -207,7 +210,7 @@ describe('SDK native workflow session', () => {
     expect(result.record.outcomes.cancelled).toBe(true);
     expect(result.record.outcomes.reason).toBe('cancelled');
     expect(result.record.outcomes.semantic.counts.valid).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
 
   test('configured adapter uses workflow identity and zero retries with real loopback multi-turn execution', async () => {
@@ -216,7 +219,7 @@ describe('SDK native workflow session', () => {
       hostname: '127.0.0.1',
       port: 0,
       async fetch(request) {
-        bodies.push(await request.json());
+        bodies.push((await request.json()) as Record<string, unknown>);
         const first = bodies.length === 1;
         return Response.json({
           id: 'fixture',
@@ -305,7 +308,7 @@ describe('SDK native workflow session', () => {
     expect(result.record.budgets).toMatchObject({ modelRequests: 2, toolCalls: 1 });
     expect(result.state?.files).toEqual({ 'result.txt': 'PRIVATE-STATE' });
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
-    expect(events.some((event) => event.type === 'tool_completed')).toBe(true);
+    expect(events.some((event: AgentWorkflowEvent) => event.type === 'tool_completed')).toBe(true);
     // One Bun child loading core and the OpenAI adapter from source (about 0.5 s on a quiet
     // machine, over 5 s at load averages 30-60). Stay above its 10 s kill timer so a stuck child
     // fails on its own exit evidence.

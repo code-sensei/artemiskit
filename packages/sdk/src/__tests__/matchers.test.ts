@@ -3,7 +3,7 @@
  * Tests for custom matchers
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import {
   toAchieveRPS,
   toHaveDefenseRate,

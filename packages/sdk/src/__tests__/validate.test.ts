@@ -90,10 +90,6 @@ function setParseError(error: Error) {
   parseScenarioFileError = error;
 }
 
-function setResolvePaths(paths: string[]) {
-  resolveScenarioPathsResponse = paths;
-}
-
 function resetMocks() {
   parseScenarioFileResponse = {};
   parseScenarioFileError = null;

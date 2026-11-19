@@ -2,7 +2,7 @@
  * Tests for ArtemisKit.compare() method (v0.3.2+)
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'bun:test';
 
 // Mock the core module
 const mockStorageAdapter = {

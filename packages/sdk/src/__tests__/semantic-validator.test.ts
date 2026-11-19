@@ -8,7 +8,7 @@
  * - Error handling and edge cases
  */
 
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 
 // Mock nanoid for consistent IDs in tests
 mock.module('nanoid', () => ({
@@ -17,7 +17,11 @@ mock.module('nanoid', () => ({
 
 import type { ModelClient } from '@artemiskit/core';
 import { SemanticValidator, createSemanticValidator } from '../guardian/semantic-validator';
-import type { ContentValidationConfig, ValidationCategory } from '../guardian/types';
+import type {
+  ContentValidationConfig,
+  ValidationCategory,
+  ViolationSeverity,
+} from '../guardian/types';
 
 // =============================================================================
 // Mock LLM Client
@@ -350,14 +354,15 @@ describe('SemanticValidator', () => {
   });
 
   describe('severity mapping', () => {
-    const testCases: Array<{ category: ValidationCategory; expectedSeverity: string }> = [
-      { category: 'prompt_injection', expectedSeverity: 'critical' },
-      { category: 'jailbreak', expectedSeverity: 'critical' },
-      { category: 'data_extraction', expectedSeverity: 'critical' },
-      { category: 'pii_disclosure', expectedSeverity: 'high' },
-      { category: 'role_manipulation', expectedSeverity: 'high' },
-      { category: 'content_safety', expectedSeverity: 'high' },
-    ];
+    const testCases: Array<{ category: ValidationCategory; expectedSeverity: ViolationSeverity }> =
+      [
+        { category: 'prompt_injection', expectedSeverity: 'critical' },
+        { category: 'jailbreak', expectedSeverity: 'critical' },
+        { category: 'data_extraction', expectedSeverity: 'critical' },
+        { category: 'pii_disclosure', expectedSeverity: 'high' },
+        { category: 'role_manipulation', expectedSeverity: 'high' },
+        { category: 'content_safety', expectedSeverity: 'high' },
+      ];
 
     for (const { category, expectedSeverity } of testCases) {
       it(`should map ${category} to ${expectedSeverity} severity`, async () => {

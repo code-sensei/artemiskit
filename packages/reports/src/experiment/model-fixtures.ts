@@ -448,6 +448,7 @@ const CONCURRENT_AUTHORIZATION = {
   decided_at: '2026-11-19T12:00:00Z',
   approved_by: 'fixture operator',
   reason: 'Bounded concurrent report fixture',
+  approved_concurrency: 8 as const,
 };
 
 /** Deterministic 32-bit PRNG so a failing seed reproduces exactly. */

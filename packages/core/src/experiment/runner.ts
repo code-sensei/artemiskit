@@ -95,6 +95,7 @@ const liveAuthorization = z
     decided_at: z.string().datetime({ offset: true }),
     approved_by: z.string().trim().min(1).max(128),
     reason: z.string().trim().min(1).max(256),
+    approved_concurrency: z.number().int().min(1).max(8).optional(),
   })
   .strict();
 
@@ -225,6 +226,11 @@ export async function runExperiment(
   assertExecutor(options.execute_attempt);
   const authorization =
     manifest.mode === 'live' ? parseLiveAuthorization(options.live_authorization) : undefined;
+  if (authorization && manifest.concurrency > (authorization.approved_concurrency ?? 1)) {
+    throw new Error(
+      'Live experiment execution requires an approved host authorization decision covering the declared concurrency'
+    );
+  }
 
   const matrix = buildMatrix(manifest);
   const state: RunState = {
@@ -638,7 +644,7 @@ function parseLiveAuthorization(
   if (!parsed.success) {
     throw new Error('Live experiment execution requires an approved host authorization decision');
   }
-  return parsed.data;
+  return parsed.data as ExperimentLiveAuthorization;
 }
 
 async function invokeExecutor(

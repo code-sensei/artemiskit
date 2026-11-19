@@ -709,6 +709,27 @@ describe('concurrent experiment results', () => {
     }
   });
 
+  test('requires a live concurrent result to carry an approval naming its concurrency', async () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      if (result.mode !== 'live' || !result.live_authorization) continue;
+      expect(
+        createExperimentReport(result)
+          .sections.flatMap((item) => item.rows)
+          .some((row) => row.cells.some((cell) => cell.includes('approved concurrency up to 8')))
+      ).toBe(true);
+      for (const approved of [undefined, result.manifest.concurrency - 1, 9]) {
+        const forged = structuredClone(result);
+        if (forged.live_authorization)
+          forged.live_authorization.approved_concurrency = approved as never;
+        expect(() => createExperimentReport(forged), `seed ${seed} ${approved}`).toThrow(error);
+      }
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+
   test('rejects an execution record on a serial result', () => {
     const value = structuredClone(mixed);
     value.execution = { peak_in_flight: 1, reservations: [] };

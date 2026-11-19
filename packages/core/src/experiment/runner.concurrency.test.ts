@@ -63,6 +63,7 @@ const authorization = {
   decided_at: '2026-11-19T12:00:00Z',
   approved_by: 'release-operator',
   reason: 'Bounded concurrent evaluation approved',
+  approved_concurrency: 8 as const,
 };
 
 const manifest = (overrides: Partial<ExperimentManifest> = {}) =>
@@ -557,6 +558,45 @@ describe('runExperiment with bounded concurrency', () => {
       })
     ).rejects.toThrow('approved host authorization');
     expect(calls).toBe(0);
+  });
+
+  test('requires the live approval to cover the declared concurrency and records it', async () => {
+    let calls = 0;
+    const execute = withDemand(
+      async () => {
+        calls += 1;
+        return passed({ requests: 1, tokens: 1, cost: { amount: 0.01, currency: 'USD' } });
+      },
+      () => ({ requests: 1, tokens: 1, cost: { amount: 0.01, currency: 'USD' } })
+    );
+    const { approved_concurrency: _approved, ...serialApproval } = authorization;
+    for (const approval of [
+      serialApproval,
+      { ...serialApproval, approved_concurrency: 1 as const },
+      { ...serialApproval, approved_concurrency: 3 as const },
+    ]) {
+      await expect(
+        runExperiment(liveManifest(4, {}), {
+          live_authorization: approval,
+          execute_attempt: execute,
+        })
+      ).rejects.toThrow('covering the declared concurrency');
+    }
+    await expect(
+      runExperiment(liveManifest(4, {}), {
+        live_authorization: { ...serialApproval, approved_concurrency: 9 } as never,
+        execute_attempt: execute,
+      })
+    ).rejects.toThrow('approved host authorization');
+    expect(calls).toBe(0);
+
+    const approved = { ...serialApproval, approved_concurrency: 4 as const };
+    const result = await runExperiment(liveManifest(4, {}), {
+      live_authorization: approved,
+      execute_attempt: execute,
+    });
+    expect(result.live_authorization).toEqual(approved);
+    expect(result.summaries.overall.passed).toBe(12);
   });
 
   test('never lets cost grants sum above max_cost under floating-point rounding', async () => {

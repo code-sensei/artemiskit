@@ -1323,7 +1323,7 @@ describe('createScenarioExperimentExecutor declared demand', () => {
         },
       }),
       {
-        live_authorization: AUTHORIZATION,
+        live_authorization: { ...AUTHORIZATION, approved_concurrency: 4 },
         execute_attempt: createScenarioExperimentExecutor({
           root,
           repetitions: 3,

@@ -864,8 +864,19 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
 
   if (manifest.mode === 'live') {
     const authorization = object(input.live_authorization);
-    keys(authorization, ['approved', 'decision_id', 'decided_at', 'approved_by', 'reason']);
+    keys(
+      authorization,
+      ['approved', 'decision_id', 'decided_at', 'approved_by', 'reason'],
+      ['approved_concurrency']
+    );
     if (authorization.approved !== true) throw invalid();
+    // A live run above serial must carry an approval naming at least its concurrency.
+    let approvedConcurrency = 1;
+    if (authorization.approved_concurrency !== undefined) {
+      approvedConcurrency = integer(authorization.approved_concurrency);
+      if (approvedConcurrency < 1 || approvedConcurrency > 8) throw invalid();
+    }
+    if (manifest.concurrency > approvedConcurrency) throw invalid();
     text(authorization.decision_id, IDENTIFIER);
     datetime(authorization.decided_at);
     const approvedBy = text(authorization.approved_by);
@@ -1302,7 +1313,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         run.live_authorization,
         [
           'live authorization',
-          `${run.live_authorization.decision_id}; ${run.live_authorization.decided_at}; approved by ${run.live_authorization.approved_by}; reason ${run.live_authorization.reason}`,
+          `${run.live_authorization.decision_id}; ${run.live_authorization.decided_at}; approved by ${run.live_authorization.approved_by}; reason ${run.live_authorization.reason}${run.live_authorization.approved_concurrency === undefined ? '' : `; approved concurrency up to ${run.live_authorization.approved_concurrency}`}`,
           'saved host authorization decision for this bounded live run',
         ],
         'Live authorization decision'

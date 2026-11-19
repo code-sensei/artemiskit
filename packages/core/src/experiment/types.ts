@@ -420,6 +420,12 @@ export interface ExperimentLiveAuthorization {
   decided_at: string;
   approved_by: string;
   reason: string;
+  /**
+   * Highest concurrency this decision approves (integer 1..8). Required when the manifest
+   * declares concurrency above 1; absent means serial live calls only. It is set by the host
+   * outside the manifest, so parallel live calls always need an explicit approval.
+   */
+  approved_concurrency?: ExperimentConcurrency;
 }
 
 export interface RunExperimentOptions {

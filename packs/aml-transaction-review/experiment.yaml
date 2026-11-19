@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 244da25587abfec71636b7a0bcea2f25f3f8538939b3f6261252ed1b696e47e7
+    digest: d8fa5208128698b6978576c95c0d58508e54842911d06522a7a8fcb59a23f560
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -315,6 +315,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
+  - id: aml-25-va-mixer-off-ramp
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-25-va-mixer-off-ramp.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f62318f541dd3d82aac850dbdd0638b050f49a5c7fda0f316ada69ada26e2a61
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-26-va-p2p-unlicensed-trader
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-26-va-p2p-unlicensed-trader.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1a3deb3d583708d7f4018d17ebfa5c270902c5b77fcb7f65c4665d7802c3e8bd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-27-correspondent-nested
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-27-correspondent-nested.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 291956776ce44910bc30209d25243f98a6b7ce28550b3404b83c6ae3228ee3b4
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-28-correspondent-shell-bank
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-28-correspondent-shell-bank.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 793b73d69050b86e700dbe7a689fe6099372086cb1c0e9fb4854b1bcf581cb34
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-29-payment-transparency
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-29-payment-transparency.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 18c08ad5695ba9847acaef18bf464bc71af82179d3bd85c2cd48ebfcb84e072d
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-30-cash-intensive-seasonal
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-30-cash-intensive-seasonal.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 387eca04fa24b67b19a2cb83f1249b71cbfc3b95501d474b8885ceb5e7f8e20e
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-31-real-estate-third-party-funds
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-31-real-estate-third-party-funds.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: faf0e3f05c05d487bd690a37022bfd692f51510c3312abbd59a227f18111d0e1
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-32-real-estate-valuation-flip
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-32-real-estate-valuation-flip.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 728bcf2ea109272c163ca1701b4984ab24e7878871c476863e8231db32feef9f
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-33-dormant-reactivation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-33-dormant-reactivation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3ac66e9552e81650bd62e15dd9f4e76b39bb1dc49ced65ac6fe181783629b860
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-34-higher-risk-jurisdiction
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-34-higher-risk-jurisdiction.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9829d2bff9d4602c3dc35c23dd57ed7622ff6d35eac903ede22466b264f752b4
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -355,8 +475,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 85 cases x 2 targets x 3 repetitions = 510 requests; at most 1020 with one retry each.
+# 120 cases x 2 targets x 3 repetitions = 720 requests; at most 1440 with one retry each.
 # max_tokens allows 6,000 tokens per request (prompt, reasoning and answer).
 budgets:
-  max_requests: 1020
-  max_tokens: 6120000
+  max_requests: 1440
+  max_tokens: 8640000

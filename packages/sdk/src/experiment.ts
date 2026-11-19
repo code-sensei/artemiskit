@@ -224,8 +224,9 @@ export interface ExperimentFileRunOutcome {
  * `max_output_tokens`) replace each task's own values for that target's requests, and every
  * request carries the coordinate's seed. `llm_grader` and embedding requests keep their own
  * sampling and output length. `reasoning_effort` is adapter configuration, so it also applies to
- * `llm_grader` requests made through the target's client. Each saved run manifest records the
- * values sent in `resolved_config`.
+ * `llm_grader` requests made through the target's client. Workflow tasks get the same settings
+ * and seed on every workflow model request. Each saved run manifest records the values sent in
+ * `resolved_config`; each saved workflow record lists them in `configuration.generation`.
  */
 export async function runExperimentFile(
   options: RunExperimentFileOptions

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { validWorkflowFaultEvidence } from './fault-evidence';
+import { AgentWorkflowGenerationSchema } from './generation';
 import { decideWorkflowOutcome, validWorkflowAssertionCounts } from './outcome-status';
 import { workflowRecordLedgerStatus } from './outcomes';
 import {
@@ -241,7 +242,10 @@ export const workflowExecutionRecordSchema = z.object({
       sha256: digest,
       provider: identity,
       model: identity,
-      generation: z.object({ maxTokens: count, temperature: z.number().min(0).max(2) }).strict(),
+      generation: z
+        .object({ maxTokens: count, temperature: z.number().min(0).max(2) })
+        .merge(AgentWorkflowGenerationSchema)
+        .strict(),
       limits: WorkflowPolicySchema.shape.budgets,
     })
     .strict()

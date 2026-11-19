@@ -48,6 +48,7 @@ export const agentTurnRequestSchema = z
         maxTokens: z.number().int().positive().max(1_000_000),
         temperature: z.number().finite().min(0).max(2).optional(),
         topP: z.number().finite().min(0).max(1).optional(),
+        presencePenalty: z.number().finite().min(-2).max(2).optional(),
         seed: z.number().int().safe().optional(),
         stop: z.array(z.string().min(1).max(1000)).max(16).optional(),
       })

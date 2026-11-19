@@ -457,7 +457,7 @@ describe('agent_workflow tasks', () => {
     expect(JSON.stringify(validation.checks)).not.toContain('secret-marker');
   });
 
-  test('validation warns about controls the workflow engine cannot honour', async () => {
+  test('validation warns about semantic outcomes but not seeds or sampling for workflows', async () => {
     const semantic = FIXTURE_WORKFLOW.replace(
       'evidence:',
       `  semantic:
@@ -478,8 +478,6 @@ evidence:`
     const warnings = validation.checks.filter((check) => check.status === 'warning');
     expect(warnings.map((check) => [check.code, check.id])).toEqual([
       ['semantic_judge_unavailable', 'workflow'],
-      ['workflow_seed_unsupported', undefined],
-      ['workflow_setting_unsupported', 'qwen-small'],
     ]);
   });
 
@@ -900,6 +898,129 @@ describe('runExperimentFile (live mode)', () => {
             source: {},
           });
         }
+      }
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test('a seeded workflow task measures with each target sampling and repetition seed', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const body = (await request.json()) as Record<string, unknown>;
+        bodies.push(body);
+        return Response.json({
+          id: 'local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            {
+              index: 0,
+              finish_reason: 'stop',
+              message: { role: 'assistant', content: 'Fixture response, Abuja' },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      // Qwen's recommended sampling per mode, as the benchmark protocol declares it.
+      const sampling: Record<string, Record<string, unknown>> = {
+        'qwen3.5:4b': {
+          temperature: 0.7,
+          top_p: 0.8,
+          presence_penalty: 1.5,
+          max_output_tokens: 4096,
+          reasoning_effort: 'none',
+        },
+        'qwen3.5:9b': {
+          temperature: 1,
+          top_p: 0.95,
+          presence_penalty: 1.5,
+          max_output_tokens: 32768,
+          reasoning_effort: 'medium',
+        },
+      };
+      const fixture = await writeExperimentFixture({
+        workflow: true,
+        overrides: liveOverrides({
+          repetitions: 3,
+          budgets: { max_requests: 40, max_tokens: 10_000 },
+          seed: { value: 40, strategy: 'increment_by_repetition', require_support: false },
+        }),
+        target: (target) => ({
+          ...target,
+          capabilities: ['text', 'tools'],
+          settings: { base_url: baseUrl, ...sampling[target.model as string] },
+        }),
+      });
+      const validation = await validateExperimentFile(fixture.file);
+      expect(validation.checks.filter((check) => check.status === 'warning')).toEqual([]);
+
+      const outcome = await runExperimentFile({
+        experiment: fixture.file,
+        outputDir: path.join(fixture.directory, 'out'),
+        liveAuthorization: createExperimentLiveAuthorization({
+          approvedBy: 'test-operator',
+          reason: 'loopback stub server only',
+        }),
+      });
+
+      expect(outcome.exitCode).toBe(0);
+      const result = outcome.result as ExperimentRunResult;
+      expect(result.summaries.overall).toMatchObject({ planned: 12, valid: 12, passed: 12 });
+      expect(result.results.every((item) => item.attempts[0].error_code === undefined)).toBe(true);
+
+      // One request per coordinate; workflow requests are the ones that offer tools.
+      expect(bodies).toHaveLength(12);
+      for (const model of Object.keys(sampling)) {
+        const declared = sampling[model];
+        for (const workflow of [true, false]) {
+          const group = bodies.filter(
+            (body) => body.model === model && Array.isArray(body.tools) === workflow
+          );
+          expect(group).toHaveLength(3);
+          for (const body of group) {
+            expect(body).toMatchObject({
+              temperature: declared.temperature,
+              top_p: declared.top_p,
+              presence_penalty: declared.presence_penalty,
+              max_tokens: declared.max_output_tokens,
+              reasoning_effort: declared.reasoning_effort,
+            });
+          }
+          expect(group.map((body) => body.seed).sort()).toEqual([40, 41, 42]);
+        }
+      }
+
+      const coordinates = new Map(
+        result.results.map((item) => [item.coordinate.coordinate_id, item.coordinate])
+      );
+      const workflowEvidence = outcome.evidence.filter(
+        (file) => coordinates.get(file.coordinate_id)?.task_kind === 'agent_workflow'
+      );
+      expect(workflowEvidence).toHaveLength(6);
+      for (const file of workflowEvidence) {
+        const coordinate = coordinates.get(file.coordinate_id);
+        const saved = JSON.parse(await readFile(file.path, 'utf8'));
+        const declared = sampling[saved.configuration.model.display];
+        expect(coordinate?.target_id).toBe(
+          saved.configuration.model.display === 'qwen3.5:4b' ? 'qwen-small' : 'qwen-large'
+        );
+        expect(saved.configuration.generation).toEqual({
+          maxTokens: declared.max_output_tokens,
+          temperature: declared.temperature,
+          topP: declared.top_p,
+          presencePenalty: declared.presence_penalty,
+          seed: coordinate?.seed,
+          reasoningEffort: declared.reasoning_effort,
+        });
       }
     } finally {
       server.stop(true);

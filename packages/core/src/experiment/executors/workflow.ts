@@ -12,6 +12,10 @@
 import path from 'node:path';
 import type { ModelClient } from '../../adapters/types';
 import { resolveWorkflowInitialState } from '../../agent-workflow/environment';
+import {
+  type AgentWorkflowGeneration,
+  AgentWorkflowGenerationSchema,
+} from '../../agent-workflow/generation';
 import { parseAgentWorkflow, validateAgentWorkflow } from '../../agent-workflow/parser';
 import type { AgentWorkflow } from '../../agent-workflow/schema';
 import {
@@ -21,7 +25,11 @@ import {
 } from '../../agent-workflow/session';
 import { type AgentTarget, createModelClientTarget } from '../../agent-workflow/target';
 import type { ContentIdentity } from '../../artifacts/types';
-import { type GenerationSettings, readGenerationSettings } from '../../runner/generation';
+import {
+  type GenerationSettings,
+  UNTRANSPORTED_GENERATION_SETTINGS,
+  readGenerationSettings,
+} from '../../runner/generation';
 import { targetCostApplies } from '../runner';
 import type {
   ExecutedExperimentAttemptStatus,
@@ -79,10 +87,9 @@ export interface WorkflowExperimentExecutorOptions {
 }
 
 type Classification = { status: ExecutedExperimentAttemptStatus; error_code?: string };
-type Prepared = { ok: true; workflow: AgentWorkflow } | { ok: false; code: string };
-
-/** Generation settings the workflow engine sends with every target request. */
-const TRANSPORTED_GENERATION_SETTINGS = new Set(['temperature', 'max_output_tokens']);
+type Prepared =
+  | { ok: true; workflow: AgentWorkflow; generation: AgentWorkflowGeneration }
+  | { ok: false; code: string };
 
 /** Engine stops caused by the transport, the provider or the environment, not the target. */
 const INFRASTRUCTURE_REASONS: Partial<Record<AgentWorkflowReason, string>> = {
@@ -107,14 +114,18 @@ const WORKFLOW_BUDGET_REASONS = new Set<AgentWorkflowReason>([
  *
  * The coordinate's target replaces the workflow's declared `target.provider` and
  * `target.model`; its `temperature` and `max_output_tokens` settings replace the workflow's
- * generation values. A file `initial_state` fixture is resolved under the workflow's
- * directory and inlined before the run, so the record's configuration digest covers it.
+ * generation values. Its `top_p` and `presence_penalty` settings and the coordinate's seed are
+ * sent with every workflow model request, as for scenario tasks; `reasoning_effort` is sent by
+ * the target's client (the host configures it) and recorded. The saved record's
+ * `configuration.generation` lists every value sent. A file `initial_state` fixture is resolved
+ * under the workflow's directory and inlined before the run, so the record's configuration
+ * digest covers it.
  *
  * Refused before any request (`invalid`, zero usage): a source outside the root, a digest
- * mismatch, an invalid workflow or fixture, a target setting the engine cannot send
- * (`top_p`, `top_k`, `min_p`, `presence_penalty`), a coordinate seed (the engine sends none),
- * and semantic outcomes (no independent judge is configured). Fewer remaining requests than
- * the workflow has turns is `incomplete`.
+ * mismatch, an invalid workflow or fixture, an out-of-range setting or unknown
+ * `reasoning_effort` (`generation_settings_invalid`), a setting no request transport sends
+ * (`top_k`, `min_p`: `generation_setting_unsupported`), and semantic outcomes (no independent
+ * judge is configured). Fewer remaining requests than the workflow has turns is `incomplete`.
  *
  * Status precedence: request budget stop → `incomplete`; transport, provider, deadline,
  * environment or cleanup failure → `infrastructure_failed`; any response cut off at its token
@@ -165,9 +176,6 @@ async function executeAttempt(
   const { task, target, coordinate } = input;
   const prepared = await prepareWorkflow(root, task, target);
   if (!prepared.ok) return attemptWithoutRequests(task.kind, prepared.code);
-  if (coordinate.seed !== undefined) {
-    return attemptWithoutRequests(task.kind, 'workflow_seed_unsupported');
-  }
   // Every user turn needs at least one model request.
   if (prepared.workflow.workflow.turns.length > input.remaining_budget.requests) {
     return attemptWithoutRequests(task.kind, 'request_budget_insufficient', 'incomplete');
@@ -189,7 +197,11 @@ async function executeAttempt(
     } catch {
       return attemptWithoutRequests(task.kind, 'client_unavailable', 'infrastructure_failed');
     }
-    return await runAndReport(options, input, prepared.workflow, agentTarget, meter);
+    const generation: AgentWorkflowGeneration =
+      coordinate.seed === undefined
+        ? prepared.generation
+        : { ...prepared.generation, seed: coordinate.seed };
+    return await runAndReport(options, input, prepared.workflow, generation, agentTarget, meter);
   } finally {
     await closeClient(client);
   }
@@ -199,6 +211,7 @@ async function runAndReport(
   options: WorkflowExperimentExecutorOptions,
   input: ExperimentAttemptInput,
   workflow: AgentWorkflow,
+  generation: AgentWorkflowGeneration,
   agentTarget: AgentTarget,
   meter: ClientMeter
 ): Promise<ExperimentAttemptOutput> {
@@ -208,6 +221,7 @@ async function runAndReport(
     const session = createAgentWorkflowSession({
       workflow,
       target: agentTarget,
+      generation,
       ...(options.cleanupTimeoutMs !== undefined
         ? { cleanupTimeoutMs: options.cleanupTimeoutMs }
         : {}),
@@ -295,6 +309,7 @@ async function prepareWorkflow(
       workflow: validateAgentWorkflow(
         bindWorkflow(declared, target, generation.settings, initialState)
       ),
+      generation: generation.request,
     };
   } catch {
     // The target's provider or model, or the inlined state, cannot be expressed in a workflow.
@@ -316,18 +331,33 @@ function parseWorkflowBytes(bytes: Uint8Array): AgentWorkflow | undefined {
   }
 }
 
-type TargetGeneration = { ok: true; settings: GenerationSettings } | { ok: false; code: string };
+type TargetGeneration =
+  | { ok: true; settings: GenerationSettings; request: AgentWorkflowGeneration }
+  | { ok: false; code: string };
 
-/** Read the target's generation settings, refusing values the workflow engine would not send. */
+/**
+ * Read the target's generation settings, refusing values that could not be sent as declared.
+ * `settings` (temperature, max output tokens) are bound into the measured workflow; `request`
+ * holds the per-request values the engine sends besides them.
+ */
 function targetGenerationSettings(target: ExperimentTarget): TargetGeneration {
   const { settings, issues } = readGenerationSettings(target.settings);
   if (issues.length > 0) return { ok: false, code: 'generation_settings_invalid' };
-  const untransported = Object.keys(settings).some(
-    (key) => !TRANSPORTED_GENERATION_SETTINGS.has(key)
-  );
-  return untransported
-    ? { ok: false, code: 'generation_setting_unsupported' }
-    : { ok: true, settings };
+  if (UNTRANSPORTED_GENERATION_SETTINGS.some((key) => settings[key] !== undefined)) {
+    return { ok: false, code: 'generation_setting_unsupported' };
+  }
+  const request = AgentWorkflowGenerationSchema.safeParse({
+    topP: settings.top_p,
+    presencePenalty: settings.presence_penalty,
+    reasoningEffort: target.settings?.reasoning_effort,
+  });
+  if (!request.success) return { ok: false, code: 'generation_settings_invalid' };
+  return { ok: true, settings, request: withoutUndefined(request.data) };
+}
+
+/** Drop absent keys so the saved record lists only values that were sent. */
+function withoutUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 }
 
 /** The measured workflow: the coordinate's target and settings, with its fixture inlined. */

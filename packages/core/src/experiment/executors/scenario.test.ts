@@ -14,6 +14,7 @@ import type {
   ExperimentTask,
 } from '../types';
 import {
+  SCENARIO_PROMPT_TOKEN_ALLOWANCE,
   type ScenarioExperimentEvidenceRecord,
   type ScenarioExperimentExecutorOptions,
   createScenarioExperimentExecutor,
@@ -1199,5 +1200,143 @@ describe('createScenarioExperimentExecutor target generation settings', () => {
       error_code: code,
       usage: { requests: 0, tokens: 0 },
     });
+  });
+});
+
+describe('createScenarioExperimentExecutor declared demand', () => {
+  const executor = () =>
+    createScenarioExperimentExecutor({
+      root,
+      repetitions: 5,
+      createClient: fixtureClients({}).createClient,
+    });
+  const reserve = (task: ExperimentTask, target: ExperimentTarget = LOCAL_TARGET) => {
+    const declare = executor().reserve;
+    if (!declare) throw new Error('scenario executor must declare reserve');
+    return declare({ experiment_id: 'demand', task, target });
+  };
+
+  test('declares one request per case and a token bound when the output cap is known', async () => {
+    expect(await reserve(scenarioTask('scenarios/answer.yaml'))).toEqual({ requests: 2 });
+
+    const capped = { ...LOCAL_TARGET, settings: { max_output_tokens: 64 } };
+    const promptBytes = ['What is the capital of Nigeria?', 'What is 2 + 2?'].map((text) =>
+      Buffer.byteLength(text)
+    );
+    expect(await reserve(scenarioTask('scenarios/answer.yaml'), capped)).toEqual({
+      requests: 2,
+      tokens: promptBytes.reduce(
+        (sum, bytes) => sum + bytes + SCENARIO_PROMPT_TOKEN_ALLOWANCE + 64,
+        0
+      ),
+    });
+    expect(await reserve(scenarioTask('scenarios/sampled.yaml', { id: 'sampled' }))).toEqual({
+      requests: 1,
+      tokens:
+        Buffer.byteLength('What is the capital of Nigeria?') +
+        SCENARIO_PROMPT_TOKEN_ALLOWANCE +
+        4096,
+    });
+  });
+
+  test('declares nothing for work it cannot bound or will not run', async () => {
+    for (const source of [
+      'scenarios/graded.yaml',
+      'scenarios/mixed.yaml',
+      'scenarios/retrying.yaml',
+      'scenarios/tools.yaml',
+      'scenarios/broken.yaml',
+    ])
+      expect(await reserve(scenarioTask(source)), source).toBeUndefined();
+    expect(
+      await reserve(scenarioTask('scenarios/answer.yaml', { digest: 'f'.repeat(64) }))
+    ).toBeUndefined();
+    expect(
+      await reserve(scenarioTask('workflows/resolve.yaml', { kind: 'agent_workflow' }))
+    ).toBeUndefined();
+  });
+
+  test('measures every coordinate concurrently when the budget exactly covers the cases', async () => {
+    const fixtures = fixtureClients({});
+    let inFlight = 0;
+    let peak = 0;
+    const createClient: ScenarioExperimentExecutorOptions['createClient'] = (target) => {
+      const client = fixtures.createClient(target) as ModelClient;
+      return {
+        ...client,
+        generate: async (options) => {
+          inFlight += 1;
+          peak = Math.max(peak, inFlight);
+          await new Promise((resolve) =>
+            setTimeout(resolve, target.id === LOCAL_TARGET_9B.id ? 6 : 1)
+          );
+          inFlight -= 1;
+          return client.generate(options);
+        },
+      };
+    };
+    const result = await runExperiment(
+      experiment([scenarioTask('scenarios/answer.yaml')], {
+        targets: [LOCAL_TARGET, LOCAL_TARGET_9B],
+        repetitions: 5,
+        concurrency: 4,
+        budgets: { max_requests: 20 },
+      }),
+      {
+        execute_attempt: createScenarioExperimentExecutor({ root, repetitions: 5, createClient }),
+      }
+    );
+
+    expect(result.summaries.overall).toMatchObject({ planned: 10, passed: 10 });
+    expect(result.summaries.operational.requests).toBe(20);
+    expect(result.stop_reason).toBeUndefined();
+    expect(result.execution?.peak_in_flight).toBe(4);
+    expect(peak).toBeGreaterThan(1);
+    expect(result.execution?.reservations.map((item) => item.demand)).toEqual([
+      { requests: 2 },
+      { requests: 2 },
+    ]);
+  });
+
+  test('runs alone, never short, when declared token bounds exceed the live budget', async () => {
+    const fixtures = fixtureClients({});
+    const capped = (target: ExperimentTarget) => ({
+      ...target,
+      settings: { max_output_tokens: 64 },
+    });
+    const result = await runExperiment(
+      liveExperiment([scenarioTask('scenarios/answer.yaml')], {
+        targets: [capped(LOCAL_TARGET), capped(LOCAL_TARGET_9B)],
+        repetitions: 3,
+        concurrency: 4,
+        budgets: { max_requests: 12, max_tokens: 120 },
+        live: {
+          concurrency_ceiling: 4,
+          stop_conditions: [
+            'request_budget_exhausted',
+            'token_budget_exhausted',
+            'cost_budget_exhausted',
+            'usage_unreported',
+            'usage_invalid',
+            'budget_exceeded',
+          ],
+        },
+      }),
+      {
+        live_authorization: AUTHORIZATION,
+        execute_attempt: createScenarioExperimentExecutor({
+          root,
+          repetitions: 3,
+          createClient: fixtures.createClient,
+        }),
+      }
+    );
+
+    // Each pair reserves far more than the 120-token budget, so attempts never overlap,
+    // yet every coordinate is measured exactly as a serial run would measure it.
+    expect(result.summaries.overall).toMatchObject({ planned: 6, passed: 6 });
+    expect(result.summaries.operational.tokens).toBe(120);
+    expect(result.execution?.peak_in_flight).toBe(1);
+    expect(result.stop_reason).toBeUndefined();
   });
 });

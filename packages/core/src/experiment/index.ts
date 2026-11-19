@@ -1,6 +1,7 @@
 export { assessExperimentCompatibility } from './compatibility';
 export { isLoopbackEndpoint } from './executors/loopback';
 export {
+  SCENARIO_PROMPT_TOKEN_ALLOWANCE,
   createScenarioExperimentExecutor,
   runManifestIdentity,
 } from './executors/scenario';

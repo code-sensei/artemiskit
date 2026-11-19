@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { parseRemoteTag, validateReleaseManifest, verifyRelease } from './verify-release.mjs';
+import {
+  expectedPreviousMilestone,
+  isMilestoneVersion,
+  parseRemoteTag,
+  validateReleaseManifest,
+  verifyRelease,
+} from './verify-release.mjs';
 
 const manifest = {
   schema_version: 1,
@@ -12,6 +18,7 @@ const manifest = {
   ],
 };
 const dependencies = {
+  recordedMilestones: async () => ['0.6.0', '0.6.1'],
   packageVersions: async () => new Map(manifest.packages.map((pkg) => [pkg.name, pkg.version])),
   registryPackage: async (name: string) => ({
     versions: {
@@ -68,6 +75,7 @@ describe('sequential milestone release gates', () => {
       packages: [{ name: '@artemiskit/core', version: '0.6.0' }],
     };
     const result = await verifyRelease('prepublish', first, {
+      recordedMilestones: async () => ['0.6.0'],
       packageVersions: async () => new Map([['@artemiskit/core', '0.6.0']]),
       remoteTag: async () => ({ exists: false }),
       head: async () => 'first-candidate',
@@ -187,5 +195,143 @@ describe('sequential milestone release gates', () => {
         }),
       })
     ).rejects.toThrow('different revision');
+  });
+});
+
+const recorded06 = ['0.6.0', '0.6.1', '0.6.2', '0.6.3', '0.6.4'];
+const manifest070 = {
+  schema_version: 1,
+  milestone: '0.7.0',
+  tag: 'v0.7.0',
+  previous: '0.6.4',
+  packages: [
+    { name: '@artemiskit/core', version: '0.7.0' },
+    { name: '@artemiskit/sdk', version: '0.7.0' },
+  ],
+};
+const manifest064 = {
+  schema_version: 1,
+  milestone: '0.6.4',
+  tag: 'v0.6.4',
+  previous: '0.6.3',
+  packages: [
+    { name: '@artemiskit/core', version: '0.6.4' },
+    { name: '@artemiskit/sdk', version: '0.6.3' },
+  ],
+};
+const lineTransition = {
+  ...dependencies,
+  recordedMilestones: async () => [...recorded06, '0.7.0'],
+  packageVersions: async () => new Map(manifest070.packages.map((pkg) => [pkg.name, pkg.version])),
+  registryPackage: async () => ({
+    versions: {
+      '0.6.4': { dist: { integrity: 'test-integrity' } },
+      '0.6.3': { dist: { integrity: 'test-integrity' } },
+      '0.7.0': { dist: { integrity: 'test-integrity' } },
+    },
+  }),
+  previousManifest: async () => manifest064,
+};
+
+describe('milestone sequence across release lines', () => {
+  test('recognizes milestone versions from 0.6.0 onward', () => {
+    expect(['0.6.0', '0.6.4', '0.7.0', '0.10.3', '1.0.0'].map(isMilestoneVersion)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(['0.5.3', '0.7', 'v0.7.0', '0.7.0-rc.1', undefined].map(isMilestoneVersion)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+  test('derives previous from the recorded sequence: 0.7.0 names 0.6.4', () => {
+    expect(expectedPreviousMilestone('0.6.0', recorded06)).toBeNull();
+    expect(expectedPreviousMilestone('0.6.3', recorded06)).toBe('0.6.2');
+    expect(expectedPreviousMilestone('0.7.0', recorded06)).toBe('0.6.4');
+    expect(expectedPreviousMilestone('0.7.1', [...recorded06, '0.7.0'])).toBe('0.7.0');
+    expect(expectedPreviousMilestone('1.0.0', [...recorded06, '0.7.0', '0.9.2', '0.9.3'])).toBe(
+      '0.9.3'
+    );
+    expect(validateReleaseManifest(manifest070, recorded06)).toEqual(manifest070);
+  });
+  test('rejects a skipped milestone at the line transition', () => {
+    // 0.6.4 is recorded, so a 0.7.0 that names 0.6.3 skips it.
+    expect(() =>
+      validateReleaseManifest({ ...manifest070, previous: '0.6.3' }, recorded06)
+    ).toThrow('immediately preceding');
+    // Without the 0.6.4 manifest the 0.6 line ends at 0.6.3, so naming 0.6.4 is refused.
+    expect(() => validateReleaseManifest(manifest070, recorded06.slice(0, 4))).toThrow(
+      'immediately preceding'
+    );
+    // With no recorded 0.6 milestone the line opener has no predecessor to derive.
+    expect(() => validateReleaseManifest(manifest070, [])).toThrow('cannot be skipped');
+    expect(() => validateReleaseManifest({ ...manifest070, previous: null }, recorded06)).toThrow(
+      'immediately preceding'
+    );
+    expect(() =>
+      validateReleaseManifest({ ...manifest070, previous: '0.7.0' }, recorded06)
+    ).toThrow();
+  });
+  test('rejects a skipped patch milestone or release line', () => {
+    const manifest072 = {
+      ...manifest070,
+      milestone: '0.7.2',
+      tag: 'v0.7.2',
+      previous: '0.7.1',
+      packages: [{ name: '@artemiskit/core', version: '0.7.2' }],
+    };
+    expect(() => validateReleaseManifest(manifest072, [...recorded06, '0.7.0'])).toThrow(
+      'cannot be skipped'
+    );
+    expect(validateReleaseManifest(manifest072, [...recorded06, '0.7.0', '0.7.1'])).toEqual(
+      manifest072
+    );
+    const manifest080 = {
+      ...manifest070,
+      milestone: '0.8.0',
+      tag: 'v0.8.0',
+      packages: [{ name: '@artemiskit/core', version: '0.8.0' }],
+    };
+    // 0.8.0 must follow the 0.7 line; naming 0.6.4 skips it even with no 0.7 manifest recorded.
+    expect(() => validateReleaseManifest(manifest080)).toThrow('immediately preceding');
+    expect(() => validateReleaseManifest(manifest080, recorded06)).toThrow();
+  });
+  test('verifies 0.7.0 against a published and tagged 0.6.4', async () => {
+    expect((await verifyRelease('prepublish', manifest070, lineTransition)).status).toBe('passed');
+    await expect(
+      verifyRelease('prepublish', manifest070, {
+        ...lineTransition,
+        recordedMilestones: async () => recorded06.slice(0, 4),
+      })
+    ).rejects.toThrow('immediately preceding');
+    await expect(
+      verifyRelease('prepublish', manifest070, {
+        ...lineTransition,
+        registryPackage: async () => ({ versions: {} }),
+      })
+    ).rejects.toThrow('Previous milestone package');
+    await expect(
+      verifyRelease('prepublish', manifest070, {
+        ...lineTransition,
+        previousManifest: async () => ({ ...manifest064, milestone: '0.6.3', tag: 'v0.6.3' }),
+      })
+    ).rejects.toThrow();
+  });
+  test('reads the recorded sequence from docs/releases by default', async () => {
+    const result = await verifyRelease('local', manifest070, {
+      packageVersions: lineTransition.packageVersions,
+    });
+    expect(result).toEqual({ milestone: '0.7.0', mode: 'local', packages: 2, status: 'passed' });
+  });
+  test('refuses a manifest still marked as a draft', () => {
+    expect(() => validateReleaseManifest({ draft: true, ...manifest070 }, recorded06)).toThrow(
+      'DRAFT'
+    );
   });
 });

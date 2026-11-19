@@ -7,7 +7,70 @@ import { promisify } from 'node:util';
 const exec = promisify(execFile);
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-export function validateReleaseManifest(value) {
+const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const manifestFilePattern = /^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\.json$/;
+// Sequential milestone releases begin at 0.6.0; earlier versions predate milestone manifests.
+const FIRST_MILESTONE = [0, 6, 0];
+
+function versionParts(version) {
+  const match = typeof version === 'string' ? versionPattern.exec(version) : null;
+  const parts = match ? match.slice(1).map(Number) : null;
+  return parts?.every(Number.isSafeInteger) ? parts : null;
+}
+
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}
+
+/** True for a stable version at or after the first sequential milestone (0.6.0). */
+export function isMilestoneVersion(version) {
+  const parts = versionParts(version);
+  return !!parts && compareVersions(parts, FIRST_MILESTONE) >= 0;
+}
+
+/** True when `previous` belongs to the milestone line immediately before `milestone`'s line. */
+function isPrecedingLine(previous, milestone) {
+  const [major, minor] = milestone;
+  if (minor > 0) return previous[0] === major && previous[1] === minor - 1;
+  return previous[0] === major - 1;
+}
+
+/**
+ * The milestone a release must name as `previous`, derived from the recorded milestone sequence
+ * (`docs/releases/<version>.json`). A patch names the patch before it; a line's first milestone
+ * names the latest recorded milestone of the preceding line (0.7.0 names 0.6.4); 0.6.0 names none.
+ * Throws when that milestone is not recorded, so a skipped milestone or line cannot be released.
+ */
+export function expectedPreviousMilestone(milestone, recordedMilestones) {
+  const current = versionParts(milestone);
+  if (!current || !isMilestoneVersion(milestone)) throw new Error('Invalid release milestone');
+  if (compareVersions(current, FIRST_MILESTONE) === 0) return null;
+  const recorded = recordedMilestones
+    .map(versionParts)
+    .filter((parts) => parts && compareVersions(parts, FIRST_MILESTONE) >= 0);
+  const candidates =
+    current[2] > 0
+      ? recorded.filter((parts) => parts[0] === current[0] && parts[1] === current[1])
+      : recorded.filter((parts) => isPrecedingLine(parts, current));
+  const earlier = candidates.filter((parts) => compareVersions(parts, current) < 0);
+  const latest = earlier.sort(compareVersions).at(-1);
+  if (!latest || (current[2] > 0 && latest[2] !== current[2] - 1)) {
+    throw new Error('Preceding milestone manifest is not recorded; milestones cannot be skipped');
+  }
+  return latest.join('.');
+}
+
+/**
+ * Validate a milestone release manifest. Without `recordedMilestones` only the shape of `previous`
+ * is checked; with them, `previous` must equal {@link expectedPreviousMilestone}.
+ */
+export function validateReleaseManifest(value, recordedMilestones) {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'draft' in value) {
+    throw new Error('Release manifest is a DRAFT; finalize its package map before verification');
+  }
   const keys = ['schema_version', 'milestone', 'tag', 'previous', 'packages'];
   if (
     !value ||
@@ -15,16 +78,27 @@ export function validateReleaseManifest(value) {
     Array.isArray(value) ||
     Object.keys(value).some((key) => !keys.includes(key)) ||
     value.schema_version !== 1 ||
-    !/^0\.6\.(0|[1-9]\d*)$/.test(value.milestone ?? '') ||
+    !isMilestoneVersion(value.milestone) ||
     value.tag !== `v${value.milestone}` ||
     !Array.isArray(value.packages) ||
     !value.packages.length
   ) {
-    throw new Error('Invalid 0.6.x release manifest');
+    throw new Error('Invalid milestone release manifest');
   }
-  const patch = Number(value.milestone.split('.')[2]);
-  const previous = patch === 0 ? null : `0.6.${patch - 1}`;
-  if (!Number.isSafeInteger(patch) || value.previous !== previous) {
+  const current = versionParts(value.milestone);
+  const previous = value.previous === null ? null : versionParts(value.previous);
+  const plausible =
+    compareVersions(current, FIRST_MILESTONE) === 0
+      ? value.previous === null
+      : !!previous &&
+        (current[2] > 0
+          ? compareVersions(previous, [current[0], current[1], current[2] - 1]) === 0
+          : isPrecedingLine(previous, current));
+  if (
+    !plausible ||
+    (recordedMilestones &&
+      value.previous !== expectedPreviousMilestone(value.milestone, recordedMilestones))
+  ) {
     throw new Error('Release manifest must name the immediately preceding milestone');
   }
   const names = new Set();
@@ -35,7 +109,7 @@ export function validateReleaseManifest(value) {
       Array.isArray(pkg) ||
       Object.keys(pkg).some((key) => !['name', 'version'].includes(key)) ||
       !/^@artemiskit\/[a-z][a-z0-9-]*$/.test(pkg.name ?? '') ||
-      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(pkg.version ?? '') ||
+      !versionPattern.test(pkg.version ?? '') ||
       names.has(pkg.name)
     ) {
       throw new Error('Release packages must have unique names and stable versions');
@@ -68,6 +142,15 @@ async function packageVersions() {
     }
   }
   return versions;
+}
+
+/** Milestones with a recorded manifest in docs/releases (validation and publication files excluded). */
+async function recordedMilestones() {
+  const files = await readdir(join(repository, 'docs/releases'));
+  return files.flatMap((file) => {
+    const version = manifestFilePattern.exec(file)?.[1];
+    return version && isMilestoneVersion(version) ? [version] : [];
+  });
 }
 
 async function registryPackage(name) {
@@ -109,7 +192,8 @@ export function parseRemoteTag(stdout, tag) {
 }
 
 export async function verifyRelease(mode, manifest, dependencies = {}) {
-  const release = validateReleaseManifest(manifest);
+  const milestones = await (dependencies.recordedMilestones ?? recordedMilestones)();
+  const release = validateReleaseManifest(manifest, milestones);
   const local = dependencies.packageVersions ?? packageVersions;
   const registry = dependencies.registryPackage ?? registryPackage;
   const tag = dependencies.remoteTag ?? remoteTag;
@@ -148,7 +232,10 @@ export async function verifyRelease(mode, manifest, dependencies = {}) {
     }
   }
   if (mode === 'prepublish' && release.previous) {
-    const previousRelease = validateReleaseManifest(await previousManifest(release.previous));
+    const previousRelease = validateReleaseManifest(
+      await previousManifest(release.previous),
+      milestones
+    );
     if (previousRelease.milestone !== release.previous)
       throw new Error('Previous milestone manifest mismatch');
     await requireCompleted(previousRelease);

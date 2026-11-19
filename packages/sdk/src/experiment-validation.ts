@@ -43,6 +43,8 @@ export interface ExperimentValidation {
   root: string;
   experimentId?: string;
   mode?: ExperimentMode;
+  /** Declared concurrency limit (coordinates in flight), when the manifest is valid. */
+  concurrency?: number;
   /** Parsed manifest, present when the manifest contract itself is valid. */
   manifest?: ExperimentManifest;
   checks: ExperimentCheck[];
@@ -76,6 +78,7 @@ export async function validateExperimentFile(
       root,
       experimentId: manifest?.id,
       mode: manifest?.mode,
+      concurrency: manifest?.concurrency,
       manifest,
       checks,
       exitCode: valid ? 0 : unreadable ? 1 : 2,

@@ -27,14 +27,17 @@ import {
 } from '../../runner/generation';
 import { runScenario } from '../../runner/runner';
 import { validateScenario } from '../../scenario/parser';
-import type { Scenario } from '../../scenario/schema';
+import type { Expected, Scenario, TestCase } from '../../scenario/schema';
+import { mergeVariables, substituteVariables } from '../../scenario/variables';
 import { targetCostApplies } from '../runner';
 import type {
   ExecutedExperimentAttemptStatus,
+  ExperimentAttemptDemand,
   ExperimentAttemptExecutor,
   ExperimentAttemptInput,
   ExperimentAttemptOutput,
   ExperimentAttemptUsage,
+  ExperimentDemandRequest,
   ExperimentTarget,
   ExperimentTaskEvidence,
   ExperimentTaskSource,
@@ -105,7 +108,87 @@ export function createScenarioExperimentExecutor(
 ): ExperimentAttemptExecutor {
   assertOptions(options);
   const root = path.resolve(options.root);
-  return (input) => executeAttempt(root, options, input);
+  const execute: ExperimentAttemptExecutor = (input) => executeAttempt(root, options, input);
+  execute.reserve = (request) => reserveAttempt(root, request);
+  return execute;
+}
+
+/**
+ * Tokens reserved per request beyond the UTF-8 bytes of its message text, for chat-template
+ * markers, roles and special tokens. It is an estimate for admission only: a request whose
+ * serving runtime adds more (for example a long default system prompt) simply draws the
+ * excess from the run's uncommitted token budget, so an underestimate costs parallelism,
+ * never measurements, while the run's token budget suffices.
+ */
+export const SCENARIO_PROMPT_TOKEN_ALLOWANCE = 256;
+
+/** Expectations evaluated without any model request. */
+const CLIENT_FREE_EXPECTATIONS = new Set([
+  'exact',
+  'regex',
+  'fuzzy',
+  'contains',
+  'not_contains',
+  'json_schema',
+  'inline',
+]);
+
+/**
+ * Declared demand for concurrent admission (see `ExperimentAttemptExecutor.reserve`). It is a
+ * reservation, not a cap on use.
+ *
+ * Declared only when every case sends exactly one request: no tools, no case-level retries,
+ * and only client-free expectations (`llm_grader`, `similarity` and `custom` may call the
+ * model). Requests are then the case count, which is also this executor's own minimum.
+ * Tokens are declared when the per-request output cap (`max_output_tokens`, else the
+ * scenario's `maxTokens`) is known: per case, prompt UTF-8 bytes plus
+ * `SCENARIO_PROMPT_TOKEN_ALLOWANCE` plus the output cap, an estimate rather than a bound. Cost
+ * is never declared, so a metered target under a cost limit runs alone. Anything else
+ * declares no demand and runs one attempt at a time.
+ */
+async function reserveAttempt(
+  root: string,
+  { task, target }: ExperimentDemandRequest
+): Promise<ExperimentAttemptDemand | undefined> {
+  if (task.kind !== 'scenario_evaluation' || task.source.kind !== 'scenario_evaluation') return;
+  const source = await loadTaskSource(root, task.source);
+  if (!source.ok) return;
+  const scenario = parseScenarioBytes(source.bytes);
+  if (!scenario || scenarioConflict(scenario, target)) return;
+  const generation = targetGenerationSettings(target);
+  if (!generation.ok) return;
+  return scenarioDemand(scenario, generation.settings.max_output_tokens ?? scenario.maxTokens);
+}
+
+function scenarioDemand(
+  scenario: Scenario,
+  outputCap: number | undefined
+): ExperimentAttemptDemand | undefined {
+  if (scenario.setup?.tools?.length) return;
+  if (!scenario.cases.every((item) => (item.retries ?? 0) === 0 && clientFree(item.expected)))
+    return;
+  const requests = scenario.cases.length;
+  if (outputCap === undefined || !Number.isFinite(outputCap) || outputCap <= 0) return { requests };
+  let tokens = 0;
+  for (const item of scenario.cases)
+    tokens += promptBytes(scenario, item) + SCENARIO_PROMPT_TOKEN_ALLOWANCE + Math.ceil(outputCap);
+  return { requests, tokens };
+}
+
+function clientFree(expected: Expected): boolean {
+  return expected.type === 'combined'
+    ? expected.expectations.every(clientFree)
+    : CLIENT_FREE_EXPECTATIONS.has(expected.type);
+}
+
+/** UTF-8 bytes of every message a case sends, the system prompt always counted. */
+function promptBytes(scenario: Scenario, item: TestCase): number {
+  const variables = mergeVariables(scenario.variables, item.variables);
+  const prompt = substituteVariables(item.prompt, variables);
+  const messages = typeof prompt === 'string' ? [prompt] : prompt.map((message) => message.content);
+  const system = scenario.setup?.systemPrompt;
+  if (system !== undefined) messages.push(substituteVariables(system, variables));
+  return messages.reduce((sum, text) => sum + Buffer.byteLength(text), 0);
 }
 
 /** SHA-256 identity of a run manifest's canonical JSON (recursively sorted object keys). */

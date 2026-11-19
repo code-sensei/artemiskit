@@ -50,6 +50,7 @@ import {
 export { ExperimentSurfaceError } from './experiment-files';
 export {
   EXPERIMENT_EXIT_CODES,
+  describeConcurrency,
   describeTargetDeployment,
   experimentRunStatus,
   formatExperimentRunSummary,
@@ -74,6 +75,8 @@ export const LOCAL_ENDPOINT_PLACEHOLDER_API_KEY = 'artemiskit-local-no-key';
 const DECISION_ID = /^[a-z0-9][a-z0-9._:-]{0,63}$/;
 const MAX_APPROVER_LENGTH = 128;
 const MAX_REASON_LENGTH = 256;
+const MAX_CONCURRENCY = 8;
+type ApprovedConcurrency = NonNullable<ExperimentLiveAuthorization['approved_concurrency']>;
 
 export interface CreateExperimentLiveAuthorizationOptions {
   /** Who approved the live run. */
@@ -84,6 +87,11 @@ export interface CreateExperimentLiveAuthorizationOptions {
   decisionId?: string;
   /** Decision time; defaults to now. */
   decidedAt?: Date;
+  /**
+   * Highest experiment concurrency this approval covers (integer 1..8). Required to run a
+   * live experiment that declares concurrency above 1; omitted means serial live calls only.
+   */
+  maxConcurrency?: number;
 }
 
 /**
@@ -100,11 +108,14 @@ export function createExperimentLiveAuthorization(
     decided_at: decidedAt.toISOString(),
     approved_by: String(options.approvedBy ?? '').trim(),
     reason: String(options.reason ?? '').trim(),
+    ...(options.maxConcurrency === undefined
+      ? {}
+      : { approved_concurrency: options.maxConcurrency as ApprovedConcurrency }),
   };
   if (!isValidLiveAuthorization(authorization)) {
     throw new ExperimentSurfaceError(
       'authorization_invalid',
-      `Live approval needs an approver (1-${MAX_APPROVER_LENGTH} characters), a reason (1-${MAX_REASON_LENGTH} characters) and a decision ID matching ${DECISION_ID}`,
+      `Live approval needs an approver (1-${MAX_APPROVER_LENGTH} characters), a reason (1-${MAX_REASON_LENGTH} characters), a decision ID matching ${DECISION_ID} and, when given, a maximum concurrency from 1 to ${MAX_CONCURRENCY}`,
       EXPERIMENT_EXIT_CODES.unauthorized
     );
   }
@@ -127,7 +138,11 @@ function isValidLiveAuthorization(value: unknown): value is ExperimentLiveAuthor
     typeof candidate.decided_at === 'string' &&
     !Number.isNaN(Date.parse(candidate.decided_at)) &&
     boundedText(candidate.approved_by, MAX_APPROVER_LENGTH) &&
-    boundedText(candidate.reason, MAX_REASON_LENGTH)
+    boundedText(candidate.reason, MAX_REASON_LENGTH) &&
+    (candidate.approved_concurrency === undefined ||
+      (Number.isSafeInteger(candidate.approved_concurrency) &&
+        candidate.approved_concurrency >= 1 &&
+        candidate.approved_concurrency <= MAX_CONCURRENCY))
   );
 }
 
@@ -214,6 +229,14 @@ export async function runExperimentFile(
       'Live experiments require an explicit approval (approver, reason, decision ID); nothing was executed'
     );
   }
+  const approvedConcurrency = options.liveAuthorization?.approved_concurrency ?? 1;
+  if (live && manifest.concurrency > approvedConcurrency) {
+    return refusal(
+      'unauthorized',
+      validation,
+      `The experiment declares concurrency ${manifest.concurrency} but the live approval covers ${approvedConcurrency}; approve it explicitly (--max-concurrency ${manifest.concurrency}); nothing was executed`
+    );
+  }
 
   const outputDir = path.resolve(
     options.outputDir ??
@@ -244,6 +267,7 @@ export async function runExperimentFile(
     execute_attempt: executor,
     ...(live ? { live_authorization: pickAuthorization(options.liveAuthorization) } : {}),
   });
+  sortEvidence(evidence, result);
   const resultPath = await saveExperimentResult(outputDir, result);
   const status = experimentRunStatus(result);
   return {
@@ -280,7 +304,25 @@ function pickAuthorization(value: ExperimentLiveAuthorization | undefined) {
     decided_at: authorization.decided_at,
     approved_by: authorization.approved_by,
     reason: authorization.reason,
+    ...(authorization.approved_concurrency === undefined
+      ? {}
+      : { approved_concurrency: authorization.approved_concurrency }),
   };
+}
+
+/**
+ * Concurrent attempts save evidence in completion order; list it in matrix order, then by
+ * attempt number, so the evidence index is deterministic.
+ */
+function sortEvidence(evidence: ExperimentEvidenceFile[], result: ExperimentRunResult): void {
+  const order = new Map(
+    result.results.map((item, index) => [item.coordinate.coordinate_id, index])
+  );
+  const position = (item: ExperimentEvidenceFile) =>
+    order.get(item.coordinate_id) ?? Number.MAX_SAFE_INTEGER;
+  evidence.sort(
+    (left, right) => position(left) - position(right) || left.attempt_number - right.attempt_number
+  );
 }
 
 /**

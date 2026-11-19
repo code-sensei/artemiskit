@@ -106,9 +106,18 @@ export type ExperimentStopReason =
   | 'usage_invalid'
   | 'budget_exceeded';
 
+/**
+ * Maximum number of matrix coordinates in flight at once (integer 1..8). Attempts of one
+ * coordinate always run serially; `1` is fully serial execution.
+ */
+export type ExperimentConcurrency = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
 export interface ExperimentLiveControls {
-  /** V1 executes serially; the explicit ceiling prevents accidental parallel live calls. */
-  concurrency_ceiling: 1;
+  /**
+   * Host-approved upper bound on parallel live coordinates (integer 1..8). The manifest's
+   * `concurrency` must not exceed it, so parallel live calls are always an explicit decision.
+   */
+  concurrency_ceiling: ExperimentConcurrency;
   stop_conditions: ExperimentStopReason[];
 }
 
@@ -120,8 +129,11 @@ export interface ExperimentManifest {
   tasks: ExperimentTask[];
   targets: ExperimentTarget[];
   repetitions: number;
-  /** V1 supports deterministic serial execution only. */
-  concurrency: 1;
+  /**
+   * Coordinates allowed in flight at once. `1` keeps deterministic serial execution; larger
+   * values admit attempts under the fair-share budget rule documented on `runExperiment`.
+   */
+  concurrency: ExperimentConcurrency;
   seed?: ExperimentSeed;
   exclusions: ExperimentExclusion[];
   retry_policy: ExperimentRetryPolicy;
@@ -214,6 +226,10 @@ export interface ExperimentCoordinate {
   declared_exclusion?: ExperimentExclusion;
 }
 
+/**
+ * Budget an attempt may still consume. Under concurrency it is the attempt's admission grant:
+ * already net of everything consumed and of every grant held by other in-flight attempts.
+ */
 export interface ExperimentRemainingBudget {
   requests: number;
   tokens?: number;
@@ -230,14 +246,60 @@ export interface ExperimentAttemptInput {
   remaining_budget: ExperimentRemainingBudget;
 }
 
-export type ExperimentAttemptExecutor = (
-  input: ExperimentAttemptInput
-) => Promise<ExperimentAttemptOutput>;
+/**
+ * Expected use of one attempt of a task × target pair, reserved for concurrent admission. It
+ * is a reservation, not a cap: use beyond it draws on the run's uncommitted budget, and only
+ * use beyond a declared run budget halts the run. With nothing else in flight an attempt is
+ * granted the whole remaining budget instead, as in a serial run.
+ */
+export interface ExperimentAttemptDemand {
+  requests: number;
+  tokens?: number;
+  cost?: ExperimentCostLimit;
+}
+
+export interface ExperimentDemandRequest {
+  experiment_id: string;
+  task: ExperimentTask;
+  target: ExperimentTarget;
+}
+
+/**
+ * Runs one attempt. Optionally declares, through `reserve`, the demand to reserve for each
+ * attempt of a task × target pair. Concurrent runs admit an attempt when that demand fits the
+ * uncommitted budget; pairs without a complete demand (one covering every declared budget that
+ * applies), or with a demand above a declared run budget, run alone. `reserve` is consulted
+ * only when `manifest.concurrency` exceeds 1.
+ */
+export interface ExperimentAttemptExecutor {
+  (input: ExperimentAttemptInput): Promise<ExperimentAttemptOutput>;
+  reserve?: (
+    request: ExperimentDemandRequest
+  ) => ExperimentAttemptDemand | undefined | Promise<ExperimentAttemptDemand | undefined>;
+}
+
+/**
+ * Replayable admission record for one attempt of a concurrent run (`concurrency` > 1).
+ *
+ * `admitted_at` and `settled_at` are positions in one run-wide event sequence: every attempt
+ * contributes exactly one admission and one settlement event, so across a result they form
+ * the permutation `0 .. 2 × attempts − 1`. Replaying the events in order re-derives the
+ * shared budget ledger and therefore every grant. Serial results omit this record because
+ * matrix order already fixes the sequence.
+ */
+export interface ExperimentAttemptAdmission {
+  admitted_at: number;
+  settled_at: number;
+  /** Exactly the `remaining_budget` handed to the executor for this attempt. */
+  granted_budget: ExperimentRemainingBudget;
+}
 
 export interface ExperimentAttemptEvidence extends ExperimentAttemptOutput {
   attempt_id: string;
   retry_chain_id: string;
   attempt_number: number;
+  /** Present on every attempt when, and only when, the manifest's concurrency exceeds 1. */
+  admission?: ExperimentAttemptAdmission;
 }
 
 export type ExperimentCompletionCode =
@@ -309,6 +371,26 @@ export interface ExperimentUncertainty {
   task_clustering: 'not_estimated';
 }
 
+/** Admission reservation recorded for one executable task × target pair. */
+export interface ExperimentReservation {
+  task_id: string;
+  target_id: string;
+  /**
+   * Normalized declared demand. Absent when the executor declared none, none covering every
+   * declared budget that applies to the target, or one above a declared run budget: such
+   * attempts were admitted only with nothing else in flight.
+   */
+  demand?: ExperimentAttemptDemand;
+}
+
+/** Concurrent scheduling record; present when, and only when, `concurrency` exceeds 1. */
+export interface ExperimentExecution {
+  /** Most attempts in flight at once, as re-derived from the admission sequence. */
+  peak_in_flight: number;
+  /** Executable task × target pairs in matrix order. */
+  reservations: ExperimentReservation[];
+}
+
 export interface ExperimentRunResult {
   schema_version: '1';
   experiment_id: string;
@@ -331,6 +413,7 @@ export interface ExperimentRunResult {
     operational: ExperimentOperationalSummary;
   };
   uncertainty: ExperimentUncertainty;
+  execution?: ExperimentExecution;
 }
 
 export interface ExperimentLiveAuthorization {
@@ -339,6 +422,12 @@ export interface ExperimentLiveAuthorization {
   decided_at: string;
   approved_by: string;
   reason: string;
+  /**
+   * Highest concurrency this decision approves (integer 1..8). Required when the manifest
+   * declares concurrency above 1; absent means serial live calls only. It is set by the host
+   * outside the manifest, so parallel live calls always need an explicit approval.
+   */
+  approved_concurrency?: ExperimentConcurrency;
 }
 
 export interface RunExperimentOptions {

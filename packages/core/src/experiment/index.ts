@@ -1,6 +1,7 @@
 export { assessExperimentCompatibility } from './compatibility';
 export { isLoopbackEndpoint } from './executors/loopback';
 export {
+  SCENARIO_PROMPT_TOKEN_ALLOWANCE,
   createScenarioExperimentExecutor,
   runManifestIdentity,
 } from './executors/scenario';
@@ -10,9 +11,16 @@ export type {
   ScenarioExperimentExecutorOptions,
 } from './executors/scenario';
 export { parseExperimentManifest } from './parser';
-export { buildExperimentMatrix, runExperiment, targetCostApplies } from './runner';
+export {
+  buildExperimentMatrix,
+  experimentUncertaintyAssumptions,
+  runExperiment,
+  targetCostApplies,
+} from './runner';
 export type {
   ExecutedExperimentAttemptStatus,
+  ExperimentAttemptAdmission,
+  ExperimentAttemptDemand,
   ExperimentAttemptEvidence,
   ExperimentAttemptExecutor,
   ExperimentAttemptInput,
@@ -26,10 +34,13 @@ export type {
   ExperimentComparisonReasonCode,
   ExperimentComparisonStatus,
   ExperimentCompatibility,
+  ExperimentConcurrency,
   ExperimentCostLimit,
   ExperimentCoordinate,
   ExperimentCoordinateResult,
+  ExperimentDemandRequest,
   ExperimentExclusion,
+  ExperimentExecution,
   ExperimentIdentity,
   ExperimentLiveControls,
   ExperimentManifest,
@@ -37,6 +48,7 @@ export type {
   ExperimentLiveAuthorization,
   ExperimentOperationalSummary,
   ExperimentRemainingBudget,
+  ExperimentReservation,
   ExperimentRetryPolicy,
   ExperimentRuntimeExclusion,
   ExperimentRunResult,

@@ -37,11 +37,20 @@ interface ExperimentRunCommandOptions {
   approvedBy?: string;
   reason?: string;
   decisionId?: string;
+  maxConcurrency?: string;
   timeout?: string;
 }
 
 export function formatExperimentValidation(validation: ExperimentValidation): string {
   const lines = [`Experiment file: ${validation.file}`];
+  if (validation.concurrency !== undefined)
+    lines.push(
+      `Concurrency: ${
+        validation.concurrency === 1
+          ? '1 (serial)'
+          : `up to ${validation.concurrency} coordinates in flight (declared limit; live runs need --max-concurrency ${validation.concurrency})`
+      }`
+    );
   for (const check of validation.checks) {
     const subject = check.id ? `${check.subject} ${check.id}` : check.subject;
     lines.push(`  ${CHECK_SYMBOLS[check.status]} ${subject}: ${check.message}`);
@@ -116,12 +125,19 @@ function buildAuthorization(options: ExperimentRunCommandOptions): {
   if (!options.approve) {
     return { problem: 'pass --approve with --approved-by <name> and --reason <text>' };
   }
+  let maxConcurrency: number | undefined;
+  if (options.maxConcurrency !== undefined) {
+    maxConcurrency = Number(options.maxConcurrency);
+    if (!/^[1-8]$/.test(options.maxConcurrency.trim()))
+      return { problem: '--max-concurrency must be an integer from 1 to 8' };
+  }
   try {
     return {
       authorization: createExperimentLiveAuthorization({
         approvedBy: options.approvedBy ?? '',
         reason: options.reason ?? '',
         decisionId: options.decisionId,
+        maxConcurrency,
       }),
     };
   } catch (error) {
@@ -185,6 +201,10 @@ function experimentRunCommand(): Command {
     .option('--approved-by <name>', 'Who approved the live run (recorded in the result)')
     .option('--reason <text>', 'Why the live run is approved (recorded in the result)')
     .option('--decision-id <id>', 'Approval decision ID (default: generated)')
+    .option(
+      '--max-concurrency <n>',
+      'Highest concurrency (1-8) this live approval covers; required when the experiment declares concurrency above 1 (recorded in the result)'
+    )
     .option(
       '--timeout <ms>',
       'Per-case model request timeout in milliseconds (also the minimum HTTP timeout for live targets)'

@@ -3,6 +3,7 @@ import { type ExperimentRunResult, runExperiment } from '@artemiskit/core';
 import { createExperimentReport } from './model';
 import {
   adapterErrorCollisionResult,
+  concurrentExperimentResult,
   coreOutputMatrix,
   experimentManifest,
   liveBudgetResult,
@@ -11,8 +12,10 @@ import {
   localOpenWeightResult,
   mixedExperimentResult,
   preFixLiveMissingUsageResult,
+  randomConcurrentResult,
   reverseKeys,
   statusExperimentResult,
+  underDeclaredConcurrentResult,
 } from './model-fixtures';
 
 let mixed: ExperimentRunResult;
@@ -433,6 +436,355 @@ describe('strict saved-result validation', () => {
     tokens.results[0].attempts[0].usage.tokens = 10_000_000_001;
     tokens.summaries.operational.tokens += 9_999_999_997;
     expect(() => createExperimentReport(tokens)).toThrow(error);
+  });
+});
+
+describe('concurrent experiment results', () => {
+  type Attempt = ExperimentRunResult['results'][number]['attempts'][number];
+  const attemptsOf = (value: ExperimentRunResult) => value.results.flatMap((item) => item.attempts);
+  const admission = (attempt: Attempt) => {
+    if (!attempt.admission) throw new Error('Expected admission evidence');
+    return attempt.admission;
+  };
+  /** The attempt whose admission or settlement occupies a run-wide event position. */
+  const atEvent = (value: ExperimentRunResult, position: number) => {
+    const attempt = attemptsOf(value).find(
+      (item) => admission(item).admitted_at === position || admission(item).settled_at === position
+    );
+    if (!attempt) throw new Error(`No attempt at event ${position}`);
+    return attempt;
+  };
+
+  let concurrent: ExperimentRunResult;
+  beforeAll(async () => {
+    concurrent = await concurrentExperimentResult();
+  });
+
+  test('validates a concurrent result and states its parallel level and caveat', () => {
+    const peak = Math.max(
+      ...attemptsOf(concurrent).map(
+        (attempt) =>
+          attemptsOf(concurrent).filter(
+            (other) =>
+              admission(other).admitted_at <= admission(attempt).admitted_at &&
+              admission(other).settled_at > admission(attempt).admitted_at
+          ).length
+      )
+    );
+    expect(peak).toBe(3);
+    expect(concurrent.summaries.operational.retry_attempts).toBe(1);
+
+    const report = createExperimentReport(concurrent);
+    expect(report.summary.concurrency).toBe(3);
+    const methodology = report.methodology.join(' ');
+    expect(report.summary.peakInFlight).toBe(3);
+    expect(methodology).toContain('declared limit of 3 coordinates in flight');
+    expect(methodology).toContain('recorded peak was 3');
+    expect(methodology).toContain('does not prove wall-clock timing');
+    expect(methodology).toContain('Up to 3 coordinates were allowed to run concurrently');
+    expect(JSON.stringify(report.sections)).toContain('concurrency 3');
+    expect(createExperimentReport(reverseKeys(concurrent))).toEqual(report);
+    expect(createExperimentReport(mixed).summary.concurrency).toBe(1);
+    expect(createExperimentReport(mixed).methodology.join(' ')).not.toContain('in flight');
+    expect(createExperimentReport(mixed).summary.peakInFlight).toBeNull();
+  });
+
+  test('replays many random concurrent interleavings, halts and overruns', async () => {
+    const stops = new Set<string>();
+    const rejected: number[] = [];
+    for (let seed = 1; seed <= 150; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      stops.add(result.stop_reason ?? 'none');
+      try {
+        createExperimentReport(result);
+      } catch {
+        rejected.push(seed);
+      }
+    }
+    expect(rejected).toEqual([]);
+    for (const reason of ['none', 'request_budget_exhausted', 'budget_exceeded'])
+      expect(stops.has(reason)).toBe(true);
+    expect(stops.size).toBeGreaterThan(4);
+  });
+
+  test('rejects every random result whose recorded grant is forged', async () => {
+    let forged = 0;
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      const attempts = attemptsOf(result);
+      if (!attempts.length) continue;
+      const target = admission(attempts[seed % attempts.length]);
+      target.granted_budget.requests += 1;
+      expect(() => createExperimentReport(result), `seed ${seed}`).toThrow(error);
+      forged += 1;
+    }
+    expect(forged).toBeGreaterThan(40);
+  });
+
+  test('rejects tampered or inconsistent admission evidence', () => {
+    const mutations: [string, (value: ExperimentRunResult) => void][] = [
+      [
+        'grant cost',
+        (value) => {
+          const grant = admission(value.results[0].attempts[0]).granted_budget;
+          if (grant.cost) grant.cost.amount /= 2;
+        },
+      ],
+      [
+        'grant tokens removed',
+        (value) => {
+          admission(value.results[0].attempts[0]).granted_budget.tokens = undefined;
+        },
+      ],
+      [
+        'grant extra key',
+        (value) => {
+          Object.assign(admission(value.results[0].attempts[0]).granted_budget, { slots: 3 });
+        },
+      ],
+      [
+        'missing admission',
+        (value) => {
+          value.results[1].attempts[0].admission = undefined;
+        },
+      ],
+      [
+        'settled before admitted',
+        (value) => {
+          const record = admission(value.results[0].attempts[0]);
+          [record.admitted_at, record.settled_at] = [record.settled_at, record.admitted_at];
+        },
+      ],
+      [
+        'duplicate event',
+        (value) => {
+          admission(value.results[1].attempts[0]).settled_at = admission(
+            value.results[0].attempts[0]
+          ).settled_at;
+        },
+      ],
+      [
+        'event outside the sequence',
+        (value) => {
+          admission(value.results[0].attempts[0]).settled_at += 100;
+        },
+      ],
+      [
+        'swapped first admissions',
+        (value) => {
+          const first = admission(atEvent(value, 0));
+          const second = admission(atEvent(value, 1));
+          [first.admitted_at, second.admitted_at] = [second.admitted_at, first.admitted_at];
+        },
+      ],
+      [
+        'retry admitted before its first attempt settled',
+        (value) => {
+          const chain = value.results.find((item) => item.attempts.length === 2);
+          if (!chain) throw new Error('Expected a retry chain');
+          const first = admission(chain.attempts[0]);
+          const second = admission(chain.attempts[1]);
+          // A clean swap keeps a valid event permutation but overlaps the retry with attempt 1.
+          [first.settled_at, second.admitted_at] = [second.admitted_at, first.settled_at];
+        },
+      ],
+      [
+        'lower declared concurrency',
+        (value) => {
+          value.manifest.concurrency = 2;
+        },
+      ],
+      [
+        'declared serial',
+        (value) => {
+          value.manifest.concurrency = 1;
+        },
+      ],
+      [
+        'reproducibility caveat removed',
+        (value) => {
+          value.uncertainty.assumptions.pop();
+        },
+      ],
+      [
+        'usage beyond the run budget left terminal',
+        (value) => {
+          const attempt = value.results[0].attempts[0];
+          attempt.usage.requests = value.manifest.budgets.max_requests + 1;
+          value.summaries.operational.requests +=
+            attempt.usage.requests - concurrent.results[0].attempts[0].usage.requests;
+        },
+      ],
+    ];
+    for (const [label, mutate] of mutations) {
+      const value = structuredClone(concurrent);
+      mutate(value);
+      expect(() => createExperimentReport(value), label).toThrow(error);
+    }
+  });
+
+  test('validates exactly sufficient cost budgets measured fully at concurrency above 1', async () => {
+    const base = experimentManifest();
+    for (const [amount, count] of [
+      [0.25, 10],
+      [0.1, 10],
+      [0.5, 4],
+      [1, 6],
+    ] as const)
+      for (const declared of [true, false]) {
+        const execute = Object.assign(
+          async (input: {
+            coordinate: { task_kind: 'scenario_evaluation' | 'agent_workflow' };
+          }) => ({
+            status: 'passed' as const,
+            usage: { requests: 1, cost: { amount, currency: 'USD' } },
+            evidence: {
+              kind: input.coordinate.task_kind,
+              availability: 'available' as const,
+              artifact: {
+                schema_version: '1' as const,
+                algorithm: 'sha256' as const,
+                digest: 'c'.repeat(64),
+              },
+            },
+          }),
+          declared ? { reserve: () => ({ requests: 1, cost: { amount, currency: 'USD' } }) } : {}
+        );
+        const result = await runExperiment(
+          experimentManifest({
+            tasks: [base.tasks[1]],
+            exclusions: [],
+            repetitions: count / 2,
+            concurrency: 4,
+            retry_policy: { max_attempts: 1, retry_on: [] },
+            budgets: { max_requests: 100, max_cost: { amount: amount * count, currency: 'USD' } },
+          }),
+          { execute_attempt: execute }
+        );
+        expect(result.summaries.overall.passed, `${amount}×${count} ${declared}`).toBe(count);
+        expect(createExperimentReport(result).summary.passed).toBe(count);
+      }
+  });
+
+  test('accepts use beyond a reservation that the budget covers, and rejects forged halts', async () => {
+    const underDeclared = await underDeclaredConcurrentResult();
+    expect(underDeclared.summaries.overall).toMatchObject({ planned: 6, passed: 6 });
+    expect(underDeclared.stop_reason).toBeUndefined();
+    expect(underDeclared.summaries.operational).toMatchObject({ requests: 24, tokens: 120 });
+    expect(createExperimentReport(underDeclared).summary.passed).toBe(6);
+
+    const halted = structuredClone(underDeclared);
+    halted.results[0].status = 'incomplete';
+    halted.results[0].completion_code = 'budget_exceeded';
+    halted.results[0].attempts[0].status = 'incomplete';
+    halted.results[0].attempts[0].error_code = 'budget_exceeded';
+    halted.stop_reason = 'budget_exceeded';
+    expect(() => createExperimentReport(halted)).toThrow(error);
+
+    const oversized = structuredClone(underDeclared);
+    const reservation = oversized.execution?.reservations[0];
+    if (reservation?.demand) reservation.demand.requests = 25;
+    expect(() => createExperimentReport(oversized)).toThrow(error);
+  });
+
+  test('rejects forged reservations, peaks and schedules a greedy runner cannot produce', () => {
+    const mutations: [string, (value: ExperimentRunResult) => void][] = [
+      [
+        'missing execution record',
+        (value) => {
+          value.execution = undefined;
+        },
+      ],
+      [
+        'peak overstated',
+        (value) => {
+          if (value.execution) value.execution.peak_in_flight = 4;
+        },
+      ],
+      [
+        'peak understated',
+        (value) => {
+          if (value.execution) value.execution.peak_in_flight = 1;
+        },
+      ],
+      [
+        'reservation demand changed',
+        (value) => {
+          const reservation = value.execution?.reservations[0];
+          if (reservation?.demand) reservation.demand.requests = 2;
+        },
+      ],
+      [
+        'reservation demand removed',
+        (value) => {
+          const reservation = value.execution?.reservations[0];
+          if (reservation) reservation.demand = undefined;
+        },
+      ],
+      [
+        'reservation list reordered',
+        (value) => {
+          value.execution?.reservations.reverse();
+        },
+      ],
+      [
+        'relabelled as a serial schedule',
+        (value) => {
+          // The verifier's forgery: serial-ordered events under a concurrent label.
+          let position = 0;
+          for (const item of value.results)
+            for (const attempt of item.attempts) {
+              const record = admission(attempt);
+              record.admitted_at = position;
+              record.settled_at = position + 1;
+              position += 2;
+            }
+          if (value.execution) value.execution.peak_in_flight = 1;
+        },
+      ],
+    ];
+    for (const [label, mutate] of mutations) {
+      const value = structuredClone(concurrent);
+      mutate(value);
+      expect(() => createExperimentReport(value), label).toThrow(error);
+    }
+  });
+
+  test('requires a live concurrent result to carry an approval naming its concurrency', async () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      if (result.mode !== 'live' || !result.live_authorization) continue;
+      expect(
+        createExperimentReport(result)
+          .sections.flatMap((item) => item.rows)
+          .some((row) => row.cells.some((cell) => cell.includes('approved concurrency up to 8')))
+      ).toBe(true);
+      for (const approved of [undefined, result.manifest.concurrency - 1, 9]) {
+        const forged = structuredClone(result);
+        if (forged.live_authorization)
+          forged.live_authorization.approved_concurrency = approved as never;
+        expect(() => createExperimentReport(forged), `seed ${seed} ${approved}`).toThrow(error);
+      }
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+
+  test('rejects an execution record on a serial result', () => {
+    const value = structuredClone(mixed);
+    value.execution = { peak_in_flight: 1, reservations: [] };
+    expect(() => createExperimentReport(value)).toThrow(error);
+  });
+
+  test('rejects admission evidence on a serial result', () => {
+    const value = structuredClone(mixed);
+    value.results[0].attempts[0].admission = {
+      admitted_at: 0,
+      settled_at: 1,
+      granted_budget: { requests: 100, tokens: 100_000 },
+    };
+    expect(() => createExperimentReport(value)).toThrow(error);
   });
 });
 

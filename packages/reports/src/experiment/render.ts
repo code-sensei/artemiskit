@@ -75,6 +75,13 @@ function metrics(report: ExperimentReport): [string, string][] {
     ['Excluded', String(summary.excluded)],
     ['Incomplete', String(summary.incomplete)],
     ['Infrastructure failed', String(summary.infrastructure_failed)],
+    [
+      'Concurrency limit (declared)',
+      summary.concurrency === 1 ? '1 (serial)' : `up to ${summary.concurrency} in flight`,
+    ],
+    ...(summary.peakInFlight === null
+      ? []
+      : [['Peak attempts in flight (recorded)', String(summary.peakInFlight)] as [string, string]]),
     ['Executor invocations', String(summary.executorInvocations)],
     ['Attempts', String(summary.attempts)],
     ['Retries', String(summary.retries)],

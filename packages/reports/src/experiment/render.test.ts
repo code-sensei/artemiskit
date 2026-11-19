@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test';
 import type { ExperimentRunResult } from '@artemiskit/core';
 import { generateExperimentReport } from './generator';
 import { createExperimentReport } from './model';
-import { mixedExperimentResult } from './model-fixtures';
+import { concurrentExperimentResult, mixedExperimentResult } from './model-fixtures';
 import { renderExperimentReportHTML, renderExperimentReportMarkdown } from './render';
 import type { ExperimentReport, ExperimentReportOptions, ExperimentReportView } from './types';
 
@@ -202,6 +202,20 @@ describe('experiment report generator options', () => {
         'Invalid experiment report options'
       );
     expect(called).toBe(0);
+  });
+
+  test('states the declared concurrency level and the reproducibility caveat in every view', async () => {
+    const concurrent = await concurrentExperimentResult();
+    for (const view of views) {
+      expect(renderExperimentReportHTML(report, { view })).toContain('1 (serial)');
+      for (const format of ['html', 'markdown'] as const) {
+        const rendered = generateExperimentReport(concurrent, { view, format });
+        expect(rendered).toMatch(/Concurrency limit (\(|&#40;)declared(\)|&#41;)/);
+        expect(rendered).toContain('up to 3 in flight');
+        expect(rendered).toMatch(/Peak attempts in flight (\(|&#40;)recorded(\)|&#41;)/);
+        expect(rendered).toContain('Up to 3 coordinates were allowed to run concurrently');
+      }
+    }
   });
 });
 

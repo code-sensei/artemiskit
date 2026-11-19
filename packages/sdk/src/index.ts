@@ -517,6 +517,7 @@ export {
   LOOPBACK_REQUIRED_MESSAGE,
   createExperimentFixtureClient,
   createExperimentLiveAuthorization,
+  describeConcurrency,
   describeTargetDeployment,
   experimentRunStatus,
   formatExperimentRunSummary,

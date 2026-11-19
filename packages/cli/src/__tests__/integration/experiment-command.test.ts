@@ -94,8 +94,21 @@ describe('akit experiment validate', () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('✓ task pass: tasks/pass.yaml: digest verified');
     expect(result.stdout).toContain('✓ target qwen-small');
+    expect(result.stdout).toContain('Concurrency: 1 (serial)');
     expect(result.stdout).toContain('Experiment is valid.');
     expectNoNetworkOrSecrets(result);
+  });
+
+  test('states a declared concurrency limit and the approval it needs live', async () => {
+    const fixture = await writeExperimentFixture({ overrides: { concurrency: 3 } });
+    const text = await invoke(fixture.directory, ['validate', fixture.file]);
+    const json = await invoke(fixture.directory, ['validate', fixture.file, '--json']);
+
+    expect(text.code).toBe(0);
+    expect(text.stdout).toContain(
+      'Concurrency: up to 3 coordinates in flight (declared limit; live runs need --max-concurrency 3)'
+    );
+    expect(JSON.parse(json.stdout)).toMatchObject({ valid: true, concurrency: 3 });
   });
 
   test('prints machine-readable JSON without the manifest body', async () => {
@@ -229,6 +242,47 @@ describe('akit experiment run', () => {
     expect(result.code).toBe(3);
     expect(result.stderr).toContain('Live approval needs an approver');
     await expect(stat(path.join(fixture.directory, 'artemis-output'))).rejects.toThrow();
+  });
+
+  test('refuses a concurrent live experiment unless --max-concurrency covers it', async () => {
+    const fixture = await writeExperimentFixture({
+      overrides: { ...LIVE, concurrency: 2, live: { ...LIVE_CONTROLS, concurrency_ceiling: 2 } },
+    });
+    const approval = ['--approve', '--approved-by', 'operator', '--reason', 'local run'];
+    const missing = await invoke(fixture.directory, ['run', fixture.file, ...approval]);
+    const low = await invoke(fixture.directory, [
+      'run',
+      fixture.file,
+      ...approval,
+      '--max-concurrency',
+      '1',
+    ]);
+    const malformed = await invoke(fixture.directory, [
+      'run',
+      fixture.file,
+      ...approval,
+      '--max-concurrency',
+      'nine',
+    ]);
+
+    for (const result of [missing, low]) {
+      expect(result.code).toBe(3);
+      expect(result.stderr).toContain('approve it explicitly (--max-concurrency 2)');
+    }
+    expect(malformed.code).toBe(3);
+    expect(malformed.stderr).toContain('--max-concurrency must be an integer from 1 to 8');
+    expectNoNetworkOrSecrets(missing);
+    await expect(stat(path.join(fixture.directory, 'artemis-output'))).rejects.toThrow();
+  });
+
+  test('prints the concurrency limit and recorded peak after a concurrent run', async () => {
+    const fixture = await writeExperimentFixture({ overrides: { concurrency: 2 } });
+    const result = await invoke(fixture.directory, ['run', fixture.file, '--output-dir', 'out']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      'Concurrency: up to 2 coordinates in flight (declared limit); recorded peak'
+    );
   });
 
   test('notes that approval flags are ignored for fixture experiments', async () => {

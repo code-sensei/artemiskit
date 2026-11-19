@@ -265,7 +265,7 @@ describe('validateExperimentFile', () => {
   });
 
   test('distinguishes an unreadable file (1) from an invalid manifest (2)', async () => {
-    const fixture = await writeExperimentFixture({ overrides: { concurrency: 4 } });
+    const fixture = await writeExperimentFixture({ overrides: { concurrency: 9 } });
     const missing = await validateExperimentFile(path.join(fixture.directory, 'absent.yaml'));
     const invalid = await validateExperimentFile(fixture.file);
 
@@ -779,6 +779,87 @@ describe('runExperimentFile (live mode)', () => {
   });
 });
 
+describe('runExperimentFile (concurrent live mode)', () => {
+  const concurrentLive = () =>
+    writeExperimentFixture({
+      overrides: liveOverrides({
+        concurrency: 2,
+        live: { ...LIVE_CONTROLS, concurrency_ceiling: 2 },
+      }),
+      target: (target) => ({
+        ...target,
+        settings: { ...(target.settings as object), max_output_tokens: 16 },
+      }),
+    });
+
+  test('refuses unless the approval names the declared concurrency', async () => {
+    const fixture = await concurrentLive();
+    for (const maxConcurrency of [undefined, 1]) {
+      let created = 0;
+      const outcome = await runExperimentFile({
+        experiment: fixture.file,
+        outputDir: path.join(fixture.directory, `out-${maxConcurrency}`),
+        liveAuthorization: createExperimentLiveAuthorization({
+          approvedBy: 'test-operator',
+          reason: 'in-memory clients only',
+          maxConcurrency,
+        }),
+        createClient: () => {
+          created += 1;
+          throw new Error('must not be called');
+        },
+      });
+      expect(outcome.status).toBe('unauthorized');
+      expect(outcome.exitCode).toBe(3);
+      expect(outcome.message).toContain('--max-concurrency 2');
+      expect(created).toBe(0);
+    }
+  });
+
+  test('runs with an approved concurrency, records it and lists evidence in matrix order', async () => {
+    const fixture = await concurrentLive();
+    const calls: string[] = [];
+    const base = inMemoryClient('Fixture response, Abuja', calls);
+    const authorization = createExperimentLiveAuthorization({
+      approvedBy: 'test-operator',
+      reason: 'in-memory clients only',
+      maxConcurrency: 2,
+    });
+    const outcome = await runExperimentFile({
+      experiment: fixture.file,
+      outputDir: path.join(fixture.directory, 'out'),
+      liveAuthorization: authorization,
+      createClient: (target) => {
+        const client = base(target);
+        return {
+          ...client,
+          generate: async (options) => {
+            // The first target answers slowly, so attempts finish out of matrix order.
+            await new Promise((resolve) =>
+              setTimeout(resolve, target.id === 'qwen-small' ? 15 : 1)
+            );
+            return client.generate(options);
+          },
+        };
+      },
+    });
+
+    expect(outcome.exitCode).toBe(0);
+    const result = outcome.result as ExperimentRunResult;
+    expect(result.live_authorization).toEqual(authorization);
+    expect(result.live_authorization?.approved_concurrency).toBe(2);
+    expect(result.execution?.peak_in_flight).toBe(2);
+    expect(calls[0]).toBe('qwen-large');
+    expect(outcome.evidence.map((item) => item.coordinate_id)).toEqual(
+      result.results.map((item) => item.coordinate.coordinate_id)
+    );
+    const summary = formatExperimentRunSummary(result);
+    expect(summary).toContain(
+      'Concurrency: up to 2 coordinates in flight (declared limit); recorded peak 2'
+    );
+  });
+});
+
 describe('createExperimentLiveAuthorization', () => {
   test('builds a bounded decision record', () => {
     const authorization = createExperimentLiveAuthorization({
@@ -795,11 +876,23 @@ describe('createExperimentLiveAuthorization', () => {
     expect(authorization.decision_id).toMatch(/^live-20261119100000-[a-f0-9]{8}$/);
   });
 
+  test('records an approved concurrency from 1 to 8', () => {
+    expect(
+      createExperimentLiveAuthorization({ approvedBy: 'x', reason: 'y', maxConcurrency: 4 })
+    ).toMatchObject({ approved_concurrency: 4 });
+    expect(
+      'approved_concurrency' in createExperimentLiveAuthorization({ approvedBy: 'x', reason: 'y' })
+    ).toBe(false);
+  });
+
   test('rejects a missing approver or reason with exit code 3', () => {
     for (const options of [
       { approvedBy: '', reason: 'x' },
       { approvedBy: 'x', reason: '  ' },
       { approvedBy: 'x', reason: 'y', decisionId: 'UPPER' },
+      { approvedBy: 'x', reason: 'y', maxConcurrency: 0 },
+      { approvedBy: 'x', reason: 'y', maxConcurrency: 9 },
+      { approvedBy: 'x', reason: 'y', maxConcurrency: 1.5 },
     ]) {
       const error = (() => {
         try {

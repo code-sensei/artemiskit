@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { ExperimentRunResult, RunManifest } from '@artemiskit/core';
+import type { ExperimentRunResult } from '@artemiskit/core';
 
 /** Largest experiment definition the surfaces will read. */
 export const MAX_EXPERIMENT_FILE_BYTES = 1_048_576;
@@ -56,8 +56,9 @@ export function sha256Hex(bytes: Uint8Array | string): string {
 }
 
 /**
- * Canonical JSON with recursively sorted object keys. Matches core's `runManifestIdentity`
- * serialization, so a saved evidence file's SHA-256 equals its recorded artifact digest.
+ * Canonical JSON with recursively sorted object keys. Matches the serialization of core's
+ * `runManifestIdentity` and `workflowRecordIdentity`, so a saved evidence file's SHA-256 equals
+ * its recorded artifact digest.
  */
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(sortKeys(value));
@@ -106,16 +107,16 @@ export async function writeNewFile(file: string, content: string): Promise<void>
 }
 
 /**
- * Save one attempt's run manifest as canonical JSON named by its digest, and prove the written
- * bytes match the identity recorded in the experiment result. A throw marks the attempt
- * `infrastructure_failed` in the executor.
+ * Save one attempt's evidence (a scenario run manifest or a workflow record) as canonical JSON
+ * named by its digest, and prove the written bytes match the identity recorded in the
+ * experiment result. A throw marks the attempt `infrastructure_failed` in the executor.
  */
-export async function saveRunEvidence(
+export async function saveAttemptEvidence(
   directory: string,
-  manifest: RunManifest,
+  evidence: unknown,
   digest: string
 ): Promise<string> {
-  const content = canonicalJson(manifest);
+  const content = canonicalJson(evidence);
   if (sha256Hex(content) !== digest) throw new Error('evidence_digest_mismatch');
   const evidenceDir = path.join(directory, EXPERIMENT_EVIDENCE_DIR);
   await mkdir(evidenceDir, { recursive: true });

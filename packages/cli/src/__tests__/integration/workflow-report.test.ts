@@ -39,6 +39,11 @@ async function evidence() {
     }).run()
   ).record;
 }
+// Each report child runs the CLI from TypeScript source: about 0.4 s on a quiet machine, several
+// seconds at load averages 30-60. invoke() kills a child after this bound, and each test's
+// timeout covers it for every child the test runs in sequence, so a slow child fails on its own
+// exit evidence rather than a generic test timeout.
+const CLI_CHILD_LIMIT_MS = 10_000;
 async function invoke(directory: string, args: string[]) {
   const preload = join(directory, 'offline.ts');
   await writeFile(preload, "globalThis.fetch = () => { throw new Error('NETWORK-FORBIDDEN'); };\n");
@@ -52,7 +57,7 @@ async function invoke(directory: string, args: string[]) {
       stderr: 'pipe',
     }
   );
-  const timer = setTimeout(() => child.kill(), 10000);
+  const timer = setTimeout(() => child.kill(), CLI_CHILD_LIMIT_MS);
   try {
     const [code, stdout, stderr] = await Promise.all([
       child.exited,
@@ -83,7 +88,8 @@ describe('offline workflow assessment CLI', () => {
         expect(result.stderr).toBe('');
       }
     }
-  }, 30000);
+    // Six sequential CLI children, each bounded by CLI_CHILD_LIMIT_MS.
+  }, 60_000);
   test('new output only, deterministic duplicates, bounded files and generic errors', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'artemis-report-errors-'));
     const input = join(directory, 'evidence.json');
@@ -118,5 +124,6 @@ describe('offline workflow assessment CLI', () => {
     expect(invalid.stdout).toBe('');
     await writeFile(input, ' '.repeat(1_048_577));
     expect((await invoke(directory, [input])).code).toBe(1);
-  }, 30000);
+    // Seven sequential CLI children, each bounded by CLI_CHILD_LIMIT_MS.
+  }, 70_000);
 });

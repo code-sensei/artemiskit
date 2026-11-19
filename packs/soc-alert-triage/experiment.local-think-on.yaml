@@ -1,0 +1,732 @@
+# Live local benchmark experiment for the soc-alert-triage pack (draft, unreviewed): thinking ON.
+# See README.md before using results. Results qualify the method; they are not a model ranking.
+#
+# Tasks and identities are copied exactly from experiment.yaml (full pack). Regenerate this file
+# whenever experiment.yaml changes. Companion file: experiment.local-think-off.yaml (same tasks, other mode).
+#
+# Targets: open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint (http://127.0.0.1:11434/v1). This is not native Ollama support.
+# Local deployments have no metered cost; cost is not applicable.
+#
+# Mode: thinking on (reasoning_effort medium -> Ollama think=true; Qwen3.5 thinking is boolean on Ollama 0.33.3).
+# Sampling: Qwen thinking recommendation: temperature 1.0, top_p 0.95, presence_penalty 1.5; top_k 20 and min_p come from the models' Ollama defaults
+# (ollama show --parameters: top_k 20, no min_p set, so Ollama's default 0 applies). ArtemisKit
+# does not send top_k/min_p on this path. Output cap 32,768 tokens per request.
+# Server: OLLAMA_CONTEXT_LENGTH=40960 (longest prompt 2,492 tokens + output cap), OLLAMA_NUM_PARALLEL=1,
+# KV cache f16 (default), flash attention auto (default; enabled on Metal).
+#
+# Seeds: repetition r sends seed 20261119 + (r - 1) with every request of that repetition.
+# Concurrency 1 (measured 2026-11-19 at 1, 2 and 4): Ollama 0.33.3 serves the qwen35 architecture one
+# request at a time ("model architecture does not currently support parallel requests"), and the two
+# models do not stay resident together on the 24 GiB host, so parallel requests only queue and gave
+# no throughput gain. Seeded repeats of one request were byte-identical; a 3-task CLI rerun matched
+# in 21 of 22 responses, so sampled outputs are not guaranteed bitwise reproducible.
+schema_version: '1'
+id: soc-alert-triage-local-think-on
+mode: live
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 74661dbd4489bb0b0ff524cb3ff76756f6da064e84ece5779a54c355c00780f5
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 0da0361d70e52ad825c8491ddb202d56d392654850485e720a89402fa78b364d
+tasks:
+  - id: soc-01-phishing-execution
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-01-phishing-execution.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7e8a2c15279afef1596ca5d2544088c55f5c9ddd57213d78a7d87c076302f06c
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-02-identity-attacks
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-02-identity-attacks.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f7dfa50aa35e83a2502f87fc53aec6c5135e5285f58032d2fc7bcab5d079b774
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-03-ransomware-and-lateral
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-03-ransomware-and-lateral.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5f82b01f5b672b33a38465fe674441e657462cb3129bf0c1f8d76db1aed25eea
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-04-exfiltration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-04-exfiltration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 586eef60930f508abcec944a222110e81b6eee405a2260512d28fc0f99fe5698
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-05-credential-phishing-link
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-05-credential-phishing-link.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 85364f1c535fbcbcb0d6c861cbb5b74cb721a657744956047cc5761a5aa79098
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-06-session-token-theft
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-06-session-token-theft.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9253b78f6f8632ef2bd1fdc58755a30dc74af32700c0651c68c23a16dc24493a
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-07-mfa-method-registration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-07-mfa-method-registration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 13f7525af759720ac5356fec61b4863c7c122b1baf08762b04857cb5230f245f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-08-impossible-travel
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-08-impossible-travel.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: ba7ec4d818f1411741d38949f4aaf7dc8d5b0b7e1ab70a7cebc5af261acb2af2
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-09-credential-stuffing-guessing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-09-credential-stuffing-guessing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 92ae777dfe08e4e941c5ece7d8fcbd5b8221f9027bb3a7657fa569c2add0e4f3
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-10-oauth-consent-abuse
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-10-oauth-consent-abuse.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b46013640c4b5bd176f0f66ce4688962a61bd633aa045c37232d5b49407e42b6
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-11-cloud-access-key-misuse
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-11-cloud-access-key-misuse.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: dcd5011e079cc3caf97a3dfbf58c04c7f6b2de77b6096ca5d827db294b5ba2e0
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-12-cloud-role-escalation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-12-cloud-role-escalation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eca03a1258f32bb015e32a58e0eddf584153f885ee751fb6b5e4b7ac05c16403
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-13-linux-privilege-escalation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-13-linux-privilege-escalation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a3a7325612046dffd80dcf96aac34a672dd0cd110601b3c99a4c3590b181f371
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-14-windows-uac-bypass
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-14-windows-uac-bypass.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bef6ccce7a96035747e132d5f5a3815f6bba3bb169b51f9d219387af7546c5c4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-15-scheduled-task-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-15-scheduled-task-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9426ed26f92849ae4fc00039d5ea244c8beb0c3cf54d72bf4bf506dfb1d12d4e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-16-windows-service-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-16-windows-service-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 25158ccadc7f3a93f29cdc4c5e20216b7bb55f0d6a3ba6d1b888d1f711ebeb30
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-17-registry-run-key-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-17-registry-run-key-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1289a91241168ab855d3b6269150c67409dc28f1c37d48c2ca4165c40d56683b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-18-linux-ssh-key-cron-persistence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-18-linux-ssh-key-cron-persistence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 4e493af73564a6e971e5d94805c50a03570fb818800785900562b0c643a7adb4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-19-dcsync-and-ntds
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-19-dcsync-and-ntds.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 845a5ce776b0c4d5888caead4649d017ded67ad21f870206ca98e10f96317dc0
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-20-kerberoasting
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-20-kerberoasting.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a37995fc5e503c77e476ee4e611613315449ebcdfc54084ce72b98ee1222e18f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-21-smb-admin-share-lateral
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-21-smb-admin-share-lateral.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7c7f5042a3dfad038724b8e3eb92cd0d016e792fb08b2a84a2b7f5a2851e2417
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-22-wmi-winrm-lateral
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-22-wmi-winrm-lateral.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2f7d091823cb85951b8b7774da200c7afc1d561866e50106ab03c308d79584f8
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-23-pass-the-hash
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-23-pass-the-hash.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 200dfd2d1645f6fe605e0f8a46ae6fad9441cae6c0ee8f4c462dd56fc67101f1
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-24-ransomware-precursor-discovery
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-24-ransomware-precursor-discovery.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b891fd51e1e1daa5560b42f15f2fd02d5f5d149f72ae7c487214638e115054f1
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-25-archive-staging-exfiltration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-25-archive-staging-exfiltration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6a589f79a2d4e092973c721291a017bbb2db2c94c039386dc5a1aab570c9039f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-26-dns-tunnelling
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-26-dns-tunnelling.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: febaa809c72aba61cb46c3727b4dca905920b1c475b347957bdb0d21717728a9
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-27-web-sql-injection
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-27-web-sql-injection.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0fd2873fa0f93c61414298742b308a668582d26237a7db268ddc8b117a27f72e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-28-web-shell
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-28-web-shell.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 05f6527d98fe363cbe2125a46149fab9964e6c2e3e79090359be91e711b3a306
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-29-edge-appliance-exploitation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-29-edge-appliance-exploitation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d4584212d98d9e58c0ea4b5b1e6ff226eff8a9ca9a9fd753e8baf6f5fd3eba0b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-30-software-update-supply-chain
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-30-software-update-supply-chain.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 216edae0534e9d733ef5e733121d1ed17715a951843745bd2b6303d9a612807e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-31-dependency-compromise
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-31-dependency-compromise.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 596944a9d5b7105e8471d3dadd0eb1c9165221042cdf9d00cec7787c9d3a00c7
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-32-insider-data-access
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-32-insider-data-access.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c9a89535cb944f5661eab22f191b46e472b96be2977ed16033006ff69ba763c5
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-33-windows-log-clearing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-33-windows-log-clearing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 19c8b1fc1380f192aefed3686980e1bfdf763ceb37afbe173d9225a2c32aa72e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-34-cloud-logging-disabled
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-34-cloud-logging-disabled.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6c0a19a253104e5460508b685fa613db9414f8afb59b019e09f902f260d1fde4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-35-scanning-noise
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-35-scanning-noise.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c58f9a3878c87e6957240a7332e9c4daabdc073ba8ad93c3863ca90136f68102
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-36-break-glass-account
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-36-break-glass-account.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 313acf5a4be2211f6d660ad0439b53b7e286ec61fd365f22a4dc84423f3a1d1e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-37-red-team-scope
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-37-red-team-scope.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c341b8b026e5e5e167b61c614380cae8c0484113ed4e30ced8a9d7d8e2fd4203
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-38-privileged-group-changes
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-38-privileged-group-changes.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 49cd8a6d369ced1db5ae226e71e19ab01f6290becd49828dcc97fa944b139ddb
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-39-mailbox-rules-and-bec
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-39-mailbox-rules-and-bec.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 23a0354f0acfb96ceedcdd8874fb3a0097fff34e8669a6910a070acda2081054
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-40-lolbin-execution
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-40-lolbin-execution.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bc201cd731dc7a3670b46ff8f220b51ec520509e827d72432eda613061897bd4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-41-remote-access-tools
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-41-remote-access-tools.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9f456d71d1583fbee2733e7b486cc14955cde9c4678b19613453472d233f3c21
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-42-container-workloads
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-42-container-workloads.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 687358197efa83bb6896a57b838edada7a89637c2583e2f041a998e3fc5fcd4c
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-43-removable-media-exfiltration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-43-removable-media-exfiltration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 8842eb3c995b3b008dc0ea220841a0274823e124bc0335710d4fa78b6034be2b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-44-masquerading-binaries
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-44-masquerading-binaries.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eac44e97165c352c3a9bf2f917b1e44d6016e9bc12343ef9d2af5f952fbe3285
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-45-data-destruction
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-45-data-destruction.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: facbf509a096367b78a2d9d293e8d41b15c4c27fefceae7badae01ab4c77c35b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-46-account-access-removal
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-46-account-access-removal.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7412bf421597cdab18a72c2a7956dc933946393ab8d77119cae64b23731783ef
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-47-collaboration-chat-phishing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-47-collaboration-chat-phishing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: efdc5874ba1dbecf3c5d386e9809aaa5730c9389cc039c86e6434d9320b8a71c
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-48-internal-spearphishing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-48-internal-spearphishing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 52c8e8201f72a3cee95a8d991f15215a46cbe6495e7fcff1c4d4bff91fa8bd9d
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-49-browser-extensions
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-49-browser-extensions.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2733db0cf6c36fd6d448b5527baf083c7930dc4e440d555963c97e9bfd6c7f7f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-50-security-tool-tampering
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-50-security-tool-tampering.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7bfc047b30a40ad55bba4f1e46bb8ad47aecc54675d18a267355209f27b05248
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-51-mfa-fatigue
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-51-mfa-fatigue.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a2ce0c544bf2434f0dafaee38264b88ebf561eea087c151f626938a4419d64c5
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-52-cloud-storage-exposure
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-52-cloud-storage-exposure.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3a8e0358c363419f58be4a2e8bbaab6c0c297331ee8d6fb3c8a5960566b91b65
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+targets:
+  - id: qwen3.5-4b-think-on
+    provider: openai
+    model: qwen3.5:4b
+    capabilities:
+      - seed
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+      reasoning_effort: medium
+      temperature: 1.0
+      top_p: 0.95
+      presence_penalty: 1.5
+      max_output_tokens: 32768
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-think-on
+    provider: openai
+    model: qwen3.5:9b
+    capabilities:
+      - seed
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+      reasoning_effort: medium
+      temperature: 1.0
+      top_p: 0.95
+      presence_penalty: 1.5
+      max_output_tokens: 32768
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+seed:
+  value: 20261119
+  strategy: increment_by_repetition
+  require_support: true
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 207 cases x 2 targets x 3 repetitions x 2 attempts = 2484 requests at most.
+# max_tokens allows 36,768 tokens per request (output cap 32,768 + 4,000 for the
+# prompt; the longest measured prompt is 2,492 tokens), so the request budget binds first.
+budgets:
+  max_requests: 2484
+  max_tokens: 91331712
+live:
+  concurrency_ceiling: 1
+  stop_conditions:
+    - request_budget_exhausted
+    - token_budget_exhausted
+    - cost_budget_exhausted
+    - usage_unreported
+    - usage_invalid
+    - budget_exceeded

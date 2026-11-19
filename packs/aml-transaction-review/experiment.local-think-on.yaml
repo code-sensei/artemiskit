@@ -1,0 +1,708 @@
+# Live local benchmark experiment for the aml-transaction-review pack (draft, unreviewed): thinking ON.
+# See README.md before using results. Results qualify the method; they are not a model ranking.
+#
+# Tasks and identities are copied exactly from experiment.yaml (full pack). Regenerate this file
+# whenever experiment.yaml changes. Companion file: experiment.local-think-off.yaml (same tasks, other mode).
+#
+# Targets: open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint (http://127.0.0.1:11434/v1). This is not native Ollama support.
+# Local deployments have no metered cost; cost is not applicable.
+#
+# Mode: thinking on (reasoning_effort medium -> Ollama think=true; Qwen3.5 thinking is boolean on Ollama 0.33.3).
+# Sampling: Qwen thinking recommendation: temperature 1.0, top_p 0.95, presence_penalty 1.5; top_k 20 and min_p come from the models' Ollama defaults
+# (ollama show --parameters: top_k 20, no min_p set, so Ollama's default 0 applies). ArtemisKit
+# does not send top_k/min_p on this path. Output cap 32,768 tokens per request.
+# Server: OLLAMA_CONTEXT_LENGTH=40960 (longest prompt 2,492 tokens + output cap), OLLAMA_NUM_PARALLEL=1,
+# KV cache f16 (default), flash attention auto (default; enabled on Metal).
+#
+# Seeds: repetition r sends seed 20261119 + (r - 1) with every request of that repetition.
+# Concurrency 1 (measured 2026-11-19 at 1, 2 and 4): Ollama 0.33.3 serves the qwen35 architecture one
+# request at a time ("model architecture does not currently support parallel requests"), and the two
+# models do not stay resident together on the 24 GiB host, so parallel requests only queue and gave
+# no throughput gain. Seeded repeats of one request were byte-identical; a 3-task CLI rerun matched
+# in 21 of 22 responses, so sampled outputs are not guaranteed bitwise reproducible.
+schema_version: '1'
+id: aml-transaction-review-local-think-on
+mode: live
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 28a727e5de2d01719ea3174c3fb3b1fbea24750112a4da938f9d1e22f7a24634
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 22852ae2326f29b254297bfe580502d7a8bbb4172e5015e5ef8f4904429cc692
+tasks:
+  - id: aml-01-cash-structuring
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-01-cash-structuring.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: cca83ccecd61d4631543479c0f88c88141f0e08b9cab67e1fec87bedde6b6b2a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-02-pass-through
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-02-pass-through.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 19dedcec2b094032998250bd7c46cc4d1388e2a936e2aa366a391dc5fc1e98c1
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-03-pep-and-cdd
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-03-pep-and-cdd.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5948f7a28f0de144b2ef4d12d9f7eebb0e0f9792d26c002b2a3a9cf8626444ef
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-04-tipping-off-and-minimisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-04-tipping-off-and-minimisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2f2366218992aeb14f2f0f91b7b4a32b1b26506716c2fc2ec03b6e7d91c58d35
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-05-smurfing-multiple-depositors
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-05-smurfing-multiple-depositors.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 320e7a0c05818b4ceb7bb36d51173ed2495732ae5590f22529a7f7adde814895
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-06-funnel-account-dispersed-deposits
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-06-funnel-account-dispersed-deposits.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 24e9ec603024795613e186479c8563227dbc8b33394fe05ddb7154f0a0341ee9
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-07-mule-recruitment-job-offer
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-07-mule-recruitment-job-offer.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 5efca53a88bf722f061a383ab53501c8d7de84f3df0160c0705de46538abddca
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-08-app-fraud-recall
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-08-app-fraud-recall.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e9dcda553203ab623858180abe634198c211de00c7375c9d1add249ee63f4629
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-09-romance-fraud-mule
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-09-romance-fraud-mule.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d9cd26fbd916497637bf5648a4de19c1dbd1e62b39850c11bc5132fececc0ce3
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-10-tbml-over-invoicing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-10-tbml-over-invoicing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0200896c6391fa7f1ed1548781c69c4e650ea7f81ab98b1910384dcf3dedb264
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-11-tbml-under-invoicing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-11-tbml-under-invoicing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d3e7d323f51d68158ce4155b46c7b52cce33ffa009e31c535a979906c666e8c7
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-12-tbml-phantom-shipment
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-12-tbml-phantom-shipment.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 95bad2ee2c44356090b4878f15786bcf707a7f59904901d8b3d53bd0cf6e7715
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-13-tbml-third-party-payments
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-13-tbml-third-party-payments.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 92234cf3c51b4cedacef9708d5d35be73ab480c324197e66e5f81e712a35c2ca
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-14-shell-company-counterparties
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-14-shell-company-counterparties.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eca0cce83337b4a4309c221bf26617b42786a9c7cbdd69eb050a792c8b8fde4a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-15-front-company-commingling
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-15-front-company-commingling.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 25a9cc42e24ec5a967947e3b515b3e4fbb06f91317d4e1183e174a2712ec447b
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-16-layered-ownership-opacity
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-16-layered-ownership-opacity.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 52e80e08c66f8b942fa5cf6cb6a6277d0b66e9842d54face6f36ec91bf7f6683
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-17-nominee-and-trust-ownership
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-17-nominee-and-trust-ownership.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1a9f60b4c0609cc333fe71149d204ed1264d3a1b10dbb000acd6090776cf77a8
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-18-pep-contractor-payments
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-18-pep-contractor-payments.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 222b2628e805efb302d02810a72f1c5c2e10e14428d524fb8056832ccf503c1c
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-19-pep-corporate-beneficial-owner
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-19-pep-corporate-beneficial-owner.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d727fe0e0b2573e5f4c4ee7b7de2b85c8c85000a55c20d598fbc34df7b9b874e
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-20-sanctions-true-match
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-20-sanctions-true-match.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c1855fcca6c2ffeb2c2bc2932514fd3ac463e9fb9f07c1e218d26b70579aa29e
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-21-sanctions-false-positive
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-21-sanctions-false-positive.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 88b9be35981c0edd091e5c78e5d25cf178ba03f00bf205a600f06b57383be02a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-22-sanctions-evasion-routing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-22-sanctions-evasion-routing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 343b4fb3a12967996a77cb6381a6e61df7021c53cbfa44f85e076108f5a1c5c6
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-23-proliferation-dual-use
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-23-proliferation-dual-use.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c11a9c1b95ec4941dc6ed98c1ff8ae107cf8b253640e88e04e32783949edcd36
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-24-va-on-ramp-unhosted-wallet
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-24-va-on-ramp-unhosted-wallet.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b8e4e0e66203d48c35717b283355e42f82579107f36f15a0f777cc6c109c9ef7
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-25-va-mixer-off-ramp
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-25-va-mixer-off-ramp.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f62318f541dd3d82aac850dbdd0638b050f49a5c7fda0f316ada69ada26e2a61
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-26-va-p2p-unlicensed-trader
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-26-va-p2p-unlicensed-trader.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1a3deb3d583708d7f4018d17ebfa5c270902c5b77fcb7f65c4665d7802c3e8bd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-27-correspondent-nested
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-27-correspondent-nested.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 291956776ce44910bc30209d25243f98a6b7ce28550b3404b83c6ae3228ee3b4
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-28-correspondent-shell-bank
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-28-correspondent-shell-bank.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 793b73d69050b86e700dbe7a689fe6099372086cb1c0e9fb4854b1bcf581cb34
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-29-payment-transparency
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-29-payment-transparency.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 18c08ad5695ba9847acaef18bf464bc71af82179d3bd85c2cd48ebfcb84e072d
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-30-cash-intensive-seasonal
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-30-cash-intensive-seasonal.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 387eca04fa24b67b19a2cb83f1249b71cbfc3b95501d474b8885ceb5e7f8e20e
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-31-real-estate-third-party-funds
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-31-real-estate-third-party-funds.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: faf0e3f05c05d487bd690a37022bfd692f51510c3312abbd59a227f18111d0e1
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-32-real-estate-valuation-flip
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-32-real-estate-valuation-flip.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 728bcf2ea109272c163ca1701b4984ab24e7878871c476863e8231db32feef9f
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-33-dormant-reactivation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-33-dormant-reactivation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3ac66e9552e81650bd62e15dd9f4e76b39bb1dc49ced65ac6fe181783629b860
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-34-higher-risk-jurisdiction
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-34-higher-risk-jurisdiction.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9829d2bff9d4602c3dc35c23dd57ed7622ff6d35eac903ede22466b264f752b4
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-35-tf-npo-diversion
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-35-tf-npo-diversion.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 76e819d70bb2b6415721676f0659e273431557547b6bd0c47369399fb0178bda
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-36-tf-crowdfunding
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-36-tf-crowdfunding.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 365dda30f6b8e7048c9686c55519e43639b887ef177753a2cd818097059c1f51
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-37-tf-individual-indicators
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-37-tf-individual-indicators.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c0216d3c8dfdf96b783e3d28e0c24943b64a81066dea8c92f3371da17c464576
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-38-explanations-that-resolve
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-38-explanations-that-resolve.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b4f63f00bfd998f5a432d060dc933612d9db88979e6ff360e7651db08591d8e7
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-39-explanations-that-fail
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-39-explanations-that-fail.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0a841eb956e35a0ebe8939613a43859f39d627e4930ba4b8578e5d5e861af77d
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-40-tipping-off-communications
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-40-tipping-off-communications.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: da299c74077cddcb5bce60e64db8d43928f2742427a1229202455bb10e2c9f92
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-41-str-narrative-minimisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-41-str-narrative-minimisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c0105ded2b6df03003cfa89f4ebae72d0219a19bc6fe87cfc7f940cacc14cd6a
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-42-sensitive-data-exclusion
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-42-sensitive-data-exclusion.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d7c875ff9e3e733ff9fa3fb3d4cecd7d721e95b8dabd49a1ff9081ca7fdca21c
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-43-professional-client-account
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-43-professional-client-account.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 17fed5d86e9496331f5b2c90a2595f4d6d1ac9787fe7952bc77046969faf5cdd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-44-loan-back-and-early-repayment
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-44-loan-back-and-early-repayment.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 98761f50d667a2aa741f08f82088728260a87557f0b707f06ab2f57a7d6e8ee8
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-45-precious-metals-and-luxury-goods
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-45-precious-metals-and-luxury-goods.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bad5bf292243548dc7205e6349baca0b21da966d3fea3fa683f23f145bd48431
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-46-bulk-cash-border
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-46-bulk-cash-border.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7080d81a016d2431785552b663d19963d683a290c041d1e75f5049253c5bbb01
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-47-prepaid-and-gift-cards
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-47-prepaid-and-gift-cards.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3f20121a48f7b57faefdd01eb2d306fdcc9c9cdac5fe43da662bdbabe1a6c906
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-48-unlicensed-money-transmitter
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-48-unlicensed-money-transmitter.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e8b5bda63d881c9359429f9ccf4840d8ceb64db0fa2b4205029eb0e9089d55a0
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-49-investment-fraud-collection
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-49-investment-fraud-collection.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 33aa7c044f891263ed4fda77fb67db5654caa140d104f1fd992d6cacbd71afbd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-50-injected-instructions-mixed
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-50-injected-instructions-mixed.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: ea5e90a74ff2c99749c9240912a2463a0c75a01c90811021a2f750d0257f0908
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+targets:
+  - id: qwen3.5-4b-think-on
+    provider: openai
+    model: qwen3.5:4b
+    capabilities:
+      - seed
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+      reasoning_effort: medium
+      temperature: 1.0
+      top_p: 0.95
+      presence_penalty: 1.5
+      max_output_tokens: 32768
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-think-on
+    provider: openai
+    model: qwen3.5:9b
+    capabilities:
+      - seed
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+      reasoning_effort: medium
+      temperature: 1.0
+      top_p: 0.95
+      presence_penalty: 1.5
+      max_output_tokens: 32768
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+seed:
+  value: 20261119
+  strategy: increment_by_repetition
+  require_support: true
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 177 cases x 2 targets x 3 repetitions x 2 attempts = 2124 requests at most.
+# max_tokens allows 36,768 tokens per request (output cap 32,768 + 4,000 for the
+# prompt; the longest measured prompt is 2,492 tokens), so the request budget binds first.
+budgets:
+  max_requests: 2124
+  max_tokens: 78095232
+live:
+  concurrency_ceiling: 1
+  stop_conditions:
+    - request_budget_exhausted
+    - token_budget_exhausted
+    - cost_budget_exhausted
+    - usage_unreported
+    - usage_invalid
+    - budget_exceeded

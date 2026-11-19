@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, open, readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { ExperimentRunResult } from '@artemiskit/core';
+import { MAX_CASE_EVIDENCE_BYTES } from '@artemiskit/reports';
 
 /** Largest experiment definition the surfaces will read. */
 export const MAX_EXPERIMENT_FILE_BYTES = 1_048_576;
@@ -147,4 +148,43 @@ export async function saveExperimentResult(
     );
   }
   return file;
+}
+
+const EVIDENCE_DIGEST = /^[a-f0-9]{64}$/;
+
+/**
+ * Read the saved evidence files named by `digests` from an `evidence/` directory, as exact bytes
+ * keyed by digest. A missing, unreadable or oversized file maps to `null` so the case-level
+ * summary reports it; the bytes are verified against the digest by the report model, not here.
+ * Returns `undefined` when the directory does not exist (results saved without evidence).
+ */
+export async function readExperimentCaseEvidence(
+  evidenceDir: string,
+  digests: readonly string[]
+): Promise<Map<string, Uint8Array | null> | undefined> {
+  try {
+    if (!(await stat(evidenceDir)).isDirectory()) return undefined;
+  } catch {
+    return undefined;
+  }
+  const files = new Map<string, Uint8Array | null>();
+  for (const digest of digests) {
+    files.set(
+      digest,
+      EVIDENCE_DIGEST.test(digest) ? await readEvidenceBytes(evidenceDir, digest) : null
+    );
+  }
+  return files;
+}
+
+async function readEvidenceBytes(evidenceDir: string, digest: string): Promise<Uint8Array | null> {
+  const file = path.join(evidenceDir, `${digest}.json`);
+  try {
+    const metadata = await stat(file);
+    if (!metadata.isFile() || metadata.size > MAX_CASE_EVIDENCE_BYTES) return null;
+    const bytes = await readFile(file);
+    return bytes.byteLength > MAX_CASE_EVIDENCE_BYTES ? null : new Uint8Array(bytes);
+  } catch {
+    return null;
+  }
 }

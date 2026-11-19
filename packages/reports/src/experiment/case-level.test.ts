@@ -168,7 +168,8 @@ describe('case-level summary from verified evidence', () => {
     files.set(digest, null);
     const summary = createExperimentCaseSummary(fixture.result, { caseEvidence: files });
     expect(summary).toMatchObject({ reason: 'evidence_missing', affectedEvidence: [digest] });
-    if (summary.availability === 'unavailable') expect(summary.detail).toContain('1 were missing');
+    if (summary.availability === 'unavailable')
+      expect(summary.detail).toContain('1 were missing or unreadable');
   });
 
   test('reports digest mismatches ahead of missing files', () => {

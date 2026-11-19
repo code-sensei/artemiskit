@@ -278,7 +278,7 @@ function problemDetail(problems: Map<string, FileProblem>): ExperimentCaseLevelU
   const of = (problem: FileProblem) =>
     [...problems].filter(([, value]) => value === problem).map(([digest]) => digest);
   const reason = PROBLEM_ORDER.find((problem) => of(problem).length > 0) as FileProblem;
-  const detail = `Case-level summary withheld: ${of('evidence_digest_mismatch').length} referenced evidence file(s) failed SHA-256 verification, ${of('evidence_invalid').length} could not be read as a run manifest, and ${of('evidence_missing').length} were missing. Partial case counts are not reported.`;
+  const detail = `Case-level summary withheld: ${of('evidence_digest_mismatch').length} referenced evidence file(s) failed SHA-256 verification, ${of('evidence_invalid').length} could not be read as a run manifest, and ${of('evidence_missing').length} were missing or unreadable. Partial case counts are not reported.`;
   return unavailable(reason, detail, problems.keys());
 }
 

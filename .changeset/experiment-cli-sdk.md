@@ -1,0 +1,6 @@
+---
+"@artemiskit/sdk": minor
+"@artemiskit/cli": minor
+---
+
+Add the experiment surfaces. The SDK exports `validateExperimentFile`, `runExperimentFile`, `reportExperimentResult`, `createExperimentLiveAuthorization` and `createExperimentFixtureClient`, with exit codes shared with the CLI. The CLI adds `akit experiment validate`, `run` and `report`. Validation checks the manifest, the SHA-256 of each task source and that every cost-not-applicable target uses a loopback endpoint. Runs use deterministic fixture clients by default with no network calls. A live run requires `--approve`, `--approved-by` and `--reason`, and `--max-concurrency` for a declared concurrency above 1, before anything executes. Loopback targets get a non-secret placeholder key instead of an ambient API key. Provider configuration is loaded only when a live non-loopback target is bound, and target config resolvers may be async. Live adapters get a timeout of at least the per-case timeout. Results and digest-named evidence are saved under `artemis-output/experiments/`, and validation and run output show the concurrency level. `report` regenerates all three views in HTML and Markdown from a saved result without provider access. The SDK now declares its `yaml` dependency, and the CLI depends on the SDK.

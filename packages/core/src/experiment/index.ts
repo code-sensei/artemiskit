@@ -1,6 +1,6 @@
 export { assessExperimentCompatibility } from './compatibility';
 export { parseExperimentManifest } from './parser';
-export { buildExperimentMatrix, runExperiment } from './runner';
+export { buildExperimentMatrix, runExperiment, targetCostApplies } from './runner';
 export type {
   ExecutedExperimentAttemptStatus,
   ExperimentAttemptEvidence,
@@ -34,6 +34,9 @@ export type {
   ExperimentSetting,
   ExperimentStopReason,
   ExperimentTarget,
+  ExperimentTargetDeployment,
+  ExperimentTargetPublisher,
+  ExperimentTargetWeights,
   ExperimentTask,
   ExperimentTaskEvidence,
   ExperimentTaskKind,

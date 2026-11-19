@@ -7,6 +7,7 @@ import {
   liveBudgetResult,
   liveRunnerHaltResult,
   liveUsageUnreportedResult,
+  localOpenWeightResult,
   mixedExperimentResult,
   preFixLiveMissingUsageResult,
   reverseKeys,
@@ -130,6 +131,22 @@ describe('canonical experiment report model', () => {
     expect(text).toContain('request_budget_exhausted');
     expect(text).toContain('concurrency ceiling 1');
     expect(text).toContain('Bounded report fixture');
+  });
+
+  test('labels local open-weight targets and never invents a cost for them', async () => {
+    const local = await localOpenWeightResult();
+    const report = createExperimentReport(local);
+    expect(report.summary).toMatchObject({ passed: 2, tokens: 40 });
+    expect(report.summary.cost).toBeNull();
+    expect(report.summary.costStatus).toBe('not_applicable');
+    const text = JSON.stringify(report);
+    expect(text).toContain('local via ollama; cost not applicable (no metered spend)');
+    expect(text).toContain('open weights (Apache-2.0)');
+    expect(text).toContain('Qwen');
+
+    const forged = structuredClone(local);
+    forged.results[0].attempts[0].usage.cost = { amount: 0, currency: 'USD' };
+    expect(() => createExperimentReport(forged)).toThrow(error);
   });
 
   test('accepts unrestricted adapter error-code collisions in fixture and live terminal results', async () => {

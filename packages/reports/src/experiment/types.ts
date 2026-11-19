@@ -49,6 +49,11 @@ export interface ExperimentReportSummary extends ExperimentSummary {
   requests: number;
   tokens: number;
   cost: ExperimentCostLimit | null;
+  /**
+   * `not_applicable` when every target is a local deployment that declared no metered cost;
+   * `unavailable` when cost was not reported; otherwise `reported`.
+   */
+  costStatus: 'reported' | 'unavailable' | 'not_applicable';
   validOutcomeRate: number | null;
   completion: ExperimentCompletion;
 }

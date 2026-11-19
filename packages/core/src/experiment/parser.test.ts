@@ -205,6 +205,68 @@ describe('parseExperimentManifest', () => {
     );
   });
 
+  test('accepts local open-weight targets and waives the cost limit only when no target is metered', () => {
+    const local = (id: string, model: string) => ({
+      id,
+      provider: 'openai',
+      model,
+      capabilities: ['text', 'tools'],
+      deployment: { locality: 'local', runtime: 'ollama', cost_basis: 'not_applicable' },
+      publisher: { id: 'qwen', name: 'Qwen' },
+      weights: { availability: 'open', license: 'Apache-2.0' },
+    });
+    const localLive = {
+      ...MANIFEST,
+      mode: 'live',
+      targets: [local('local-a', 'qwen3.5:4b'), local('local-b', 'qwen3.5:9b')],
+      budgets: { max_requests: 24, max_tokens: 50_000 },
+      live: LIVE_CONTROLS,
+    };
+    const parsed = parseExperimentManifest(localLive);
+    expect(parsed.targets[0]).toMatchObject({
+      deployment: { locality: 'local', runtime: 'ollama', cost_basis: 'not_applicable' },
+      publisher: { id: 'qwen', name: 'Qwen' },
+      weights: { availability: 'open', license: 'Apache-2.0' },
+    });
+
+    expect(() =>
+      parseExperimentManifest({
+        ...localLive,
+        targets: [local('local-a', 'qwen3.5:4b'), MANIFEST.targets[1]],
+      })
+    ).toThrow('live experiments with metered targets require an explicit cost limit');
+    expect(() =>
+      parseExperimentManifest({
+        ...localLive,
+        targets: [
+          {
+            ...local('remote-a', 'model'),
+            deployment: { locality: 'remote', cost_basis: 'not_applicable' },
+          },
+          local('local-b', 'qwen3.5:9b'),
+        ],
+      })
+    ).toThrow('only local deployments may declare cost as not applicable');
+    expect(() =>
+      parseExperimentManifest({
+        ...localLive,
+        targets: [
+          { ...local('local-a', 'm'), weights: { availability: 'open', license: 'bad licence' } },
+          local('local-b', 'n'),
+        ],
+      })
+    ).toThrow();
+    expect(() =>
+      parseExperimentManifest({
+        ...localLive,
+        targets: [
+          { ...local('local-a', 'm'), publisher: { id: 'q', name: 'Q', logo: 'x' } },
+          local('local-b', 'n'),
+        ],
+      })
+    ).toThrow();
+  });
+
   test('rejects unknown fields and malformed identities', () => {
     expect(() => parseExperimentManifest({ ...MANIFEST, provider: 'fixture' })).toThrow();
     expect(() =>

@@ -16,6 +16,7 @@ import type {
   ExperimentStopReason,
   ExperimentSummary,
   ExperimentSummaryGroup,
+  ExperimentTarget,
   ExperimentTaskKind,
   RunExperimentOptions,
 } from './types';
@@ -213,7 +214,7 @@ export async function runExperiment(
           remaining_budget: structuredClone(remaining),
         })
       );
-      const normalized = normalizeOutput(raw, manifest, remaining, task.kind);
+      const normalized = normalizeOutput(raw, manifest, remaining, task.kind, target);
       consumeUsage(budget, normalized.output.usage);
       if (normalized.haltReason) {
         budget.haltReason = normalized.haltReason;
@@ -375,10 +376,12 @@ function normalizeOutput(
   raw: unknown,
   manifest: ExperimentManifest,
   remaining: ExperimentRemainingBudget,
-  expectedKind: ExperimentTaskKind
+  expectedKind: ExperimentTaskKind,
+  target: ExperimentTarget
 ): NormalizedOutput {
   const parsed = output.safeParse(raw);
-  if (!parsed.success) {
+  const costApplies = targetCostApplies(target);
+  if (!parsed.success || (!costApplies && parsed.data.usage.cost !== undefined)) {
     return invalidOutput(
       'invalid_executor_result',
       expectedKind,
@@ -389,7 +392,7 @@ function normalizeOutput(
   const result = parsed.data;
   if (
     manifest.mode === 'live' &&
-    (result.usage.tokens === undefined || result.usage.cost === undefined)
+    (result.usage.tokens === undefined || (costApplies && result.usage.cost === undefined))
   ) {
     return {
       output: {
@@ -443,6 +446,11 @@ function normalizeOutput(
     };
   }
   return { output: result, completionCode: 'terminal' };
+}
+
+/** Local targets that declare cost as not applicable must never report a cost. */
+export function targetCostApplies(target: ExperimentTarget): boolean {
+  return target.deployment?.cost_basis !== 'not_applicable';
 }
 
 function invalidOutput(

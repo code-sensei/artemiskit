@@ -57,7 +57,11 @@ function checkedView(report: ExperimentReport, options: ExperimentReportOptions)
 
 function metrics(report: ExperimentReport): [string, string][] {
   const summary = report.summary;
-  const cost = summary.cost ? `${summary.cost.amount} ${summary.cost.currency}` : 'Unavailable';
+  const cost = summary.cost
+    ? `${summary.cost.amount} ${summary.cost.currency}`
+    : summary.costStatus === 'not_applicable'
+      ? 'Not applicable (local deployment, no metered spend)'
+      : 'Unavailable';
   return [
     ['Planned coordinates', String(summary.planned)],
     ['Attempted coordinates', String(summary.attempted)],

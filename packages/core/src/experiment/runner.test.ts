@@ -769,6 +769,75 @@ describe('runExperiment', () => {
     });
   });
 
+  test('runs local no-cost targets live on token usage and rejects any reported cost', async () => {
+    const localTarget = (id: string) => ({
+      id,
+      provider: 'openai',
+      model: id,
+      capabilities: ['text'],
+      deployment: {
+        locality: 'local' as const,
+        runtime: 'ollama',
+        cost_basis: 'not_applicable' as const,
+      },
+    });
+    const live = parseExperimentManifest({
+      ...MANIFEST,
+      mode: 'live',
+      tasks: [MANIFEST.tasks[0]],
+      targets: [localTarget('local-a'), localTarget('local-b')],
+      repetitions: 1,
+      budgets: { max_requests: 10, max_tokens: 1_000 },
+      live: LIVE_CONTROLS,
+    });
+    const scenarioEvidence = {
+      kind: 'scenario_evaluation' as const,
+      availability: 'available' as const,
+      artifact: identity('f'),
+    };
+
+    const tokensOnly = await runExperiment(live, {
+      live_authorization: authorization('local-1'),
+      execute_attempt: async () => ({
+        status: 'passed',
+        usage: { requests: 1, tokens: 12 },
+        evidence: scenarioEvidence,
+      }),
+    });
+    expect(tokensOnly.results.map((result) => result.status)).toEqual(['passed', 'passed']);
+    expect(tokensOnly.summaries.operational.cost).toBeUndefined();
+    expect(tokensOnly.summaries.operational.tokens).toBe(24);
+
+    const withoutTokens = await runExperiment(live, {
+      live_authorization: authorization('local-2'),
+      execute_attempt: async () => ({
+        status: 'passed',
+        usage: { requests: 1 },
+        evidence: scenarioEvidence,
+      }),
+    });
+    expect(withoutTokens.results[0]).toMatchObject({ completion_code: 'usage_unreported' });
+    expect(withoutTokens.stop_reason).toBe('usage_unreported');
+
+    const reportedCost = await runExperiment(live, {
+      live_authorization: authorization('local-3'),
+      execute_attempt: async () => ({
+        status: 'passed',
+        usage: { requests: 1, tokens: 5, cost: { amount: 0, currency: 'USD' } },
+        evidence: scenarioEvidence,
+      }),
+    });
+    expect(reportedCost.results[0]).toMatchObject({
+      status: 'invalid',
+      completion_code: 'usage_invalid',
+    });
+    expect(reportedCost.results[0].attempts[0]).toMatchObject({
+      error_code: 'invalid_executor_result',
+      usage: { requests: 0 },
+    });
+    expect(reportedCost.stop_reason).toBe('usage_invalid');
+  });
+
   test('turns thrown and malformed adapter results into bounded evidence', async () => {
     const single = {
       ...MANIFEST,

@@ -99,6 +99,30 @@ const settings = z
     'target settings must not contain credentials or secrets'
   );
 
+const deployment = z
+  .object({
+    locality: z.enum(['local', 'remote']),
+    runtime: identifier.optional(),
+    cost_basis: z.enum(['metered', 'not_applicable']),
+  })
+  .strict()
+  .refine((value) => value.cost_basis === 'metered' || value.locality === 'local', {
+    path: ['cost_basis'],
+    message: 'only local deployments may declare cost as not applicable',
+  });
+
+const publisher = z.object({ id: identifier, name: boundedText }).strict();
+
+const weights = z
+  .object({
+    availability: z.enum(['open', 'closed']),
+    license: z
+      .string()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/)
+      .optional(),
+  })
+  .strict();
+
 const target = z
   .object({
     id: identifier,
@@ -106,6 +130,9 @@ const target = z
     model: boundedText,
     capabilities: uniqueIdentifiers(MAX_CAPABILITIES),
     settings: settings.optional(),
+    deployment: deployment.optional(),
+    publisher: publisher.optional(),
+    weights: weights.optional(),
   })
   .strict();
 
@@ -281,11 +308,15 @@ const manifest = z
         message: 'live experiments require an explicit token limit',
       });
     }
-    if (value.mode === 'live' && value.budgets.max_cost === undefined) {
+    if (
+      value.mode === 'live' &&
+      value.budgets.max_cost === undefined &&
+      value.targets.some((item) => item.deployment?.cost_basis !== 'not_applicable')
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['budgets', 'max_cost'],
-        message: 'live experiments require an explicit cost limit',
+        message: 'live experiments with metered targets require an explicit cost limit',
       });
     }
     if (value.mode === 'live' && value.live === undefined) {

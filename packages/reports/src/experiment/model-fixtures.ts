@@ -192,6 +192,58 @@ export async function liveBudgetResult(): Promise<ExperimentRunResult> {
   });
 }
 
+/** Live run against two local open-weight targets that declare cost as not applicable. */
+export async function localOpenWeightResult(): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const localTarget = (id: string, model: string) => ({
+    id,
+    provider: 'openai',
+    model,
+    capabilities: ['text', 'tools'],
+    deployment: {
+      locality: 'local' as const,
+      runtime: 'ollama',
+      cost_basis: 'not_applicable' as const,
+    },
+    publisher: { id: 'qwen', name: 'Qwen' },
+    weights: { availability: 'open' as const, license: 'Apache-2.0' },
+  });
+  const manifest = experimentManifest({
+    mode: 'live',
+    tasks: [base.tasks[1]],
+    targets: [localTarget('local-small', 'qwen3.5:4b'), localTarget('local-large', 'qwen3.5:9b')],
+    repetitions: 1,
+    exclusions: [],
+    seed: undefined,
+    budgets: { max_requests: 4, max_tokens: 1_000 },
+    live: {
+      concurrency_ceiling: 1,
+      stop_conditions: [
+        'request_budget_exhausted',
+        'token_budget_exhausted',
+        'cost_budget_exhausted',
+        'usage_unreported',
+        'usage_invalid',
+        'budget_exceeded',
+      ],
+    },
+  });
+  return runExperiment(manifest, {
+    live_authorization: {
+      approved: true,
+      decision_id: 'local-approval',
+      decided_at: '2026-11-19T12:00:00Z',
+      approved_by: 'fixture operator',
+      reason: 'Local open-weight report fixture',
+    },
+    execute_attempt: async (input) => ({
+      status: 'passed',
+      usage: { requests: 1, tokens: 20 },
+      evidence: evidence(input.coordinate.task_kind),
+    }),
+  });
+}
+
 export async function adapterErrorCollisionResult(
   mode: 'fixture' | 'live',
   errorCode: string

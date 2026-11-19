@@ -30,12 +30,40 @@ export interface ExperimentTask {
 
 export type ExperimentSetting = string | number | boolean;
 
+/**
+ * Where a target's inference runs. `cost_basis: 'not_applicable'` is valid only for local
+ * deployments: live runs then require token usage but no cost, and reports state that no
+ * metered spend exists. Hosts must verify locality (for example a loopback endpoint) before
+ * accepting the declaration; core cannot observe endpoints.
+ */
+export interface ExperimentTargetDeployment {
+  locality: 'local' | 'remote';
+  /** Serving runtime such as `ollama`. Display metadata, not a claim of native provider support. */
+  runtime?: string;
+  cost_basis: 'metered' | 'not_applicable';
+}
+
+/** Organization that publishes the model, independent of the runtime serving it. */
+export interface ExperimentTargetPublisher {
+  id: string;
+  name: string;
+}
+
+export interface ExperimentTargetWeights {
+  availability: 'open' | 'closed';
+  /** Declared licence identifier such as `Apache-2.0`. */
+  license?: string;
+}
+
 export interface ExperimentTarget {
   id: string;
   provider: string;
   model: string;
   capabilities: string[];
   settings?: Record<string, ExperimentSetting>;
+  deployment?: ExperimentTargetDeployment;
+  publisher?: ExperimentTargetPublisher;
+  weights?: ExperimentTargetWeights;
 }
 
 export type RetryableExperimentStatus = 'incomplete' | 'invalid' | 'infrastructure_failed';

@@ -10,15 +10,18 @@ import {
   type ExperimentStopReason,
   type ExperimentSummary,
   type ExperimentSummaryGroup,
+  type ExperimentTarget,
   type ExperimentTaskKind,
   buildExperimentMatrix,
   parseExperimentManifest,
+  targetCostApplies,
 } from '@artemiskit/core';
 import type {
   ExperimentReport,
   ExperimentReportEvidence,
   ExperimentReportFinding,
   ExperimentReportSection,
+  ExperimentReportSummary,
 } from './types';
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -323,12 +326,15 @@ function coreCompletions(
   attempt: ExperimentAttemptEvidence,
   manifest: ExperimentManifest,
   expectedKind: ExperimentTaskKind,
-  exceeded: boolean
+  exceeded: boolean,
+  costApplies: boolean
 ): Set<ExperimentCompletionCode> {
   const { status, usage, evidence, error_code: errorCode } = attempt;
   const isLive = manifest.mode === 'live';
   const maxCost = manifest.budgets.max_cost;
-  const usageComplete = usage.tokens !== undefined && usage.cost !== undefined;
+  // Core rejects any cost reported by a target that declared cost as not applicable.
+  if (!costApplies && usage.cost !== undefined) return new Set();
+  const usageComplete = usage.tokens !== undefined && (!costApplies || usage.cost !== undefined);
   const runnerInvalidCompletion = isLive ? 'usage_invalid' : 'terminal';
   const completions = new Set<ExperimentCompletionCode>();
 
@@ -368,6 +374,38 @@ function coreCompletions(
   else if (status === 'incomplete' && errorCode === 'budget_exceeded')
     completions.add('budget_exceeded');
   return completions;
+}
+
+function costStatus(
+  manifest: ExperimentManifest,
+  reported: boolean
+): ExperimentReportSummary['costStatus'] {
+  if (reported) return 'reported';
+  return manifest.targets.every((target) => !targetCostApplies(target))
+    ? 'not_applicable'
+    : 'unavailable';
+}
+
+function weightsLabel(target: ExperimentTarget): string {
+  if (!target.weights) return 'undeclared';
+  const kind = target.weights.availability === 'open' ? 'open weights' : 'closed weights';
+  return target.weights.license ? `${kind} (${target.weights.license})` : kind;
+}
+
+function deploymentLabel(target: ExperimentTarget): string {
+  const deployment = target.deployment;
+  if (!deployment) return 'undeclared';
+  const place = deployment.locality === 'local' ? 'local' : 'remote';
+  const runtime = deployment.runtime ? `${place} via ${deployment.runtime}` : place;
+  return deployment.cost_basis === 'not_applicable'
+    ? `${runtime}; cost not applicable (no metered spend)`
+    : `${runtime}; metered cost`;
+}
+
+function targetById(manifest: ExperimentManifest, id: string): ExperimentTarget {
+  const target = manifest.targets.find((item) => item.id === id);
+  if (!target) throw invalid();
+  return target;
 }
 
 interface BudgetState {
@@ -523,7 +561,13 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
             attempt.usage.requests > remainingRequests ||
             (remainingTokens !== undefined && (attempt.usage.tokens ?? 0) > remainingTokens) ||
             (remainingCost !== undefined && (attempt.usage.cost?.amount ?? 0) > remainingCost);
-          const completions = coreCompletions(attempt, manifest, expected.task_kind, exceeded);
+          const completions = coreCompletions(
+            attempt,
+            manifest,
+            expected.task_kind,
+            exceeded,
+            targetCostApplies(targetById(manifest, expected.target_id))
+          );
           // Only the final attempt can carry a halting completion; earlier ones were retried.
           if (attemptIndex < attempts.length - 1 && !completions.has('terminal')) throw invalid();
           lastCompletions = completions;
@@ -685,6 +729,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         requests: operational.requests,
         tokens: operational.tokens,
         cost: operational.cost ?? null,
+        costStatus: costStatus(run.manifest, operational.cost !== undefined),
         validOutcomeRate: operational.valid === 0 ? null : operational.passed / operational.valid,
         completion: { ...run.completion },
       },
@@ -820,8 +865,17 @@ export function createExperimentReport(input: unknown): ExperimentReport {
     const targets = section(
       'targets',
       'Targets and declared host metadata',
-      'Provider, model, settings, and capability labels are declarations supplied by the host.',
-      ['Target', 'Provider', 'Model', 'Capabilities', 'Settings']
+      'Provider, model, publisher, weights, deployment, settings, and capability labels are declarations supplied by the host.',
+      [
+        'Target',
+        'Provider',
+        'Model',
+        'Publisher',
+        'Weights',
+        'Deployment',
+        'Capabilities',
+        'Settings',
+      ]
     );
     run.manifest.targets.forEach((target, index) =>
       row(
@@ -832,6 +886,9 @@ export function createExperimentReport(input: unknown): ExperimentReport {
           target.id,
           target.provider,
           target.model,
+          target.publisher?.name ?? 'undeclared',
+          weightsLabel(target),
+          deploymentLabel(target),
           target.capabilities.join(', ') || 'none',
           target.settings ? canonical(target.settings) : 'none',
         ],
@@ -947,7 +1004,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
       operational,
       [
         'Observed use',
-        `invocations ${operational.executor_invocations}; attempts ${operational.attempts}; retries ${operational.retry_attempts}; requests ${operational.requests}; reserved live requests ${operational.reserved_live_requests}; tokens ${operational.tokens}; cost ${operational.cost ? `${operational.cost.amount} ${operational.cost.currency}` : 'unavailable'}`,
+        `invocations ${operational.executor_invocations}; attempts ${operational.attempts}; retries ${operational.retry_attempts}; requests ${operational.requests}; reserved live requests ${operational.reserved_live_requests}; tokens ${operational.tokens}; cost ${operational.cost ? `${operational.cost.amount} ${operational.cost.currency}` : costStatus(run.manifest, false).replace('_', ' ')}`,
       ],
       'Recomputed operational totals'
     );

@@ -3,8 +3,9 @@
  *
  * Every pack's `pack.test.ts` calls `definePackContractTests`. The checks keep a pack honest
  * after edits: the experiment manifest must declare exactly the task files on disk with matching
- * digests, workload and rubric identities must recompute, scoring must stay deterministic, and
- * every case must accept its reference answer while rejecting wrong decisions.
+ * digests, workload and rubric identities must recompute, scoring must stay deterministic,
+ * optional answer keys must accept null as well as omission, and every case must accept its
+ * reference answer while rejecting wrong decisions.
  *
  * Pack layout:
  *   <pack>/tasks/<task-id>.yaml       scenario_evaluation tasks
@@ -62,6 +63,36 @@ function decisionValues(expected: Expected): string[] {
     | Record<string, { enum?: string[] }>
     | undefined;
   return properties?.decision?.enum ?? [];
+}
+
+function answerSchema(expected: Expected): Record<string, unknown> | undefined {
+  const items = expected.type === 'combined' ? expected.expectations : [expected];
+  const schemaExpectation = items.find((item) => item.type === 'json_schema');
+  return schemaExpectation?.type === 'json_schema' ? schemaExpectation.schema : undefined;
+}
+
+type SchemaNode = {
+  properties?: Record<string, SchemaNode>;
+  required?: string[];
+  items?: SchemaNode;
+};
+
+/**
+ * Lists the optional (non-required) object properties, at any depth, whose schema rejects null.
+ * Models often write `"key": null` for a key the prompt says to omit; scoring must treat that the
+ * same as omission, so every optional key has to accept null.
+ */
+async function optionalKeysRejectingNull(schema: SchemaNode, path = '$'): Promise<string[]> {
+  const rejecting: string[] = [];
+  const required = new Set(schema.required ?? []);
+  for (const [key, property] of Object.entries(schema.properties ?? {})) {
+    const propertyPath = `${path}.${key}`;
+    const acceptsNull = await passes('null', { type: 'json_schema', schema: property });
+    if (!required.has(key) && !acceptsNull) rejecting.push(propertyPath);
+    rejecting.push(...(await optionalKeysRejectingNull(property, propertyPath)));
+  }
+  if (schema.items) rejecting.push(...(await optionalKeysRejectingNull(schema.items, `${path}[]`)));
+  return rejecting;
 }
 
 async function passes(response: string, expected: Expected): Promise<boolean> {
@@ -153,6 +184,18 @@ export function definePackContractTests(options: PackContractOptions): void {
         const types = expectationTypes(testCase.expected);
         expect(types.filter((type) => NON_DETERMINISTIC_TYPES.has(type))).toEqual([]);
         expect(types).toContain('json_schema');
+      }
+    });
+
+    test.each(taskPaths)('%s: optional answer keys accept null', async (relativePath) => {
+      const scenario = loadScenario(relativePath);
+      for (const testCase of scenario.cases) {
+        const schema = answerSchema(testCase.expected) as SchemaNode;
+        const label = `${scenario.name}/${testCase.id}`;
+        expect({ label, rejectingNull: await optionalKeysRejectingNull(schema) }).toEqual({
+          label,
+          rejectingNull: [],
+        });
       }
     });
 

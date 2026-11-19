@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 8f1163605b23655b2a727050bff1a7cd0f95a80b6de6bec9a23edcb597a58a1e
+    digest: 94f09bf1aa23f01bfd993806aa8dcebe0ac429e1f31168648e2780270fe26463
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -555,6 +555,102 @@ tasks:
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
+  - id: soc-45-data-destruction
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-45-data-destruction.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: facbf509a096367b78a2d9d293e8d41b15c4c27fefceae7badae01ab4c77c35b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-46-account-access-removal
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-46-account-access-removal.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7412bf421597cdab18a72c2a7956dc933946393ab8d77119cae64b23731783ef
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-47-collaboration-chat-phishing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-47-collaboration-chat-phishing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: efdc5874ba1dbecf3c5d386e9809aaa5730c9389cc039c86e6434d9320b8a71c
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-48-internal-spearphishing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-48-internal-spearphishing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 52c8e8201f72a3cee95a8d991f15215a46cbe6495e7fcff1c4d4bff91fa8bd9d
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-49-browser-extensions
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-49-browser-extensions.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2733db0cf6c36fd6d448b5527baf083c7930dc4e440d555963c97e9bfd6c7f7f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-50-security-tool-tampering
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-50-security-tool-tampering.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7bfc047b30a40ad55bba4f1e46bb8ad47aecc54675d18a267355209f27b05248
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-51-mfa-fatigue
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-51-mfa-fatigue.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: a2ce0c544bf2434f0dafaee38264b88ebf561eea087c151f626938a4419d64c5
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-52-cloud-storage-exposure
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-52-cloud-storage-exposure.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6850b959a872649d6ac46db5418db9c31fa73ceb12b7f9e9d90851d877b01035
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -595,8 +691,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 175 cases x 2 targets x 3 repetitions = 1050 requests; at most 2100 with one retry each.
+# 207 cases x 2 targets x 3 repetitions = 1242 requests; at most 2484 with one retry each.
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 2100
-  max_tokens: 12600000
+  max_requests: 2484
+  max_tokens: 14904000

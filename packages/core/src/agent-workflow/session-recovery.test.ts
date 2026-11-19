@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from 'bun:test';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  spyOn,
+  test,
+} from 'bun:test';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -18,6 +27,13 @@ import {
 import type { WorkflowJudgeOptions } from './semantic';
 import { createAgentWorkflowSession, runAgentWorkflow } from './session';
 import type { AgentTarget } from './target';
+
+// Every test here round-trips a durable on-disk checkpoint store, and two spawn separate Node
+// processes from a worker bundled in beforeAll. They take 0.2-1.4 s on a quiet machine but
+// exceeded the 5 s default at load averages 30-60 (a process test is ~15x slower). 30 s covers
+// that and stays above external()'s 10 s per-child kill timer times the two children one test
+// runs, so a stuck child fails with its own diagnostics rather than a generic test timeout.
+setDefaultTimeout(30_000);
 
 const roots: string[] = [];
 let worker: string;

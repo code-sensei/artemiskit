@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 33e87edc56585011021e28f38a55f574293311ca64ce3f8afc90128cb5bf10ff
+    digest: 356360058875b6c23ec0481058620b1037ed3a4f60f895b0d0dfdef12e22b717
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -447,6 +447,126 @@ tasks:
     required_capabilities: []
     language: en-NG
     policy: ng-egov-rulebook-v1
+  - id: egov-36-foi-personal-information
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-36-foi-personal-information.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 42f72fbeaec41b19488672b8f6fd5bc077bb3ea714b39affbd807572cd72142d
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-37-foi-third-party-and-bids
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-37-foi-third-party-and-bids.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d1e4571ca6d783903777892321228700b05c7eeabe1bf87670d5008f07e60579
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-38-foi-transfer
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-38-foi-transfer.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 47bb3ad48ec116c72ef424f0c1f8db591d45822b6739c8dae7fa364f8f40bb0b
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-39-foi-notices
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-39-foi-notices.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: b3f9303a3784e3ffdfcbf4203f62e9b82fe3ecb835e5d33a19dabcc1e0131851
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-40-subject-access
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-40-subject-access.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 8c4fe2c394495da5919d8ce81b1f1f9ff49e3c6ac39150224bffe40cc6227fcf
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-41-data-correction
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-41-data-correction.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9f97cb0f46aa08b2beafb2805488f2d67a1363cc61726093744b6a2ea46e9910
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-42-objection-and-marketing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-42-objection-and-marketing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d576c563c9bc392bd99c868d62bb6ceac4af8fc91e386df47cd33de81b2457b8
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-43-data-breach
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-43-data-breach.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 136a584f33f7bf2e99f9cc90dea831774bf463a95a7a7f8a1bbc20cc7a8aa502
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-44-inter-agency-data-sharing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-44-inter-agency-data-sharing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 498a8a61d6c5fb59ec5857993e761fc422eaad399aedb07b6ddf4eeb485da763
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-45-children-data
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-45-children-data.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2746e8b9a10c671828379f48bfa6c720a76289f49ab702b999713f9013066974
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -487,8 +607,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 126 cases x 2 targets x 3 repetitions x 2 attempts = 1512 requests at most;
+# 159 cases x 2 targets x 3 repetitions x 2 attempts = 1908 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 1512
-  max_tokens: 9072000
+  max_requests: 1908
+  max_tokens: 11448000

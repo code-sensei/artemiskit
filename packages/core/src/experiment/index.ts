@@ -1,5 +1,14 @@
 export { assessExperimentCompatibility } from './compatibility';
 export { isLoopbackEndpoint } from './executors/loopback';
+export {
+  createScenarioExperimentExecutor,
+  runManifestIdentity,
+} from './executors/scenario';
+export type {
+  ScenarioExperimentCost,
+  ScenarioExperimentEvidenceRecord,
+  ScenarioExperimentExecutorOptions,
+} from './executors/scenario';
 export { parseExperimentManifest } from './parser';
 export { buildExperimentMatrix, runExperiment, targetCostApplies } from './runner';
 export type {

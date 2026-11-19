@@ -1,0 +1,401 @@
+/**
+ * Built-in `scenario_evaluation` attempt executor for `runExperiment`.
+ *
+ * The executor loads a task's scenario from a host-supplied root, proves the bytes match the
+ * declared artifact identity, runs it once against the coordinate's target through
+ * `runScenario`, and maps the case outcomes onto the experiment attempt contract. It never
+ * discovers providers or credentials: the host supplies a `ModelClient` per target.
+ */
+
+import { createHash } from 'node:crypto';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import type { ModelClient } from '../../adapters/types';
+import type { CaseResult, ContentIdentity, RunManifest } from '../../artifacts/types';
+import { getCaseEvaluationStatus } from '../../artifacts/types';
+import { runScenario } from '../../runner/runner';
+import { validateScenario } from '../../scenario/parser';
+import type { Scenario } from '../../scenario/schema';
+import { targetCostApplies } from '../runner';
+import type {
+  ExecutedExperimentAttemptStatus,
+  ExperimentAttemptExecutor,
+  ExperimentAttemptInput,
+  ExperimentAttemptOutput,
+  ExperimentAttemptUsage,
+  ExperimentTarget,
+  ExperimentTaskEvidence,
+  ExperimentTaskSource,
+} from '../types';
+import { type ClientMeter, meterClient } from './metered-client';
+
+/** Evidence handed to the host before the attempt result is returned. */
+export interface ScenarioExperimentEvidenceRecord {
+  coordinate_id: string;
+  attempt_number: number;
+  manifest: RunManifest;
+  /** SHA-256 identity of the canonical JSON of `manifest`; see `runManifestIdentity`. */
+  artifact: ContentIdentity;
+}
+
+export interface ScenarioExperimentCost {
+  amount: number;
+  currency: string;
+}
+
+export interface ScenarioExperimentExecutorOptions {
+  /** Absolute directory that every `task.source.path` must resolve under. */
+  root: string;
+  /**
+   * Declared repetition count of the experiment (`manifest.repetitions`). The attempt input
+   * carries only the one-based index, and run evidence records `{index, total}`.
+   */
+  repetitions: number;
+  /** Build the client for one attempt. The executor closes it when the attempt ends. */
+  createClient: (target: ExperimentTarget) => ModelClient | Promise<ModelClient>;
+  /** Persist run evidence. A throw marks the attempt `infrastructure_failed`. */
+  onEvidence?: (record: ScenarioExperimentEvidenceRecord) => void | Promise<void>;
+  /** Per-case model request timeout in milliseconds. */
+  timeoutMs?: number;
+  /**
+   * Attested spend for metered targets only. Never called for targets that declare
+   * `cost_basis: not_applicable`. Returning `undefined` leaves cost unreported.
+   */
+  resolveCost?: (
+    target: ExperimentTarget,
+    manifest: RunManifest
+  ) => ScenarioExperimentCost | undefined;
+}
+
+type SourceLoad = { ok: true; bytes: Uint8Array } | { ok: false; code: string };
+type Classification = { status: ExecutedExperimentAttemptStatus; error_code?: string };
+
+/** Tool-loop case error codes that indicate a transport or provider failure. */
+const PROVIDER_TOOL_LOOP_ERRORS = new Set(['TOOL_GENERATION_FAILED', 'TOOL_LOOP_TIMEOUT']);
+const CURRENCY = /^[A-Z]{3}$/;
+
+/**
+ * Create an attempt executor that runs `scenario_evaluation` tasks with `runScenario`.
+ *
+ * Status precedence: request budget stop → `incomplete`; any transport/provider case error →
+ * `infrastructure_failed`; any invalid measurement → `invalid`; any failed valid case →
+ * `task_failed`; otherwise `passed`. `policy_failed` is never emitted.
+ */
+export function createScenarioExperimentExecutor(
+  options: ScenarioExperimentExecutorOptions
+): ExperimentAttemptExecutor {
+  assertOptions(options);
+  const root = path.resolve(options.root);
+  return (input) => executeAttempt(root, options, input);
+}
+
+/** SHA-256 identity of a run manifest's canonical JSON (recursively sorted object keys). */
+export function runManifestIdentity(manifest: RunManifest): ContentIdentity {
+  return {
+    schema_version: '1',
+    algorithm: 'sha256',
+    digest: createHash('sha256').update(canonicalJson(manifest)).digest('hex'),
+  };
+}
+
+async function executeAttempt(
+  root: string,
+  options: ScenarioExperimentExecutorOptions,
+  input: ExperimentAttemptInput
+): Promise<ExperimentAttemptOutput> {
+  const { task, target, coordinate } = input;
+  if (task.kind !== 'scenario_evaluation' || task.source.kind !== 'scenario_evaluation') {
+    return withoutRequests(task.kind, 'task_kind_unsupported');
+  }
+  if (coordinate.repetition_index > options.repetitions) {
+    return withoutRequests(task.kind, 'repetition_out_of_range');
+  }
+
+  const source = await loadTaskSource(root, task.source);
+  if (!source.ok) return withoutRequests(task.kind, source.code);
+
+  const scenario = parseScenarioBytes(source.bytes);
+  if (!scenario) return withoutRequests(task.kind, 'scenario_invalid');
+  const conflict = scenarioConflict(scenario, target);
+  if (conflict) return withoutRequests(task.kind, conflict);
+  if (scenario.cases.length > input.remaining_budget.requests) {
+    return withoutRequests(task.kind, 'request_budget_insufficient', 'incomplete');
+  }
+
+  let client: ModelClient;
+  try {
+    client = await options.createClient(structuredClone(target));
+    if (!isModelClient(client)) throw new TypeError('createClient returned no ModelClient');
+  } catch {
+    return withoutRequests(task.kind, 'client_unavailable', 'infrastructure_failed');
+  }
+
+  const meter = meterClient(client, input.remaining_budget.requests);
+  try {
+    return await runAndReport(options, input, scenario, meter);
+  } finally {
+    await closeClient(client);
+  }
+}
+
+async function runAndReport(
+  options: ScenarioExperimentExecutorOptions,
+  input: ExperimentAttemptInput,
+  scenario: Scenario,
+  meter: ClientMeter
+): Promise<ExperimentAttemptOutput> {
+  const { target, coordinate } = input;
+  let manifest: RunManifest;
+  try {
+    const run = await runScenario({
+      scenario: coordinate.seed === undefined ? scenario : { ...scenario, seed: coordinate.seed },
+      client: meter.client,
+      resolvedConfig: { provider: target.provider, model: target.model, source: {} },
+      concurrency: 1,
+      retries: 0,
+      timeout: options.timeoutMs,
+      repetition: { index: coordinate.repetition_index, total: options.repetitions },
+    });
+    manifest = run.manifest;
+  } catch {
+    return output('infrastructure_failed', meter.usage(), unavailable(), 'scenario_run_failed');
+  }
+
+  const classification = meter.budgetStopped()
+    ? { status: 'incomplete' as const, error_code: 'request_budget_exhausted' }
+    : classifyCases(manifest.cases);
+  const artifact = runManifestIdentity(manifest);
+
+  if (options.onEvidence) {
+    try {
+      await options.onEvidence({
+        coordinate_id: coordinate.coordinate_id,
+        attempt_number: input.attempt_number,
+        manifest,
+        artifact,
+      });
+    } catch {
+      return output('infrastructure_failed', meter.usage(), unavailable(), 'evidence_store_failed');
+    }
+  }
+
+  const evidence: ExperimentTaskEvidence = {
+    kind: 'scenario_evaluation',
+    availability: 'available',
+    artifact,
+  };
+  const usage = meter.usage();
+  if (targetCostApplies(target) && options.resolveCost) {
+    const cost = resolveAttemptCost(options.resolveCost, target, manifest);
+    if (cost === null) {
+      return output('infrastructure_failed', usage, evidence, 'cost_resolution_failed');
+    }
+    if (cost) usage.cost = cost;
+  }
+  return output(classification.status, usage, evidence, classification.error_code);
+}
+
+/**
+ * Resolve a path under `root`, refusing absolute paths, `..` escapes and symlinks that leave
+ * the root, then return the exact file bytes.
+ */
+async function loadTaskSource(root: string, source: ExperimentTaskSource): Promise<SourceLoad> {
+  const relativePath = source.path;
+  if (
+    typeof relativePath !== 'string' ||
+    relativePath.length === 0 ||
+    relativePath.includes('\0') ||
+    relativePath.includes('\\') ||
+    path.isAbsolute(relativePath) ||
+    path.win32.isAbsolute(relativePath)
+  ) {
+    return { ok: false, code: 'source_path_rejected' };
+  }
+  const resolved = path.resolve(root, relativePath);
+  if (!isInside(root, resolved)) return { ok: false, code: 'source_path_rejected' };
+
+  let realFile: string;
+  try {
+    const realRoot = await realpath(root);
+    realFile = await realpath(resolved);
+    if (!isInside(realRoot, realFile)) return { ok: false, code: 'source_path_rejected' };
+    if (!(await stat(realFile)).isFile()) return { ok: false, code: 'source_unreadable' };
+    const bytes = await readFile(realFile);
+    return digestMatches(bytes, source.artifact)
+      ? { ok: true, bytes }
+      : { ok: false, code: 'source_digest_mismatch' };
+  } catch {
+    return { ok: false, code: 'source_unreadable' };
+  }
+}
+
+function isInside(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child);
+  return (
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function digestMatches(bytes: Uint8Array, identity: ContentIdentity): boolean {
+  if (identity.algorithm !== 'sha256') return false;
+  return createHash('sha256').update(bytes).digest('hex') === identity.digest;
+}
+
+/**
+ * Parse with the scenario schema validator but without `${VAR}` expansion: the measured
+ * scenario must equal the digested bytes, and host environment values must never reach a
+ * model prompt.
+ */
+function parseScenarioBytes(bytes: Uint8Array): Scenario | undefined {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return validateScenario(parseYaml(text));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Scenario declarations that would silently override the experiment's own controls. */
+function scenarioConflict(scenario: Scenario, target: ExperimentTarget): string | undefined {
+  if (scenario.cases.some((testCase) => testCase.model && testCase.model !== target.model)) {
+    return 'scenario_model_conflict';
+  }
+  if (scenario.cases.some((testCase) => (testCase.retries ?? 0) > 0)) {
+    return 'scenario_retries_unsupported';
+  }
+  return undefined;
+}
+
+function classifyCases(cases: CaseResult[]): Classification {
+  let invalid = false;
+  let failed = false;
+  for (const caseResult of cases) {
+    const status = getCaseEvaluationStatus(caseResult);
+    if (status === 'error') {
+      if (isProviderError(caseResult)) {
+        return { status: 'infrastructure_failed', error_code: 'provider_error' };
+      }
+      invalid = true;
+    } else if (status === 'invalid') {
+      invalid = true;
+    } else if (status === 'failed') {
+      failed = true;
+    }
+  }
+  if (invalid) return { status: 'invalid', error_code: 'measurement_invalid' };
+  if (failed) return { status: 'task_failed' };
+  return { status: 'passed' };
+}
+
+/**
+ * Timeouts and target errors are transport/provider failures. Tool-loop errors are the
+ * target's own behaviour (unknown tool, duplicate call, step limit) and make the measurement
+ * invalid, except when the loop's follow-up generation failed or timed out.
+ */
+function isProviderError(caseResult: CaseResult): boolean {
+  const terminal = caseResult.attempt_evidence?.find((attempt) => attempt.included_in_outcome);
+  if (!terminal || terminal.error_code !== 'tool_error') return true;
+  return PROVIDER_TOOL_LOOP_ERRORS.has(caseResult.error ?? '');
+}
+
+/** Return the cost, `undefined` when unreported, or `null` when the resolver misbehaved. */
+function resolveAttemptCost(
+  resolve: NonNullable<ScenarioExperimentExecutorOptions['resolveCost']>,
+  target: ExperimentTarget,
+  manifest: RunManifest
+): ScenarioExperimentCost | undefined | null {
+  try {
+    const cost = resolve(structuredClone(target), manifest);
+    if (cost === undefined) return undefined;
+    const valid =
+      typeof cost === 'object' &&
+      cost !== null &&
+      Number.isFinite(cost.amount) &&
+      cost.amount >= 0 &&
+      typeof cost.currency === 'string' &&
+      CURRENCY.test(cost.currency);
+    return valid ? { amount: cost.amount, currency: cost.currency } : null;
+  } catch {
+    return null;
+  }
+}
+
+function withoutRequests(
+  kind: ExperimentAttemptInput['task']['kind'],
+  code: string,
+  status: ExecutedExperimentAttemptStatus = 'invalid'
+): ExperimentAttemptOutput {
+  // Zero requests means zero tokens is a reported fact, so live runs keep the real cause
+  // instead of halting with `usage_unreported`.
+  return output(status, { requests: 0, tokens: 0 }, { kind, availability: 'unavailable' }, code);
+}
+
+function output(
+  status: ExecutedExperimentAttemptStatus,
+  usage: ExperimentAttemptUsage,
+  evidence: ExperimentTaskEvidence,
+  errorCode?: string
+): ExperimentAttemptOutput {
+  return errorCode === undefined
+    ? { status, usage, evidence }
+    : { status, usage, evidence, error_code: errorCode };
+}
+
+function unavailable(): ExperimentTaskEvidence {
+  return { kind: 'scenario_evaluation', availability: 'unavailable' };
+}
+
+function isModelClient(value: unknown): value is ModelClient {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as ModelClient).generate === 'function' &&
+    typeof (value as ModelClient).capabilities === 'function'
+  );
+}
+
+async function closeClient(client: ModelClient): Promise<void> {
+  try {
+    await client.close?.();
+  } catch {
+    // The attempt result is already decided and its evidence stored; a failed close of a
+    // per-attempt client cannot change the measurement.
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(sortKeys(value));
+}
+
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (value === null || typeof value !== 'object') return value;
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(record)
+      .sort()
+      .map((key) => [key, sortKeys(record[key])])
+  );
+}
+
+function assertOptions(options: ScenarioExperimentExecutorOptions): void {
+  if (typeof options?.root !== 'string' || !path.isAbsolute(options.root)) {
+    throw new TypeError('Scenario executor root must be an absolute path');
+  }
+  if (!Number.isSafeInteger(options.repetitions) || options.repetitions < 1) {
+    throw new TypeError('Scenario executor repetitions must be a positive integer');
+  }
+  if (typeof options.createClient !== 'function') {
+    throw new TypeError('Scenario executor requires a createClient function');
+  }
+  if (
+    options.timeoutMs !== undefined &&
+    (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1)
+  ) {
+    throw new TypeError('Scenario executor timeoutMs must be a positive integer');
+  }
+}

@@ -313,7 +313,14 @@ async function executeQueue(state: RunState): Promise<void> {
       await Promise.all(running);
       return;
     }
-    await Promise.race(running);
+    try {
+      await Promise.race(running);
+    } catch (error) {
+      // Never reject while provider calls are still running: admit nothing more, let every
+      // in-flight attempt settle, then surface the failure.
+      await Promise.allSettled(running);
+      throw error;
+    }
   }
 }
 
@@ -340,7 +347,7 @@ async function admitAttempt(state: RunState, run: CoordinateRun, divisor: number
   );
   budget.inFlight.delete(ticket);
   const settledAt = state.nextEvent++;
-  const normalized = normalizeOutput(raw, manifest, granted, run.task.kind, run.target);
+  const normalized = safelyNormalizeOutput(raw, manifest, granted, run.task.kind, run.target);
   consumeUsage(budget, normalized.output.usage);
   if (normalized.haltReason) {
     budget.haltReason ??= normalized.haltReason;
@@ -490,6 +497,29 @@ async function invokeExecutor(
       evidence: { kind: input.task.kind, availability: 'unavailable' },
       error_code: 'executor_error',
     };
+  }
+}
+
+/**
+ * Normalize executor output without ever throwing. Hostile output (for example a getter that
+ * throws while it is read) is recorded as an invalid executor result instead of rejecting the
+ * run while other attempts may still be in flight.
+ */
+function safelyNormalizeOutput(
+  raw: unknown,
+  manifest: ExperimentManifest,
+  remaining: ExperimentRemainingBudget,
+  expectedKind: ExperimentTaskKind,
+  target: ExperimentTarget
+): NormalizedOutput {
+  try {
+    return normalizeOutput(raw, manifest, remaining, expectedKind, target);
+  } catch {
+    return invalidOutput(
+      'invalid_executor_result',
+      expectedKind,
+      manifest.mode === 'live' ? 'usage_invalid' : undefined
+    );
   }
 }
 

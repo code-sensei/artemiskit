@@ -361,6 +361,39 @@ describe('runExperiment with bounded concurrency', () => {
     expect(result.stop_reason).toBeUndefined();
   });
 
+  test('records hostile executor output instead of rejecting while attempts are in flight', async () => {
+    const settled: string[] = [];
+    const result = await runExperiment(
+      manifest({ concurrency: 3, tasks: [BASE.tasks[0]], repetitions: 2 }),
+      {
+        execute_attempt: async (input) => {
+          if (input.coordinate.repetition_index === 1 && input.target.id === 'model-one') {
+            return Object.defineProperty({}, 'status', {
+              enumerable: true,
+              get() {
+                throw new Error('getter');
+              },
+            }) as ExperimentAttemptOutput;
+          }
+          await delay(3);
+          settled.push(attemptKey(input));
+          return passed({ requests: 1 });
+        },
+      }
+    );
+
+    expect(settled).toHaveLength(3);
+    expect(result.results[0].attempts[0]).toMatchObject({
+      status: 'invalid',
+      error_code: 'invalid_executor_result',
+    });
+    expect(result.results.slice(1).map((item) => item.status)).toEqual([
+      'passed',
+      'passed',
+      'passed',
+    ]);
+  });
+
   test('still requires live authorization before any concurrent invocation', async () => {
     let calls = 0;
     await expect(

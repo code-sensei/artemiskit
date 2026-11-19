@@ -29,11 +29,11 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 28a727e5de2d01719ea3174c3fb3b1fbea24750112a4da938f9d1e22f7a24634
+    digest: 40684d64ace16332741a6df83ea403f55f4baff5d283eff9f2e6e4b7a94dfa4b
   rubric:
     schema_version: '1'
     algorithm: sha256
-    digest: 22852ae2326f29b254297bfe580502d7a8bbb4172e5015e5ef8f4904429cc692
+    digest: a8b0a82e42e34263317b1946c43a36176fdbd894b7327956e4234eb7bb33420a
 tasks:
   - id: aml-01-cash-structuring
     kind: scenario_evaluation
@@ -43,7 +43,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: cca83ccecd61d4631543479c0f88c88141f0e08b9cab67e1fec87bedde6b6b2a
+        digest: 56b4762943b668dcfcaba8e2c27381dd65dc1a5f74da3815801fd799f49f2acc
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -55,7 +55,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 19dedcec2b094032998250bd7c46cc4d1388e2a936e2aa366a391dc5fc1e98c1
+        digest: ba1a0a85ebc5dbfca6402992973ee421a71672cd5a927b6cbc6eeb1378db17c4
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -67,7 +67,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 5948f7a28f0de144b2ef4d12d9f7eebb0e0f9792d26c002b2a3a9cf8626444ef
+        digest: b753677d4d92c5ce20eac242636f6409d0bdc7426368e22f3d449f8a06e8df89
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -79,7 +79,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 2f2366218992aeb14f2f0f91b7b4a32b1b26506716c2fc2ec03b6e7d91c58d35
+        digest: fc41e339dce897f8226c96c9b5460f38a1413de81ff1df135702883b2027bb45
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -91,7 +91,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 320e7a0c05818b4ceb7bb36d51173ed2495732ae5590f22529a7f7adde814895
+        digest: ed4fcbe2a8b254bf8c24dfc6970609206cfa03ce4619542cbb368d0d0cbd6827
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -103,7 +103,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 24e9ec603024795613e186479c8563227dbc8b33394fe05ddb7154f0a0341ee9
+        digest: f1a61dbb88022dc24d7583d189b959f35db1accc16ddc76628c4402f817153c1
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -115,7 +115,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 5efca53a88bf722f061a383ab53501c8d7de84f3df0160c0705de46538abddca
+        digest: 58b2e5b0f7bca2be99934c151811ffc73a6b6040356b67d4381e8640f33ff961
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -127,7 +127,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: e9dcda553203ab623858180abe634198c211de00c7375c9d1add249ee63f4629
+        digest: b94626da842d9078741a23dbb63c455593a5eb6acce9381f9785868f9118cb42
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -139,7 +139,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: d9cd26fbd916497637bf5648a4de19c1dbd1e62b39850c11bc5132fececc0ce3
+        digest: 5a213108005ff8bf329d08cda966f37c76ce677fdb39665f33e2fbc002b9b910
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -151,7 +151,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 0200896c6391fa7f1ed1548781c69c4e650ea7f81ab98b1910384dcf3dedb264
+        digest: 3afb298c55ea02434e070d29b58c6f5acf05918b27c7944ed042d9840c9d22e2
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -163,7 +163,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: d3e7d323f51d68158ce4155b46c7b52cce33ffa009e31c535a979906c666e8c7
+        digest: 5a472f1301b91e2f72dc00fc0af08fd2b355835c1197afcce62db4c8a1f87270
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -175,7 +175,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 95bad2ee2c44356090b4878f15786bcf707a7f59904901d8b3d53bd0cf6e7715
+        digest: d39112f55ea7a925d8fe73666ab7f2fc72f786d2d74c2981e4ee5e52220a6f92
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -187,7 +187,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 92234cf3c51b4cedacef9708d5d35be73ab480c324197e66e5f81e712a35c2ca
+        digest: 846db445f4bbf5df8029d4ed7cd5a514e1be3c833f78dd2e72708c7a30c99199
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -199,7 +199,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: eca0cce83337b4a4309c221bf26617b42786a9c7cbdd69eb050a792c8b8fde4a
+        digest: f73a95468239612ceedd3541fb558a1439fbd737330939cbac992dee5b4e88d3
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -211,7 +211,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 25a9cc42e24ec5a967947e3b515b3e4fbb06f91317d4e1183e174a2712ec447b
+        digest: 8766120db991f8b3be26d8cb968028ccb21cc89bf306d5339f96409891493abb
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -223,7 +223,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 52e80e08c66f8b942fa5cf6cb6a6277d0b66e9842d54face6f36ec91bf7f6683
+        digest: 796301f3889dc2f16f1702471ebf311287cad8c0bc18ab3b916f8c9d41aefe06
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -235,7 +235,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 1a9f60b4c0609cc333fe71149d204ed1264d3a1b10dbb000acd6090776cf77a8
+        digest: 5bff2189d1ef3c39a4c57491e0564cad08396b6231af9aecffdc30d2b5b3dbdb
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -247,7 +247,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 222b2628e805efb302d02810a72f1c5c2e10e14428d524fb8056832ccf503c1c
+        digest: 454e341ba2a16a515e9626c36b25b33283ba13afceddeeba96b99c2f77b38984
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -259,7 +259,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: d727fe0e0b2573e5f4c4ee7b7de2b85c8c85000a55c20d598fbc34df7b9b874e
+        digest: c813ed6fed3a9a07cdcb197eb67771b909ee1eeef7c7c5be35cb2b68d1d993ee
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -271,7 +271,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: c1855fcca6c2ffeb2c2bc2932514fd3ac463e9fb9f07c1e218d26b70579aa29e
+        digest: 77daa3bc2fd1055c33222e75a84ad82aed60c24e1c81a250f2e0228378b89e90
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -283,7 +283,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 88b9be35981c0edd091e5c78e5d25cf178ba03f00bf205a600f06b57383be02a
+        digest: 9a0a53afdfb92b3b3d72b0386a17b38e09aedae93922ec57641a90791f9dc67b
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -295,7 +295,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 343b4fb3a12967996a77cb6381a6e61df7021c53cbfa44f85e076108f5a1c5c6
+        digest: 0c4725877224deb2591aba762445acef5e7dd7c8767579bd755086bcdecfdc05
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -307,7 +307,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: c11a9c1b95ec4941dc6ed98c1ff8ae107cf8b253640e88e04e32783949edcd36
+        digest: d896930a9d1638bf97c926b7f23df7ec52f9aec1b20d854be2e80f3c98bb98d8
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -319,7 +319,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: b8e4e0e66203d48c35717b283355e42f82579107f36f15a0f777cc6c109c9ef7
+        digest: e1389913638eadc75315756bbe305be699dfc7b10989314ea0572753f3576094
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -331,7 +331,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: f62318f541dd3d82aac850dbdd0638b050f49a5c7fda0f316ada69ada26e2a61
+        digest: b751ac55e46227840d413912e3af358f00031ebfd17ca6b45615d3a0b4f73806
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -343,7 +343,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 1a3deb3d583708d7f4018d17ebfa5c270902c5b77fcb7f65c4665d7802c3e8bd
+        digest: ab7355089f3be8955fbe8d806539897d6311c42930b7deb0b6e0e4c10e05725b
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -355,7 +355,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 291956776ce44910bc30209d25243f98a6b7ce28550b3404b83c6ae3228ee3b4
+        digest: 5410462602e88a497608ee6687896c8ce92e97cae59c8621824c8e43a8ce12b0
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -367,7 +367,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 793b73d69050b86e700dbe7a689fe6099372086cb1c0e9fb4854b1bcf581cb34
+        digest: ec55afc116d078519762496878e7b6fa312cc2c309ed9996cb60d299090e2da1
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -379,7 +379,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 18c08ad5695ba9847acaef18bf464bc71af82179d3bd85c2cd48ebfcb84e072d
+        digest: 1c84163098a563361ef3d2f692ab8c858a3b6d99d2d27e2b122cf8f37001b011
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -391,7 +391,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 387eca04fa24b67b19a2cb83f1249b71cbfc3b95501d474b8885ceb5e7f8e20e
+        digest: c042833521960972dfea2ca1ae9b717fc61e4967d78464ff0bc23f14c483492f
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -403,7 +403,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: faf0e3f05c05d487bd690a37022bfd692f51510c3312abbd59a227f18111d0e1
+        digest: c7fd6f07ad3a779367e7b3590c07a6f6f00e9bb581f220f6d434ec8ff3703ed0
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -415,7 +415,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 728bcf2ea109272c163ca1701b4984ab24e7878871c476863e8231db32feef9f
+        digest: 3bf6c62e2e6354a8fd9204001e96fa90524756b86c2ff4459a4840f026691bfd
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -427,7 +427,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 3ac66e9552e81650bd62e15dd9f4e76b39bb1dc49ced65ac6fe181783629b860
+        digest: a29be6d9532695049af32e8dc6745e575a7ebe5bf5c5ca3672391f31f1551895
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -439,7 +439,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 9829d2bff9d4602c3dc35c23dd57ed7622ff6d35eac903ede22466b264f752b4
+        digest: 12cda574d4c256a8a768554769a522ac50f79560c071aee831ebf4e43912eacf
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -451,7 +451,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 76e819d70bb2b6415721676f0659e273431557547b6bd0c47369399fb0178bda
+        digest: 32f6977b9799f8fbddf13411067b39c8775661e28a2246227b11b3ed70e63bfb
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -463,7 +463,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 365dda30f6b8e7048c9686c55519e43639b887ef177753a2cd818097059c1f51
+        digest: e9d868ad8f09c7f8b3b2a83e239be82ce65b51f5f24df524c849b1e70c0ce163
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -475,7 +475,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: c0216d3c8dfdf96b783e3d28e0c24943b64a81066dea8c92f3371da17c464576
+        digest: e1a2db03ba09ef347da34105f2ef7822a90847a8cc4a888fce8638c22d1a0dd7
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -487,7 +487,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: b4f63f00bfd998f5a432d060dc933612d9db88979e6ff360e7651db08591d8e7
+        digest: bf0c5c61c86c9af4cdcc1f757d546eec16ad905da98ee0b03ac66cb6fa4f05a6
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -499,7 +499,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 0a841eb956e35a0ebe8939613a43859f39d627e4930ba4b8578e5d5e861af77d
+        digest: 5f943540c0db149fe67959e1c77423fcaa5771a50ac2d3570b08905bce0dcdb5
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -511,7 +511,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: da299c74077cddcb5bce60e64db8d43928f2742427a1229202455bb10e2c9f92
+        digest: e301166d7122d82c21805bb2d81433aac153cc6150e0b7139a4bca3b78819f02
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -523,7 +523,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: c0105ded2b6df03003cfa89f4ebae72d0219a19bc6fe87cfc7f940cacc14cd6a
+        digest: 7ef977b520390b494cfd120455278a2bd742d0d9907e5187cc11331b90ccf73e
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -535,7 +535,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: d7c875ff9e3e733ff9fa3fb3d4cecd7d721e95b8dabd49a1ff9081ca7fdca21c
+        digest: 12c27f2605d238dd493879909e3ba75470bc49bc3403c4086ba016cd5e012d12
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -547,7 +547,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 17fed5d86e9496331f5b2c90a2595f4d6d1ac9787fe7952bc77046969faf5cdd
+        digest: cc21ec21471adc0c1c77359b4d704c0f187a8610deb00cc84807b24b008aadc4
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -559,7 +559,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 98761f50d667a2aa741f08f82088728260a87557f0b707f06ab2f57a7d6e8ee8
+        digest: e2c2158f749ae95b363c6558da3658116ca8c9b0dafdbfe0599f3fddac53cea1
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -571,7 +571,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: bad5bf292243548dc7205e6349baca0b21da966d3fea3fa683f23f145bd48431
+        digest: ec917d821b2a76baf01e56d898f66fcb72d1c5934f1d28629829de74c51ab256
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -583,7 +583,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 7080d81a016d2431785552b663d19963d683a290c041d1e75f5049253c5bbb01
+        digest: 14e83b815b5ceb12626422f6b9fd64e336266ece352ce911c8b1564a53b0c182
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -595,7 +595,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 3f20121a48f7b57faefdd01eb2d306fdcc9c9cdac5fe43da662bdbabe1a6c906
+        digest: 63d03b0c453237b5a6dd6a43eca9f66d9875d39ce2f022f39a309e8c02d9ec4e
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -607,7 +607,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: e8b5bda63d881c9359429f9ccf4840d8ceb64db0fa2b4205029eb0e9089d55a0
+        digest: 7dd455b5705ed0e39fb1cb055933b38437302acd5129b0f0191e56f3c8eabfed
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -619,7 +619,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 33aa7c044f891263ed4fda77fb67db5654caa140d104f1fd992d6cacbd71afbd
+        digest: 532c5a7cbacf6f9043d2e78dc931fbfdde6edc9cc079a17d4a7302c472d93b9c
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
@@ -631,7 +631,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: ea5e90a74ff2c99749c9240912a2463a0c75a01c90811021a2f750d0257f0908
+        digest: f7a448af1d71119b680a07b24e02e2386ca92b84093f40af0f9a9ac1368a01e6
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1

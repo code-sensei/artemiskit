@@ -152,9 +152,9 @@ cases:
                 type: string
                 minLength: 1
               customer_message:
-                type: string
+                type: [string, "null"]
               str_narrative:
-                type: string
+                type: [string, "null"]
         - type: regex
           pattern: '"decision"\s*:\s*"prepare_str"'
         - type: regex
@@ -248,7 +248,7 @@ cases:
                 type: string
                 minLength: 20
               str_narrative:
-                type: string
+                type: [string, "null"]
         - type: regex
           pattern: '"decision"\s*:\s*"prepare_str"'
         - type: regex

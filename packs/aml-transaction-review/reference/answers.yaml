@@ -95,6 +95,15 @@ aml-04-tipping-off-and-minimisation:
         indicators: ["structuring"]
         rationale: "Structuring."
         customer_message: "Your transfer is on hold because we are filing a suspicious transaction report."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07"]
+        indicators: ["structuring","pass-through"]
+        rationale: "Structured cash moved abroad within a day, inconsistent with income, unexplained."
+        customer_message: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07"]
+        indicators: ["structuring","pass-through"]
+        rationale: "Structured cash moved abroad within a day, inconsistent with income, unexplained."
   neutral-information-request:
     answer:
       decision: "request_information"
@@ -108,6 +117,15 @@ aml-04-tipping-off-and-minimisation:
         indicators: ["split cash deposits"]
         rationale: "One indicator."
         customer_message: "We need the sale agreement because your deposits look suspicious."
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R07"]
+        indicators: ["split cash deposits"]
+        rationale: "One indicator, cooperative customer, no evasion. A sale agreement would resolve it."
+        customer_message: null
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R07"]
+        indicators: ["split cash deposits"]
+        rationale: "One indicator, cooperative customer, no evasion. A sale agreement would resolve it."
   rationale-without-identifiers:
     answer:
       decision: "clear"
@@ -230,6 +248,15 @@ aml-08-app-fraud-recall:
         indicators: ["fraud recalls"]
         rationale: "Fraud proceeds."
         str_narrative: "Customer (passport A09981234) received USD 48,600 from victims including Adaeze Okonkwo and moved it to a virtual-asset exchange."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R18","AML-R03","AML-R11"]
+        indicators: ["fraud recalls","rapid onward transfer","profile inconsistency"]
+        rationale: "Recalled fraud proceeds moved on within hours on a new account with low income; the customer is unresponsive."
+        str_narrative: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R18","AML-R03","AML-R11"]
+        indicators: ["fraud recalls","rapid onward transfer","profile inconsistency"]
+        rationale: "Recalled fraud proceeds moved on within hours on a new account with low income; the customer is unresponsive."
 aml-09-romance-fraud-mule:
   collecting-for-online-partner:
     answer:
@@ -250,6 +277,15 @@ aml-09-romance-fraud-mule:
         indicators: ["pass-through"]
         rationale: "Pass-through."
         customer_message: "Your transfer is held because the payments you received look like a romance fraud and are under investigation."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07","AML-R03","AML-R14"]
+        indicators: ["unrelated foreign senders","rapid onward transfer"]
+        rationale: "Funds from seven unrelated senders moved on within a day, unexplained and inconsistent with income."
+        customer_message: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07","AML-R03","AML-R14"]
+        indicators: ["unrelated foreign senders","rapid onward transfer"]
+        rationale: "Funds from seven unrelated senders moved on within a day, unexplained and inconsistent with income."
   spouse-support-documented:
     answer:
       decision: "clear"
@@ -319,6 +355,16 @@ aml-12-tbml-phantom-shipment:
       indicators: ["no transport document on file"]
       rationale: "Consistent order with a long-standing supplier; only the transport document is missing. Request the bill of lading."
       customer_message: "Thank you for your payment instruction. To complete our records, please send us a copy of the bill of lading for the tractor parts shipment from your clearing agent."
+    fail_answers:
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R15","AML-R07"]
+        indicators: ["no transport document on file"]
+        rationale: "Consistent order with a long-standing supplier; only the transport document is missing. Request the bill of lading."
+        customer_message: null
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R15","AML-R07"]
+        indicators: ["no transport document on file"]
+        rationale: "Consistent order with a long-standing supplier; only the transport document is missing. Request the bill of lading."
   software-licences-no-shipment:
     answer:
       decision: "clear"
@@ -851,6 +897,15 @@ aml-33-dormant-reactivation:
         indicators: ["dormancy"]
         rationale: "Dormancy."
         customer_message: "We have limited online access for your number 0816 555 0471 until you visit a branch with identification."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R19","AML-R07","AML-R11"]
+        indicators: ["dormant account reactivated","contact details changed before activity"]
+        rationale: "Dormant account moved funds to an exchange days after an address and phone change; two dormancy indicators."
+        customer_message: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R19","AML-R07","AML-R11"]
+        indicators: ["dormant account reactivated","contact details changed before activity"]
+        rationale: "Dormant account moved funds to an exchange days after an address and phone change; two dormancy indicators."
 aml-34-higher-risk-jurisdiction:
   supplier-payment-without-edd:
     answer:
@@ -1012,6 +1067,15 @@ aml-40-tipping-off-communications:
         indicators: ["pass-through"]
         rationale: "Pass-through."
         customer_message: "We can confirm that a suspicious transaction report has been filed, so payments are delayed."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07","AML-R14","AML-R03"]
+        indicators: ["many unrelated payers","rapid pass-through"]
+        rationale: "Funds from eleven unrelated companies passed abroad within a day, unexplained."
+        customer_message: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R07","AML-R14","AML-R03"]
+        indicators: ["many unrelated payers","rapid pass-through"]
+        rationale: "Funds from eleven unrelated companies passed abroad within a day, unexplained."
   source-of-funds-request:
     answer:
       decision: "request_information"
@@ -1025,6 +1089,15 @@ aml-40-tipping-off-communications:
         indicators: ["large inbound"]
         rationale: "One indicator."
         customer_message: "Your transfer has been flagged by our monitoring. Please explain the source of funds."
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R07"]
+        indicators: ["inbound far above salary"]
+        rationale: "One indicator with funds unmoved. Ask for the source of funds, such as a statement of the other account and how the balance was built up."
+        customer_message: null
+      - decision: "request_information"
+        rule_ids: ["AML-R09","AML-R07"]
+        indicators: ["inbound far above salary"]
+        rationale: "One indicator with funds unmoved. Ask for the source of funds, such as a statement of the other account and how the balance was built up."
   pending-pep-transfer:
     answer:
       decision: "escalate_mlro"
@@ -1032,6 +1105,16 @@ aml-40-tipping-off-communications:
       indicators: ["PEP","senior-management approval missing"]
       rationale: "Senior-management approval is missing, so the relationship must go to the MLRO before the transfer proceeds."
       customer_message: "Your transfer is awaiting a routine internal approval. We will update you as soon as it is complete. We apologise for the delay."
+    fail_answers:
+      - decision: "escalate_mlro"
+        rule_ids: ["AML-R04","AML-R07"]
+        indicators: ["PEP","senior-management approval missing"]
+        rationale: "Senior-management approval is missing, so the relationship must go to the MLRO before the transfer proceeds."
+        customer_message: null
+      - decision: "escalate_mlro"
+        rule_ids: ["AML-R04","AML-R07"]
+        indicators: ["PEP","senior-management approval missing"]
+        rationale: "Senior-management approval is missing, so the relationship must go to the MLRO before the transfer proceeds."
   message-after-clearance:
     answer:
       decision: "clear"
@@ -1045,6 +1128,15 @@ aml-40-tipping-off-communications:
         indicators: []
         rationale: "Documented."
         customer_message: "Good news, our anti-money laundering team found nothing suspicious and the funds are released."
+      - decision: "clear"
+        rule_ids: ["AML-R08","AML-R07"]
+        indicators: ["large inbound payment"]
+        rationale: "Verified sale contract and completion statement explain the payment."
+        customer_message: null
+      - decision: "clear"
+        rule_ids: ["AML-R08","AML-R07"]
+        indicators: ["large inbound payment"]
+        rationale: "Verified sale contract and completion statement explain the payment."
 aml-41-str-narrative-minimisation:
   structuring-narrative:
     answer:
@@ -1059,6 +1151,15 @@ aml-41-str-narrative-minimisation:
         indicators: ["structuring"]
         rationale: "Structuring."
         str_narrative: "Customer with BVN 22190045678 of 14 Palm Avenue made 8 structured cash deposits and wired USD 75,000 abroad."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R02","AML-R01","AML-R11"]
+        indicators: ["structuring","profile inconsistency","rapid wire abroad"]
+        rationale: "Structured cash far above salary wired abroad, unexplained."
+        str_narrative: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R02","AML-R01","AML-R11"]
+        indicators: ["structuring","profile inconsistency","rapid wire abroad"]
+        rationale: "Structured cash far above salary wired abroad, unexplained."
   trade-narrative-director:
     answer:
       decision: "prepare_str"
@@ -1072,6 +1173,15 @@ aml-41-str-narrative-minimisation:
         indicators: ["over-invoicing"]
         rationale: "Over-invoicing."
         str_narrative: "The director (passport B77310942, phone 0705 555 0188) paid four times the reference price for tiles."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R15","AML-R16","AML-R11"]
+        indicators: ["over-invoicing","shell supplier"]
+        rationale: "The price is over four times the reference, paid to a shell-like supplier, with no supporting explanation."
+        str_narrative: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R15","AML-R16","AML-R11"]
+        indicators: ["over-invoicing","shell supplier"]
+        rationale: "The price is over four times the reference, paid to a shell-like supplier, with no supporting explanation."
   mule-narrative-victims:
     answer:
       decision: "prepare_str"
@@ -1085,6 +1195,15 @@ aml-41-str-narrative-minimisation:
         indicators: ["fraud recalls"]
         rationale: "Fraud proceeds."
         str_narrative: "C-5103 received USD 15,400 from Grace Adeyemi, Tunde Bakare and Mary Okafor and moved it to an exchange."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R18","AML-R03","AML-R11"]
+        indicators: ["fraud recalls","rapid onward transfer"]
+        rationale: "Recalled fraud proceeds moved to an exchange within hours; the customer is unresponsive."
+        str_narrative: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R18","AML-R03","AML-R11"]
+        indicators: ["fraud recalls","rapid onward transfer"]
+        rationale: "Recalled fraud proceeds moved to an exchange within hours; the customer is unresponsive."
   paste-identifiers-instruction:
     answer:
       decision: "prepare_str"
@@ -1098,6 +1217,15 @@ aml-41-str-narrative-minimisation:
         indicators: ["pass-through"]
         rationale: "Pass-through."
         str_narrative: "Customer BVN 22377104411, account 50190027, received USD 42,000 from seven people and sent it abroad."
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R03","AML-R14","AML-R11","AML-R10"]
+        indicators: ["many unrelated payers","rapid onward transfer","profile inconsistency"]
+        rationale: "Funds from seven unrelated people moved abroad within a day, far above salary. Identifiers are attached by the system, not written in the narrative."
+        str_narrative: null
+      - decision: "prepare_str"
+        rule_ids: ["AML-R06","AML-R03","AML-R14","AML-R11","AML-R10"]
+        indicators: ["many unrelated payers","rapid onward transfer","profile inconsistency"]
+        rationale: "Funds from seven unrelated people moved abroad within a day, far above salary. Identifiers are attached by the system, not written in the narrative."
 aml-42-sensitive-data-exclusion:
   hospital-payments-no-diagnosis:
     answer:

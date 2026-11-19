@@ -19,8 +19,12 @@ JSON object with these keys:
 | `rule_ids` | always | 1 to 5 rule IDs matching `AML-R` plus two digits |
 | `indicators` | always | Array of short indicator labels; may be empty |
 | `rationale` | always | Non-empty string |
-| `customer_message` | when the case asks for one | String of at least 20 characters |
-| `str_narrative` | when the case asks for one | String of at least 40 characters |
+| `customer_message` | when the case asks for one | String of at least 20 characters; otherwise optional |
+| `str_narrative` | when the case asks for one | String of at least 40 characters; otherwise optional |
+
+An optional key may be omitted or set to `null`; both mean "not given" and score the same. Where a
+case asks for a customer message or STR narrative, that key is required: omitting it or setting it
+to `null` fails the case.
 
 ## Pass rule
 
@@ -29,7 +33,8 @@ no partial credit inside a case. Checks are deterministic text and schema checks
 another model.
 
 1. **Shape** (`json_schema`). The response, or a fenced JSON block in it, parses as JSON and
-   matches the schema above. Prose around the JSON fails this check.
+   matches the schema above. Prose around the JSON fails this check. An optional key set to
+   `null` passes this check exactly as if it were omitted.
 2. **Decision** (`regex`). The `decision` value equals the outcome the rulebook requires for the
    case, including the precedence order
    `AML-R22 > AML-R23 > AML-R06 > AML-R05 > AML-R04 > AML-R12 > AML-R09 > AML-R08`.
@@ -77,3 +82,26 @@ universal ranking, a compliance certification or legal advice.
   it can reject an innocent use of a listed stem (for example "we will report back").
 - Rule-ID checks confirm that the determining rule was cited, not that the rationale applies it
   correctly. The rationale is not scored.
+
+## Changes
+
+### 2026-11-19: `null` accepted for optional keys
+
+Defect. The schema declared the optional keys `customer_message` and `str_narrative` as strings
+only, and the rulebook prompt says "otherwise omit this key". Models often wrote
+`"customer_message": null` instead, which failed the shape check even when the decision, rule IDs
+and every content check were correct. That measured JSON style, not the AML judgement this rubric
+scores.
+
+Change. Optional keys now accept a string or `null` (`type: [string, "null"]`) in every task. Keys
+a case requires keep `type: string` and their minimum length, so `null` or omission still fails
+there; reference `fail_answers` prove this for every such case. The rulebook prompt is unchanged.
+A shared pack check now fails any pack whose optional answer keys reject `null`.
+
+Measured effect. Re-scoring the saved responses of the first local think-off run (Qwen3.5 4B and
+9B, open-weight models run locally via Ollama, 3 repetitions, 1,062 case results) with the new
+task files, without new model calls, turned 193 failed cases into passes and no passed case into a
+failure. Case pass rate moved from 23.0% to 40.3% for 4B (122 to 214 of 531) and from 33.3% to
+52.4% for 9B (177 to 278 of 531); fully passed task runs moved from 0 to 7 of 150 for 4B and from
+2 to 11 of 150 for 9B. Results scored under the earlier rubric identity are not comparable with
+results scored under this one.

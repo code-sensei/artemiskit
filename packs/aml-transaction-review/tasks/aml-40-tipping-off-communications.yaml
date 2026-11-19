@@ -156,7 +156,7 @@ cases:
                 type: string
                 minLength: 20
               str_narrative:
-                type: string
+                type: [string, "null"]
         - type: regex
           pattern: '"decision"\s*:\s*"prepare_str"'
         - type: regex

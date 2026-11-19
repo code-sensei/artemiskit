@@ -1,4 +1,5 @@
 export { assessExperimentCompatibility } from './compatibility';
+export { isLoopbackEndpoint } from './executors/loopback';
 export { parseExperimentManifest } from './parser';
 export { buildExperimentMatrix, runExperiment, targetCostApplies } from './runner';
 export type {

@@ -26,14 +26,15 @@ jobs:
       - name: Run linter
         run: bun run lint
 
+      # Packages resolve each other's types through dist/*.d.ts, so build first.
+      - name: Build packages
+        run: bun run build
+
       - name: Run type check
         run: bun run typecheck
 
       - name: Run tests
         run: bun run test
-
-      - name: Build packages
-        run: bun run build
 
   test-matrix:
     name: Test on ${{ matrix.os }}

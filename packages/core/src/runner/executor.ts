@@ -242,7 +242,7 @@ async function executeCaseAttempt(
   let toolLoop: ToolLoopSummary | undefined;
   const loopPrompt =
     typeof prompt === 'string' ? [{ role: 'user' as const, content: prompt }] : prompt;
-  const generate = () =>
+  const generate = (signal?: AbortSignal) =>
     client.generate({
       prompt: loopPrompt,
       model: testCase.model || requestedModel || scenario.model,
@@ -250,12 +250,10 @@ async function executeCaseAttempt(
       maxTokens: scenario.maxTokens,
       seed: scenario.seed,
       tools,
+      ...(signal ? { signal } : {}),
     });
-  const generatePromise = generate();
 
-  let result = timeout
-    ? await Promise.race([generatePromise, createTimeout(timeout)])
-    : await generatePromise;
+  let result = timeout ? await withTimeout(generate, timeout) : await generate();
   const observedModels = [result.model];
   const generationMetrics = {
     latencyMs: result.latencyMs,
@@ -381,7 +379,7 @@ async function executeCaseAttempt(
       }
       const requestTimeout = timeout ? Math.min(timeout, remainingLoopTime) : remainingLoopTime;
       try {
-        result = await Promise.race([generate(), createTimeout(requestTimeout)]);
+        result = await withTimeout(generate, requestTimeout);
       } catch (error) {
         const timedOut = error instanceof TimeoutError;
         throw createToolLoopError(
@@ -695,10 +693,26 @@ class ToolLoopError extends Error {
   }
 }
 
-function createTimeout(ms: number): Promise<never> {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new TimeoutError(ms)), ms);
+/**
+ * Run a request with a deadline. The timer is always cleared when the race settles, so a
+ * finished run leaves no pending timer that keeps the process alive for the rest of the
+ * timeout. On expiry the request's signal is aborted so the abandoned request does not keep
+ * its connection open or the model server busy.
+ */
+async function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new TimeoutError(ms));
+      controller.abort();
+    }, ms);
   });
+  try {
+    return await Promise.race([run(controller.signal), deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 class TimeoutError extends Error {

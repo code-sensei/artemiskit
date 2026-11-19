@@ -23,15 +23,37 @@ globalThis.fetch = () => { throw new Error('NETWORK-FORBIDDEN'); };
 net.Socket.prototype.connect = function () { throw new Error('NETWORK-FORBIDDEN'); };
 `;
 
+/** Preload that allows HTTP only to 127.0.0.1 stub servers and refuses raw sockets. */
+const LOOPBACK_ONLY_PRELOAD = `
+import net from 'node:net';
+const loopbackFetch = globalThis.fetch;
+globalThis.fetch = (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  if (url.hostname !== '127.0.0.1') throw new Error('NETWORK-FORBIDDEN');
+  return loopbackFetch(input, init);
+};
+net.Socket.prototype.connect = function () { throw new Error('NETWORK-FORBIDDEN'); };
+`;
+
+/** A CLI that has written its result must exit well inside this; the per-case timeout is 60 s. */
+const PROMPT_EXIT_MS = 10_000;
+const LONG_PER_CASE_TIMEOUT_MS = '60000';
+
 interface CliResult {
   code: number;
   stdout: string;
   stderr: string;
+  elapsedMs: number;
 }
 
-async function invoke(directory: string, args: string[]): Promise<CliResult> {
+async function invoke(
+  directory: string,
+  args: string[],
+  preloadSource: string = OFFLINE_PRELOAD
+): Promise<CliResult> {
   const preload = path.join(directory, 'offline-preload.ts');
-  await writeFile(preload, OFFLINE_PRELOAD);
+  await writeFile(preload, preloadSource);
+  const startedAt = Date.now();
   const child = Bun.spawn([process.execPath, '--preload', preload, cli, 'experiment', ...args], {
     cwd: directory,
     env: { PATH: process.env.PATH, OPENAI_API_KEY: 'sk-ambient-must-not-print' },
@@ -46,7 +68,7 @@ async function invoke(directory: string, args: string[]): Promise<CliResult> {
       new Response(child.stdout).text(),
       new Response(child.stderr).text(),
     ]);
-    return { code, stdout, stderr };
+    return { code, stdout, stderr, elapsedMs: Date.now() - startedAt };
   } finally {
     clearTimeout(timer);
   }
@@ -224,6 +246,82 @@ describe('akit experiment run', () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Approval flags ignored');
   });
+});
+
+describe('akit experiment run process lifetime', () => {
+  test('exits promptly after a fixture run with a long per-case timeout', async () => {
+    const fixture = await writeExperimentFixture();
+    const result = await invoke(fixture.directory, [
+      'run',
+      fixture.file,
+      '--output-dir',
+      'out',
+      '--timeout',
+      LONG_PER_CASE_TIMEOUT_MS,
+    ]);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('Result: ');
+    expect(result.elapsedMs).toBeLessThan(PROMPT_EXIT_MS);
+  }, 30_000);
+
+  test('exits promptly after a live run against a loopback stub server', async () => {
+    let requests = 0;
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        requests += 1;
+        const body = (await request.json()) as { model: string };
+        return Response.json({
+          id: 'local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            {
+              index: 0,
+              finish_reason: 'stop',
+              message: { role: 'assistant', content: 'Fixture response, Abuja' },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 3, total_tokens: 7 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      const fixture = await writeExperimentFixture({
+        overrides: LIVE,
+        target: (target) => ({ ...target, settings: { base_url: baseUrl } }),
+      });
+      const result = await invoke(
+        fixture.directory,
+        [
+          'run',
+          fixture.file,
+          '--output-dir',
+          'out',
+          '--approve',
+          '--approved-by',
+          'test-operator',
+          '--reason',
+          'loopback stub server only',
+          '--timeout',
+          LONG_PER_CASE_TIMEOUT_MS,
+        ],
+        LOOPBACK_ONLY_PRELOAD
+      );
+
+      expect(result.code).toBe(0);
+      expect(requests).toBe(4);
+      expect(result.stdout).toContain('Result: ');
+      expectNoNetworkOrSecrets(result);
+      expect(result.elapsedMs).toBeLessThan(PROMPT_EXIT_MS);
+    } finally {
+      server.stop(true);
+    }
+  }, 30_000);
 });
 
 describe('akit experiment report', () => {

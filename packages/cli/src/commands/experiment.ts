@@ -185,7 +185,10 @@ function experimentRunCommand(): Command {
     .option('--approved-by <name>', 'Who approved the live run (recorded in the result)')
     .option('--reason <text>', 'Why the live run is approved (recorded in the result)')
     .option('--decision-id <id>', 'Approval decision ID (default: generated)')
-    .option('--timeout <ms>', 'Per-case model request timeout in milliseconds')
+    .option(
+      '--timeout <ms>',
+      'Per-case model request timeout in milliseconds (also the minimum HTTP timeout for live targets)'
+    )
     .action(async (file: string, options: ExperimentRunCommandOptions) => {
       try {
         const timeoutMs = parseTimeout(options.timeout);

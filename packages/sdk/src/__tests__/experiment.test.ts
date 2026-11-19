@@ -395,6 +395,116 @@ describe('runExperimentFile (live mode)', () => {
       server.stop(true);
     }
   });
+  test('raises the adapter HTTP timeout to the per-case timeout for slow loopback targets', async () => {
+    // The stub answers after STUB_DELAY_MS; the resolver stands in for an adapter transport
+    // default shorter than that, as the OpenAI adapter's 60 s default is for local thinking runs.
+    const STUB_DELAY_MS = 600;
+    const SHORT_TRANSPORT_TIMEOUT_MS = 150;
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const body = (await request.json()) as { model: string };
+        await Bun.sleep(STUB_DELAY_MS);
+        return Response.json({
+          id: 'slow-local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            {
+              index: 0,
+              finish_reason: 'stop',
+              message: { role: 'assistant', content: 'Fixture response, Abuja' },
+            },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 3, total_tokens: 7 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      const run = async (timeoutMs: number | undefined) => {
+        const fixture = await writeExperimentFixture({
+          overrides: liveOverrides(),
+          target: (target) => ({ ...target, settings: { base_url: baseUrl } }),
+        });
+        return runExperimentFile({
+          experiment: fixture.file,
+          outputDir: path.join(fixture.directory, 'out'),
+          liveAuthorization: createExperimentLiveAuthorization({
+            approvedBy: 'test-operator',
+            reason: 'loopback stub server only',
+          }),
+          resolveTargetConfig: () => ({ timeout: SHORT_TRANSPORT_TIMEOUT_MS }),
+          timeoutMs,
+        });
+      };
+
+      const withPerCaseTimeout = await run(10_000);
+      expect(withPerCaseTimeout.exitCode).toBe(0);
+      expect(withPerCaseTimeout.result?.stop_reason).toBeUndefined();
+      expect(withPerCaseTimeout.result?.summaries.overall.passed).toBe(4);
+
+      // Control: without a per-case timeout the transport default stands and aborts the request.
+      const withoutPerCaseTimeout = await run(undefined);
+      expect(withoutPerCaseTimeout.result?.stop_reason).toBe('usage_unreported');
+      expect(withoutPerCaseTimeout.result?.summaries.overall.passed).toBe(0);
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test('saves the declared reasoning_effort in the evidence of each attempt that sent it', async () => {
+    const sent: unknown[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const body = (await request.json()) as { model: string; reasoning_effort?: string };
+        sent.push(body.reasoning_effort);
+        return Response.json({
+          id: 'local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'Abuja' } },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      const fixture = await writeExperimentFixture({
+        overrides: liveOverrides(),
+        target: (target) => ({
+          ...target,
+          settings: { base_url: baseUrl, reasoning_effort: 'none' },
+        }),
+      });
+      const outcome = await runExperimentFile({
+        experiment: fixture.file,
+        outputDir: path.join(fixture.directory, 'out'),
+        liveAuthorization: createExperimentLiveAuthorization({
+          approvedBy: 'test-operator',
+          reason: 'loopback stub server only',
+        }),
+      });
+
+      expect(outcome.exitCode).toBe(0);
+      expect(sent).toEqual(['none', 'none', 'none', 'none']);
+      expect(outcome.evidence).toHaveLength(4);
+      for (const file of outcome.evidence) {
+        const saved = JSON.parse(await readFile(file.path, 'utf8'));
+        expect(saved.resolved_config.reasoning_effort).toBe('none');
+      }
+    } finally {
+      server.stop(true);
+    }
+  });
+
   test('awaits an async target config resolver for non-loopback live targets', async () => {
     const resolved: string[] = [];
     const fixture = await writeExperimentFixture({

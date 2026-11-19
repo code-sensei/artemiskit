@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -126,6 +127,7 @@ for (const { manifest } of packages) {
   }
 }
 for (const file of [
+  'experiment.mjs',
   'runtime.mjs',
   'types.mts',
   'workflow-cli.mjs',
@@ -178,6 +180,70 @@ console.log(run('node', ['workflow-cli.mjs', ...(docker ? ['--docker'] : [])], d
 for (const runtime of ['node', 'bun']) {
   console.log(`${runtime}: ${run(runtime, ['workflow-report.mjs'], directory, 120_000)}`);
 }
+// Benchmark-pack experiments (templates are generator inputs, not experiments) validate from the
+// installed CLI and SDK; a two-kind fixture experiment runs and reports through both with parity.
+const packExperiments = [];
+for (const pack of readdirSync(join(root, 'packs'), { withFileTypes: true })) {
+  if (!pack.isDirectory() || pack.name.startsWith('_')) continue;
+  const experiments = readdirSync(join(root, 'packs', pack.name)).filter(
+    (file) => /^experiment(\..+)?\.yaml$/.test(file) && file !== 'experiment.template.yaml'
+  );
+  if (!experiments.length) continue;
+  cpSync(join(root, 'packs', pack.name), join(directory, 'packs', pack.name), { recursive: true });
+  packExperiments.push(...experiments.map((file) => `packs/${pack.name}/${file}`));
+}
+assert.ok(packExperiments.length, 'No benchmark-pack experiments found');
+for (const file of packExperiments) {
+  const validation = JSON.parse(run('bun', [cli, 'experiment', 'validate', file, '--json']));
+  assert.equal(validation.valid, true, `Installed CLI rejected ${file}`);
+}
+console.log(`PASS: installed CLI validated ${packExperiments.length} pack experiments`);
+const sdkExperiments = {};
+for (const runtime of ['node', 'bun']) {
+  const output = run(runtime, ['experiment.mjs', ...packExperiments], directory, 180_000);
+  sdkExperiments[runtime] = JSON.parse(output.split('\n').at(-1));
+  console.log(`${runtime}: PASS SDK experiment validate/run/report/live refusal: ${output}`);
+}
+run('bun', [
+  cli,
+  'experiment',
+  'run',
+  sdkExperiments.node.experiment,
+  '--output-dir',
+  'experiment-cli/run',
+]);
+const cliResult = JSON.parse(
+  readFileSync(join(directory, 'experiment-cli/run/result.json'), 'utf8')
+);
+const cliOverall = cliResult.summaries.overall;
+for (const runtime of ['node', 'bun']) {
+  assert.deepEqual(
+    { planned: cliOverall.planned, valid: cliOverall.valid, passed: cliOverall.passed },
+    sdkExperiments[runtime].overall,
+    `CLI and ${runtime} SDK experiment summaries differ`
+  );
+}
+run('bun', [
+  cli,
+  'experiment',
+  'report',
+  'experiment-cli/run/result.json',
+  '--output-dir',
+  'experiment-cli/report',
+]);
+assert.deepEqual(
+  readdirSync(join(directory, 'experiment-cli/report')).sort(),
+  [
+    'comprehensive.html',
+    'comprehensive.md',
+    'executive.html',
+    'executive.md',
+    'technical.html',
+    'technical.md',
+  ],
+  'CLI experiment report must write three views in HTML and Markdown'
+);
+console.log('PASS: installed CLI experiment run/report agree with the Node and Bun SDK');
 const compiler = join(root, 'node_modules/typescript/bin/tsc');
 for (const [module, resolution] of [
   ['NodeNext', 'NodeNext'],
@@ -223,6 +289,9 @@ const report = {
     'separate-process-sdk-checkpoint-resume-node-bun',
     'checkpoint-identity-budgets-cursor-terminal-refusal-privacy',
     'task-outcome-cli-exits-and-judge-cancellation',
+    'experiment-pack-validation-cli-sdk-node-bun',
+    'experiment-fixture-run-report-two-kinds-cli-sdk-parity',
+    'experiment-live-refused-without-approval',
     'bun-cli',
     'workflow-cli-execution-preflight-interruption',
     ...(docker ? ['real-docker-node-bun-sdk-and-cli'] : []),

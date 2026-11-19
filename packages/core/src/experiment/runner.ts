@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { parseExperimentManifest } from './parser';
 import type {
+  ExperimentAttemptDemand,
   ExperimentAttemptEvidence,
   ExperimentAttemptOutput,
   ExperimentAttemptUsage,
@@ -13,6 +14,7 @@ import type {
   ExperimentOperationalSummary,
   ExperimentRemainingBudget,
   ExperimentRunResult,
+  ExperimentRuntimeExclusion,
   ExperimentStopReason,
   ExperimentSummary,
   ExperimentSummaryGroup,
@@ -102,9 +104,12 @@ interface BudgetState {
   reportedRequests: number;
   tokens: number;
   cost: number;
+  /** Consumed cost in micro-units, each amount rounded up; used for demand fit checks. */
+  costMicro: number;
   haltReason?: ExperimentStopReason;
   /** Grants held by in-flight attempts, keyed by admission ticket in admission order. */
   inFlight: Map<number, ExperimentRemainingBudget>;
+  peakInFlight: number;
 }
 
 interface NormalizedOutput {
@@ -129,6 +134,12 @@ interface CoordinateRun {
   attempts: ExperimentAttemptEvidence[];
 }
 
+/** Admission outcome for the queue head. */
+type AdmissionDecision =
+  | { kind: 'admit'; grant: ExperimentRemainingBudget }
+  | { kind: 'wait' }
+  | { kind: 'skip' };
+
 /** Mutable scheduler state shared by admissions and settlements of one run. */
 interface RunState {
   manifest: ExperimentManifest;
@@ -136,10 +147,24 @@ interface RunState {
   budget: BudgetState;
   queue: CoordinateRun[];
   results: (ExperimentCoordinateResult | undefined)[];
+  /** Normalized demand per executable task × target pair, in matrix order. */
+  demands: Map<string, { task_id: string; target_id: string; demand?: ExperimentAttemptDemand }>;
+  runtimeExclusions: (ExperimentRuntimeExclusion & { index: number })[];
   nextEvent: number;
   nextTicket: number;
   stopReason?: ExperimentStopReason;
+  failure?: { error: unknown };
+  onIdle: () => void;
 }
+
+const MICRO = 1_000_000;
+const demandSchema = z
+  .object({
+    requests: z.number().int().min(1).max(1_000_000),
+    tokens: z.number().int().min(1).max(10_000_000_000).optional(),
+    cost: cost.optional(),
+  })
+  .strict();
 
 /** Build the complete deterministic task × target × repetition matrix. */
 export function buildExperimentMatrix(value: ExperimentManifest): ExperimentCoordinate[] {
@@ -149,7 +174,7 @@ export function buildExperimentMatrix(value: ExperimentManifest): ExperimentCoor
 
 /**
  * Uncertainty assumptions recorded on every result. Concurrent runs add a reproducibility
- * caveat that names the declared parallel level.
+ * caveat that names the declared parallel limit.
  */
 export function experimentUncertaintyAssumptions(concurrency: number): string[] {
   const assumptions = [
@@ -158,7 +183,7 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
   ];
   if (concurrency > 1) {
     assumptions.push(
-      `Up to ${concurrency} coordinates ran concurrently: completion order is not reproducible, results are stored in matrix order, and sampled outputs can differ from a serial run because the serving runtime may batch parallel requests, even with fixed seeds.`
+      `Up to ${concurrency} coordinates were allowed to run concurrently (a declared limit; the recorded peak is execution.peak_in_flight): completion order is not reproducible, results are stored in matrix order, and sampled outputs can differ from a serial run because the serving runtime may batch parallel requests, even with fixed seeds.`
     );
   }
   return assumptions;
@@ -170,19 +195,27 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
  * a positive, bounded host authorization decision.
  *
  * At most `manifest.concurrency` coordinates are in flight; attempts of one coordinate stay
- * serial, and `results` keep matrix order. Budget admission rule: the uncommitted budget is
- * the declared limit minus everything consumed and minus every grant held by an in-flight
- * attempt (live requests count the larger of reported requests plus in-flight request grants
- * and one reservation per invocation). An attempt is admitted only while no halt is recorded
- * and at least one request, a positive token amount and a positive cost amount remain
- * uncommitted. It is granted an equal share of the uncommitted budget, divided by the number
- * of attempts that could start now (free slots, capped by queued coordinates), with integer
- * request and token shares rounded down to at least 1. The grant is the executor's
- * `remaining_budget`; reported use above it halts the run as `budget_exceeded`. Consumed use
- * plus outstanding grants therefore never exceed a declared budget. The rule is conservative:
- * a grant can be smaller than the budget a serial run would offer, and a share left idle by
- * one attempt returns to the pool only when that attempt settles. With concurrency 1 the
- * single grant is the whole uncommitted budget, exactly the serial behaviour.
+ * serial (a retry re-enters at the head of the queue), and `results` keep matrix order.
+ *
+ * Admission rule, applied to the queue head whenever an attempt settles and at the start.
+ * Nothing is admitted after a halt, without a free slot, or once the declared budgets are
+ * exhausted (the serial stop check on budget not consumed and not granted to in-flight
+ * attempts). Then:
+ * - with concurrency 1, the attempt receives the whole uncommitted budget (serial behaviour);
+ * - if its pair declared a complete demand that fits beside every in-flight grant, it
+ *   receives exactly that demand (cost compared in micro-units rounded against the budget);
+ * - otherwise, while other attempts are in flight, it waits for them to settle, so unused
+ *   grants return to the pool instead of shrinking its grant;
+ * - with nothing in flight, it receives the whole uncommitted budget, exactly as a serial run
+ *   would, unless its declared request demand exceeds the uncommitted requests: then the
+ *   coordinate becomes a runtime exclusion (`request_budget_exhausted`) and later coordinates
+ *   continue, so a budget shortfall is always recorded rather than left as an executor
+ *   refusal.
+ * Pairs without a complete demand therefore never overlap other attempts. The grant is the
+ * executor's `remaining_budget`; reported use above it halts the run as `budget_exceeded`.
+ * Consumed use plus outstanding grants never exceed a declared budget, and a concurrent run
+ * measures every coordinate a serial run with the same budget measures when attempts stay
+ * within their declared demands.
  */
 export async function runExperiment(
   value: ExperimentManifest,
@@ -203,16 +236,25 @@ export async function runExperiment(
       reportedRequests: 0,
       tokens: 0,
       cost: 0,
+      costMicro: 0,
       inFlight: new Map(),
+      peakInFlight: 0,
     },
     queue: [],
     results: new Array(matrix.length).fill(undefined),
+    demands: new Map(),
+    runtimeExclusions: [],
     nextEvent: 0,
     nextTicket: 0,
+    onIdle: () => undefined,
   };
   enqueueCoordinates(state, matrix);
+  await resolveDemands(state);
   await executeQueue(state);
-  const runtimeExclusions = excludeUnadmitted(state);
+  excludeUnadmitted(state);
+  const runtimeExclusions = state.runtimeExclusions
+    .sort((left, right) => left.index - right.index)
+    .map(({ coordinate_id, reason }) => ({ coordinate_id, reason }));
 
   const results = state.results.map((result) => {
     if (!result) throw new Error('Experiment scheduler left a coordinate without a result');
@@ -251,6 +293,14 @@ export async function runExperiment(
       assumptions: experimentUncertaintyAssumptions(manifest.concurrency),
       task_clustering: 'not_estimated',
     },
+    ...(manifest.concurrency > 1
+      ? {
+          execution: {
+            peak_in_flight: state.budget.peakInFlight,
+            reservations: structuredClone([...state.demands.values()]),
+          },
+        }
+      : {}),
   };
 }
 
@@ -284,56 +334,134 @@ function enqueueCoordinates(state: RunState, matrix: ExperimentCoordinate[]): vo
   }
 }
 
-/**
- * Admit queued attempts while slots and uncommitted budget allow, then wait for any
- * in-flight attempt to settle. Returns once nothing is in flight and nothing more can start.
- *
- * Slots are counted from the budget ledger, which changes exactly at admission and settlement
- * events, never from promise bookkeeping that can lag a settlement by a microtask; saved
- * admission evidence then replays to the same slot counts and grant divisors.
- */
-async function executeQueue(state: RunState): Promise<void> {
-  const running = new Set<Promise<void>>();
-  const concurrency = state.manifest.concurrency;
-  const inFlight = state.budget.inFlight;
-  for (;;) {
-    while (
-      inFlight.size < concurrency &&
-      state.queue.length > 0 &&
-      admissionBlock(state.manifest, state.budget) === undefined
-    ) {
-      const divisor = Math.min(concurrency - inFlight.size, state.queue.length);
-      const run = state.queue.shift() as CoordinateRun;
-      const attempt: Promise<void> = admitAttempt(state, run, divisor).then(() => {
-        running.delete(attempt);
-      });
-      running.add(attempt);
+function pairKey(coordinate: ExperimentCoordinate): string {
+  return JSON.stringify([coordinate.task_id, coordinate.target_id]);
+}
+
+/** Ask the executor once per executable task × target pair, in matrix order (concurrency > 1). */
+async function resolveDemands(state: RunState): Promise<void> {
+  if (state.manifest.concurrency === 1) return;
+  const reserve = state.execute.reserve;
+  for (const run of state.queue) {
+    const key = pairKey(run.coordinate);
+    if (state.demands.has(key)) continue;
+    let declared: unknown;
+    if (typeof reserve === 'function') {
+      try {
+        declared = await reserve(
+          structuredClone({ experiment_id: state.manifest.id, task: run.task, target: run.target })
+        );
+      } catch {
+        declared = undefined;
+      }
     }
-    if (inFlight.size === 0) {
-      await Promise.all(running);
-      return;
-    }
-    try {
-      await Promise.race(running);
-    } catch (error) {
-      // Never reject while provider calls are still running: admit nothing more, let every
-      // in-flight attempt settle, then surface the failure.
-      await Promise.allSettled(running);
-      throw error;
-    }
+    const demand = completeDemand(declared, state.manifest, run.target);
+    state.demands.set(key, {
+      task_id: run.task.id,
+      target_id: run.target.id,
+      ...(demand ? { demand } : {}),
+    });
   }
 }
 
-async function admitAttempt(state: RunState, run: CoordinateRun, divisor: number): Promise<void> {
+/**
+ * The declared demand restricted to the declared budgets, or undefined when it is malformed
+ * or leaves a budget that applies to the target unbounded. A target whose cost is not
+ * applicable reserves zero cost.
+ */
+function completeDemand(
+  declared: unknown,
+  manifest: ExperimentManifest,
+  target: ExperimentTarget
+): ExperimentAttemptDemand | undefined {
+  let parsed: z.infer<typeof demandSchema>;
+  try {
+    const result = demandSchema.safeParse(declared);
+    if (!result.success) return undefined;
+    parsed = result.data;
+  } catch {
+    return undefined;
+  }
+  const { max_tokens: maxTokens, max_cost: maxCost } = manifest.budgets;
+  if (maxTokens !== undefined && parsed.tokens === undefined) return undefined;
+  let costAmount: number | undefined;
+  if (maxCost) {
+    if (!targetCostApplies(target)) costAmount = 0;
+    else if (parsed.cost?.currency === maxCost.currency) costAmount = parsed.cost.amount;
+    else return undefined;
+  }
+  return {
+    requests: parsed.requests,
+    ...(maxTokens === undefined ? {} : { tokens: parsed.tokens }),
+    ...(maxCost && costAmount !== undefined
+      ? { cost: { amount: costAmount, currency: maxCost.currency } }
+      : {}),
+  };
+}
+
+/**
+ * Admit attempts from the queue head until a slot, the budget or a waiting demand blocks.
+ * It runs at the start and synchronously after every settlement, so the admission sequence
+ * is a deterministic function of the settlement order.
+ */
+function pump(state: RunState): void {
   const { manifest, budget } = state;
-  const granted = grantBudget(manifest, budget, divisor);
+  while (state.queue.length > 0 && state.failure === undefined) {
+    if (budget.inFlight.size >= manifest.concurrency) return;
+    if (admissionBlock(manifest, budget) !== undefined) return;
+    const run = state.queue[0] as CoordinateRun;
+    const decision = admissionDecision(
+      manifest,
+      budget,
+      state.demands.get(pairKey(run.coordinate))?.demand
+    );
+    if (decision.kind === 'wait') return;
+    state.queue.shift();
+    if (decision.kind === 'skip') excludeRun(state, run, 'request_budget_exhausted');
+    else startAttempt(state, run, decision.grant);
+  }
+}
+
+function admissionDecision(
+  manifest: ExperimentManifest,
+  budget: BudgetState,
+  demand: ExperimentAttemptDemand | undefined
+): AdmissionDecision {
+  if (manifest.concurrency > 1 && demand) {
+    if (demandFits(manifest, budget, demand)) return { kind: 'admit', grant: demandGrant(demand) };
+    if (budget.inFlight.size > 0) return { kind: 'wait' };
+    if (demand.requests > uncommittedBudget(manifest, budget).requests) return { kind: 'skip' };
+  } else if (budget.inFlight.size > 0) {
+    return { kind: 'wait' };
+  }
+  return { kind: 'admit', grant: serialGrant(manifest, budget) };
+}
+
+/** Run admissions and settlements until nothing is in flight and nothing more can start. */
+async function executeQueue(state: RunState): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    state.onIdle = () => {
+      if (state.budget.inFlight.size > 0) return;
+      // Never reject while provider calls are still running: a failure stops admission and
+      // surfaces only once every in-flight attempt has settled and been recorded.
+      if (state.failure) reject(state.failure.error);
+      else resolve();
+    };
+    pump(state);
+    state.onIdle();
+  });
+}
+
+function startAttempt(state: RunState, run: CoordinateRun, granted: ExperimentRemainingBudget) {
+  const { manifest, budget } = state;
   const ticket = state.nextTicket++;
   budget.inFlight.set(ticket, granted);
+  budget.peakInFlight = Math.max(budget.peakInFlight, budget.inFlight.size);
   budget.executorInvocations += 1;
   if (manifest.mode === 'live') budget.reservedLiveRequests += 1;
   const attemptNumber = run.attempts.length + 1;
   const admittedAt = state.nextEvent++;
-  const raw = await invokeExecutor(
+  void invokeExecutor(
     state.execute,
     structuredClone({
       experiment_id: manifest.id,
@@ -344,9 +472,32 @@ async function admitAttempt(state: RunState, run: CoordinateRun, divisor: number
       attempt_number: attemptNumber,
       remaining_budget: structuredClone(granted),
     })
-  );
-  budget.inFlight.delete(ticket);
-  const settledAt = state.nextEvent++;
+  ).then((raw) => {
+    budget.inFlight.delete(ticket);
+    const settledAt = state.nextEvent++;
+    try {
+      recordSettlement(state, run, raw, { granted, attemptNumber, admittedAt, settledAt });
+      pump(state);
+    } catch (error) {
+      state.failure ??= { error };
+    }
+    state.onIdle();
+  });
+}
+
+function recordSettlement(
+  state: RunState,
+  run: CoordinateRun,
+  raw: unknown,
+  attempt: {
+    granted: ExperimentRemainingBudget;
+    attemptNumber: number;
+    admittedAt: number;
+    settledAt: number;
+  }
+): void {
+  const { manifest, budget } = state;
+  const { granted, attemptNumber } = attempt;
   const normalized = safelyNormalizeOutput(raw, manifest, granted, run.task.kind, run.target);
   consumeUsage(budget, normalized.output.usage);
   if (normalized.haltReason) {
@@ -362,8 +513,8 @@ async function admitAttempt(state: RunState, run: CoordinateRun, divisor: number
     ...(manifest.concurrency > 1
       ? {
           admission: {
-            admitted_at: admittedAt,
-            settled_at: settledAt,
+            admitted_at: attempt.admittedAt,
+            settled_at: attempt.settledAt,
             granted_budget: grantEvidence(granted),
           },
         }
@@ -387,26 +538,32 @@ async function admitAttempt(state: RunState, run: CoordinateRun, divisor: number
   };
 }
 
+/** Record an unadmitted coordinate as incomplete with a runtime exclusion. */
+function excludeRun(state: RunState, run: CoordinateRun, reason: ExperimentStopReason): void {
+  state.stopReason ??= reason;
+  state.results[run.index] =
+    run.attempts.length > 0
+      ? {
+          coordinate: run.coordinate,
+          status: 'incomplete',
+          completion_code: 'budget_exhausted',
+          attempts: run.attempts,
+        }
+      : incompleteWithoutAttempt(run.coordinate);
+  state.runtimeExclusions.push({
+    coordinate_id: run.coordinate.coordinate_id,
+    reason,
+    index: run.index,
+  });
+}
+
 /** Record every coordinate still queued after execution stopped as a runtime exclusion. */
-function excludeUnadmitted(state: RunState): ExperimentRunResult['runtime_exclusions'] {
-  if (state.queue.length === 0) return [];
+function excludeUnadmitted(state: RunState): void {
+  if (state.queue.length === 0) return;
   const reason = admissionBlock(state.manifest, state.budget);
   if (!reason) throw new Error('Experiment scheduler stopped while budget remained admissible');
-  state.stopReason ??= reason;
-  const unadmitted = [...state.queue].sort((left, right) => left.index - right.index);
+  for (const run of state.queue) excludeRun(state, run, reason);
   state.queue = [];
-  return unadmitted.map((run) => {
-    state.results[run.index] =
-      run.attempts.length > 0
-        ? {
-            coordinate: run.coordinate,
-            status: 'incomplete',
-            completion_code: 'budget_exhausted',
-            attempts: run.attempts,
-          }
-        : incompleteWithoutAttempt(run.coordinate);
-    return { coordinate_id: run.coordinate.coordinate_id, reason };
-  });
 }
 
 function buildMatrix(manifest: ExperimentManifest): ExperimentCoordinate[] {
@@ -660,28 +817,83 @@ function admissionBlock(
   if (uncommitted.requests < 1) return 'request_budget_exhausted';
   if (uncommitted.tokens !== undefined && uncommitted.tokens <= 0) return 'token_budget_exhausted';
   if (uncommitted.cost !== undefined && uncommitted.cost <= 0) return 'cost_budget_exhausted';
+  const maxCost = manifest.budgets.max_cost;
+  // Concurrent runs account cost in micro-units: below one unit of headroom nothing starts.
+  if (manifest.concurrency > 1 && maxCost && used.costMicro >= floorMicro(maxCost.amount))
+    return 'cost_budget_exhausted';
   return undefined;
 }
 
-/** Equal share of the uncommitted budget for one of `divisor` attempts that could start now. */
-function grantBudget(
-  manifest: ExperimentManifest,
-  used: BudgetState,
-  divisor: number
-): ExperimentRemainingBudget {
+/**
+ * The whole uncommitted budget: the grant a serial run hands its only attempt. A concurrent
+ * run, which grants it only with nothing in flight, derives the cost from the micro-unit
+ * ledger so consumed cost plus the grant stays strictly below `max_cost`.
+ */
+function serialGrant(manifest: ExperimentManifest, used: BudgetState): ExperimentRemainingBudget {
   const uncommitted = uncommittedBudget(manifest, used);
   const maxCost = manifest.budgets.max_cost;
+  let costAmount = uncommitted.cost;
+  if (maxCost && manifest.concurrency > 1)
+    costAmount = (floorMicro(maxCost.amount) - used.costMicro) / MICRO;
   return {
-    requests: Math.max(1, Math.floor(uncommitted.requests / divisor)),
-    tokens:
-      uncommitted.tokens === undefined
-        ? undefined
-        : Math.max(1, Math.floor(uncommitted.tokens / divisor)),
+    requests: uncommitted.requests,
+    tokens: uncommitted.tokens,
     cost:
-      maxCost && uncommitted.cost !== undefined
-        ? { amount: uncommitted.cost / divisor, currency: maxCost.currency }
+      maxCost && costAmount !== undefined
+        ? { amount: costAmount, currency: maxCost.currency }
         : undefined,
   };
+}
+
+function demandGrant(demand: ExperimentAttemptDemand): ExperimentRemainingBudget {
+  return {
+    requests: demand.requests,
+    tokens: demand.tokens,
+    cost: demand.cost ? { ...demand.cost } : undefined,
+  };
+}
+
+/** A non-negative amount in micro-units, rounded strictly up. */
+function ceilMicro(amount: number): number {
+  return amount <= 0 ? 0 : Math.floor(amount * MICRO) + 1;
+}
+
+/** A positive limit in micro-units, rounded down and less one unit of headroom. */
+function floorMicro(amount: number): number {
+  return Math.floor(amount * MICRO) - 1;
+}
+
+/**
+ * Whether `demand` fits beside consumed use and every in-flight grant. Cost is compared in
+ * integer micro-units, consumption and grants rounded up and the limit rounded down with one
+ * unit of headroom, so the real-valued sum of consumed cost and outstanding grants stays
+ * below `max_cost` despite floating-point rounding.
+ */
+function demandFits(
+  manifest: ExperimentManifest,
+  used: BudgetState,
+  demand: ExperimentAttemptDemand
+): boolean {
+  let grantedRequests = 0;
+  let grantedTokens = 0;
+  let grantedCostMicro = 0;
+  for (const grant of used.inFlight.values()) {
+    grantedRequests += grant.requests;
+    grantedTokens += grant.tokens ?? 0;
+    grantedCostMicro += ceilMicro(grant.cost?.amount ?? 0);
+  }
+  const requests = used.reportedRequests + grantedRequests + demand.requests;
+  const committedRequests =
+    manifest.mode === 'live' ? Math.max(requests, used.reservedLiveRequests + 1) : requests;
+  if (committedRequests > manifest.budgets.max_requests) return false;
+  const { max_tokens: maxTokens, max_cost: maxCost } = manifest.budgets;
+  if (maxTokens !== undefined && used.tokens + grantedTokens + (demand.tokens ?? 0) > maxTokens)
+    return false;
+  return (
+    maxCost === undefined ||
+    used.costMicro + grantedCostMicro + ceilMicro(demand.cost?.amount ?? 0) <=
+      floorMicro(maxCost.amount)
+  );
 }
 
 /** The grant as saved evidence, without absent optional dimensions. */
@@ -692,10 +904,12 @@ function grantEvidence(granted: ExperimentRemainingBudget): ExperimentRemainingB
     ...(granted.cost === undefined ? {} : { cost: { ...granted.cost } }),
   };
 }
+
 function consumeUsage(used: BudgetState, attemptUsage: ExperimentAttemptUsage): void {
   used.reportedRequests += attemptUsage.requests;
   used.tokens += attemptUsage.tokens ?? 0;
   used.cost += attemptUsage.cost?.amount ?? 0;
+  used.costMicro += ceilMicro(attemptUsage.cost?.amount ?? 0);
 }
 
 function incompleteWithoutAttempt(coordinate: ExperimentCoordinate): ExperimentCoordinateResult {

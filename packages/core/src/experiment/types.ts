@@ -246,9 +246,35 @@ export interface ExperimentAttemptInput {
   remaining_budget: ExperimentRemainingBudget;
 }
 
-export type ExperimentAttemptExecutor = (
-  input: ExperimentAttemptInput
-) => Promise<ExperimentAttemptOutput>;
+/**
+ * Declared upper bound of one attempt's use for a task × target pair. `requests` is also the
+ * least the attempt needs: a concurrent run never grants an attempt fewer requests than its
+ * declared demand. `tokens` and `cost` are reservations only.
+ */
+export interface ExperimentAttemptDemand {
+  requests: number;
+  tokens?: number;
+  cost?: ExperimentCostLimit;
+}
+
+export interface ExperimentDemandRequest {
+  experiment_id: string;
+  task: ExperimentTask;
+  target: ExperimentTarget;
+}
+
+/**
+ * Runs one attempt. Optionally declares, through `reserve`, the demand every attempt of a
+ * task × target pair stays within. Concurrent runs reserve exactly that demand per attempt;
+ * pairs without a complete demand (one bounding every declared budget that applies) run alone.
+ * `reserve` is consulted only when `manifest.concurrency` exceeds 1.
+ */
+export interface ExperimentAttemptExecutor {
+  (input: ExperimentAttemptInput): Promise<ExperimentAttemptOutput>;
+  reserve?: (
+    request: ExperimentDemandRequest
+  ) => ExperimentAttemptDemand | undefined | Promise<ExperimentAttemptDemand | undefined>;
+}
 
 /**
  * Replayable admission record for one attempt of a concurrent run (`concurrency` > 1).
@@ -343,6 +369,26 @@ export interface ExperimentUncertainty {
   task_clustering: 'not_estimated';
 }
 
+/** Admission reservation recorded for one executable task × target pair. */
+export interface ExperimentReservation {
+  task_id: string;
+  target_id: string;
+  /**
+   * Normalized declared demand. Absent when the executor declared none, or none bounding
+   * every declared budget that applies to the target: such attempts were admitted only
+   * with nothing else in flight.
+   */
+  demand?: ExperimentAttemptDemand;
+}
+
+/** Concurrent scheduling record; present when, and only when, `concurrency` exceeds 1. */
+export interface ExperimentExecution {
+  /** Most attempts in flight at once, as re-derived from the admission sequence. */
+  peak_in_flight: number;
+  /** Executable task × target pairs in matrix order. */
+  reservations: ExperimentReservation[];
+}
+
 export interface ExperimentRunResult {
   schema_version: '1';
   experiment_id: string;
@@ -365,6 +411,7 @@ export interface ExperimentRunResult {
     operational: ExperimentOperationalSummary;
   };
   uncertainty: ExperimentUncertainty;
+  execution?: ExperimentExecution;
 }
 
 export interface ExperimentLiveAuthorization {

@@ -1,5 +1,7 @@
 import {
   type ExecutedExperimentAttemptStatus,
+  type ExperimentAttemptExecutor,
+  type ExperimentAttemptInput,
   type ExperimentAttemptOutput,
   type ExperimentConcurrency,
   type ExperimentManifest,
@@ -478,19 +480,58 @@ export async function concurrentExperimentResult(): Promise<ExperimentRunResult>
     concurrency: 3,
     budgets: { max_requests: 40, max_tokens: 400, max_cost: { amount: 2, currency: 'USD' } },
   });
-  return runExperiment(manifest, {
-    execute_attempt: async (input) => {
-      const { repetition_index: repetition, target_id: target } = input.coordinate;
-      await yieldTurns((repetition * 5 + (target === 'alpha' ? 3 : 0)) % 7);
-      const retry = repetition === 2 && target === 'alpha' && input.attempt_number === 1;
-      return {
-        status: retry ? 'infrastructure_failed' : 'passed',
-        usage: { requests: 1, tokens: 7, cost: { amount: 0.05, currency: 'USD' } },
-        evidence: evidence(input.coordinate.task_kind, !retry),
-        ...(retry ? { error_code: 'fixture_transport' } : {}),
-      };
-    },
+  const execute: ExperimentAttemptExecutor = async (input) => {
+    const { repetition_index: repetition, target_id: target } = input.coordinate;
+    await yieldTurns((repetition * 5 + (target === 'alpha' ? 3 : 0)) % 7);
+    const retry = repetition === 2 && target === 'alpha' && input.attempt_number === 1;
+    return {
+      status: retry ? 'infrastructure_failed' : 'passed',
+      usage: { requests: 1, tokens: 7, cost: { amount: 0.05, currency: 'USD' } },
+      evidence: evidence(input.coordinate.task_kind, !retry),
+      ...(retry ? { error_code: 'fixture_transport' } : {}),
+    };
+  };
+  execute.reserve = () => ({
+    requests: 1,
+    tokens: 10,
+    cost: { amount: 0.1, currency: 'USD' },
   });
+  return runExperiment(manifest, { execute_attempt: execute });
+}
+
+/**
+ * A concurrent run whose budget cannot cover one coordinate's declared request demand: that
+ * coordinate becomes a runtime exclusion and later, smaller work is still measured.
+ */
+export async function shortfallConcurrentResult(): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const manifest = experimentManifest({
+    tasks: [base.tasks[1]],
+    exclusions: [],
+    repetitions: 2,
+    concurrency: 2,
+    retry_policy: { max_attempts: 1, retry_on: [] },
+    budgets: { max_requests: 9 },
+  });
+  const cases = (target: string) => (target === 'alpha' ? 5 : 2);
+  const execute: ExperimentAttemptExecutor = async (input) => {
+    const needed = cases(input.target.id);
+    if (needed > input.remaining_budget.requests)
+      return {
+        status: 'incomplete',
+        usage: { requests: 0 },
+        evidence: evidence(input.coordinate.task_kind, false),
+        error_code: 'request_budget_insufficient',
+      };
+    await yieldTurns(3);
+    return {
+      status: 'passed',
+      usage: { requests: needed },
+      evidence: evidence(input.coordinate.task_kind),
+    };
+  };
+  execute.reserve = ({ target }) => ({ requests: cases(target.id) });
+  return runExperiment(manifest, { execute_attempt: execute });
 }
 
 /** Random executor output within, or occasionally outside, the attempt's grant. */
@@ -555,10 +596,23 @@ export async function randomConcurrentResult(seed: number): Promise<ExperimentRu
   });
   return runExperiment(manifest, {
     ...(live ? { live_authorization: CONCURRENT_AUTHORIZATION } : {}),
-    execute_attempt: async (input) => {
-      await yieldTurns(rng.int(0, 40));
-      return randomOutput(rng, input);
-    },
+    execute_attempt: Object.assign(
+      async (input: ExperimentAttemptInput) => {
+        await yieldTurns(rng.int(0, 40));
+        return randomOutput(rng, input);
+      },
+      {
+        // Most pairs declare a demand (sometimes too small, which overruns truthfully).
+        reserve: () =>
+          rng.next() < 0.2
+            ? undefined
+            : {
+                requests: rng.int(1, 6),
+                tokens: rng.int(1, 60),
+                cost: { amount: rng.int(1, 60) / 100, currency: 'USD' },
+              },
+      }
+    ),
   });
 }
 

@@ -14,6 +14,7 @@ import {
   preFixLiveMissingUsageResult,
   randomConcurrentResult,
   reverseKeys,
+  shortfallConcurrentResult,
   statusExperimentResult,
 } from './model-fixtures';
 
@@ -476,12 +477,16 @@ describe('concurrent experiment results', () => {
     const report = createExperimentReport(concurrent);
     expect(report.summary.concurrency).toBe(3);
     const methodology = report.methodology.join(' ');
-    expect(methodology).toContain('up to 3 in flight');
-    expect(methodology).toContain('Up to 3 coordinates ran concurrently');
+    expect(report.summary.peakInFlight).toBe(3);
+    expect(methodology).toContain('declared limit of 3 coordinates in flight');
+    expect(methodology).toContain('recorded peak was 3');
+    expect(methodology).toContain('does not prove wall-clock timing');
+    expect(methodology).toContain('Up to 3 coordinates were allowed to run concurrently');
     expect(JSON.stringify(report.sections)).toContain('concurrency 3');
     expect(createExperimentReport(reverseKeys(concurrent))).toEqual(report);
     expect(createExperimentReport(mixed).summary.concurrency).toBe(1);
     expect(createExperimentReport(mixed).methodology.join(' ')).not.toContain('in flight');
+    expect(createExperimentReport(mixed).summary.peakInFlight).toBeNull();
   });
 
   test('replays many random concurrent interleavings, halts and overruns', async () => {
@@ -616,6 +621,98 @@ describe('concurrent experiment results', () => {
       mutate(value);
       expect(() => createExperimentReport(value), label).toThrow(error);
     }
+  });
+
+  test('accepts a recorded request shortfall and rejects hiding it', async () => {
+    const shortfall = await shortfallConcurrentResult();
+    expect(shortfall.results.map((item) => [item.status, item.completion_code])).toEqual([
+      ['passed', 'terminal'],
+      ['incomplete', 'budget_exhausted'],
+      ['passed', 'terminal'],
+      ['passed', 'terminal'],
+    ]);
+    expect(shortfall.stop_reason).toBe('request_budget_exhausted');
+    expect(createExperimentReport(shortfall).summary.incomplete).toBe(1);
+
+    const hidden = structuredClone(shortfall);
+    hidden.runtime_exclusions = [];
+    hidden.stop_reason = undefined;
+    expect(() => createExperimentReport(hidden)).toThrow(error);
+
+    const silent = structuredClone(shortfall);
+    silent.results[1].completion_code = 'terminal';
+    silent.runtime_exclusions = [];
+    silent.stop_reason = undefined;
+    expect(() => createExperimentReport(silent)).toThrow(error);
+  });
+
+  test('rejects forged reservations, peaks and schedules a greedy runner cannot produce', () => {
+    const mutations: [string, (value: ExperimentRunResult) => void][] = [
+      [
+        'missing execution record',
+        (value) => {
+          value.execution = undefined;
+        },
+      ],
+      [
+        'peak overstated',
+        (value) => {
+          if (value.execution) value.execution.peak_in_flight = 4;
+        },
+      ],
+      [
+        'peak understated',
+        (value) => {
+          if (value.execution) value.execution.peak_in_flight = 1;
+        },
+      ],
+      [
+        'reservation demand changed',
+        (value) => {
+          const reservation = value.execution?.reservations[0];
+          if (reservation?.demand) reservation.demand.requests = 2;
+        },
+      ],
+      [
+        'reservation demand removed',
+        (value) => {
+          const reservation = value.execution?.reservations[0];
+          if (reservation) reservation.demand = undefined;
+        },
+      ],
+      [
+        'reservation list reordered',
+        (value) => {
+          value.execution?.reservations.reverse();
+        },
+      ],
+      [
+        'relabelled as a serial schedule',
+        (value) => {
+          // The verifier's forgery: serial-ordered events under a concurrent label.
+          let position = 0;
+          for (const item of value.results)
+            for (const attempt of item.attempts) {
+              const record = admission(attempt);
+              record.admitted_at = position;
+              record.settled_at = position + 1;
+              position += 2;
+            }
+          if (value.execution) value.execution.peak_in_flight = 1;
+        },
+      ],
+    ];
+    for (const [label, mutate] of mutations) {
+      const value = structuredClone(concurrent);
+      mutate(value);
+      expect(() => createExperimentReport(value), label).toThrow(error);
+    }
+  });
+
+  test('rejects an execution record on a serial result', () => {
+    const value = structuredClone(mixed);
+    value.execution = { peak_in_flight: 1, reservations: [] };
+    expect(() => createExperimentReport(value)).toThrow(error);
   });
 
   test('rejects admission evidence on a serial result', () => {

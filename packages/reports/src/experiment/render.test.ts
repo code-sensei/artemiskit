@@ -210,9 +210,10 @@ describe('experiment report generator options', () => {
       expect(renderExperimentReportHTML(report, { view })).toContain('1 (serial)');
       for (const format of ['html', 'markdown'] as const) {
         const rendered = generateExperimentReport(concurrent, { view, format });
-        expect(rendered).toMatch(/Concurrency (\(|&#40;)coordinates in flight(\)|&#41;)/);
-        expect(rendered).toContain('up to 3');
-        expect(rendered).toContain('Up to 3 coordinates ran concurrently');
+        expect(rendered).toMatch(/Concurrency limit (\(|&#40;)declared(\)|&#41;)/);
+        expect(rendered).toContain('up to 3 in flight');
+        expect(rendered).toMatch(/Peak attempts in flight (\(|&#40;)recorded(\)|&#41;)/);
+        expect(rendered).toContain('Up to 3 coordinates were allowed to run concurrently');
       }
     }
   });

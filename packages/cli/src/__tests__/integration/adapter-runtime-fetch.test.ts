@@ -88,6 +88,8 @@ describe('built adapter transport', () => {
         stdout: 'fixture-reply',
         stderr: '',
       });
-    });
+      // One Bun child importing a built adapter: about 0.2 s on a quiet machine, several
+      // seconds at load averages 30-60. The child has no kill timer of its own.
+    }, 30_000);
   }
 });

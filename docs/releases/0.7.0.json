@@ -1,0 +1,57 @@
+{
+  "draft": "DRAFT: projected from pending changesets on 2026-11-19; remove this key only after `changeset version` produces exactly this package map",
+  "schema_version": 1,
+  "milestone": "0.7.0",
+  "tag": "v0.7.0",
+  "previous": "0.6.4",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.25"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.14"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.14"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.13"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.2.0"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.13"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.25"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.7.0"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.7.0"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.13"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.6.0"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.7.0"
+    }
+  ]
+}

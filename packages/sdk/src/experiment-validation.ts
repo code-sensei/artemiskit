@@ -126,7 +126,6 @@ export async function validateExperimentFile(
   for (const target of manifest.targets) {
     checks.push(checkTarget(target), ...checkTargetSettings(target));
   }
-  checks.push(...checkWorkflowRunConditions(manifest));
   return finish(manifest);
 }
 
@@ -228,45 +227,6 @@ function checkWorkflowSource(task: ExperimentTask, bytes: Uint8Array): Experimen
         `${task.source.path}: declares semantic outcomes, which need an independent judge that experiment runs do not configure; its coordinates will be recorded invalid`
       )
     );
-  }
-  return checks;
-}
-
-/** Target settings the workflow engine sends; any other generation setting is refused. */
-const WORKFLOW_GENERATION_SETTINGS: readonly GenerationSettingKey[] = [
-  'temperature',
-  'max_output_tokens',
-];
-
-/**
- * Warn about experiment controls the workflow engine cannot honour. The executor records the
- * affected workflow coordinates invalid rather than measuring a different condition.
- */
-function checkWorkflowRunConditions(manifest: ExperimentManifest): ExperimentCheck[] {
-  if (!manifest.tasks.some((task) => task.kind === 'agent_workflow')) return [];
-  const checks: ExperimentCheck[] = [];
-  if (manifest.seed) {
-    checks.push({
-      subject: 'manifest',
-      status: 'warning',
-      code: 'workflow_seed_unsupported',
-      message:
-        'The workflow engine sends no seed, so agent_workflow coordinates of a seeded experiment will be recorded invalid',
-    });
-  }
-  for (const target of manifest.targets) {
-    const { settings } = readGenerationSettings(target.settings ?? {});
-    const unsent = GENERATION_SETTING_KEYS.filter(
-      (key) => settings[key] !== undefined && !WORKFLOW_GENERATION_SETTINGS.includes(key)
-    );
-    if (unsent.length === 0) continue;
-    checks.push({
-      subject: 'target',
-      id: target.id,
-      status: 'warning',
-      code: 'workflow_setting_unsupported',
-      message: `The workflow engine sends only ${WORKFLOW_GENERATION_SETTINGS.join(' and ')}; with settings.${unsent.join(', settings.')} this target's agent_workflow coordinates will be recorded invalid`,
-    });
   }
   return checks;
 }

@@ -325,7 +325,8 @@ describe('strict saved-result validation', () => {
       }
     });
     expect(rejected.map(({ label }) => label)).toEqual([]);
-  });
+    // 960 core runs and validations take about 1.7 s idle; allow for full-suite load.
+  }, 20_000);
 
   test('rejects retained foreign-currency or overrun usage outside runner-normalized evidence', async () => {
     const runnerNormalized = [

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -20,6 +20,13 @@ import {
   createScenarioExperimentExecutor,
   runManifestIdentity,
 } from './scenario';
+
+// Every attempt here runs the real scenario runner, whose run manifest captures git provenance
+// with four synchronous git subprocesses (packages/core/src/provenance/git.ts): about 70 ms
+// per attempt when idle, several times that under full-suite or machine load. Tests with ten
+// or more attempts take 1.5-2 s idle and timed out at the 5 s default under load. This
+// file-scoped timeout keeps them from failing on time alone.
+setDefaultTimeout(30_000);
 
 const ANSWER_SCENARIO = `name: fixture-answer
 cases:

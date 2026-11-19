@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 0a91c86008b3f8a3e66bf19289a580772a0d518794fb64fbd9aa0b96971da8ad
+    digest: 026d10fb470849393fa40fd45831999196f6498b9f695679a59023b589cd655b
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -315,6 +315,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
+  - id: soc-25-archive-staging-exfiltration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-25-archive-staging-exfiltration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6a589f79a2d4e092973c721291a017bbb2db2c94c039386dc5a1aab570c9039f
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-26-dns-tunnelling
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-26-dns-tunnelling.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: febaa809c72aba61cb46c3727b4dca905920b1c475b347957bdb0d21717728a9
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-27-web-sql-injection
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-27-web-sql-injection.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c7e1560e24dad74ea832b1fe76eaff4fe5a2282d3947e7a792d53edbb5401508
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-28-web-shell
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-28-web-shell.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 05f6527d98fe363cbe2125a46149fab9964e6c2e3e79090359be91e711b3a306
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-29-edge-appliance-exploitation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-29-edge-appliance-exploitation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: d4584212d98d9e58c0ea4b5b1e6ff226eff8a9ca9a9fd753e8baf6f5fd3eba0b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-30-software-update-supply-chain
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-30-software-update-supply-chain.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 216edae0534e9d733ef5e733121d1ed17715a951843745bd2b6303d9a612807e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-31-dependency-compromise
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-31-dependency-compromise.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 596944a9d5b7105e8471d3dadd0eb1c9165221042cdf9d00cec7787c9d3a00c7
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-32-insider-data-access
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-32-insider-data-access.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f3b0f8dbeb938a937b6db07d46bf9fb8b9ba7c1533c51c47f3202f7c6bd38162
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-33-windows-log-clearing
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-33-windows-log-clearing.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 19c8b1fc1380f192aefed3686980e1bfdf763ceb37afbe173d9225a2c32aa72e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-34-cloud-logging-disabled
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-34-cloud-logging-disabled.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 6c0a19a253104e5460508b685fa613db9414f8afb59b019e09f902f260d1fde4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -355,8 +475,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 95 cases x 2 targets x 3 repetitions = 570 requests; at most 1140 with one retry each.
+# 135 cases x 2 targets x 3 repetitions = 810 requests; at most 1620 with one retry each.
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 1140
-  max_tokens: 6840000
+  max_requests: 1620
+  max_tokens: 9720000

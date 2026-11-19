@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, jest, test } from 'bun:test';
 import { mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -377,14 +377,24 @@ describe('native workflow session host', () => {
     expect(t.requests).toHaveLength(1);
   });
   test('deadline/cancel stop admission and pending tools cannot suppress close', async () => {
+    // The deadline must expire while the tool is in flight. On a real clock a loaded machine can
+    // spend the whole 20 ms budget before the tool is admitted, so execute never runs. Freeze the
+    // clock (timers and Date.now) until the tool starts, then advance it across the deadline.
     let closed = false;
     let receivedAbort = false;
+    let toolStarted = false;
+    let markToolStarted: () => void = () => {};
+    const toolInFlight = new Promise<void>((resolve) => {
+      markToolStarted = resolve;
+    });
     const factory: WorkflowEnvironmentFactory = async (options) => ({
       ...(await createSimulatedWorkflowEnvironment(options)),
       execute: async (_, signal) => {
         signal.addEventListener('abort', () => {
           receivedAbort = true;
         });
+        toolStarted = true;
+        markToolStarted();
         return never();
       },
       close: async () => {
@@ -394,14 +404,29 @@ describe('native workflow session host', () => {
     });
     const workflow = fixture();
     workflow.environment.policy.budgets.timeout_ms = 20;
-    const result = await runAgentWorkflow({
+    jest.useFakeTimers();
+    const running = runAgentWorkflow({
       workflow,
       target: target([answer([call()])]),
       environmentFactory: factory,
       cleanupTimeoutMs: 30,
     });
+    try {
+      await Promise.race([toolInFlight, running]);
+      expect(toolStarted).toBe(true);
+      jest.advanceTimersByTime(19);
+      expect(receivedAbort).toBe(false);
+      jest.advanceTimersByTime(1);
+      expect(receivedAbort).toBe(true);
+      // Advancing also runs the stop path, which arms the bounded drain/close timers on this
+      // clock. Fire them so cleanup finishes; real timers would never run them.
+      jest.runAllTimers();
+    } finally {
+      jest.useRealTimers();
+    }
+    const result = await running;
     expect(result.record.execution).toBe('timeout');
-    expect(receivedAbort).toBe(true);
+    expect(result.record.reason).toBe('deadline');
     expect(closed).toBe(true);
     expect(result.record.cleanup.status).toBe('unresolved');
     expect(result.record.cleanup.pendingOperations).toBeGreaterThan(0);

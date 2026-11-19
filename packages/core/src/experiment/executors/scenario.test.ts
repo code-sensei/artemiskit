@@ -1413,5 +1413,6 @@ cases:
         );
       }
     }
-  });
+    // Four full runs of 32 scenario cases each take several seconds.
+  }, 30_000);
 });

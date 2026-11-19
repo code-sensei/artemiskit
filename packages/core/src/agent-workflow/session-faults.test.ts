@@ -7,7 +7,7 @@ import { openWorkflowCheckpointStore } from './checkpoint-store';
 import { evaluateWorkflowDeterministicOutcomes } from './outcomes';
 import { readWorkflowRecord } from './records';
 import { type AgentWorkflow, AgentWorkflowSchema } from './schema';
-import { runAgentWorkflow } from './session';
+import { type AgentWorkflowRecord, runAgentWorkflow } from './session';
 import type { AgentTarget, AgentTurnRequest } from './target';
 
 function scenario(faults: unknown[], attempts = 1): AgentWorkflow {
@@ -108,7 +108,7 @@ describe('native declared faults and bounded retries', () => {
       exhausted: 0,
     });
     expect(result.transcript.filter((message) => message.role === 'tool')).toHaveLength(1);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('V2 evidence cannot acquire retry exceptions through added V3 metadata', async () => {
     const workflow = scenario([outage], 2);
@@ -127,7 +127,7 @@ describe('native declared faults and bounded retries', () => {
     expect(result.record.budgets).toMatchObject({ actions: 3, toolCalls: 2, modelRequests: 1 });
     expect(result.record.recovery?.retries.exhausted).toBe(1);
     expect(result.record.recovery?.faults.injected).toBe(2);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('retry cannot replenish the action budget', async () => {
     const workflow = scenario([outage], 2);
@@ -136,7 +136,7 @@ describe('native declared faults and bounded retries', () => {
     expect(result.record.execution).toBe('budget_exceeded');
     expect(result.record.budgets.actions).toBe(2);
     expect(result.record.recovery?.retries.recovered).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('malformed read data never becomes a successful tool result or an automatic retry', async () => {
     const result = await runAgentWorkflow({
@@ -150,7 +150,7 @@ describe('native declared faults and bounded retries', () => {
     expect(result.record.recovery?.retries.attempted).toBe(0);
     expect(result.record.budgets.toolCalls).toBe(1);
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   for (const kind of ['stale_data', 'incomplete_data'] as const) {
     test(`${kind} changes observations without changing the authoritative state`, async () => {
@@ -177,7 +177,7 @@ describe('native declared faults and bounded retries', () => {
       expect(result.state?.documents).toEqual({ policy: 'PRIVATE-CURRENT-DOCUMENT' });
       expect(result.record.taskVerification).toBe('passed');
       expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
-      expect(readWorkflowRecord(result.record)).toEqual(result.record);
+      expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
     });
   }
   test('conflicting instructions are bounded read content with redacted evidence', async () => {
@@ -204,7 +204,7 @@ describe('native declared faults and bounded retries', () => {
     expect(observed).toContain('PRIVATE-CONFLICTING-INSTRUCTION');
     expect(result.record.taskVerification).toBe('passed');
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   test('policy and original argument validation precede fault injection', async () => {
     const workflow = scenario([], 5);
@@ -280,7 +280,7 @@ describe('native declared faults and bounded retries', () => {
       recovered: 1,
       exhausted: 0,
     });
-    expect(readWorkflowRecord(resumed.record)).toEqual(resumed.record);
+    expect(readWorkflowRecord(resumed.record)).toEqual<AgentWorkflowRecord>(resumed.record);
     for (const mutate of [
       (record: typeof resumed.record) => {
         if (record.recovery) record.recovery.retries.entries[0].previousOperationId = 'tool-2';
@@ -321,7 +321,7 @@ describe('native declared faults and bounded retries', () => {
       recovered: 1,
       exhausted: 0,
     });
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
   for (const kind of ['stale_data', 'incomplete_data', 'conflicting_instructions'] as const) {
     test(`checkpoint reconstruction preserves ${kind} observations without inventing state`, async () => {
@@ -357,7 +357,7 @@ describe('native declared faults and bounded retries', () => {
       expect(result.record.taskVerification).toBe('passed');
       expect(result.state?.documents).toEqual({ policy: 'PRIVATE-CURRENT-DOCUMENT' });
       expect(result.record.recovery?.faults.injected).toBe(1);
-      expect(readWorkflowRecord(result.record)).toEqual(result.record);
+      expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
     });
   }
   test('consumed fault schedule survives a truncated public ledger and cannot reinject', async () => {
@@ -427,7 +427,7 @@ describe('native declared faults and bounded retries', () => {
     });
     expect(resumed.record.recovery?.faults.injected).toBe(1);
     expect(resumed.record.recovery?.retries).toMatchObject({ attempted: 1, recovered: 1 });
-    expect(readWorkflowRecord(resumed.record)).toEqual(resumed.record);
+    expect(readWorkflowRecord(resumed.record)).toEqual<AgentWorkflowRecord>(resumed.record);
     // 142 actions with a durable checkpoint each take about 2 s on a quiet machine, scaling with
     // load. Stay above the scenario's own 60 s deadline so an overrun is reported by the run
     // record rather than a generic test timeout.
@@ -439,6 +439,6 @@ describe('native declared faults and bounded retries', () => {
     expect(result.record.execution).toBe('timeout');
     expect(result.record.budgets.toolCalls).toBe(1);
     expect(result.record.recovery?.retries.recovered).toBe(0);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
   });
 });

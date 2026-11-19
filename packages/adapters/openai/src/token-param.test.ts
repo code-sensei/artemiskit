@@ -97,7 +97,7 @@ describe('OpenAIAdapter token limit parameter', () => {
     function remoteAdapter() {
       const bodies: Record<string, unknown>[] = [];
       const urls: string[] = [];
-      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
         urls.push(String(input instanceof Request ? input.url : input));
         bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
         return Response.json(COMPLETION);

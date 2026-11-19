@@ -126,7 +126,7 @@ describe('sequential milestone release gates', () => {
         ...dependencies,
         packageVersions: async () =>
           new Map([
-            ...manifest.packages.map((pkg) => [pkg.name, pkg.version]),
+            ...manifest.packages.map((pkg): [string, string] => [pkg.name, pkg.version]),
             ['@artemiskit/reports', '0.9.0'],
           ]),
       })

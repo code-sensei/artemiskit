@@ -2,7 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type AgentTarget, validateAgentWorkflow } from '@artemiskit/core';
+import {
+  type AgentTarget,
+  type AgentWorkflowRecord,
+  validateAgentWorkflow,
+} from '@artemiskit/core';
 import { ArtemisKit } from '../artemiskit';
 import { readWorkflowRecord } from '../index';
 import type { WorkflowCheckpointOptions } from '../types-only';
@@ -87,7 +91,7 @@ describe('SDK workflow recovery options', () => {
     expect(paused.record.reason).toBe('checkpoint_paused');
     expect(paused.record.budgets.actions).toBe(2);
     expect(calls).toBe(1);
-    expect(readWorkflowRecord(paused.record)).toEqual(paused.record);
+    expect(readWorkflowRecord(paused.record)).toEqual<AgentWorkflowRecord>(paused.record);
     const bad = await kit.runWorkflow({
       workflow,
       target,
@@ -111,6 +115,6 @@ describe('SDK workflow recovery options', () => {
     expect(resumed.record.recovery?.attempts).toBe(2);
     expect(JSON.stringify(resumed.record)).not.toContain('PRIVATE-');
     expect(JSON.stringify(resumed.record)).not.toContain(checkpoint.directory);
-    expect(readWorkflowRecord(resumed.record)).toEqual(resumed.record);
+    expect(readWorkflowRecord(resumed.record)).toEqual<AgentWorkflowRecord>(resumed.record);
   });
 });

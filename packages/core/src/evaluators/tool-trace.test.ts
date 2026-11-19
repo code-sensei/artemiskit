@@ -28,7 +28,7 @@ describe('ToolTraceEvaluator', () => {
     await expect(
       evaluator.evaluate(
         '',
-        { type: 'tool_trace', requiredTools: ['delete_customer'] },
+        { type: 'tool_trace', requiredTools: ['delete_customer'], ordered: false },
         { toolTrace: trace }
       )
     ).resolves.toMatchObject({
@@ -38,7 +38,7 @@ describe('ToolTraceEvaluator', () => {
     await expect(
       evaluator.evaluate(
         '',
-        { type: 'tool_trace', forbiddenTools: ['create_ticket'] },
+        { type: 'tool_trace', forbiddenTools: ['create_ticket'], ordered: false },
         { toolTrace: trace }
       )
     ).resolves.toMatchObject({ passed: false, reason: 'Forbidden tools called: create_ticket' });

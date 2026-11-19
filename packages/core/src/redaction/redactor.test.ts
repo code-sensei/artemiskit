@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { z } from 'zod';
 import {
   Redactor,
   createDefaultRedactor,
@@ -8,7 +9,11 @@ import {
   redactWithHash,
   resolvePatterns,
 } from './redactor';
-import { BUILTIN_PATTERNS, DEFAULT_REDACTION_PATTERNS } from './types';
+import { BUILTIN_PATTERNS, RedactionConfigSchema } from './types';
+
+// Scenario redaction configs reach the Redactor parsed, with schema defaults applied.
+const parsedRedactor = (config: z.input<typeof RedactionConfigSchema>) =>
+  new Redactor(RedactionConfigSchema.parse(config));
 
 describe('redactText', () => {
   it('should redact email addresses', () => {
@@ -131,7 +136,7 @@ describe('Redactor class', () => {
   });
 
   it('should redact prompts when configured', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       redactPrompts: true,
       patterns: [BUILTIN_PATTERNS.EMAIL],
@@ -143,7 +148,7 @@ describe('Redactor class', () => {
   });
 
   it('should not redact prompts when disabled', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       redactPrompts: false,
       patterns: [BUILTIN_PATTERNS.EMAIL],
@@ -155,7 +160,7 @@ describe('Redactor class', () => {
   });
 
   it('should redact responses when configured', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       redactResponses: true,
       patterns: [BUILTIN_PATTERNS.PHONE],
@@ -167,7 +172,7 @@ describe('Redactor class', () => {
   });
 
   it('should use custom replacement string', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       replacement: '<<HIDDEN>>',
       patterns: [BUILTIN_PATTERNS.EMAIL],
@@ -178,7 +183,7 @@ describe('Redactor class', () => {
   });
 
   it('should redact metadata when enabled', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       redactMetadata: true,
       patterns: [BUILTIN_PATTERNS.EMAIL],
@@ -195,7 +200,7 @@ describe('Redactor class', () => {
   });
 
   it('should not redact metadata when disabled', () => {
-    const redactor = new Redactor({
+    const redactor = parsedRedactor({
       enabled: true,
       redactMetadata: false,
       patterns: [BUILTIN_PATTERNS.EMAIL],
@@ -209,7 +214,7 @@ describe('Redactor class', () => {
 
 describe('Built-in patterns', () => {
   const createTestRedactor = (pattern: string) =>
-    new Redactor({ enabled: true, patterns: [pattern] });
+    parsedRedactor({ enabled: true, patterns: [pattern] });
 
   it('should redact credit card numbers', () => {
     const redactor = createTestRedactor(BUILTIN_PATTERNS.CREDIT_CARD);

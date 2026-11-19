@@ -37,7 +37,7 @@ function completion(text: string, usage = true) {
 // they pass a larger timeout.
 const CLI_CHILD_LIMIT_MS = 15_000;
 setDefaultTimeout(2 * CLI_CHILD_LIMIT_MS);
-async function collect(child: ReturnType<typeof Bun.spawn>) {
+async function collect(child: Bun.Subprocess<'ignore', 'pipe', 'pipe'>) {
   const timer = setTimeout(() => child.kill(), CLI_CHILD_LIMIT_MS);
   try {
     const [exit, stdout, stderr] = await Promise.all([
@@ -153,7 +153,7 @@ describe('workflow outcome CLI composition', () => {
     expect(f.targetRequests).toHaveLength(1);
     expect(f.judgeRequests).toHaveLength(1);
     expect(JSON.parse(await readFile(join(f.directory, 'record.json'), 'utf8'))).toEqual(record);
-    expect(readWorkflowRecord(record)).toEqual(record);
+    expect(readWorkflowRecord(record)).toEqual<AgentWorkflowRecord>(record);
     expect(result.stdout + result.stderr).not.toContain('PRIVATE-');
     expect(result.stdout + result.stderr).not.toContain('dummy-');
   });

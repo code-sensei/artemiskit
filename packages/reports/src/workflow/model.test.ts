@@ -244,6 +244,7 @@ describe('canonical workflow assessment', () => {
       (await runAgentWorkflow({ workflow, target: reportTarget() })).record
     );
     const unknown = readWorkflowRecord(
+      // @ts-expect-error deliberately empty workflow: the record must report unknown configuration.
       (await runAgentWorkflow({ workflow: {}, target: reportTarget() })).record
     );
     const omitted = structuredClone(passed);

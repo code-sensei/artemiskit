@@ -25,7 +25,7 @@ import {
   recoveryWorkflow,
 } from './recovery-fixtures/scenario';
 import type { WorkflowJudgeOptions } from './semantic';
-import { createAgentWorkflowSession, runAgentWorkflow } from './session';
+import { type AgentWorkflowRecord, createAgentWorkflowSession, runAgentWorkflow } from './session';
 import type { AgentTarget } from './target';
 
 // Every test here round-trips a durable on-disk checkpoint store, and two spawn separate Node
@@ -148,7 +148,7 @@ describe('durable native workflow attempts', () => {
     expect(first.record.schemaVersion).toBe('3');
     expect(first.record.budgets.actions).toBe(2);
     expect(first.state?.files).toEqual({ 'one.txt': 'PRIVATE-ONE' });
-    expect(readWorkflowRecord(first.record)).toEqual(first.record);
+    expect(readWorkflowRecord(first.record)).toEqual<AgentWorkflowRecord>(first.record);
     const second = await runAgentWorkflow({
       workflow: recoveryWorkflow(),
       target: recoveryTarget(),
@@ -167,7 +167,7 @@ describe('durable native workflow attempts', () => {
     ).toHaveLength(1);
     expect(second.record.events.filter((event) => event.type === 'finished')).toHaveLength(1);
     expect(second.record.recovery?.stateChanges.total).toBe(2);
-    expect(readWorkflowRecord(second.record)).toEqual(second.record);
+    expect(readWorkflowRecord(second.record)).toEqual<AgentWorkflowRecord>(second.record);
     const text = JSON.stringify(second.record);
     for (const secret of [path, 'fixture-transport', 'PRIVATE-ONE', 'PRIVATE-TWO', 'one.txt'])
       expect(text).not.toContain(secret);
@@ -411,7 +411,7 @@ describe('durable native workflow attempts', () => {
   });
 
   test('preserves action, model, tool and token limits at restore', async () => {
-    for (const kind of ['actions', 'model_requests', 'tool_calls', 'tokens']) {
+    for (const kind of ['actions', 'model_requests', 'tool_calls', 'tokens'] as const) {
       const path = await directory();
       const workflow = recoveryWorkflow();
       workflow.environment.policy.budgets[`max_${kind}` as 'max_actions'] =
@@ -629,7 +629,7 @@ describe('durable native workflow attempts', () => {
     expect(result.record.events).toHaveLength(256);
     expect(result.record.recovery?.stateChanges).toMatchObject({ total: 70, omitted: 6 });
     expect(result.record.recovery?.stateChanges.entries).toHaveLength(64);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
     const changedPrefix = structuredClone(result.record);
     required(changedPrefix.recovery).stateChanges.entries[0].beforeSha256 = '0'.repeat(64);
     expect(() => readWorkflowRecord(changedPrefix)).toThrow(
@@ -703,7 +703,7 @@ describe('durable native workflow attempts', () => {
     });
     expect(result.record.taskVerification).toBe('passed');
     expect(observedTerminal).toBe(true);
-    expect(readWorkflowRecord(result.record)).toEqual(result.record);
+    expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
     const replay = await runAgentWorkflow({
       workflow,
       target: recoveryTarget(),
@@ -916,7 +916,7 @@ describe('durable native workflow attempts', () => {
         checkpoint: checkpoint(path),
       });
       expect(result.record.taskVerification).toBe('passed');
-      expect(readWorkflowRecord(result.record)).toEqual(result.record);
+      expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
       if (unchanged) {
         const altered = structuredClone(result.record);
         altered.artifacts.stateSha256 = '0'.repeat(64);
@@ -938,11 +938,12 @@ describe('durable native workflow attempts', () => {
   });
 
   test('pre-initialization sandbox errors never advertise an inconsistent raw fixture snapshot', async () => {
+    const initialStates: environments.WorkflowState[] = [
+      {},
+      { files: { 'z.txt': 'z', 'a/x.txt': 'nested', 'a.txt': 'outside' } },
+    ];
     for (const kind of ['capability', 'preflight']) {
-      for (const initial of [
-        {},
-        { files: { 'z.txt': 'z', 'a/x.txt': 'nested', 'a.txt': 'outside' } },
-      ]) {
+      for (const initial of initialStates) {
         const path = await directory();
         const workflow = recoveryWorkflow();
         workflow.environment.type = 'sandbox';
@@ -968,7 +969,7 @@ describe('durable native workflow attempts', () => {
         expect(result.record.execution).toBe('unsupported');
         expect(result.state).toBeNull();
         expect(result.record.artifacts.state).toBe('unavailable');
-        expect(readWorkflowRecord(result.record)).toEqual(result.record);
+        expect(readWorkflowRecord(result.record)).toEqual<AgentWorkflowRecord>(result.record);
       }
     }
   });

@@ -2,14 +2,14 @@
  * Tests for Supabase storage adapter with analytics capabilities
  */
 
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import type { CaseResult, RunManifest, RunMetrics } from '../artifacts/types';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import type { CaseResult, RunManifest } from '../artifacts/types';
 import { SupabaseStorageAdapter, type SupabaseStorageConfig } from './supabase';
 import type { CaseResultRecord, MetricsSnapshot } from './types';
 
 // Mock Supabase client
-const mockFrom = mock(() => ({}));
-const mockStorage = mock(() => ({}));
+const mockFrom = mock((_table: string): object => ({}));
+const mockStorage = mock((_bucket: string): object => ({}));
 const mockClient = {
   from: mockFrom,
   storage: {
@@ -173,7 +173,7 @@ describe('SupabaseStorageAdapter', () => {
       });
 
       // Mock database upsert for runs
-      const mockUpsert = mock(() => Promise.resolve({ error: null }));
+      const mockUpsert = mock((_row: unknown) => Promise.resolve({ error: null }));
       mockFrom.mockReturnValue({
         upsert: mockUpsert,
       });
@@ -204,7 +204,7 @@ describe('SupabaseStorageAdapter', () => {
         },
       });
       mockStorage.mockReturnValue({ upload: mock(() => Promise.resolve({ error: null })) });
-      const mockUpsert = mock(() => Promise.resolve({ error: null }));
+      const mockUpsert = mock((_row: unknown) => Promise.resolve({ error: null }));
       mockFrom.mockReturnValue({ upsert: mockUpsert });
 
       await adapter.save(manifest);
@@ -667,7 +667,7 @@ describe('SupabaseStorageAdapter', () => {
           validation: { status: 'invalid', code: 'grader_failure' },
         },
       });
-      const mockUpsert = mock(() => ({
+      const mockUpsert = mock((_row: unknown) => ({
         select: mock(() => ({
           single: mock(() => Promise.resolve({ data: { id: 'uuid-123' }, error: null })),
         })),

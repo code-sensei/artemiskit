@@ -38,8 +38,13 @@ describe('LocalStorageAdapter', () => {
     cases: [],
     environment: {
       node_version: '20.0.0',
-      os: 'darwin',
+      platform: 'darwin',
       arch: 'arm64',
+    },
+    git: {
+      commit: 'abc123',
+      branch: 'main',
+      dirty: false,
     },
     provenance: {
       run_by: 'test-user',
@@ -176,9 +181,9 @@ describe('LocalStorageAdapter', () => {
 
     expect(comparison.baseline.run_id).toBe('baseline-run');
     expect(comparison.current.run_id).toBe('current-run');
-    expect(comparison.delta.successRate).toBeCloseTo(0.1, 2);
-    expect(comparison.delta.latency).toBe(-30);
-    expect(comparison.delta.tokens).toBe(100);
+    expect(comparison.delta?.successRate).toBeCloseTo(0.1, 2);
+    expect(comparison.delta?.latency).toBe(-30);
+    expect(comparison.delta?.tokens).toBe(100);
     expect(comparison.eligibility.status).toBe('qualified');
   });
 
@@ -425,7 +430,7 @@ describe('LocalStorageAdapter', () => {
 
       expect(result).not.toBeNull();
       expect(result?.hasRegression).toBe(false);
-      expect(result?.comparison.delta.successRate).toBeCloseTo(0.05, 2);
+      expect(result?.comparison.delta?.successRate).toBeCloseTo(0.05, 2);
     });
 
     test('compares run to baseline and detects regression', async () => {
@@ -452,7 +457,7 @@ describe('LocalStorageAdapter', () => {
 
       expect(result).not.toBeNull();
       expect(result?.hasRegression).toBe(true);
-      expect(result?.comparison.delta.successRate).toBeCloseTo(-0.2, 2);
+      expect(result?.comparison.delta?.successRate).toBeCloseTo(-0.2, 2);
     });
 
     test('returns null when no baseline exists for scenario', async () => {

@@ -327,7 +327,7 @@ describe('Guardrails', () => {
       const guardrail = createCustomPatternGuardrail(['forbidden', 'prohibited']);
       const result = await guardrail('This is forbidden content');
       expect(result.passed).toBe(false);
-      expect(result.violations[0].details.matchedText).toBe('forbidden');
+      expect(result.violations[0].details?.matchedText).toBe('forbidden');
     });
 
     test('should match custom regex patterns', async () => {

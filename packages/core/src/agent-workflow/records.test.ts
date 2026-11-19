@@ -13,7 +13,7 @@ describe('saved workflow record compatibility', () => {
   test('real historical records remain execution-only and detached', () => {
     for (const { record } of historical) {
       const parsed = readWorkflowRecord(record);
-      expect(parsed).toEqual(record);
+      expect(parsed).toEqual<Record<string, unknown>>(record);
       expect(parsed.schemaVersion).toBe('1');
       expect(parsed.taskVerification).toBe('unavailable');
       expect(parsed).not.toBe(record);

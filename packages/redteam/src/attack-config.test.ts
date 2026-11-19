@@ -374,7 +374,7 @@ describe('applyOwaspFilters', () => {
     ];
 
     const filtered = applyOwaspFilters(mutations, {
-      LLM06: { minSeverity: 'critical' },
+      LLM06: { enabled: true, minSeverity: 'critical' },
     });
 
     const names = filtered.map((m) => m.name);

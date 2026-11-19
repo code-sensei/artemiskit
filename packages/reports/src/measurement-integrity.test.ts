@@ -13,8 +13,8 @@ const manifest: RunManifest = {
   end_time: '2026-09-07T00:00:01.000Z',
   duration_ms: 1000,
   config: { scenario: 'mixed measurement outcomes', provider: 'fixture' },
-  git: { commit: null, branch: null, dirty: false },
-  environment: { os: 'test', arch: 'test', node_version: 'test' },
+  git: { commit: 'unknown', branch: 'unknown', dirty: false },
+  environment: { platform: 'test', arch: 'test', node_version: 'test' },
   provenance: { run_by: 'test', run_reason: 'release validation' },
   metrics: {
     success_rate: 0.5,

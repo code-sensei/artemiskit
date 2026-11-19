@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { WorkflowEnvironmentInitializationError, workflowPathAllowed } from './environment';
+import {
+  WorkflowEnvironmentInitializationError,
+  type WorkflowState,
+  workflowPathAllowed,
+} from './environment';
 import { validateAgentWorkflow } from './parser';
 import { createDockerWorkflowEnvironment, createDockerWorkflowEnvironmentFactory } from './sandbox';
 
@@ -89,7 +93,7 @@ describe('Docker workflow environment offline admission', () => {
       });
     }
   });
-  test.each([
+  test.each<WorkflowState>([
     { files: { '../escape.txt': 'no' } },
     { files: { 'x.txt': 3 } },
     { files: { 'x.txt': 'x'.repeat(16385) } },

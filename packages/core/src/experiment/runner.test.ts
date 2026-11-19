@@ -857,6 +857,7 @@ describe('runExperiment', () => {
     });
 
     const malformed = await runExperiment(single, {
+      // @ts-expect-error deliberately malformed executor output: negative usage and no evidence.
       execute_attempt: async () => ({ status: 'passed', usage: { requests: -1 } }),
     });
     expect(malformed.results[0].attempts[0]).toMatchObject({

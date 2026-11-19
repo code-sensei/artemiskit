@@ -13,6 +13,15 @@ import {
   statusRequest,
 } from './npm-publication.mjs';
 
+// The publication script reads only identity and dependency groups from each package.
+type PublicationPackage = {
+  name: string;
+  version: string;
+  dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+};
+
 const candidate = 'a'.repeat(40);
 const core = { name: '@artemiskit/core', version: '0.6.1' };
 const sdk = { name: '@artemiskit/sdk', version: '0.5.1' };
@@ -26,13 +35,13 @@ const manifest = {
 };
 const integrity = 'sha512-candidate';
 const empty = () => ({ versions: {}, 'dist-tags': {} });
-function published(pkg: typeof core, checksum = integrity) {
+function published(pkg: PublicationPackage, checksum = integrity) {
   return {
     versions: { [pkg.version]: { dist: { integrity: checksum } } },
     'dist-tags': { latest: pkg.version },
   };
 }
-function fixture(packages = [core]) {
+function fixture(packages: PublicationPackage[] = [core]) {
   const metadata = new Map(packages.map((pkg) => [pkg.name, empty()]));
   const receipts = new Map<string, Record<string, string | number>>();
   const uploads: string[] = [];
@@ -42,14 +51,14 @@ function fixture(packages = [core]) {
   let clock = 0;
   const io = {
     registry: async (name: string) => metadata.get(name),
-    load: async (pkg: typeof core) => receipts.get(pkg.name),
-    save: async (pkg: typeof core, receipt: Record<string, string | number>) => {
+    load: async (pkg: PublicationPackage) => receipts.get(pkg.name),
+    save: async (pkg: PublicationPackage, receipt: Record<string, string | number>) => {
       receipts.set(pkg.name, { ...receipt });
     },
-    pack: async () => ({ archive: '/dummy/candidate.tgz', integrity }),
-    status: async (pkg: typeof core) => lifecycle.get(pkg.name) ?? null,
-    publish: async (pkg: typeof core) => {
-      expect(receipts.get(pkg.name).state).toBe('attempted');
+    pack: async (_pkg: PublicationPackage) => ({ archive: '/dummy/candidate.tgz', integrity }),
+    status: async (pkg: PublicationPackage) => lifecycle.get(pkg.name) ?? null,
+    publish: async (pkg: PublicationPackage) => {
+      expect(receipts.get(pkg.name)?.state).toBe('attempted');
       uploads.push(pkg.name);
       metadata.set(pkg.name, published(pkg));
     },
@@ -111,7 +120,7 @@ describe('npm publication compatibility and immutable retry', () => {
     expect(f.uploads).toHaveLength(1);
     expect(sleeps).toBe(3);
     expect(f.logs.some((line) => line.includes('validating'))).toBe(true);
-    expect(f.receipts.get(core.name).state).toBe('published');
+    expect(f.receipts.get(core.name)?.state).toBe('published');
   });
   test('pending timeout is retained and retry reconciles without a second upload', async () => {
     const f = fixture();
@@ -122,7 +131,7 @@ describe('npm publication compatibility and immutable retry', () => {
       publishPackages({ packages: [core], candidate, timeoutMs: 1 }, f.io)
     ).rejects.toThrow('pending after timeout');
     expect(f.tags).toHaveLength(0);
-    expect(f.receipts.get(core.name).state).toBe('accepted');
+    expect(f.receipts.get(core.name)?.state).toBe('accepted');
     f.metadata.set(core.name, published(core));
     await publishPackages({ packages: [core], candidate }, f.io);
     expect(f.uploads).toHaveLength(1);
@@ -141,7 +150,7 @@ describe('npm publication compatibility and immutable retry', () => {
       publishPackages({ packages: [core], candidate, timeoutMs: 1 }, f.io)
     ).rejects.toThrow('pending');
     expect(f.uploads).toHaveLength(1);
-    expect(f.receipts.get(core.name).state).toBe('attempted');
+    expect(f.receipts.get(core.name)?.state).toBe('attempted');
     expect(f.logs.join('\n')).not.toContain('dummy credential');
   });
   test.each(['staged', 'blocked', 'deleted'])(
@@ -376,7 +385,7 @@ test('accepted upload followed by npm failure reconciles through status403/404 w
 
 test('all archives pass dependency verification before any upload', async () => {
   const f = fixture([core, sdk]);
-  f.io.pack = async (pkg: typeof core) => {
+  f.io.pack = async (pkg: PublicationPackage) => {
     if (pkg.name === sdk.name) throw new Error('invalid second archive');
     return { archive: '/dummy/archive', integrity };
   };
@@ -490,6 +499,7 @@ test('dependency-first order is deterministic and waits for each dependency publ
     f.io.sleep = async (ms) => {
       await sleep(ms);
       const pkg = packages.find((entry) => entry.name === f.uploads.at(-1));
+      if (!pkg) throw new Error('expected the last upload to be a known package');
       f.metadata.set(pkg.name, published(pkg));
     };
     await publishPackages({ packages, candidate }, f.io);

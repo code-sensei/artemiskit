@@ -6,6 +6,9 @@ import { stringify } from 'yaml';
 import { loadAgentWorkflow, parseAgentWorkflow, validateAgentWorkflow } from './parser';
 import { AgentWorkflowSchema, isWorkflowJson } from './schema';
 
+// The raw YAML document shape, before schema parsing narrows its literals.
+type WorkflowDocument = ReturnType<typeof fixture>;
+
 function fixture() {
   return {
     version: '1',
@@ -59,7 +62,7 @@ describe('agent workflow v1 contract', () => {
     }
   });
   test('parses reviewable multi-turn YAML and keeps fixture references unresolved', () => {
-    expect(parseAgentWorkflow(stringify(fixture()))).toEqual(fixture());
+    expect(parseAgentWorkflow(stringify(fixture()))).toEqual<WorkflowDocument>(fixture());
   });
   test('preserves readable Unicode and punctuation in names without accepting blank names', () => {
     for (const name of ['review: [draft]', 'Àyẹ̀wò ìwé', 'مراجعة المستند']) {
@@ -308,7 +311,7 @@ describe('declared workflow faults', () => {
       tool: 'read_document',
       occurrence: 1,
       kind: 'unavailable_tool',
-    };
+    } as const;
     const scenario = { ...fixture(), faults: [fault], retry: { max_attempts: 2 } };
     expect(AgentWorkflowSchema.parse(scenario).faults).toEqual([fault]);
     expect(

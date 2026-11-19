@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type { AgentTask } from '@artemiskit/core';
 import { TrueForgeAdapter } from './client';
 import { normalizeTrueForgeActions, sanitizeTrueForgeEvents } from './mapper';
-import { type TrueForgeClient, createLingProviderSetup } from './types';
+import { type TrueForgeClient, type TrueForgeEvent, createLingProviderSetup } from './types';
 
 const TASK: AgentTask = {
   id: 'scenario-repair',
@@ -38,7 +38,7 @@ const TURN_DONE = {
   },
 };
 
-function createClient(events = [TURN_CREATED, TURN_DONE]) {
+function createClient(events: TrueForgeEvent[] = [TURN_CREATED, TURN_DONE]) {
   const calls = {
     sessions: [] as unknown[],
     turns: [] as unknown[],
@@ -456,10 +456,13 @@ describe('TrueForgeAdapter', () => {
       agent: { model: { name: 'ling/ling-3-flash' } },
       prompt: 'Repair the supplied scenario.',
       collectOutcome: async () => ({ acceptancePassed: false, changedPaths: [] }),
-      fetch: async (input) => {
-        requestedUrl = String(input);
-        throw new Error('offline fixture');
-      },
+      fetch: Object.assign(
+        async (input: string | URL | Request) => {
+          requestedUrl = String(input);
+          throw new Error('offline fixture');
+        },
+        { preconnect: globalThis.fetch.preconnect }
+      ),
     });
 
     await adapter.run(TASK);

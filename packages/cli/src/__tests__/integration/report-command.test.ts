@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { isRunManifest } from '@artemiskit/core';
 import { generateHTMLReport, generateJSONReport } from '@artemiskit/reports';
+import { ArtemisConfigSchema } from '../../config/schema.js';
 import { createStorage } from '../../utils/storage.js';
 import { cleanupTestDir, createTestDir } from '../helpers/test-utils.js';
 
@@ -83,12 +85,14 @@ describe('Report Command', () => {
   describe('report generation', () => {
     it('should load manifest from storage', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
 
       expect(manifest.run_id).toBe('test-run-001');
       expect(manifest.config.scenario).toBe('test-scenario');
@@ -97,12 +101,14 @@ describe('Report Command', () => {
 
     it('should generate HTML report from manifest', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const html = generateHTMLReport(manifest);
 
       expect(html).toContain('<!DOCTYPE html>');
@@ -111,12 +117,14 @@ describe('Report Command', () => {
 
     it('should generate JSON report from manifest', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const json = generateJSONReport(manifest, { pretty: true });
       const parsed = JSON.parse(json);
 
@@ -129,12 +137,14 @@ describe('Report Command', () => {
       await mkdir(outputDir, { recursive: true });
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const html = generateHTMLReport(manifest);
       const outputPath = join(outputDir, 'test-run-001.html');
       await writeFile(outputPath, html);
@@ -150,12 +160,14 @@ describe('Report Command', () => {
       await mkdir(outputDir, { recursive: true });
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const json = generateJSONReport(manifest, { pretty: true });
       const outputPath = join(outputDir, 'test-run-001.json');
       await writeFile(outputPath, json);
@@ -172,12 +184,14 @@ describe('Report Command', () => {
       await mkdir(outputDir, { recursive: true });
 
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
 
       // Generate both formats
       const html = generateHTMLReport(manifest);
@@ -192,9 +206,9 @@ describe('Report Command', () => {
 
     it('should throw error for non-existent run ID', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       await expect(storage.load('non-existent-run')).rejects.toThrow();
@@ -204,12 +218,14 @@ describe('Report Command', () => {
   describe('HTML report content', () => {
     it('should include test case details', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const html = generateHTMLReport(manifest);
 
       expect(html).toContain('case-1');
@@ -218,12 +234,14 @@ describe('Report Command', () => {
 
     it('should include metrics summary', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const html = generateHTMLReport(manifest);
 
       expect(html).toContain('80'); // 80% success rate
@@ -231,12 +249,14 @@ describe('Report Command', () => {
 
     it('should include run ID in report', async () => {
       const storage = createStorage({
-        fileConfig: {
+        fileConfig: ArtemisConfigSchema.parse({
           storage: { type: 'local', basePath: join(testDir, 'artemis-runs') },
-        },
+        }),
       });
 
       const manifest = await storage.load('test-run-001');
+
+      if (!isRunManifest(manifest)) throw new Error('expected a run manifest');
       const html = generateHTMLReport(manifest);
 
       expect(html).toContain('test-run-001');

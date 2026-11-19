@@ -2,8 +2,8 @@
  * Tests for Guardian mode normalization (v0.3.2+)
  */
 
-import { describe, expect, mock, test } from 'bun:test';
-import { Guardian, createGuardian, normalizeGuardianMode } from '../guardian';
+import { describe, expect, test } from 'bun:test';
+import { createGuardian, normalizeGuardianMode } from '../guardian';
 
 describe('Guardian Mode Normalization', () => {
   describe('normalizeGuardianMode', () => {

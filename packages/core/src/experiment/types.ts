@@ -247,9 +247,10 @@ export interface ExperimentAttemptInput {
 }
 
 /**
- * Declared upper bound of one attempt's use for a task × target pair. `requests` is also the
- * least the attempt needs: a concurrent run never grants an attempt fewer requests than its
- * declared demand. `tokens` and `cost` are reservations only.
+ * Expected use of one attempt of a task × target pair, reserved for concurrent admission. It
+ * is a reservation, not a cap: use beyond it draws on the run's uncommitted budget, and only
+ * use beyond a declared run budget halts the run. With nothing else in flight an attempt is
+ * granted the whole remaining budget instead, as in a serial run.
  */
 export interface ExperimentAttemptDemand {
   requests: number;
@@ -264,10 +265,11 @@ export interface ExperimentDemandRequest {
 }
 
 /**
- * Runs one attempt. Optionally declares, through `reserve`, the demand every attempt of a
- * task × target pair stays within. Concurrent runs reserve exactly that demand per attempt;
- * pairs without a complete demand (one bounding every declared budget that applies) run alone.
- * `reserve` is consulted only when `manifest.concurrency` exceeds 1.
+ * Runs one attempt. Optionally declares, through `reserve`, the demand to reserve for each
+ * attempt of a task × target pair. Concurrent runs admit an attempt when that demand fits the
+ * uncommitted budget; pairs without a complete demand (one covering every declared budget that
+ * applies), or with a demand above a declared run budget, run alone. `reserve` is consulted
+ * only when `manifest.concurrency` exceeds 1.
  */
 export interface ExperimentAttemptExecutor {
   (input: ExperimentAttemptInput): Promise<ExperimentAttemptOutput>;
@@ -374,9 +376,9 @@ export interface ExperimentReservation {
   task_id: string;
   target_id: string;
   /**
-   * Normalized declared demand. Absent when the executor declared none, or none bounding
-   * every declared budget that applies to the target: such attempts were admitted only
-   * with nothing else in flight.
+   * Normalized declared demand. Absent when the executor declared none, none covering every
+   * declared budget that applies to the target, or one above a declared run budget: such
+   * attempts were admitted only with nothing else in flight.
    */
   demand?: ExperimentAttemptDemand;
 }

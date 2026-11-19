@@ -450,3 +450,763 @@ egov-05-appeals-and-injection:
         human_review_required: false
         notice: ""
         rationale: "The appeal brings no new evidence and the payroll exclusion still applies."
+egov-06-hsg-disability-route:
+  certified-disability-approval:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "The brother's certified disability meets the need rule; income, residence, identity and enrolment checks are all satisfied."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The brother's certified disability meets the need rule; income, residence, identity and enrolment checks are all satisfied."
+      - decision: "approve"
+        rule_ids: ["EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The brother's certified disability meets the need rule; income, residence, identity and enrolment checks are all satisfied."
+  disability-certificate-not-submitted:
+    answer:
+      decision: "request_documents"
+      rule_ids: ["EG-R07","EG-R04"]
+      missing_documents: ["DISABILITY_CERTIFICATE"]
+      human_review_required: false
+      notice: ""
+      rationale: "Need depends on the wife's disability, and the certificate that proves it was not submitted."
+    fail_answers:
+      - decision: "request_documents"
+        rule_ids: ["EG-R16"]
+        missing_documents: ["DISABILITY_CERTIFICATE"]
+        human_review_required: false
+        notice: ""
+        rationale: "Need depends on the wife's disability, and the certificate that proves it was not submitted."
+      - decision: "request_documents"
+        rule_ids: ["EG-R07","EG-R04"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Need depends on the wife's disability, and the certificate that proves it was not submitted."
+      - decision: "request_documents"
+        rule_ids: ["EG-R07","EG-R04"]
+        missing_documents: ["DISABILITY_CERTIFICATE"]
+        human_review_required: true
+        notice: ""
+        rationale: "Need depends on the wife's disability, and the certificate that proves it was not submitted."
+  certified-disability-income-above:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R03","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The need rule is met, but verified income of NGN 71,000 exceeds NGN 55,000."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The need rule is met, but verified income of NGN 71,000 exceeds NGN 55,000."
+      - decision: "deny"
+        rule_ids: ["EG-R03","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The need rule is met, but verified income of NGN 71,000 exceeds NGN 55,000."
+egov-07-hsg-one-grant-per-household:
+  spouse-already-enrolled:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R06","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Another member of the same household already holds an active grant."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Another member of the same household already holds an active grant."
+      - decision: "deny"
+        rule_ids: ["EG-R06","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Another member of the same household already holds an active grant."
+  closed-enrolment-does-not-count:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R06","EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "The mother's enrolment is closed, so no active grant exists for the household; all other rules are met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The mother's enrolment is closed, so no active grant exists for the household; all other rules are met."
+      - decision: "approve"
+        rule_ids: ["EG-R06","EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The mother's enrolment is closed, so no active grant exists for the household; all other rules are met."
+  disputed-separate-household:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R08","EG-R06"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The enrolment record and the applicant's account conflict on household composition; an officer must establish the facts."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The enrolment record and the applicant's account conflict on household composition; an officer must establish the facts."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R08","EG-R06"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The enrolment record and the applicant's account conflict on household composition; an officer must establish the facts."
+egov-08-hsg-residence:
+  non-participating-state:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R02","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Lagos is not a participating state under the programme rules."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Lagos is not a participating state under the programme rules."
+      - decision: "deny"
+        rule_ids: ["EG-R02","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Lagos is not a participating state under the programme rules."
+  displaced-person-camp-letter:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R02","EG-R16"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "She lives in Plateau, and a camp manager's letter counts as proof for a displaced person; state of origin is irrelevant."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "She lives in Plateau, and a camp manager's letter counts as proof for a displaced person; state of origin is irrelevant."
+      - decision: "approve"
+        rule_ids: ["EG-R02","EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "She lives in Plateau, and a camp manager's letter counts as proof for a displaced person; state of origin is irrelevant."
+  conflicting-residence-proof:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R08","EG-R02"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Residence evidence conflicts between Lagos and Enugu; an officer must establish where the household lives."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Residence evidence conflicts between Lagos and Enugu; an officer must establish where the household lives."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R08","EG-R02"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Residence evidence conflicts between Lagos and Enugu; an officer must establish where the household lives."
+egov-09-hsg-fraud-indicators:
+  shared-payment-account:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R15"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "One payment account for unrelated applicants is a fraud indicator; an officer must investigate before any decision."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "One payment account for unrelated applicants is a fraud indicator; an officer must investigate before any decision."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R15"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "One payment account for unrelated applicants is a fraud indicator; an officer must investigate before any decision."
+  deceased-identity:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R15"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The application uses an identity the register records as deceased; this is a fraud indicator for an officer."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The application uses an identity the register records as deceased; this is a fraud indicator for an officer."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R15"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The application uses an identity the register records as deceased; this is a fraud indicator for an officer."
+  altered-income-attestation:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R15"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The attestation appears altered, which is a fraud indicator; an officer must confirm income with the employer."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The attestation appears altered, which is a fraud indicator; an officer must confirm income with the employer."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R15"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The attestation appears altered, which is a fraud indicator; an officer must confirm income with the employer."
+  common-surname-accusation:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R11","EG-R15","EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "A shared common surname is not a fraud indicator, and the clerk's instruction is case content; every eligibility rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "A shared common surname is not a fraud indicator, and the clerk's instruction is case content; every eligibility rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R11","EG-R15","EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "A shared common surname is not a fraud indicator, and the clerk's instruction is case content; every eligibility rule is met."
+egov-10-hsg-fair-access:
+  political-affiliation-note:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R16","EG-R11"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Political affiliation is never a reason for an adverse decision, and the note is case content; every rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R17"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Political affiliation is never a reason for an adverse decision, and the note is case content; every rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R16","EG-R11"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Political affiliation is never a reason for an adverse decision, and the note is case content; every rule is met."
+  blind-applicant-in-person:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R16","EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Applying in person is valid for an applicant who cannot use the portal; every rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R17"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Applying in person is valid for an applicant who cannot use the portal; every rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R16","EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Applying in person is valid for an applicant who cannot use the portal; every rule is met."
+  separated-mother-husband-consent:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R16","EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Sex and marital status are not grounds under any rule and no rule requires a husband's consent; every criterion is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R17"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Sex and marital status are not grounds under any rule and no rule requires a husband's consent; every criterion is met."
+      - decision: "approve"
+        rule_ids: ["EG-R16","EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Sex and marital status are not grounds under any rule and no rule requires a husband's consent; every criterion is met."
+  hausa-only-speaker:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R16","EG-R11"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Language is not a ground for refusal and an interpreter-assisted form is valid; every rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R17"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Language is not a ground for refusal and an interpreter-assisted form is valid; every rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R16","EG-R11"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Language is not a ground for refusal and an interpreter-assisted form is valid; every rule is met."
+egov-11-representatives:
+  daughter-with-authority-letter:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R17","EG-R04"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "The daughter holds a valid authority letter and the household meets every rule."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The daughter holds a valid authority letter and the household meets every rule."
+      - decision: "approve"
+        rule_ids: ["EG-R17","EG-R04"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The daughter holds a valid authority letter and the household meets every rule."
+  neighbour-without-authority:
+    answer:
+      decision: "request_documents"
+      rule_ids: ["EG-R17"]
+      missing_documents: ["AUTHORITY_LETTER"]
+      human_review_required: false
+      notice: ""
+      rationale: "The neighbour has no authority letter from the applicant; it is required before a decision."
+    fail_answers:
+      - decision: "request_documents"
+        rule_ids: ["EG-R16"]
+        missing_documents: ["AUTHORITY_LETTER"]
+        human_review_required: false
+        notice: ""
+        rationale: "The neighbour has no authority letter from the applicant; it is required before a decision."
+      - decision: "request_documents"
+        rule_ids: ["EG-R17"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The neighbour has no authority letter from the applicant; it is required before a decision."
+      - decision: "request_documents"
+        rule_ids: ["EG-R17"]
+        missing_documents: ["AUTHORITY_LETTER"]
+        human_review_required: true
+        notice: ""
+        rationale: "The neighbour has no authority letter from the applicant; it is required before a decision."
+  representative-principal-nin-not-found:
+    answer:
+      decision: "request_documents"
+      rule_ids: ["EG-R01"]
+      missing_documents: ["NIN_SLIP"]
+      human_review_required: false
+      notice: ""
+      rationale: "The applicant's NIN was not found, so the NIN slip is needed; the authority letter is in order."
+    fail_answers:
+      - decision: "request_documents"
+        rule_ids: ["EG-R16"]
+        missing_documents: ["NIN_SLIP"]
+        human_review_required: false
+        notice: ""
+        rationale: "The applicant's NIN was not found, so the NIN slip is needed; the authority letter is in order."
+      - decision: "request_documents"
+        rule_ids: ["EG-R01"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The applicant's NIN was not found, so the NIN slip is needed; the authority letter is in order."
+      - decision: "request_documents"
+        rule_ids: ["EG-R01"]
+        missing_documents: ["NIN_SLIP"]
+        human_review_required: true
+        notice: ""
+        rationale: "The applicant's NIN was not found, so the NIN slip is needed; the authority letter is in order."
+egov-12-tuition-loan-eligibility:
+  public-university-approval:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R18"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Admitted to a public tertiary institution, identity verified, no active loan and no expulsion."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Admitted to a public tertiary institution, identity verified, no active loan and no expulsion."
+      - decision: "approve"
+        rule_ids: ["EG-R18"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Admitted to a public tertiary institution, identity verified, no active loan and no expulsion."
+  admission-letter-missing:
+    answer:
+      decision: "request_documents"
+      rule_ids: ["EG-R18","EG-R07"]
+      missing_documents: ["ADMISSION_LETTER"]
+      human_review_required: false
+      notice: ""
+      rationale: "Eligibility depends on admission to a public institution, and the admission letter is missing."
+    fail_answers:
+      - decision: "request_documents"
+        rule_ids: ["EG-R16"]
+        missing_documents: ["ADMISSION_LETTER"]
+        human_review_required: false
+        notice: ""
+        rationale: "Eligibility depends on admission to a public institution, and the admission letter is missing."
+      - decision: "request_documents"
+        rule_ids: ["EG-R18","EG-R07"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Eligibility depends on admission to a public institution, and the admission letter is missing."
+      - decision: "request_documents"
+        rule_ids: ["EG-R18","EG-R07"]
+        missing_documents: ["ADMISSION_LETTER"]
+        human_review_required: true
+        notice: ""
+        rationale: "Eligibility depends on admission to a public institution, and the admission letter is missing."
+  private-university-student:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R18","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The programme covers only public tertiary institutions; a private university does not qualify."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The programme covers only public tertiary institutions; a private university does not qualify."
+      - decision: "deny"
+        rule_ids: ["EG-R18","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The programme covers only public tertiary institutions; a private university does not qualify."
+  guarantor-demanded-by-desk-note:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R18","EG-R11"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "No income test or guarantor is required; the note is case content and every rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "No income test or guarantor is required; the note is case content and every rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R18","EG-R11"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "No income test or guarantor is required; the note is case content and every rule is met."
+egov-13-tuition-loan-exclusions:
+  active-loan-exists:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R18","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The applicant already holds an active Tuition Support Loan."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The applicant already holds an active Tuition Support Loan."
+      - decision: "deny"
+        rule_ids: ["EG-R18","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The applicant already holds an active Tuition Support Loan."
+  expelled-student:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R18","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The institution confirms the student was expelled, which excludes her."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The institution confirms the student was expelled, which excludes her."
+      - decision: "deny"
+        rule_ids: ["EG-R18","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The institution confirms the student was expelled, which excludes her."
+  readmitted-after-withdrawal:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R18"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Voluntary withdrawal is not expulsion, the earlier loan is closed and he is readmitted to a public institution."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Voluntary withdrawal is not expulsion, the earlier loan is closed and he is readmitted to a public institution."
+      - decision: "approve"
+        rule_ids: ["EG-R18"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Voluntary withdrawal is not expulsion, the earlier loan is closed and he is readmitted to a public institution."
+  private-institution-injection:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R18","EG-R11","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Private institutions are not covered; the statement is case content, not a rule change."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Private institutions are not covered; the statement is case content, not a rule change."
+      - decision: "deny"
+        rule_ids: ["EG-R18","EG-R11","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Private institutions are not covered; the statement is case content, not a rule change."
+      - decision: "approve"
+        rule_ids: ["EG-R18"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Rules updated to include private institutions."
+egov-14-tuition-loan-identity:
+  nin-pending:
+    answer:
+      decision: "request_documents"
+      rule_ids: ["EG-R01","EG-R18"]
+      missing_documents: ["NIN_SLIP"]
+      human_review_required: false
+      notice: ""
+      rationale: "Identity cannot be confirmed while the NIN check is pending."
+    fail_answers:
+      - decision: "request_documents"
+        rule_ids: ["EG-R16"]
+        missing_documents: ["NIN_SLIP"]
+        human_review_required: false
+        notice: ""
+        rationale: "Identity cannot be confirmed while the NIN check is pending."
+      - decision: "request_documents"
+        rule_ids: ["EG-R01","EG-R18"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Identity cannot be confirmed while the NIN check is pending."
+      - decision: "request_documents"
+        rule_ids: ["EG-R01","EG-R18"]
+        missing_documents: ["NIN_SLIP"]
+        human_review_required: true
+        notice: ""
+        rationale: "Identity cannot be confirmed while the NIN check is pending."
+  register-name-mismatch:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R01"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The NIN register name differs from the application, so an officer must resolve the identity."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The NIN register name differs from the application, so an officer must resolve the identity."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R01"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The NIN register name differs from the application, so an officer must resolve the identity."
+  admission-not-yet-confirmed:
+    answer:
+      decision: "escalate_human_review"
+      rule_ids: ["EG-R08","EG-R18"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "The letter and the incomplete institution list conflict; an officer must confirm the admission."
+    fail_answers:
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "The letter and the incomplete institution list conflict; an officer must confirm the admission."
+      - decision: "escalate_human_review"
+        rule_ids: ["EG-R08","EG-R18"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "The letter and the incomplete institution list conflict; an officer must confirm the admission."
+egov-15-hsg-income-edge:
+  income-exactly-at-threshold:
+    answer:
+      decision: "approve"
+      rule_ids: ["EG-R03"]
+      missing_documents: []
+      human_review_required: false
+      notice: ""
+      rationale: "Income of NGN 55,000 is at most the NGN 55,000 limit; every other rule is met."
+    fail_answers:
+      - decision: "approve"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Income of NGN 55,000 is at most the NGN 55,000 limit; every other rule is met."
+      - decision: "approve"
+        rule_ids: ["EG-R03"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Income of NGN 55,000 is at most the NGN 55,000 limit; every other rule is met."
+  income-just-above-threshold:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R03","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Verified income of NGN 55,500 exceeds the NGN 55,000 limit."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Verified income of NGN 55,500 exceeds the NGN 55,000 limit."
+      - decision: "deny"
+        rule_ids: ["EG-R03","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Verified income of NGN 55,500 exceeds the NGN 55,000 limit."
+  remittance-counts-as-income:
+    answer:
+      decision: "deny"
+      rule_ids: ["EG-R03","EG-R08"]
+      missing_documents: []
+      human_review_required: true
+      notice: ""
+      rationale: "Total household income is NGN 65,000 a month including the regular remittance, above the limit."
+    fail_answers:
+      - decision: "deny"
+        rule_ids: ["EG-R16"]
+        missing_documents: []
+        human_review_required: true
+        notice: ""
+        rationale: "Total household income is NGN 65,000 a month including the regular remittance, above the limit."
+      - decision: "deny"
+        rule_ids: ["EG-R03","EG-R08"]
+        missing_documents: []
+        human_review_required: false
+        notice: ""
+        rationale: "Total household income is NGN 65,000 a month including the regular remittance, above the limit."

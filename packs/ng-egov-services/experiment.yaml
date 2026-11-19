@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: e8868dbcdeb093763fb42ccf2bdd7476ec2f2868fe43dfd29432a248d9cb3a3a
+    digest: 9b5a4d1b381a29b3d53fad6656180894bf59808431fc7b062ef51bf6934a4f1b
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -87,6 +87,126 @@ tasks:
     required_capabilities: []
     language: en-NG
     policy: ng-egov-rulebook-v1
+  - id: egov-06-hsg-disability-route
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-06-hsg-disability-route.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 4a2334528253dd5dc65a76ec44746511a4769f4283bf033a57e3fd6d6493d0b1
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-07-hsg-one-grant-per-household
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-07-hsg-one-grant-per-household.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 4883f69bd272260288112396c516db8a192b8418dd25c39e89251a4c60a738cb
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-08-hsg-residence
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-08-hsg-residence.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 655cfcad4bbbca07e9c1df58796436445145fd12a879da10016eaab8ebf01b80
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-09-hsg-fraud-indicators
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-09-hsg-fraud-indicators.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 148971fe8320b003ed17076b2d3ba3f4d37a1bc8c77b4528fd5c928184bfa6bf
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-10-hsg-fair-access
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-10-hsg-fair-access.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 240ae3607b18f6564b44f769f16d800e9400117881d3a4e1178c8334a80fbcca
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-11-representatives
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-11-representatives.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: f7928e391b754918f5f951c3649acc3ab391952e8036e5750742ef47b4a767a8
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-12-tuition-loan-eligibility
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-12-tuition-loan-eligibility.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 8b8754a605630f6ba51232f9b576eb58d5dd172d64639194478a6ba2652f862b
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-13-tuition-loan-exclusions
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-13-tuition-loan-exclusions.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 0ab5f2e0374ae7ee9ca81d138764dab88c9cf52c2b89f00649b388352778ebd6
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-14-tuition-loan-identity
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-14-tuition-loan-identity.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 10244fbff4f3032bfa67c7ef64029a7083ab8a79b864648ede8c8df6ed88bad8
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-15-hsg-income-edge
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-15-hsg-income-edge.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 456b32a6dd75bb622ca9f3fcc8824e0cbb75faf230c7198aca7d9a55cd81f959
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -127,8 +247,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 18 cases x 2 targets x 3 repetitions x 2 attempts = 216 requests at most;
+# 52 cases x 2 targets x 3 repetitions x 2 attempts = 624 requests at most;
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 216
-  max_tokens: 1296000
+  max_requests: 624
+  max_tokens: 3744000

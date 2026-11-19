@@ -193,8 +193,45 @@ for (const pack of readdirSync(join(root, 'packs'), { withFileTypes: true })) {
   packExperiments.push(...experiments.map((file) => `packs/${pack.name}/${file}`));
 }
 assert.ok(packExperiments.length, 'No benchmark-pack experiments found');
+// Experiment commands run with fetch and raw sockets disabled, so the installed CLI is shown to make
+// no network attempt (pack and fixture targets declare a local model server that must stay untouched).
+writeFileSync(
+  join(directory, 'offline-preload.mjs'),
+  `import net from 'node:net';
+globalThis.fetch = () => { throw new Error('NETWORK-FORBIDDEN'); };
+net.Socket.prototype.connect = function () { throw new Error('NETWORK-FORBIDDEN'); };
+`
+);
+function experimentCli(args) {
+  const result = spawnSync(
+    'bun',
+    ['--preload', './offline-preload.mjs', cli, 'experiment', ...args],
+    {
+      cwd: directory,
+      encoding: 'utf8',
+      timeout: 120_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: { ...process.env, CI: '1' },
+    }
+  );
+  assert.ok(!result.error, `akit experiment ${args[0]} failed to start: ${result.error?.message}`);
+  assert.ok(
+    !`${result.stdout}${result.stderr}`.includes('NETWORK-FORBIDDEN'),
+    `akit experiment ${args[0]} attempted a network connection`
+  );
+  return result;
+}
+function experimentCliSucceeds(args) {
+  const result = experimentCli(args);
+  assert.equal(
+    result.status,
+    0,
+    `akit experiment ${args.join(' ')}\n${result.stdout}\n${result.stderr}`
+  );
+  return result.stdout.trim();
+}
 for (const file of packExperiments) {
-  const validation = JSON.parse(run('bun', [cli, 'experiment', 'validate', file, '--json']));
+  const validation = JSON.parse(experimentCliSucceeds(['validate', file, '--json']));
   assert.equal(validation.valid, true, `Installed CLI rejected ${file}`);
 }
 console.log(`PASS: installed CLI validated ${packExperiments.length} pack experiments`);
@@ -204,9 +241,7 @@ for (const runtime of ['node', 'bun']) {
   sdkExperiments[runtime] = JSON.parse(output.split('\n').at(-1));
   console.log(`${runtime}: PASS SDK experiment validate/run/report/live refusal: ${output}`);
 }
-run('bun', [
-  cli,
-  'experiment',
+experimentCliSucceeds([
   'run',
   sdkExperiments.node.experiment,
   '--output-dir',
@@ -223,9 +258,7 @@ for (const runtime of ['node', 'bun']) {
     `CLI and ${runtime} SDK experiment summaries differ`
   );
 }
-run('bun', [
-  cli,
-  'experiment',
+experimentCliSucceeds([
   'report',
   'experiment-cli/run/result.json',
   '--output-dir',
@@ -243,7 +276,17 @@ assert.deepEqual(
   ],
   'CLI experiment report must write three views in HTML and Markdown'
 );
-console.log('PASS: installed CLI experiment run/report agree with the Node and Bun SDK');
+const refused = experimentCli([
+  'run',
+  sdkExperiments.node.experiment.replace(/experiment\.yaml$/, 'live.yaml'),
+  '--output-dir',
+  'experiment-cli/live',
+]);
+assert.equal(refused.status, 3, 'Installed CLI must refuse an unapproved live experiment');
+assert.ok(!existsSync(join(directory, 'experiment-cli/live/result.json')));
+console.log(
+  'PASS: installed CLI experiment run/report agree with the Node and Bun SDK; unapproved live run refused offline'
+);
 const compiler = join(root, 'node_modules/typescript/bin/tsc');
 for (const [module, resolution] of [
   ['NodeNext', 'NodeNext'],

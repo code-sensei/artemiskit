@@ -134,7 +134,7 @@ describe('Ling benchmark task contract', () => {
   it('covers Flash everywhere and limits Tiny to compact tasks', async () => {
     const modelsByTask = new Map(
       await Promise.all(
-        taskIds.map(async (taskId) => [taskId, (await readManifest(taskId)).models])
+        taskIds.map(async (taskId) => [taskId, (await readManifest(taskId)).models] as const)
       )
     );
 

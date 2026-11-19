@@ -16,7 +16,22 @@ const LING_API_BASE_URL = 'https://api.ant-ling.com/v1';
 const TRUEFORGE_BASE_URL = 'http://localhost:8790';
 const MCP_SERVER_NAME = 'artemiskit-ling-benchmark';
 
-export type LingModelId = 'Ling-3.0-flash' | 'Ling-3.0-tiny';
+/**
+ * Ling chat model IDs this evaluation accepts, mapped to the local alias TrueForge registers for
+ * each. The IDs are the text chat models listed by Ling's /v1/models endpoint.
+ */
+const LING_AGENT_MODELS = {
+  'Ling-3.0-flash': 'ling-3-flash',
+  'Ling-3.0-tiny': 'ling-3-tiny',
+  'Ling-3.1-flash': 'ling-3-1-flash',
+  'Ling-3.2-flash': 'ling-3-2-flash',
+} as const;
+
+export type LingModelId = keyof typeof LING_AGENT_MODELS;
+
+export function isLingModelId(value: unknown): value is LingModelId {
+  return typeof value === 'string' && Object.hasOwn(LING_AGENT_MODELS, value);
+}
 
 export interface ArtifactCheckDefinition {
   id: string;
@@ -33,7 +48,7 @@ export interface BenchmarkTask extends AgentTask {
 
 export interface LingModelSelection {
   modelId: LingModelId;
-  modelName: 'ling-3-flash' | 'ling-3-tiny';
+  modelName: (typeof LING_AGENT_MODELS)[LingModelId];
 }
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -71,13 +86,12 @@ export function realAgentEvaluationEnabled(environment: Environment): boolean {
 
 export function resolveLingModel(environment: Environment): LingModelSelection {
   const modelId = environment.LING_REAL_AGENT_MODEL ?? 'Ling-3.0-flash';
-  if (modelId === 'Ling-3.0-flash') {
-    return { modelId, modelName: 'ling-3-flash' };
+  if (isLingModelId(modelId)) {
+    return { modelId, modelName: LING_AGENT_MODELS[modelId] };
   }
-  if (modelId === 'Ling-3.0-tiny') {
-    return { modelId, modelName: 'ling-3-tiny' };
-  }
-  throw new Error('LING_REAL_AGENT_MODEL must be either Ling-3.0-flash or Ling-3.0-tiny');
+  throw new Error(
+    `LING_REAL_AGENT_MODEL must be one of ${Object.keys(LING_AGENT_MODELS).join(', ')}`
+  );
 }
 
 export function parseChangedPaths(status: string): string[] {
@@ -241,7 +255,7 @@ export function parseTaskManifest(value: unknown): BenchmarkTask {
     !Array.isArray(artifactChecks) ||
     artifactChecks.length === 0 ||
     !isUniqueNonEmptyStrings(task.models) ||
-    task.models.some((model) => model !== 'Ling-3.0-flash' && model !== 'Ling-3.0-tiny')
+    task.models.some((model) => !isLingModelId(model))
   ) {
     return invalidTaskManifest();
   }

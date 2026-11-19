@@ -62,7 +62,8 @@ LING_REAL_AGENT_MODEL=Ling-3.0-tiny \
 bun run eval:agent:trueforge
 ```
 
-The runner accepts only those two documented model IDs. Without both `LING_REAL_AGENT_TESTS=1`
+The runner and suite accept `Ling-3.0-flash`, `Ling-3.0-tiny`, `Ling-3.1-flash` and
+`Ling-3.2-flash`, and reject any other model ID. Without both `LING_REAL_AGENT_TESTS=1`
 and `LING_API_KEY`, it exits successfully without contacting Ling or TrueForge.
 
 ## Run the benchmark suite

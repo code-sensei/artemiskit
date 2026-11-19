@@ -122,15 +122,25 @@ describe('TrueForge scenario-repair runner helpers', () => {
     );
   });
 
-  it('accepts only the documented Flash and Tiny model IDs', () => {
+  it('accepts only the listed Ling chat model IDs', () => {
     expect(resolveLingModel({})).toEqual({ modelId: 'Ling-3.0-flash', modelName: 'ling-3-flash' });
     expect(resolveLingModel({ LING_REAL_AGENT_MODEL: 'Ling-3.0-tiny' })).toEqual({
       modelId: 'Ling-3.0-tiny',
       modelName: 'ling-3-tiny',
     });
-    expect(() => resolveLingModel({ LING_REAL_AGENT_MODEL: 'unknown' })).toThrow(
-      'LING_REAL_AGENT_MODEL'
-    );
+    expect(resolveLingModel({ LING_REAL_AGENT_MODEL: 'Ling-3.1-flash' })).toEqual({
+      modelId: 'Ling-3.1-flash',
+      modelName: 'ling-3-1-flash',
+    });
+    expect(resolveLingModel({ LING_REAL_AGENT_MODEL: 'Ling-3.2-flash' })).toEqual({
+      modelId: 'Ling-3.2-flash',
+      modelName: 'ling-3-2-flash',
+    });
+    for (const unsupported of ['unknown', 'Ling-3.0-flash-VL', 'toString']) {
+      expect(() => resolveLingModel({ LING_REAL_AGENT_MODEL: unsupported })).toThrow(
+        'LING_REAL_AGENT_MODEL'
+      );
+    }
   });
 
   it('parses modified, untracked, renamed, and whitespace-containing paths', () => {

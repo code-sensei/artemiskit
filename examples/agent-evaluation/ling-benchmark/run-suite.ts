@@ -7,6 +7,7 @@ import {
   type LingModelId,
   type TrueForgeAttemptOptions,
   buildAkitBundle,
+  isLingModelId,
   parseTaskManifest,
   realAgentEvaluationEnabled,
   resolveLingModel,
@@ -142,7 +143,7 @@ export function parseSuiteManifest(value: unknown): BenchmarkSuiteManifest {
       typeof task.taskPath !== 'string' ||
       !isSafeRelativePath(task.taskPath) ||
       !isDenseUniqueStringArray(task.models) ||
-      task.models.some((model) => model !== 'Ling-3.0-flash' && model !== 'Ling-3.0-tiny')
+      task.models.some((model) => !isLingModelId(model))
     ) {
       return invalidSuiteManifest();
     }

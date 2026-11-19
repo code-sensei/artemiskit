@@ -1,5 +1,5 @@
 import { describe, expect, mock, setDefaultTimeout, test } from 'bun:test';
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { appendFile, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as realCore from '../../../../core/src/index';
@@ -190,6 +190,16 @@ describe('akit experiment run', () => {
     expect(result.stdout).toContain('open-weight, run locally via ollama; cost not applicable');
     expect(result.stdout).toContain('No ranking or winner is implied');
     expect(result.stdout.toLowerCase()).not.toContain('winner:');
+    expect(result.stdout).toContain(
+      'Coordinate level: counts below are task × target × repetition'
+    );
+    expect(result.stdout).toContain(
+      'Case level: counts below are individual scenario cases from 4 SHA-256-verified evidence file(s)'
+    );
+    expect(result.stdout).toContain(
+      '  - qwen-small: passed 1 and failed 1 of 2 valid case(s) (passed/valid 1/2 (50%))'
+    );
+    expect(result.stdout).toContain('Overall cases: passed 2 and failed 2 of 4 valid case(s)');
 
     const base = path.join(
       fixture.directory,
@@ -447,6 +457,52 @@ describe('akit experiment report', () => {
       'technical.html',
       'technical.md',
     ]);
+  });
+
+  test('prints the case-level summary and marks altered or absent evidence unavailable', async () => {
+    const fixture = await writeExperimentFixture();
+    await invoke(fixture.directory, ['run', fixture.file, '--output-dir', 'run']);
+
+    const verified = await invoke(fixture.directory, ['report', 'run/result.json']);
+    expect(verified.code).toBe(0);
+    expect(verified.stdout).toContain('Overall cases: passed 2 and failed 2 of 4 valid case(s)');
+
+    const evidenceDir = path.join(fixture.directory, 'run', 'evidence');
+    const [first] = (await readdir(evidenceDir)).sort();
+    await appendFile(path.join(evidenceDir, first as string), ' ');
+    const altered = await invoke(fixture.directory, [
+      'report',
+      'run/result.json',
+      '--output-dir',
+      'altered',
+    ]);
+    expect(altered.code).toBe(0);
+    expect(altered.stdout).toContain('Case level: unavailable. Case-level summary withheld: 1');
+    const html = await readFile(path.join(fixture.directory, 'altered', 'executive.html'), 'utf8');
+    expect(html).toContain('<strong>Unavailable.</strong> Case-level summary withheld');
+
+    // Old results saved without an evidence directory still report every view.
+    await rename(evidenceDir, `${evidenceDir}-elsewhere`);
+    const old = await invoke(fixture.directory, [
+      'report',
+      'run/result.json',
+      '--output-dir',
+      'old',
+    ]);
+    expect(old.code).toBe(0);
+    expect(old.stdout).toContain('Case level: unavailable');
+    expect(await readdir(path.join(fixture.directory, 'old'))).toHaveLength(6);
+
+    const explicit = await invoke(fixture.directory, [
+      'report',
+      'run/result.json',
+      '--output-dir',
+      'explicit',
+      '--evidence-dir',
+      'run/evidence-elsewhere',
+    ]);
+    expect(explicit.code).toBe(0);
+    expect(explicit.stdout).toContain('Case level: unavailable. Case-level summary withheld: 1');
   });
 
   test('selects views and formats', async () => {

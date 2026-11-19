@@ -4,6 +4,11 @@
  */
 
 import type { ExperimentRunResult, ExperimentSummary, ExperimentTarget } from '@artemiskit/core';
+import {
+  type ExperimentCaseCounts,
+  type ExperimentCaseLevelSummary,
+  formatCaseRate,
+} from '@artemiskit/reports';
 
 /** Exit codes for `akit experiment run`; SDK outcomes carry the same value. */
 export const EXPERIMENT_EXIT_CODES = {
@@ -58,7 +63,7 @@ export function describeConcurrency(result: ExperimentRunResult): string {
 /** Human-readable summary of a saved run. Makes no ranking or winner claim. */
 export function formatExperimentRunSummary(
   result: ExperimentRunResult,
-  options: { resultPath?: string } = {}
+  options: { resultPath?: string; caseLevel?: ExperimentCaseLevelSummary } = {}
 ): string {
   const { manifest, summaries, completion } = result;
   const lines = [
@@ -69,6 +74,7 @@ export function formatExperimentRunSummary(
     }`,
     `Matrix: ${summaries.overall.planned} planned coordinate(s) = ${manifest.tasks.length} task(s) × ${manifest.targets.length} target(s) × ${manifest.repetitions} repetition(s)`,
     `Concurrency: ${describeConcurrency(result)}`,
+    COORDINATE_LEVEL_LINE,
     'Targets (declared order; counts describe this run only):',
   ];
   const groups = new Map(summaries.targets.map((group) => [group.key, group.summary]));
@@ -82,6 +88,14 @@ export function formatExperimentRunSummary(
   }
   lines.push(
     `Overall: ${formatCounts(summaries.overall)}`,
+    ...(options.caseLevel
+      ? [
+          formatExperimentCaseSummary(
+            options.caseLevel,
+            manifest.targets.map((target) => target.id)
+          ),
+        ]
+      : []),
     `Stop reason: ${result.stop_reason ?? 'none'}`,
     `Completion: matrix ${completeness(completion.matrix_complete)}; execution ${completeness(
       completion.execution_complete
@@ -91,6 +105,45 @@ export function formatExperimentRunSummary(
   );
   if (options.resultPath) lines.push(`Result: ${options.resultPath}`);
   return lines.join('\n');
+}
+
+const COORDINATE_LEVEL_LINE =
+  'Coordinate level: counts below are task × target × repetition coordinates; a scenario coordinate passes only when all of its cases pass.';
+
+/**
+ * Plain-text case-level summary: individual scenario cases from verified per-attempt evidence,
+ * per target (in `targetOrder` when given) and overall, or why it is unavailable. No ranking.
+ */
+export function formatExperimentCaseSummary(
+  caseLevel: ExperimentCaseLevelSummary,
+  targetOrder: readonly string[] = []
+): string {
+  if (caseLevel.availability === 'unavailable')
+    return `Case level: unavailable. ${caseLevel.detail}`;
+  const position = (key: string) => {
+    const index = targetOrder.indexOf(key);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  };
+  const targets = [...caseLevel.targets].sort(
+    (left, right) => position(left.key) - position(right.key)
+  );
+  return [
+    `Case level: counts below are individual scenario cases from ${caseLevel.verifiedEvidenceFiles} SHA-256-verified evidence file(s) (terminal attempt per coordinate):`,
+    ...targets.map((group) => `  - ${group.key}: ${formatCaseCounts(group.counts)}`),
+    `Overall cases: ${formatCaseCounts(caseLevel.overall)}`,
+  ].join('\n');
+}
+
+function formatCaseCounts(counts: ExperimentCaseCounts): string {
+  const unknown = (value: number | null) => (value === null ? 'unavailable' : String(value));
+  return [
+    `passed ${counts.passed} and failed ${counts.failed} of ${counts.valid} valid case(s) (passed/valid ${formatCaseRate(counts)})`,
+    `invalid ${counts.invalid}`,
+    `planned ${unknown(counts.planned)}`,
+    `unmeasured ${unknown(counts.unmeasured)}`,
+    `coordinates without case evidence ${counts.coordinatesWithoutCaseEvidence}`,
+    `agent-workflow coordinates ${counts.coordinatesNotApplicable}`,
+  ].join('; ');
 }
 
 function formatCounts(summary: ExperimentSummary): string {

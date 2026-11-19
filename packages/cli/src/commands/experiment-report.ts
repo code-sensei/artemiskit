@@ -10,7 +10,9 @@ import {
   type ExperimentReportFormat,
   type ExperimentReportView,
   ExperimentSurfaceError,
+  formatExperimentCaseSummary,
   reportExperimentResult,
+  summarizeExperimentCases,
 } from '@artemiskit/sdk';
 import { Command } from 'commander';
 
@@ -18,6 +20,7 @@ interface ExperimentReportCommandOptions {
   view?: string[];
   format?: string[];
   outputDir?: string;
+  evidenceDir?: string;
 }
 
 const collect = (value: string, previous: string[] = []) => [...previous, value];
@@ -47,6 +50,10 @@ export function experimentReportCommand(): Command {
       '--output-dir <directory>',
       'New or empty report directory (default: reports/ beside the result)'
     )
+    .option(
+      '--evidence-dir <directory>',
+      'Saved per-attempt evidence for the case-level summary (default: evidence/ beside the result)'
+    )
     .action(async (result: string, options: ExperimentReportCommandOptions) => {
       try {
         const reports = await reportExperimentResult({
@@ -54,9 +61,16 @@ export function experimentReportCommand(): Command {
           views: options.view as ExperimentReportView[] | undefined,
           formats: options.format as ExperimentReportFormat[] | undefined,
           outputDir: options.outputDir ?? defaultExperimentReportDir(result),
+          evidenceDir: options.evidenceDir,
         });
         for (const report of reports)
           console.log(`${report.view} ${report.format}: ${report.path}`);
+        // The reports carry the same case-level summary; print it so the terminal shows both levels.
+        const caseLevel = await summarizeExperimentCases({
+          result,
+          evidenceDir: options.evidenceDir,
+        });
+        console.log(formatExperimentCaseSummary(caseLevel));
         // Report generation succeeds independently of the measured outcomes.
         process.exitCode = 0;
       } catch (error) {

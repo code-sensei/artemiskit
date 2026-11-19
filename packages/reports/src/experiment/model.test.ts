@@ -66,6 +66,7 @@ describe('canonical experiment report model', () => {
       'targets',
       'controls',
       'summaries',
+      'case-level',
       'budgets',
       'exclusions',
     ]);

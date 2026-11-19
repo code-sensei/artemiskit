@@ -21,6 +21,13 @@ import {
   parseExperimentManifest,
   targetCostApplies,
 } from '@artemiskit/core';
+import {
+  type ExperimentCaseCounts,
+  type ExperimentCaseEvidenceFiles,
+  type ExperimentCaseLevelSummary,
+  formatCaseRate,
+  summarizeValidatedCaseLevel,
+} from './case-level';
 import type {
   ExperimentReport,
   ExperimentReportEvidence,
@@ -1084,11 +1091,62 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
   return input as unknown as ExperimentRunResult;
 }
 
-/** Validate one saved V1 result and project only deterministic presentation facts. */
-export function createExperimentReport(input: unknown): ExperimentReport {
+export interface CreateExperimentReportOptions {
+  /**
+   * Saved per-attempt evidence bytes keyed by recorded SHA-256 digest (see
+   * `listExperimentCaseEvidenceDigests`). Omit when no evidence was saved; the case-level
+   * summary is then marked unavailable and coordinate-level facts are unchanged.
+   */
+  caseEvidence?: ExperimentCaseEvidenceFiles;
+}
+
+function caseEvidenceOption(
+  options: CreateExperimentReportOptions
+): ExperimentCaseEvidenceFiles | undefined {
+  if (!options || typeof options !== 'object' || types.isProxy(options)) throw invalid();
+  const files = options.caseEvidence;
+  if (files === undefined) return undefined;
+  if (!types.isMap(files) || types.isProxy(files)) throw invalid();
+  return files;
+}
+
+/**
+ * Validate a saved V1 result and summarize its individual scenario cases from the supplied
+ * evidence bytes. Throws only when the result itself is invalid.
+ */
+export function createExperimentCaseSummary(
+  input: unknown,
+  options: CreateExperimentReportOptions = {}
+): ExperimentCaseLevelSummary {
   try {
+    const files = caseEvidenceOption(options);
+    return summarizeValidatedCaseLevel(validateResult(inputObject(input)), files);
+  } catch {
+    throw invalid();
+  }
+}
+
+const caseCells = (counts: ExperimentCaseCounts) => [
+  counts.planned === null ? 'unavailable' : String(counts.planned),
+  String(counts.recorded),
+  String(counts.valid),
+  String(counts.passed),
+  String(counts.failed),
+  String(counts.invalid),
+  counts.unmeasured === null ? 'unavailable' : String(counts.unmeasured),
+  formatCaseRate(counts),
+];
+
+/** Validate one saved V1 result and project only deterministic presentation facts. */
+export function createExperimentReport(
+  input: unknown,
+  options: CreateExperimentReportOptions = {}
+): ExperimentReport {
+  try {
+    const files = caseEvidenceOption(options);
     const source = inputObject(input);
     const run = validateResult(source);
+    const caseLevel = summarizeValidatedCaseLevel(run, files);
     const operational = run.summaries.operational;
     const report: ExperimentReport = {
       schemaVersion: '1',
@@ -1107,6 +1165,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
             ]
           : []),
         'Valid outcome rate is passed / (passed + task failed + policy failed). Invalid, unsupported, excluded, incomplete, and infrastructure-failed coordinates are outside that denominator.',
+        "Two levels are reported. Coordinate level counts task × target × repetition coordinates; a scenario coordinate passes only when every one of its cases passes. Case level counts the individual scenario cases recorded in each coordinate's terminal attempt evidence (earlier retry attempts never count), read only after the saved file's SHA-256 matches the identity recorded in the result. A case is valid when it passed or failed its criteria; invalid measurements and execution errors are invalid, and every case of an attempt invalidated as a whole (for example a truncated response or an exhausted budget) counts as invalid. Planned cases are each scenario coordinate × the case count recorded for its task. Agent-workflow evidence holds no scenario cases. Missing, altered, unreadable or contradictory evidence withholds the whole case-level summary.",
         `Uncertainty method is ${run.uncertainty.method}; sample size is ${run.uncertainty.sample_size}; task clustering is ${run.uncertainty.task_clustering}.`,
         ...run.uncertainty.assumptions,
       ],
@@ -1125,6 +1184,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         validOutcomeRate: operational.valid === 0 ? null : operational.passed / operational.valid,
         completion: { ...run.completion },
       },
+      caseLevel,
       findings: [],
       sections: [],
       evidence: [],
@@ -1387,6 +1447,51 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         )
       );
 
+    const cases = section(
+      'case-level',
+      'Case-level aggregation',
+      caseLevel.availability === 'available'
+        ? 'Counts are individual scenario cases from verified terminal attempt evidence, grouped like the coordinate-level aggregation above. They are descriptive for this selected evidence, not a ranking or confidence estimate.'
+        : caseLevel.detail,
+      [
+        'Dimension',
+        'Key',
+        'Planned cases',
+        'Recorded cases',
+        'Valid cases',
+        'Passed cases',
+        'Failed cases',
+        'Invalid cases',
+        'Unmeasured cases',
+        'Passed / valid cases',
+      ]
+    );
+    if (caseLevel.availability === 'available') {
+      row(
+        cases,
+        '',
+        run,
+        ['overall', 'all coordinates', ...caseCells(caseLevel.overall)],
+        'Validated saved V1 experiment result'
+      );
+      const caseGroups: [string, string, ExperimentSummaryGroup[], typeof caseLevel.targets][] = [
+        ['target', 'targets', run.summaries.targets, caseLevel.targets],
+        ['task', 'tasks', run.summaries.tasks, caseLevel.tasks],
+        ['language', 'languages', run.summaries.languages, caseLevel.languages],
+        ['policy', 'policies', run.summaries.policies, caseLevel.policies],
+      ];
+      for (const [dimension, path, coordinateGroups, values] of caseGroups)
+        values.forEach((group, index) =>
+          row(
+            cases,
+            `/summaries/${path}/${index}`,
+            coordinateGroups[index],
+            [dimension, group.key, ...caseCells(group.counts)],
+            `Validated ${dimension} summary`
+          )
+        );
+    }
+
     const budgets = section(
       'budgets',
       'Budget and stop evidence',
@@ -1477,6 +1582,16 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         'Experiment stopped under a declared control',
         `Stop reason: ${run.stop_reason}; ${run.runtime_exclusions.length} coordinates carry runtime exclusions.`,
         'Review observed use, live request reservations, and the declared stop conditions before rerunning.',
+        [rootRef]
+      );
+    if (caseLevel.availability === 'unavailable')
+      finding(
+        'limitation',
+        'Case-level summary unavailable',
+        caseLevel.detail,
+        caseLevel.reason === 'evidence_not_provided'
+          ? 'Generate the report from a result directory that keeps its evidence/ folder to add case-level counts.'
+          : 'Restore the saved evidence files named in the result, or rerun the experiment, before citing case-level counts.',
         [rootRef]
       );
     const targetRates = run.summaries.targets.map((group) =>

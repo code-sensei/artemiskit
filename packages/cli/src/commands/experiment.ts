@@ -181,7 +181,12 @@ function reportRunOutcome(
     if (check.status === 'warning') console.warn(`Warning: ${check.message}`);
   }
   if (outcome.result) {
-    console.log(formatExperimentRunSummary(outcome.result, { resultPath: outcome.resultPath }));
+    console.log(
+      formatExperimentRunSummary(outcome.result, {
+        resultPath: outcome.resultPath,
+        caseLevel: outcome.caseLevel,
+      })
+    );
     console.log(`Evidence: ${outcome.evidence.length} run manifest(s) in ${outcome.outputDir}`);
   }
 }

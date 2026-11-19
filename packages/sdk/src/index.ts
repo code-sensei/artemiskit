@@ -520,9 +520,11 @@ export {
   describeConcurrency,
   describeTargetDeployment,
   experimentRunStatus,
+  formatExperimentCaseSummary,
   formatExperimentRunSummary,
   reportExperimentResult,
   runExperimentFile,
+  summarizeExperimentCases,
   validateExperimentFile,
 } from './experiment';
 export type {
@@ -538,7 +540,16 @@ export type {
   ExperimentValidation,
   ReportExperimentResultOptions,
   RunExperimentFileOptions,
+  SummarizeExperimentCasesOptions,
 } from './experiment';
+export type {
+  ExperimentCaseCounts,
+  ExperimentCaseGroup,
+  ExperimentCaseLevelAvailable,
+  ExperimentCaseLevelSummary,
+  ExperimentCaseLevelUnavailable,
+  ExperimentCaseUnavailableReason,
+} from '@artemiskit/reports';
 export type {
   ExperimentLiveAuthorization,
   ExperimentManifest,

@@ -1,3 +1,4 @@
+import { type ExperimentCaseCounts, formatCaseRate } from './case-level';
 import type { ExperimentReport, ExperimentReportOptions, ExperimentReportView } from './types';
 
 const VIEWS: readonly ExperimentReportView[] = ['technical', 'executive', 'comprehensive'];
@@ -105,9 +106,86 @@ function metrics(report: ExperimentReport): [string, string][] {
   ];
 }
 
+const COORDINATE_LEVEL_NOTE =
+  'Coordinate level: every number in this summary counts task × target × repetition coordinates. A scenario coordinate passes only when every one of its cases passes.';
+const CASE_LEVEL_NOTE =
+  "Case level: every number below counts individual scenario cases recorded in each coordinate's terminal attempt evidence, read only after the saved file's SHA-256 matched the identity recorded in the result. Case and coordinate counts measure different units and are shown side by side; neither ranks targets.";
+const CASE_COLUMNS = [
+  'Target',
+  'Planned cases',
+  'Valid cases',
+  'Passed cases',
+  'Failed cases',
+  'Invalid cases',
+  'Unmeasured cases',
+  'Passed / valid cases',
+];
+
+const unknown = (value: number | null) => (value === null ? 'Unavailable' : String(value));
+
+function caseMetrics(counts: ExperimentCaseCounts, files: number): [string, string][] {
+  return [
+    ['Planned cases', unknown(counts.planned)],
+    ['Recorded cases', String(counts.recorded)],
+    ['Valid cases (passed + failed)', String(counts.valid)],
+    ['Passed cases', String(counts.passed)],
+    ['Failed cases', String(counts.failed)],
+    ['Invalid cases (incl. execution errors)', String(counts.invalid)],
+    ['Unmeasured cases', unknown(counts.unmeasured)],
+    ['Case pass rate (passed / valid cases)', formatCaseRate(counts)],
+    ['Coordinates with verified case evidence', String(counts.coordinatesWithCaseEvidence)],
+    ['Coordinates without case evidence', String(counts.coordinatesWithoutCaseEvidence)],
+    ['Agent-workflow coordinates (no scenario cases)', String(counts.coordinatesNotApplicable)],
+    ['Verified evidence files', String(files)],
+  ];
+}
+
+function caseTargetRows(report: ExperimentReport): string[][] {
+  if (report.caseLevel.availability !== 'available') return [];
+  return report.caseLevel.targets.map(({ key, counts }) => [
+    key,
+    unknown(counts.planned),
+    String(counts.valid),
+    String(counts.passed),
+    String(counts.failed),
+    String(counts.invalid),
+    unknown(counts.unmeasured),
+    formatCaseRate(counts),
+  ]);
+}
+
 const CSS = `
 :root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#162235;background:#f3f5f7;line-height:1.55}*{box-sizing:border-box}body{margin:0}.page{max-width:1200px;margin:auto;padding:3rem 2rem}a{color:#174f8e;text-decoration:underline;text-underline-offset:.16em;overflow-wrap:anywhere}:focus-visible{outline:3px solid #174f8e;outline-offset:3px}.skip{position:absolute;top:-10rem;left:1rem;background:#fff;padding:.75rem;z-index:2}.skip:focus{top:1rem}header{border-top:5px solid #174f8e;margin-bottom:2rem;padding-top:1.5rem}h1{font-size:clamp(1.8rem,4vw,3rem);line-height:1.15;margin:.4rem 0}h2{font-size:1.4rem;margin:0 0 1rem}h3{font-size:1.05rem;margin:0 0 .5rem}h1,h2,h3,p,li,dt,dd,th,td{overflow-wrap:anywhere}.eyebrow{color:#42556b;font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.meta,.muted{color:#42556b}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.84em}nav{display:flex;flex-wrap:wrap;gap:.6rem 1rem;margin-top:1rem}section{margin:2rem 0;scroll-margin-top:1rem}.panel{background:#fff;border:1px solid #cbd5df;border-radius:.5rem;padding:1.4rem}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:#cbd5df;border:1px solid #cbd5df;border-radius:.5rem;overflow:hidden}.metric{background:#fff;padding:1rem}.metric dt{color:#42556b;font-size:.78rem;font-weight:600}.metric dd{font-size:1.35rem;font-weight:700;margin:.2rem 0 0}.findings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.finding{background:#fff;border:1px solid #cbd5df;border-left:4px solid #64748b;border-radius:.4rem;padding:1.2rem}.finding.risk{border-left-color:#9f2626}.finding.strength{border-left-color:#21633b}.finding.limitation{border-left-color:#845100}.badge{display:inline-block;background:#edf1f5;border-radius:.25rem;font-size:.75rem;font-weight:700;padding:.15rem .5rem}.table-scroll{background:#fff;border:1px solid #cbd5df;border-radius:.4rem;overflow-x:auto}table{border-collapse:collapse;min-width:700px;table-layout:fixed;width:100%}caption{text-align:left;padding:1rem;font-weight:700}th,td{border-top:1px solid #dce3ea;padding:.75rem;text-align:left;vertical-align:top}th{background:#edf1f5;font-size:.8rem}.evidence-list{list-style:none;margin:0;padding:0}.evidence-list li{border-top:1px solid #dce3ea;padding:1rem 0;scroll-margin-top:1rem}.evidence-list dl{display:grid;grid-template-columns:7rem minmax(0,1fr);gap:.3rem .7rem}.evidence-list dd{margin:0}.empty{color:#42556b}footer{border-top:1px solid #cbd5df;color:#42556b;font-size:.85rem;margin-top:2rem;padding-top:1rem}@media(max-width:700px){.page{padding:1.5rem 1rem}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.findings{grid-template-columns:1fr}.panel{padding:1rem}.evidence-list dl{grid-template-columns:1fr}}@media print{body,:root{background:#fff;color:#000}.page{max-width:none;padding:0}nav,.skip{display:none}.panel,.finding{border-color:#999}h2,h3{break-after:avoid}.metric,.finding{break-inside:avoid}.table-scroll{overflow:visible}table{font-size:8pt;min-width:0}thead{display:table-header-group}a{color:#000}}
 `;
+
+function htmlCaseLevel(report: ExperimentReport) {
+  const caseLevel = report.caseLevel;
+  if (caseLevel.availability === 'unavailable')
+    return `<section id="case-level"><h2>Case-level summary</h2><p class="panel"><strong>Unavailable.</strong> ${escapeHTML(caseLevel.detail)}</p></section>`;
+  const metricList = caseMetrics(caseLevel.overall, caseLevel.verifiedEvidenceFiles)
+    .map(
+      ([label, value]) =>
+        `<div class="metric"><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`
+    )
+    .join('');
+  const rows = caseTargetRows(report)
+    .map((cells) => `<tr>${cells.map((cell) => `<td>${escapeHTML(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<section id="case-level"><h2>Case-level summary</h2><p>${escapeHTML(CASE_LEVEL_NOTE)}</p><dl class="metrics">${metricList}</dl><div class="table-scroll" role="region" aria-label="Case level by target table" tabindex="0"><table><caption>Case level by target (declared order)</caption><thead><tr>${CASE_COLUMNS.map((column) => `<th scope="col">${escapeHTML(column)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+function mdCaseLevel(report: ExperimentReport) {
+  const caseLevel = report.caseLevel;
+  if (caseLevel.availability === 'unavailable')
+    return `## Case-level summary\n\n**Unavailable.** ${escapeMarkdown(caseLevel.detail)}\n\n`;
+  const metricRows = caseMetrics(caseLevel.overall, caseLevel.verifiedEvidenceFiles)
+    .map(([label, value]) => `| ${escapeMarkdown(label)} | ${escapeMarkdown(value)} |`)
+    .join('\n');
+  const targetRows = caseTargetRows(report)
+    .map((cells) => `| ${cells.map(escapeMarkdown).join(' | ')} |`)
+    .join('\n');
+  return `## Case-level summary\n\n${escapeMarkdown(CASE_LEVEL_NOTE)}\n\n| Measure | Value |\n| --- | --- |\n${metricRows}\n\n### Case level by target (declared order)\n\n| ${CASE_COLUMNS.map(escapeMarkdown).join(' | ')} |\n| ${CASE_COLUMNS.map(() => '---').join(' | ')} |\n${targetRows}\n\n`;
+}
 
 function labels(report: ExperimentReport) {
   return new Map(report.evidence.map((item, index) => [item.id, `Evidence ${index + 1}`]));
@@ -144,7 +222,7 @@ export function renderExperimentReportHTML(
 ): string {
   const view = checkedView(report, options);
   const names = labels(report);
-  const summary = `<section id="summary"><h2>Experiment summary</h2><dl class="metrics">${metrics(
+  const summary = `<section id="summary"><h2>Experiment summary</h2><p>${escapeHTML(COORDINATE_LEVEL_NOTE)}</p><dl class="metrics">${metrics(
     report
   )
     .map(
@@ -153,7 +231,9 @@ export function renderExperimentReportHTML(
     )
     .join(
       ''
-    )}</dl><p>The valid outcome rate is passed / valid, where valid is passed + task failed + policy failed. Every other status is excluded from that denominator.</p></section>`;
+    )}</dl><p>The valid outcome rate is passed / valid, where valid is passed + task failed + policy failed. Every other status is excluded from that denominator.</p></section>${htmlCaseLevel(
+    report
+  )}`;
   const context =
     htmlList('Scope and exclusions', 'scope', report.scope) +
     htmlList('Methodology', 'methodology', report.methodology);
@@ -163,7 +243,7 @@ export function renderExperimentReportHTML(
     view === 'technical'
       ? context + summary + technical + findings
       : summary + findings + context + technical;
-  return `<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHTML(report.title)} — ArtemisKit</title><style>${CSS}</style></head><body><a class="skip" href="#main">Skip to report</a><main id="main" class="page"><header><p class="eyebrow">ArtemisKit / comparative experiment</p><h1>${escapeHTML(report.title)}</h1><p class="meta">${view} view · Report schema ${report.schemaVersion}</p><p class="meta mono">Report ID: ${escapeHTML(report.reportId)}</p><nav aria-label="Report sections"><a href="#summary">Summary</a><a href="#findings">Findings</a><a href="#scope">Scope</a><a href="#methodology">Methodology</a>${view === 'executive' ? '' : '<a href="#technical">Technical detail</a>'}<a href="#limitations">Limitations</a><a href="#evidence">Evidence index</a></nav></header>${body}${htmlList('Limitations and uncertainty', 'limitations', report.limitations)}${htmlEvidence(report)}<footer>Generated from one validated saved experiment result. No new execution, ranking, certification, deployment decision, or pricing claim is implied.</footer></main></body></html>\n`;
+  return `<!DOCTYPE html>\n<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>${escapeHTML(report.title)} — ArtemisKit</title><style>${CSS}</style></head><body><a class="skip" href="#main">Skip to report</a><main id="main" class="page"><header><p class="eyebrow">ArtemisKit / comparative experiment</p><h1>${escapeHTML(report.title)}</h1><p class="meta">${view} view · Report schema ${report.schemaVersion}</p><p class="meta mono">Report ID: ${escapeHTML(report.reportId)}</p><nav aria-label="Report sections"><a href="#summary">Summary</a><a href="#case-level">Case-level summary</a><a href="#findings">Findings</a><a href="#scope">Scope</a><a href="#methodology">Methodology</a>${view === 'executive' ? '' : '<a href="#technical">Technical detail</a>'}<a href="#limitations">Limitations</a><a href="#evidence">Evidence index</a></nav></header>${body}${htmlList('Limitations and uncertainty', 'limitations', report.limitations)}${htmlEvidence(report)}<footer>Generated from one validated saved experiment result. No new execution, ranking, certification, deployment decision, or pricing claim is implied.</footer></main></body></html>\n`;
 }
 
 function mdRefs(ids: string[], names: ReadonlyMap<string, string>) {
@@ -191,11 +271,13 @@ export function renderExperimentReportMarkdown(
 ): string {
   const view = checkedView(report, options);
   const names = labels(report);
-  const summary = `## Experiment summary\n\n| Measure | Value |\n| --- | --- |\n${metrics(report)
+  const summary = `## Experiment summary\n\n${escapeMarkdown(COORDINATE_LEVEL_NOTE)}\n\n| Measure | Value |\n| --- | --- |\n${metrics(
+    report
+  )
     .map(([label, value]) => `| ${escapeMarkdown(label)} | ${escapeMarkdown(value)} |`)
     .join(
       '\n'
-    )}\n\nThe valid outcome rate is passed / valid, where valid is passed + task failed + policy failed. Every other status is excluded from that denominator.\n\n`;
+    )}\n\nThe valid outcome rate is passed / valid, where valid is passed + task failed + policy failed. Every other status is excluded from that denominator.\n\n${mdCaseLevel(report)}`;
   const context =
     mdList('Scope and exclusions', report.scope) + mdList('Methodology', report.methodology);
   const findings = mdFindings(report, names);

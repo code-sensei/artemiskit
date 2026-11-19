@@ -10,7 +10,22 @@ export { generateJSONReport, type JSONReportOptions } from './json/generator';
 // Comparative experiment reports
 export { generateExperimentReport } from './experiment/generator';
 export type { GenerateExperimentReportOptions } from './experiment/generator';
-export { createExperimentReport } from './experiment/model';
+export { createExperimentCaseSummary, createExperimentReport } from './experiment/model';
+export type { CreateExperimentReportOptions } from './experiment/model';
+export {
+  MAX_CASE_EVIDENCE_BYTES,
+  formatCaseRate,
+  listExperimentCaseEvidenceDigests,
+} from './experiment/case-level';
+export type {
+  ExperimentCaseCounts,
+  ExperimentCaseEvidenceFiles,
+  ExperimentCaseGroup,
+  ExperimentCaseLevelAvailable,
+  ExperimentCaseLevelSummary,
+  ExperimentCaseLevelUnavailable,
+  ExperimentCaseUnavailableReason,
+} from './experiment/case-level';
 export {
   renderExperimentReportHTML,
   renderExperimentReportMarkdown,

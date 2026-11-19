@@ -24,16 +24,24 @@ import {
   runExperiment,
 } from '@artemiskit/core';
 import {
+  type ExperimentCaseEvidenceFiles,
+  type ExperimentCaseLevelSummary,
   type ExperimentReportFormat,
   type ExperimentReportView,
-  generateExperimentReport,
+  createExperimentCaseSummary,
+  createExperimentReport,
+  listExperimentCaseEvidenceDigests,
+  renderExperimentReportHTML,
+  renderExperimentReportMarkdown,
 } from '@artemiskit/reports';
 import {
+  EXPERIMENT_EVIDENCE_DIR,
   ExperimentSurfaceError,
   MAX_EXPERIMENT_RESULT_BYTES,
   defaultExperimentOutputDir,
   prepareEmptyDirectory,
   readBoundedText,
+  readExperimentCaseEvidence,
   saveAttemptEvidence,
   saveExperimentResult,
   writeNewFile,
@@ -57,6 +65,7 @@ export {
   describeConcurrency,
   describeTargetDeployment,
   experimentRunStatus,
+  formatExperimentCaseSummary,
   formatExperimentRunSummary,
 } from './experiment-summary';
 export type { ExperimentExitCode, ExperimentRunStatus } from './experiment-summary';
@@ -205,6 +214,11 @@ export interface ExperimentFileRunOutcome {
   outputDir?: string;
   resultPath?: string;
   evidence: ExperimentEvidenceFile[];
+  /**
+   * Present once the run executed: individual scenario cases from the saved, SHA-256-verified
+   * evidence, or why they are unavailable. Coordinate-level counts stay in `result.summaries`.
+   */
+  caseLevel?: ExperimentCaseLevelSummary;
   /** Explanation for refusals (`invalid`, `unauthorized`). */
   message?: string;
 }
@@ -306,7 +320,54 @@ export async function runExperimentFile(
     outputDir,
     resultPath,
     evidence,
+    caseLevel: await savedRunCaseLevel(result, outputDir),
   };
+}
+
+/**
+ * Case-level summary read back from the files just saved, so a run reports exactly what a
+ * later `report` of the same directory would. A result the report validator rejects (never
+ * expected from the runner) yields an unavailable summary rather than failing the saved run.
+ */
+async function savedRunCaseLevel(
+  result: ExperimentRunResult,
+  outputDir: string
+): Promise<ExperimentCaseLevelSummary> {
+  const caseEvidence = await loadCaseEvidence(
+    result,
+    path.join(outputDir, EXPERIMENT_EVIDENCE_DIR)
+  );
+  try {
+    return createExperimentCaseSummary(result, { caseEvidence });
+  } catch {
+    return {
+      availability: 'unavailable',
+      reason: 'result_invalid',
+      detail:
+        'Case-level summary unavailable: the saved result did not pass report validation. Coordinate-level counts are unaffected.',
+      affectedEvidence: [],
+      affectedEvidenceCount: 0,
+    };
+  }
+}
+
+/** Evidence bytes for the attempts a case-level summary reads; `undefined` without a directory. */
+async function loadCaseEvidence(
+  input: unknown,
+  evidenceDir: string | undefined
+): Promise<ExperimentCaseEvidenceFiles | undefined> {
+  if (evidenceDir === undefined) return undefined;
+  return readExperimentCaseEvidence(evidenceDir, listExperimentCaseEvidenceDigests(input));
+}
+
+/** Explicit evidence directory, else `evidence/` beside a result file; none for a parsed result. */
+function caseEvidenceDir(
+  result: string | ExperimentRunResult,
+  evidenceDir: string | undefined
+): string | undefined {
+  if (evidenceDir !== undefined) return path.resolve(evidenceDir);
+  if (typeof result !== 'string') return undefined;
+  return path.join(path.dirname(path.resolve(result)), EXPERIMENT_EVIDENCE_DIR);
 }
 
 /** One attempt executor that hands each task, and its demand request, to its kind's executor. */
@@ -422,6 +483,11 @@ export interface ReportExperimentResultOptions {
   formats?: ExperimentReportFormat[];
   /** New or empty directory to write `<view>.<html|md>` files into; omit to only return content. */
   outputDir?: string;
+  /**
+   * Directory of saved per-attempt evidence for the case-level summary. Defaults to `evidence/`
+   * beside a result file; a parsed result without this option reports case level unavailable.
+   */
+  evidenceDir?: string;
 }
 
 export interface ExperimentReportFile {
@@ -451,14 +517,22 @@ export async function reportExperimentResult(
   const formats = uniqueChoices(options.formats, EXPERIMENT_REPORT_FORMATS);
   const input =
     typeof options.result === 'string' ? await readResult(options.result) : options.result;
+  const caseEvidence = await loadCaseEvidence(
+    input,
+    caseEvidenceDir(options.result, options.evidenceDir)
+  );
 
   let reports: ExperimentReportFile[];
   try {
+    const report = createExperimentReport(input, { caseEvidence });
     reports = views.flatMap((view) =>
       formats.map((format) => ({
         view,
         format,
-        content: generateExperimentReport(input, { format, view }),
+        content:
+          format === 'html'
+            ? renderExperimentReportHTML(report, { view })
+            : renderExperimentReportMarkdown(report, { view }),
       }))
     );
   } catch {
@@ -486,6 +560,39 @@ export async function reportExperimentResult(
     }
   }
   return reports;
+}
+
+export interface SummarizeExperimentCasesOptions {
+  /** Path to a saved `result.json`, or the parsed V1 result. */
+  result: string | ExperimentRunResult;
+  /** Saved per-attempt evidence directory; defaults to `evidence/` beside a result file. */
+  evidenceDir?: string;
+}
+
+/**
+ * Case-level summary of a saved result, offline: individual scenario cases from each
+ * coordinate's terminal attempt evidence, verified against the recorded SHA-256. Missing or
+ * altered evidence yields an `unavailable` summary with its reason; an invalid result throws
+ * `ExperimentSurfaceError` (exit code 1 unreadable, 2 invalid).
+ */
+export async function summarizeExperimentCases(
+  options: SummarizeExperimentCasesOptions
+): Promise<ExperimentCaseLevelSummary> {
+  const input =
+    typeof options.result === 'string' ? await readResult(options.result) : options.result;
+  const caseEvidence = await loadCaseEvidence(
+    input,
+    caseEvidenceDir(options.result, options.evidenceDir)
+  );
+  try {
+    return createExperimentCaseSummary(input, { caseEvidence });
+  } catch {
+    throw new ExperimentSurfaceError(
+      'result_invalid',
+      'Invalid, unsupported or ambiguous saved experiment result; no case-level summary',
+      EXPERIMENT_EXIT_CODES.invalid
+    );
+  }
 }
 
 async function readResult(file: string): Promise<unknown> {

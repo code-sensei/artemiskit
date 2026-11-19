@@ -1,0 +1,75 @@
+# Draft, unreviewed experiment for the soc-alert-triage pack. See README.md before using results;
+# they are not claims until a qualified SOC reviewer signs off.
+#
+# Targets are open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint. This is not native Ollama support. Local deployments have no metered
+# cost, so no cost is reported.
+#
+# Generated file: experiment.yaml is written from this template by
+#   bun packs/_tools/generate-experiment.ts packs/soc-alert-triage --language en --policy soc-rulebook-v1
+# Task source paths are relative to this directory (packs/soc-alert-triage/).
+# Identities (recomputed by pack.test.ts):
+#   task digest     = SHA-256 of the exact task file bytes
+#   workload digest = SHA-256 of JSON.stringify([[path, digest], ...]) sorted by path
+#   rubric digest   = SHA-256 of RUBRIC.md
+# Task `policy` names the synthetic rulebook the task is scored against (SYN-SOC v1.0).
+schema_version: '1'
+id: soc-alert-triage-draft
+mode: fixture
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: __WORKLOAD__
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: __RUBRIC__
+tasks:
+__TASKS__
+targets:
+  - id: qwen3.5-4b-local
+    provider: openai
+    model: qwen3.5:4b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-local
+    provider: openai
+    model: qwen3.5:9b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 15 cases x 2 targets x 3 repetitions = 90 requests; at most 180 with one retry each.
+# max_tokens allows 6,000 tokens per request, including reasoning output.
+budgets:
+  max_requests: 180
+  max_tokens: 1080000

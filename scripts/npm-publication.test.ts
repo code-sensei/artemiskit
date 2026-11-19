@@ -1,13 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -311,11 +304,13 @@ describe('registry transport without live credentials or writes', () => {
 });
 
 // Two shell paths share one test deadline; each child also has its own bounded timeout.
+// The npm, git and bun stand-ins are shell functions sourced through BASH_ENV, not fresh
+// executables: macOS assesses every newly written executable on its first run (about half a
+// second each when idle, several seconds under full-suite load), which pushed the child past
+// its timeout. Sourcing a file avoids that assessment entirely.
 test('shell entrypoint cleans temporary auth on success/failure and never rewrites source manifests', () => {
   for (const exit of [0, 17]) {
     const directory = mkdtempSync(join(tmpdir(), 'artemis-publish-shell-test-'));
-    const bin = join(directory, 'bin');
-    mkdirSync(bin);
     mkdirSync(join(directory, '.changeset'));
     writeFileSync(
       join(directory, 'publish.sh'),
@@ -325,21 +320,23 @@ test('shell entrypoint cleans temporary auth on success/failure and never rewrit
       dependencies: { '@artemiskit/core': 'workspace:*', '@artemiskit/sdk': '0.4.0' },
     });
     writeFileSync(join(directory, 'package.json'), original);
-    const programs = {
-      npm: '#!/bin/sh\nprintf "%s" "$NPM_CONFIG_USERCONFIG" > "$MOCK_DIRECTORY/npmrc-path"\nprintf "fixture-user\\n"\n',
-      git: '#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOCK_DIRECTORY/git-calls"\nif [ "$1" = branch ]; then printf "main\\n"; fi\n',
-      bun: `#!/bin/sh\nif [ "$1" = scripts/npm-publication.mjs ]; then exit ${exit}; fi\nexit 0\n`,
-    };
-    for (const [name, source] of Object.entries(programs)) {
-      writeFileSync(join(bin, name), source);
-      chmodSync(join(bin, name), 0o755);
-    }
+    const stubs = join(directory, 'stubs.sh');
+    writeFileSync(
+      stubs,
+      [
+        'npm() { printf "%s" "$NPM_CONFIG_USERCONFIG" > "$MOCK_DIRECTORY/npmrc-path"; printf "fixture-user\\n"; }',
+        'git() { printf "%s\\n" "$*" >> "$MOCK_DIRECTORY/git-calls"; if [ "$1" = branch ]; then printf "main\\n"; fi; }',
+        `bun() { if [ "$1" = scripts/npm-publication.mjs ]; then return ${exit}; fi; return 0; }`,
+        '',
+      ].join('\n')
+    );
     const result = spawnSync('/bin/bash', ['publish.sh', '--dry-run'], {
       cwd: directory,
       encoding: 'utf8',
       timeout: 5000,
       env: {
-        PATH: `${bin}:/usr/bin:/bin`,
+        PATH: '/usr/bin:/bin',
+        BASH_ENV: stubs,
         NPM_API_KEY: 'dummy-test-only',
         MOCK_DIRECTORY: directory,
         TMPDIR: directory,
@@ -350,7 +347,10 @@ test('shell entrypoint cleans temporary auth on success/failure and never rewrit
     expect(existsSync(readFileSync(join(directory, 'npmrc-path'), 'utf8'))).toBe(false);
     expect(`${result.stdout}${result.stderr}`).not.toContain('dummy-test-only');
     expect(result.stdout).not.toContain('Packages published successfully');
-    expect(readFileSync(join(directory, 'git-calls'), 'utf8')).not.toContain('commit');
+    // The stand-ins, not system tools, answered every call.
+    const gitCalls = readFileSync(join(directory, 'git-calls'), 'utf8');
+    expect(gitCalls).toContain('branch --show-current');
+    expect(gitCalls).not.toContain('commit');
   }
 }, 15000);
 

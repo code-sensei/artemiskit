@@ -287,24 +287,32 @@ function enqueueCoordinates(state: RunState, matrix: ExperimentCoordinate[]): vo
 /**
  * Admit queued attempts while slots and uncommitted budget allow, then wait for any
  * in-flight attempt to settle. Returns once nothing is in flight and nothing more can start.
+ *
+ * Slots are counted from the budget ledger, which changes exactly at admission and settlement
+ * events, never from promise bookkeeping that can lag a settlement by a microtask; saved
+ * admission evidence then replays to the same slot counts and grant divisors.
  */
 async function executeQueue(state: RunState): Promise<void> {
   const running = new Set<Promise<void>>();
   const concurrency = state.manifest.concurrency;
+  const inFlight = state.budget.inFlight;
   for (;;) {
     while (
-      running.size < concurrency &&
+      inFlight.size < concurrency &&
       state.queue.length > 0 &&
       admissionBlock(state.manifest, state.budget) === undefined
     ) {
-      const divisor = Math.min(concurrency - running.size, state.queue.length);
+      const divisor = Math.min(concurrency - inFlight.size, state.queue.length);
       const run = state.queue.shift() as CoordinateRun;
       const attempt: Promise<void> = admitAttempt(state, run, divisor).then(() => {
         running.delete(attempt);
       });
       running.add(attempt);
     }
-    if (running.size === 0) return;
+    if (inFlight.size === 0) {
+      await Promise.all(running);
+      return;
+    }
     await Promise.race(running);
   }
 }

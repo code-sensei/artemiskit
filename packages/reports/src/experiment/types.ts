@@ -42,6 +42,8 @@ export interface ExperimentReportSection {
 }
 
 export interface ExperimentReportSummary extends ExperimentSummary {
+  /** Declared maximum of coordinates in flight; 1 is serial execution. */
+  concurrency: number;
   executorInvocations: number;
   reservedLiveRequests: number;
   attempts: number;

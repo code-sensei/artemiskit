@@ -4,8 +4,11 @@ import {
   type ExperimentAttemptEvidence,
   type ExperimentAttemptStatus,
   type ExperimentCompletionCode,
+  type ExperimentCoordinate,
   type ExperimentCoordinateResult,
+  type ExperimentCostLimit,
   type ExperimentManifest,
+  type ExperimentRemainingBudget,
   type ExperimentRunResult,
   type ExperimentStopReason,
   type ExperimentSummary,
@@ -13,6 +16,7 @@ import {
   type ExperimentTarget,
   type ExperimentTaskKind,
   buildExperimentMatrix,
+  experimentUncertaintyAssumptions,
   parseExperimentManifest,
   targetCostApplies,
 } from '@artemiskit/core';
@@ -226,13 +230,37 @@ const STOP_REASONS = [
   'budget_exceeded',
 ] as const;
 
-function validateAttempt(value: unknown) {
+function costValue(value: unknown): void {
+  const cost = object(value);
+  keys(cost, ['amount', 'currency']);
+  if (typeof cost.amount !== 'number' || !Number.isFinite(cost.amount) || cost.amount < 0)
+    throw invalid();
+  text(cost.currency, /^[A-Z]{3}$/);
+}
+
+/** Shape of saved admission evidence; its values are checked by the budget replay. */
+function validateAdmission(value: unknown): void {
+  const admission = object(value);
+  keys(admission, ['admitted_at', 'settled_at', 'granted_budget']);
+  integer(admission.admitted_at);
+  integer(admission.settled_at);
+  const granted = object(admission.granted_budget);
+  keys(granted, ['requests'], ['tokens', 'cost']);
+  integer(granted.requests);
+  if (granted.tokens !== undefined) integer(granted.tokens);
+  if (granted.cost !== undefined) costValue(granted.cost);
+}
+
+function validateAttempt(value: unknown, concurrent: boolean) {
   const attempt = object(value);
   keys(
     attempt,
     ['status', 'usage', 'evidence', 'attempt_id', 'retry_chain_id', 'attempt_number'],
-    ['error_code']
+    ['error_code', 'admission']
   );
+  // Concurrent results carry admission evidence on every attempt; serial results never do.
+  if (concurrent) validateAdmission(attempt.admission);
+  else if (attempt.admission !== undefined) throw invalid();
   oneOf(attempt.status, EXECUTED);
   text(attempt.attempt_id, DIGEST);
   text(attempt.retry_chain_id, DIGEST);
@@ -243,13 +271,7 @@ function validateAttempt(value: unknown) {
   keys(usage, ['requests'], ['tokens', 'cost']);
   if (integer(usage.requests) > 1_000_000) throw invalid();
   if (usage.tokens !== undefined && integer(usage.tokens) > 10_000_000_000) throw invalid();
-  if (usage.cost !== undefined) {
-    const cost = object(usage.cost);
-    keys(cost, ['amount', 'currency']);
-    if (typeof cost.amount !== 'number' || !Number.isFinite(cost.amount) || cost.amount < 0)
-      throw invalid();
-    text(cost.currency, /^[A-Z]{3}$/);
-  }
+  if (usage.cost !== undefined) costValue(usage.cost);
 
   const evidence = object(attempt.evidence);
   keys(evidence, ['kind', 'availability'], ['artifact']);
@@ -408,28 +430,272 @@ function targetById(manifest: ExperimentManifest, id: string): ExperimentTarget 
   return target;
 }
 
+/** An admission grant as replayed; `cost` is the amount in the manifest's cost currency. */
+interface ReplayedGrant {
+  requests: number;
+  tokens?: number;
+  cost?: number;
+}
+
 interface BudgetState {
   invocations: number;
   reserved: number;
   requests: number;
   tokens: number;
+  /** Consumed cost amount, summed in settlement order as the runner's ledger sums it. */
   cost: number;
-  currency?: string;
-  sawCost: boolean;
-  mixedCost: boolean;
   halt?: ExperimentStopReason;
+  /** Grants of in-flight attempts keyed by admission event, in admission order. */
+  inFlight: Map<number, ReplayedGrant>;
+}
+
+/** One executable coordinate moving through the replayed admission queue. */
+interface CoordinateReplay {
+  index: number;
+  coordinate: ExperimentCoordinate;
+  status: ExperimentAttemptStatus;
+  completionCode: ExperimentCompletionCode;
+  attempts: ExperimentAttemptEvidence[];
+  costApplies: boolean;
+  /** Index of the next attempt to settle. */
+  next: number;
+}
+
+interface ReplayEvent {
+  kind: 'admit' | 'settle';
+  replay: CoordinateReplay;
+  attemptIndex: number;
+}
+
+/**
+ * Mirrors core's admission ledger: declared limits minus consumed use and minus every
+ * in-flight grant, summed in admission order. Live requests take the larger of reported
+ * requests plus request grants and one reservation per invocation.
+ */
+function uncommitted(manifest: ExperimentManifest, state: BudgetState): ReplayedGrant {
+  let grantedRequests = 0;
+  let grantedTokens = 0;
+  let grantedCost = 0;
+  for (const grant of state.inFlight.values()) {
+    grantedRequests += grant.requests;
+    grantedTokens += grant.tokens ?? 0;
+    grantedCost += grant.cost ?? 0;
+  }
+  const committedRequests =
+    manifest.mode === 'live'
+      ? Math.max(state.requests + grantedRequests, state.reserved)
+      : state.requests + grantedRequests;
+  const { max_tokens: maxTokens, max_cost: maxCost } = manifest.budgets;
+  return {
+    requests: manifest.budgets.max_requests - committedRequests,
+    tokens: maxTokens === undefined ? undefined : maxTokens - state.tokens - grantedTokens,
+    cost: maxCost === undefined ? undefined : maxCost.amount - state.cost - grantedCost,
+  };
 }
 
 function budgetReason(manifest: ExperimentManifest, state: BudgetState) {
   if (state.halt) return state.halt;
-  const requests =
-    manifest.mode === 'live' ? Math.max(state.requests, state.reserved) : state.requests;
-  if (requests >= manifest.budgets.max_requests) return 'request_budget_exhausted' as const;
-  if (manifest.budgets.max_tokens !== undefined && state.tokens >= manifest.budgets.max_tokens)
+  const available = uncommitted(manifest, state);
+  if (available.requests < 1) return 'request_budget_exhausted' as const;
+  if (available.tokens !== undefined && available.tokens <= 0)
     return 'token_budget_exhausted' as const;
-  if (manifest.budgets.max_cost !== undefined && state.cost >= manifest.budgets.max_cost.amount)
-    return 'cost_budget_exhausted' as const;
+  if (available.cost !== undefined && available.cost <= 0) return 'cost_budget_exhausted' as const;
   return undefined;
+}
+
+/** Core's equal-share grant for one of `divisor` attempts that could start together. */
+function grantFor(
+  manifest: ExperimentManifest,
+  state: BudgetState,
+  divisor: number
+): ReplayedGrant {
+  const available = uncommitted(manifest, state);
+  return {
+    requests: Math.max(1, Math.floor(available.requests / divisor)),
+    tokens:
+      available.tokens === undefined
+        ? undefined
+        : Math.max(1, Math.floor(available.tokens / divisor)),
+    cost: available.cost === undefined ? undefined : available.cost / divisor,
+  };
+}
+
+function grantEvidence(
+  manifest: ExperimentManifest,
+  grant: ReplayedGrant
+): ExperimentRemainingBudget {
+  const maxCost = manifest.budgets.max_cost;
+  return {
+    requests: grant.requests,
+    ...(grant.tokens === undefined ? {} : { tokens: grant.tokens }),
+    ...(grant.cost === undefined || !maxCost
+      ? {}
+      : { cost: { amount: grant.cost, currency: maxCost.currency } }),
+  };
+}
+
+/**
+ * Order every attempt's admission and settlement. Serial results follow matrix order with
+ * retries inline. Concurrent results must place each attempt's two events exactly once in
+ * the run-wide sequence `0 .. 2 × attempts − 1`, admission before settlement.
+ */
+function replayEvents(manifest: ExperimentManifest, executable: CoordinateReplay[]): ReplayEvent[] {
+  if (manifest.concurrency === 1)
+    return executable.flatMap((replay) =>
+      replay.attempts.flatMap((_, attemptIndex) => [
+        { kind: 'admit' as const, replay, attemptIndex },
+        { kind: 'settle' as const, replay, attemptIndex },
+      ])
+    );
+  const total = 2 * executable.reduce((sum, replay) => sum + replay.attempts.length, 0);
+  const events: (ReplayEvent | undefined)[] = new Array(total).fill(undefined);
+  const place = (position: number, event: ReplayEvent) => {
+    if (position >= total || events[position] !== undefined) throw invalid();
+    events[position] = event;
+  };
+  for (const replay of executable)
+    replay.attempts.forEach((attempt, attemptIndex) => {
+      const admission = attempt.admission;
+      if (!admission || admission.admitted_at >= admission.settled_at) throw invalid();
+      place(admission.admitted_at, { kind: 'admit', replay, attemptIndex });
+      place(admission.settled_at, { kind: 'settle', replay, attemptIndex });
+    });
+  return events as ReplayEvent[];
+}
+
+function consume(state: BudgetState, attempt: ExperimentAttemptEvidence): void {
+  state.requests += attempt.usage.requests;
+  state.tokens += attempt.usage.tokens ?? 0;
+  state.cost += attempt.usage.cost?.amount ?? 0;
+}
+
+/**
+ * Reported cost total in matrix order, as core's operational summary computes it. It can
+ * differ in the last floating-point digits from the settlement-order budget ledger.
+ */
+function reportedCost(results: ExperimentCoordinateResult[]): ExperimentCostLimit | undefined {
+  let currency: string | undefined;
+  let amount = 0;
+  let mixed = false;
+  for (const attempt of results.flatMap((result) => result.attempts)) {
+    if (!attempt.usage.cost) continue;
+    currency ??= attempt.usage.cost.currency;
+    mixed ||= currency !== attempt.usage.cost.currency;
+    amount += attempt.usage.cost.amount;
+  }
+  return currency && !mixed ? { amount, currency } : undefined;
+}
+
+/**
+ * Re-derive core's scheduler from saved evidence: a queue in matrix order where retries
+ * re-enter at the head, admission only for the queue head while a slot is free and the
+ * budget is admissible, the exact grant each attempt received, and the normalization each
+ * settled attempt could have had under that grant. Returns runtime exclusions in matrix
+ * order and the first stop reason.
+ */
+function replayAdmissions(
+  manifest: ExperimentManifest,
+  executable: CoordinateReplay[],
+  state: BudgetState
+): {
+  runtimeExclusions: ExperimentRunResult['runtime_exclusions'];
+  stopReason?: ExperimentStopReason;
+} {
+  const queue = [...executable];
+  const tickets = new Map<CoordinateReplay, number>();
+  const maxAttempts = manifest.retry_policy.max_attempts;
+  let stopReason: ExperimentStopReason | undefined;
+
+  for (const [position, { kind, replay, attemptIndex }] of replayEvents(
+    manifest,
+    executable
+  ).entries()) {
+    const attempt = replay.attempts[attemptIndex];
+    if (replay.next !== attemptIndex) throw invalid();
+    if (kind === 'admit') {
+      if (
+        queue[0] !== replay ||
+        state.inFlight.size >= manifest.concurrency ||
+        budgetReason(manifest, state) !== undefined
+      )
+        throw invalid();
+      const divisor = Math.min(manifest.concurrency - state.inFlight.size, queue.length);
+      const granted = grantFor(manifest, state, divisor);
+      if (
+        attempt.admission !== undefined &&
+        !same(attempt.admission.granted_budget, grantEvidence(manifest, granted))
+      )
+        throw invalid();
+      queue.shift();
+      state.inFlight.set(position, granted);
+      tickets.set(replay, position);
+      state.invocations += 1;
+      if (manifest.mode === 'live') state.reserved += 1;
+      continue;
+    }
+
+    const ticket = tickets.get(replay);
+    const granted = ticket === undefined ? undefined : state.inFlight.get(ticket);
+    if (ticket === undefined || !granted) throw invalid();
+    state.inFlight.delete(ticket);
+    tickets.delete(replay);
+    const exceeded =
+      attempt.usage.requests > granted.requests ||
+      (granted.tokens !== undefined && (attempt.usage.tokens ?? 0) > granted.tokens) ||
+      (granted.cost !== undefined && (attempt.usage.cost?.amount ?? 0) > granted.cost);
+    const completions = coreCompletions(
+      attempt,
+      manifest,
+      replay.coordinate.task_kind,
+      exceeded,
+      replay.costApplies
+    );
+    consume(state, attempt);
+    replay.next += 1;
+
+    // Only the final attempt can carry a halting completion; earlier ones were retried.
+    if (replay.next < replay.attempts.length) {
+      if (!completions.has('terminal')) throw invalid();
+      queue.unshift(replay);
+      continue;
+    }
+    const lastIsRetryable = manifest.retry_policy.retry_on.includes(attempt.status as never);
+    if (replay.completionCode === 'budget_exhausted') {
+      // The runner queued a retry that the budget never admitted.
+      if (
+        !completions.has('terminal') ||
+        replay.status !== 'incomplete' ||
+        !lastIsRetryable ||
+        replay.attempts.length >= maxAttempts
+      )
+        throw invalid();
+      queue.unshift(replay);
+      continue;
+    }
+    if (!completions.has(replay.completionCode) || replay.status !== attempt.status)
+      throw invalid();
+    if (replay.completionCode === 'terminal') {
+      if (lastIsRetryable && replay.attempts.length < maxAttempts) throw invalid();
+    } else {
+      const halt = replay.completionCode as ExperimentStopReason;
+      state.halt ??= halt;
+      stopReason ??= halt;
+    }
+  }
+
+  if (!queue.length) return { runtimeExclusions: [], stopReason };
+  // Execution stops only once nothing is in flight and the budget admits nothing more.
+  const reason = budgetReason(manifest, state);
+  if (!reason) throw invalid();
+  for (const replay of queue)
+    if (replay.status !== 'incomplete' || replay.completionCode !== 'budget_exhausted')
+      throw invalid();
+  return {
+    runtimeExclusions: [...queue]
+      .sort((left, right) => left.index - right.index)
+      .map((replay) => ({ coordinate_id: replay.coordinate.coordinate_id, reason })),
+    stopReason: stopReason ?? reason,
+  };
 }
 
 function validateResult(input: Record<string, unknown>): ExperimentRunResult {
@@ -484,18 +750,9 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
   const expectedCoordinates = buildExperimentMatrix(manifest);
   const rawResults = array(input.results);
   if (rawResults.length !== expectedCoordinates.length) throw invalid();
+  const concurrent = manifest.concurrency > 1;
   const results: ExperimentCoordinateResult[] = [];
-  const state: BudgetState = {
-    invocations: 0,
-    reserved: 0,
-    requests: 0,
-    tokens: 0,
-    cost: 0,
-    sawCost: false,
-    mixedCost: false,
-  };
-  const runtimeExclusions: { coordinate_id: string; reason: ExperimentStopReason }[] = [];
-  let stopReason: ExperimentStopReason | undefined;
+  const executable: CoordinateReplay[] = [];
 
   for (let index = 0; index < expectedCoordinates.length; index += 1) {
     const expected = expectedCoordinates[index];
@@ -504,7 +761,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
     if (!same(raw.coordinate, expected)) throw invalid();
     const status = oneOf(raw.status, STATUSES);
     const completionCode = oneOf(raw.completion_code, COMPLETION_CODES);
-    const attempts = array(raw.attempts).map(validateAttempt);
+    const attempts = array(raw.attempts).map((attempt) => validateAttempt(attempt, concurrent));
     if (attempts.length > manifest.retry_policy.max_attempts) throw invalid();
     attempts.forEach((attempt, attemptIndex) => {
       const number = attemptIndex + 1;
@@ -532,83 +789,15 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
       )
         throw invalid();
     } else {
-      const beforeCoordinate = budgetReason(manifest, state);
-      if (beforeCoordinate) {
-        if (status !== 'incomplete' || completionCode !== 'budget_exhausted' || attempts.length)
-          throw invalid();
-        runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: beforeCoordinate });
-        stopReason ??= beforeCoordinate;
-      } else {
-        let lastCompletions = new Set<ExperimentCompletionCode>();
-        for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
-          const beforeAttempt = budgetReason(manifest, state);
-          if (beforeAttempt) throw invalid();
-          const attempt = attempts[attemptIndex];
-          const effectiveBefore =
-            manifest.mode === 'live' ? Math.max(state.requests, state.reserved) : state.requests;
-          const remainingRequests = manifest.budgets.max_requests - effectiveBefore;
-          const remainingTokens =
-            manifest.budgets.max_tokens === undefined
-              ? undefined
-              : manifest.budgets.max_tokens - state.tokens;
-          const remainingCost =
-            manifest.budgets.max_cost === undefined
-              ? undefined
-              : manifest.budgets.max_cost.amount - state.cost;
-          state.invocations += 1;
-          if (manifest.mode === 'live') state.reserved += 1;
-          const exceeded =
-            attempt.usage.requests > remainingRequests ||
-            (remainingTokens !== undefined && (attempt.usage.tokens ?? 0) > remainingTokens) ||
-            (remainingCost !== undefined && (attempt.usage.cost?.amount ?? 0) > remainingCost);
-          const completions = coreCompletions(
-            attempt,
-            manifest,
-            expected.task_kind,
-            exceeded,
-            targetCostApplies(targetById(manifest, expected.target_id))
-          );
-          // Only the final attempt can carry a halting completion; earlier ones were retried.
-          if (attemptIndex < attempts.length - 1 && !completions.has('terminal')) throw invalid();
-          lastCompletions = completions;
-          state.requests += attempt.usage.requests;
-          state.tokens += attempt.usage.tokens ?? 0;
-          if (attempt.usage.cost) {
-            state.sawCost = true;
-            state.currency ??= attempt.usage.cost.currency;
-            state.mixedCost ||= state.currency !== attempt.usage.cost.currency;
-            state.cost += attempt.usage.cost.amount;
-          }
-        }
-        if (!attempts.length) throw invalid();
-        const afterAttempts = budgetReason(manifest, state);
-        const last = attempts[attempts.length - 1];
-        const lastIsRetryable = manifest.retry_policy.retry_on.includes(last.status as never);
-        if (completionCode === 'budget_exhausted') {
-          if (
-            !afterAttempts ||
-            state.halt !== undefined ||
-            !lastCompletions.has('terminal') ||
-            status !== 'incomplete' ||
-            !lastIsRetryable ||
-            attempts.length >= manifest.retry_policy.max_attempts
-          )
-            throw invalid();
-          runtimeExclusions.push({ coordinate_id: expected.coordinate_id, reason: afterAttempts });
-          stopReason ??= afterAttempts;
-        } else {
-          if (!lastCompletions.has(completionCode)) throw invalid();
-          if (completionCode !== 'terminal') state.halt = completionCode as ExperimentStopReason;
-          if (
-            status !== last.status ||
-            (lastIsRetryable &&
-              attempts.length < manifest.retry_policy.max_attempts &&
-              state.halt === undefined)
-          )
-            throw invalid();
-          if (state.halt) stopReason ??= state.halt;
-        }
-      }
+      executable.push({
+        index,
+        coordinate: expected,
+        status,
+        completionCode,
+        attempts,
+        costApplies: targetCostApplies(targetById(manifest, expected.target_id)),
+        next: 0,
+      });
     }
     results.push({
       coordinate: expected,
@@ -617,6 +806,16 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
       attempts,
     });
   }
+
+  const state: BudgetState = {
+    invocations: 0,
+    reserved: 0,
+    requests: 0,
+    tokens: 0,
+    cost: 0,
+    inFlight: new Map(),
+  };
+  const { runtimeExclusions, stopReason } = replayAdmissions(manifest, executable, state);
 
   const rawRuntime = array(input.runtime_exclusions).map((entry) => {
     const item = object(entry);
@@ -651,6 +850,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
   )
     throw invalid();
 
+  const cost = reportedCost(results);
   const operational = {
     ...overall,
     executor_invocations: state.invocations,
@@ -662,9 +862,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
     ),
     requests: state.requests,
     tokens: state.tokens,
-    ...(state.sawCost && !state.mixedCost
-      ? { cost: { amount: state.cost, currency: state.currency as string } }
-      : {}),
+    ...(cost ? { cost } : {}),
     attempt_statuses: Object.fromEntries(
       EXECUTED.map((attemptStatus) => [
         attemptStatus,
@@ -689,10 +887,7 @@ function validateResult(input: Record<string, unknown>): ExperimentRunResult {
     uncertainty.method !== 'none' ||
     uncertainty.sample_size !== overall.valid ||
     uncertainty.task_clustering !== 'not_estimated' ||
-    !same(uncertainty.assumptions, [
-      'No statistical independence is assumed across repetitions or tasks.',
-      'No confidence interval is estimated.',
-    ])
+    !same(uncertainty.assumptions, experimentUncertaintyAssumptions(manifest.concurrency))
   )
     throw invalid();
 
@@ -716,12 +911,18 @@ export function createExperimentReport(input: unknown): ExperimentReport {
       ],
       methodology: [
         'Strict V1 saved-result validation, complete matrix reconciliation, retry-chain validation, budget-accounting checks, canonical key ordering, SHA-256 local evidence identities, and deterministic findings. No task or provider is executed.',
+        ...(run.manifest.concurrency > 1
+          ? [
+              `Coordinates executed with up to ${run.manifest.concurrency} in flight. Budget accounting was re-derived by replaying the recorded admission and settlement sequence: every attempt's grant was recomputed from use consumed and grants outstanding at its admission, and no admission could exceed a declared budget.`,
+            ]
+          : []),
         'Valid outcome rate is passed / (passed + task failed + policy failed). Invalid, unsupported, excluded, incomplete, and infrastructure-failed coordinates are outside that denominator.',
         `Uncertainty method is ${run.uncertainty.method}; sample size is ${run.uncertainty.sample_size}; task clustering is ${run.uncertainty.task_clustering}.`,
         ...run.uncertainty.assumptions,
       ],
       summary: {
         ...run.summaries.overall,
+        concurrency: run.manifest.concurrency,
         executorInvocations: operational.executor_invocations,
         reservedLiveRequests: operational.reserved_live_requests,
         attempts: operational.attempts,
@@ -935,7 +1136,7 @@ export function createExperimentReport(input: unknown): ExperimentReport {
         [
           'live controls',
           `concurrency ceiling ${run.manifest.live.concurrency_ceiling}; stop conditions ${run.manifest.live.stop_conditions.join(', ')}`,
-          'declared controls enforced by the V1 live runner',
+          'declared controls enforced by the V1 live runner; concurrency must not exceed the ceiling',
         ],
         'Declared live execution controls'
       );

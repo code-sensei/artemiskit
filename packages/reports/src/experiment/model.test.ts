@@ -3,6 +3,7 @@ import type { ExperimentRunResult } from '@artemiskit/core';
 import { createExperimentReport } from './model';
 import {
   adapterErrorCollisionResult,
+  concurrentExperimentResult,
   coreOutputMatrix,
   liveBudgetResult,
   liveRunnerHaltResult,
@@ -10,6 +11,7 @@ import {
   localOpenWeightResult,
   mixedExperimentResult,
   preFixLiveMissingUsageResult,
+  randomConcurrentResult,
   reverseKeys,
   statusExperimentResult,
 } from './model-fixtures';
@@ -432,5 +434,196 @@ describe('strict saved-result validation', () => {
     tokens.results[0].attempts[0].usage.tokens = 10_000_000_001;
     tokens.summaries.operational.tokens += 9_999_999_997;
     expect(() => createExperimentReport(tokens)).toThrow(error);
+  });
+});
+
+describe('concurrent experiment results', () => {
+  type Attempt = ExperimentRunResult['results'][number]['attempts'][number];
+  const attemptsOf = (value: ExperimentRunResult) => value.results.flatMap((item) => item.attempts);
+  const admission = (attempt: Attempt) => {
+    if (!attempt.admission) throw new Error('Expected admission evidence');
+    return attempt.admission;
+  };
+  /** The attempt whose admission or settlement occupies a run-wide event position. */
+  const atEvent = (value: ExperimentRunResult, position: number) => {
+    const attempt = attemptsOf(value).find(
+      (item) => admission(item).admitted_at === position || admission(item).settled_at === position
+    );
+    if (!attempt) throw new Error(`No attempt at event ${position}`);
+    return attempt;
+  };
+
+  let concurrent: ExperimentRunResult;
+  beforeAll(async () => {
+    concurrent = await concurrentExperimentResult();
+  });
+
+  test('validates a concurrent result and states its parallel level and caveat', () => {
+    const peak = Math.max(
+      ...attemptsOf(concurrent).map(
+        (attempt) =>
+          attemptsOf(concurrent).filter(
+            (other) =>
+              admission(other).admitted_at <= admission(attempt).admitted_at &&
+              admission(other).settled_at > admission(attempt).admitted_at
+          ).length
+      )
+    );
+    expect(peak).toBe(3);
+    expect(concurrent.summaries.operational.retry_attempts).toBe(1);
+
+    const report = createExperimentReport(concurrent);
+    expect(report.summary.concurrency).toBe(3);
+    const methodology = report.methodology.join(' ');
+    expect(methodology).toContain('up to 3 in flight');
+    expect(methodology).toContain('Up to 3 coordinates ran concurrently');
+    expect(JSON.stringify(report.sections)).toContain('concurrency 3');
+    expect(createExperimentReport(reverseKeys(concurrent))).toEqual(report);
+    expect(createExperimentReport(mixed).summary.concurrency).toBe(1);
+    expect(createExperimentReport(mixed).methodology.join(' ')).not.toContain('in flight');
+  });
+
+  test('replays many random concurrent interleavings, halts and overruns', async () => {
+    const stops = new Set<string>();
+    const rejected: number[] = [];
+    for (let seed = 1; seed <= 150; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      stops.add(result.stop_reason ?? 'none');
+      try {
+        createExperimentReport(result);
+      } catch {
+        rejected.push(seed);
+      }
+    }
+    expect(rejected).toEqual([]);
+    for (const reason of ['none', 'request_budget_exhausted', 'budget_exceeded'])
+      expect(stops.has(reason)).toBe(true);
+    expect(stops.size).toBeGreaterThan(4);
+  });
+
+  test('rejects every random result whose recorded grant is forged', async () => {
+    let forged = 0;
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const result = await randomConcurrentResult(seed);
+      const attempts = attemptsOf(result);
+      if (!attempts.length) continue;
+      const target = admission(attempts[seed % attempts.length]);
+      target.granted_budget.requests += 1;
+      expect(() => createExperimentReport(result), `seed ${seed}`).toThrow(error);
+      forged += 1;
+    }
+    expect(forged).toBeGreaterThan(40);
+  });
+
+  test('rejects tampered or inconsistent admission evidence', () => {
+    const mutations: [string, (value: ExperimentRunResult) => void][] = [
+      [
+        'grant cost',
+        (value) => {
+          const grant = admission(value.results[0].attempts[0]).granted_budget;
+          if (grant.cost) grant.cost.amount /= 2;
+        },
+      ],
+      [
+        'grant tokens removed',
+        (value) => {
+          admission(value.results[0].attempts[0]).granted_budget.tokens = undefined;
+        },
+      ],
+      [
+        'grant extra key',
+        (value) => {
+          Object.assign(admission(value.results[0].attempts[0]).granted_budget, { slots: 3 });
+        },
+      ],
+      [
+        'missing admission',
+        (value) => {
+          value.results[1].attempts[0].admission = undefined;
+        },
+      ],
+      [
+        'settled before admitted',
+        (value) => {
+          const record = admission(value.results[0].attempts[0]);
+          [record.admitted_at, record.settled_at] = [record.settled_at, record.admitted_at];
+        },
+      ],
+      [
+        'duplicate event',
+        (value) => {
+          admission(value.results[1].attempts[0]).settled_at = admission(
+            value.results[0].attempts[0]
+          ).settled_at;
+        },
+      ],
+      [
+        'event outside the sequence',
+        (value) => {
+          admission(value.results[0].attempts[0]).settled_at += 100;
+        },
+      ],
+      [
+        'swapped first admissions',
+        (value) => {
+          const first = admission(atEvent(value, 0));
+          const second = admission(atEvent(value, 1));
+          [first.admitted_at, second.admitted_at] = [second.admitted_at, first.admitted_at];
+        },
+      ],
+      [
+        'retry admitted before its first attempt settled',
+        (value) => {
+          const chain = value.results.find((item) => item.attempts.length === 2);
+          if (!chain) throw new Error('Expected a retry chain');
+          const first = admission(chain.attempts[0]);
+          const second = admission(chain.attempts[1]);
+          // A clean swap keeps a valid event permutation but overlaps the retry with attempt 1.
+          [first.settled_at, second.admitted_at] = [second.admitted_at, first.settled_at];
+        },
+      ],
+      [
+        'lower declared concurrency',
+        (value) => {
+          value.manifest.concurrency = 2;
+        },
+      ],
+      [
+        'declared serial',
+        (value) => {
+          value.manifest.concurrency = 1;
+        },
+      ],
+      [
+        'reproducibility caveat removed',
+        (value) => {
+          value.uncertainty.assumptions.pop();
+        },
+      ],
+      [
+        'usage above the grant',
+        (value) => {
+          const attempt = value.results[0].attempts[0];
+          attempt.usage.requests = admission(attempt).granted_budget.requests + 1;
+          value.summaries.operational.requests +=
+            attempt.usage.requests - concurrent.results[0].attempts[0].usage.requests;
+        },
+      ],
+    ];
+    for (const [label, mutate] of mutations) {
+      const value = structuredClone(concurrent);
+      mutate(value);
+      expect(() => createExperimentReport(value), label).toThrow(error);
+    }
+  });
+
+  test('rejects admission evidence on a serial result', () => {
+    const value = structuredClone(mixed);
+    value.results[0].attempts[0].admission = {
+      admitted_at: 0,
+      settled_at: 1,
+      granted_budget: { requests: 100, tokens: 100_000 },
+    };
+    expect(() => createExperimentReport(value)).toThrow(error);
   });
 });

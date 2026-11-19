@@ -1,5 +1,7 @@
 import {
   type ExecutedExperimentAttemptStatus,
+  type ExperimentAttemptOutput,
+  type ExperimentConcurrency,
   type ExperimentManifest,
   type ExperimentRunResult,
   type ExperimentTaskKind,
@@ -425,6 +427,137 @@ export async function liveRunnerHaltResult(cause: LiveRunnerHalt): Promise<Exper
             : { requests: 11, tokens: 1, cost: { amount: 0.01, currency: 'USD' } },
         evidence: evidence(input.coordinate.task_kind),
       };
+    },
+  });
+}
+
+const STOP_CONDITIONS: NonNullable<ExperimentManifest['live']>['stop_conditions'] = [
+  'request_budget_exhausted',
+  'token_budget_exhausted',
+  'cost_budget_exhausted',
+  'usage_unreported',
+  'usage_invalid',
+  'budget_exceeded',
+];
+
+const CONCURRENT_AUTHORIZATION = {
+  approved: true as const,
+  decision_id: 'concurrent-fixture',
+  decided_at: '2026-11-19T12:00:00Z',
+  approved_by: 'fixture operator',
+  reason: 'Bounded concurrent report fixture',
+};
+
+/** Deterministic 32-bit PRNG so a failing seed reproduces exactly. */
+function seededRandom(seed: number) {
+  let state = seed >>> 0;
+  const next = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+  return { next, int: (min: number, max: number) => min + Math.floor(next() * (max - min + 1)) };
+}
+
+async function yieldTurns(turns: number): Promise<void> {
+  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+}
+
+/**
+ * A concurrent run whose three in-flight coordinates overlap and retry, with ample budgets.
+ * Every attempt settles in a deterministic but non-matrix order.
+ */
+export async function concurrentExperimentResult(): Promise<ExperimentRunResult> {
+  const base = experimentManifest();
+  const manifest = experimentManifest({
+    tasks: [base.tasks[1]],
+    exclusions: [],
+    repetitions: 3,
+    concurrency: 3,
+    budgets: { max_requests: 40, max_tokens: 400, max_cost: { amount: 2, currency: 'USD' } },
+  });
+  return runExperiment(manifest, {
+    execute_attempt: async (input) => {
+      const { repetition_index: repetition, target_id: target } = input.coordinate;
+      await yieldTurns((repetition * 5 + (target === 'alpha' ? 3 : 0)) % 7);
+      const retry = repetition === 2 && target === 'alpha' && input.attempt_number === 1;
+      return {
+        status: retry ? 'infrastructure_failed' : 'passed',
+        usage: { requests: 1, tokens: 7, cost: { amount: 0.05, currency: 'USD' } },
+        evidence: evidence(input.coordinate.task_kind, !retry),
+        ...(retry ? { error_code: 'fixture_transport' } : {}),
+      };
+    },
+  });
+}
+
+/** Random executor output within, or occasionally outside, the attempt's grant. */
+function randomOutput(
+  rng: ReturnType<typeof seededRandom>,
+  input: Parameters<Parameters<typeof runExperiment>[1]['execute_attempt']>[0]
+): ExperimentAttemptOutput {
+  const grant = input.remaining_budget;
+  const roll = rng.next();
+  const usage: ExperimentAttemptOutput['usage'] = {
+    requests: roll < 0.04 ? grant.requests + 1 : rng.int(0, grant.requests),
+    ...(roll >= 0.04 && roll < 0.07 ? {} : { tokens: rng.int(0, grant.tokens ?? 0) }),
+    cost: {
+      amount: (rng.next() < 0.3 ? 1 : rng.next()) * (grant.cost?.amount ?? 0),
+      currency: roll >= 0.07 && roll < 0.1 ? 'EUR' : 'USD',
+    },
+  };
+  const status = (
+    [
+      'passed',
+      'task_failed',
+      'policy_failed',
+      'invalid',
+      'incomplete',
+      'infrastructure_failed',
+    ] as const
+  )[rng.int(0, 5)];
+  const kind =
+    roll >= 0.1 && roll < 0.12
+      ? input.coordinate.task_kind === 'agent_workflow'
+        ? 'scenario_evaluation'
+        : 'agent_workflow'
+      : input.coordinate.task_kind;
+  return { status, usage, evidence: evidence(kind, rng.next() < 0.9) };
+}
+
+/**
+ * One seeded random concurrent run: mode, concurrency 2..8, budgets, retries, completion
+ * interleaving, and executor outputs (including overruns, missing usage, foreign currency and
+ * mismatched evidence) all vary by seed. Every result is an authoritative core output.
+ */
+export async function randomConcurrentResult(seed: number): Promise<ExperimentRunResult> {
+  const rng = seededRandom(seed);
+  const live = rng.next() < 0.5;
+  const concurrency = rng.int(2, 8) as ExperimentConcurrency;
+  const manifest = experimentManifest({
+    mode: live ? 'live' : 'fixture',
+    concurrency,
+    repetitions: rng.int(1, 4),
+    retry_policy: {
+      max_attempts: rng.int(1, 3),
+      retry_on: ['invalid', 'incomplete', 'infrastructure_failed'],
+    },
+    budgets: {
+      max_requests: rng.int(1, 30),
+      max_tokens: rng.int(1, 300),
+      max_cost: { amount: rng.int(1, 200) / 100, currency: 'USD' },
+    },
+    ...(live
+      ? { live: { concurrency_ceiling: concurrency, stop_conditions: STOP_CONDITIONS } }
+      : {}),
+  });
+  return runExperiment(manifest, {
+    ...(live ? { live_authorization: CONCURRENT_AUTHORIZATION } : {}),
+    execute_attempt: async (input) => {
+      await yieldTurns(rng.int(0, 40));
+      return randomOutput(rng, input);
     },
   });
 }

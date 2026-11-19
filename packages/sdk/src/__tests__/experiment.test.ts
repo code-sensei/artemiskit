@@ -455,6 +455,56 @@ describe('runExperimentFile (live mode)', () => {
     }
   });
 
+  test('saves the declared reasoning_effort in the evidence of each attempt that sent it', async () => {
+    const sent: unknown[] = [];
+    const server = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const body = (await request.json()) as { model: string; reasoning_effort?: string };
+        sent.push(body.reasoning_effort);
+        return Response.json({
+          id: 'local',
+          object: 'chat.completion',
+          created: 0,
+          model: body.model,
+          choices: [
+            { index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'Abuja' } },
+          ],
+          usage: { prompt_tokens: 4, completion_tokens: 1, total_tokens: 5 },
+        });
+      },
+    });
+    try {
+      const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+      const fixture = await writeExperimentFixture({
+        overrides: liveOverrides(),
+        target: (target) => ({
+          ...target,
+          settings: { base_url: baseUrl, reasoning_effort: 'none' },
+        }),
+      });
+      const outcome = await runExperimentFile({
+        experiment: fixture.file,
+        outputDir: path.join(fixture.directory, 'out'),
+        liveAuthorization: createExperimentLiveAuthorization({
+          approvedBy: 'test-operator',
+          reason: 'loopback stub server only',
+        }),
+      });
+
+      expect(outcome.exitCode).toBe(0);
+      expect(sent).toEqual(['none', 'none', 'none', 'none']);
+      expect(outcome.evidence).toHaveLength(4);
+      for (const file of outcome.evidence) {
+        const saved = JSON.parse(await readFile(file.path, 'utf8'));
+        expect(saved.resolved_config.reasoning_effort).toBe('none');
+      }
+    } finally {
+      server.stop(true);
+    }
+  });
+
   test('awaits an async target config resolver for non-loopback live targets', async () => {
     const resolved: string[] = [];
     const fixture = await writeExperimentFixture({

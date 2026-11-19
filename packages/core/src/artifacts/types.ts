@@ -342,6 +342,8 @@ export interface ResolvedConfig {
   temperature?: number;
   /** Max tokens */
   max_tokens?: number;
+  /** Declared `reasoning_effort` sent with each request (for example `none` or `medium`) */
+  reasoning_effort?: string;
 
   /** Source tracking - where each value came from */
   source: {

@@ -937,6 +937,49 @@ describe('createScenarioExperimentExecutor evidence', () => {
     }
   });
 
+  test('records the target-declared reasoning_effort in the run manifest', async () => {
+    const records: ScenarioExperimentEvidenceRecord[] = [];
+    const thinkingOff: ExperimentTarget = {
+      ...LOCAL_TARGET,
+      settings: { base_url: 'http://127.0.0.1:11434/v1', reasoning_effort: 'none' },
+    };
+    const thinkingOn: ExperimentTarget = {
+      ...LOCAL_TARGET_9B,
+      settings: { reasoning_effort: 'medium' },
+    };
+    const fixtures = fixtureClients({});
+    await runExperiment(
+      experiment([scenarioTask('scenarios/answer.yaml')], {
+        targets: [thinkingOff, thinkingOn, METERED_TARGET],
+      }),
+      {
+        execute_attempt: createScenarioExperimentExecutor({
+          root,
+          repetitions: 1,
+          createClient: fixtures.createClient,
+          onEvidence: (record) => {
+            records.push(record);
+          },
+        }),
+      }
+    );
+
+    const effortByModel = Object.fromEntries(
+      records.map((record) => [
+        record.manifest.config.model,
+        record.manifest.resolved_config?.reasoning_effort,
+      ])
+    );
+    expect(effortByModel).toEqual({
+      [thinkingOff.model]: 'none',
+      [thinkingOn.model]: 'medium',
+      [METERED_TARGET.model]: undefined,
+    });
+    for (const record of records) {
+      expect(runManifestIdentity(record.manifest)).toEqual(record.artifact);
+    }
+  });
+
   test('produces the same digest regardless of object key order', () => {
     const manifest = { b: 1, a: { d: [1, { z: 1, y: 2 }], c: 'x' } };
     const reordered = { a: { c: 'x', d: [1, { y: 2, z: 1 }] }, b: 1 };

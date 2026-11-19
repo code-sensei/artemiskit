@@ -152,7 +152,12 @@ async function runAndReport(
     const run = await runScenario({
       scenario: coordinate.seed === undefined ? scenario : { ...scenario, seed: coordinate.seed },
       client: meter.client,
-      resolvedConfig: { provider: target.provider, model: target.model, source: {} },
+      resolvedConfig: {
+        provider: target.provider,
+        model: target.model,
+        ...declaredGenerationSettings(target),
+        source: {},
+      },
       concurrency: 1,
       retries: 0,
       timeout: options.timeoutMs,
@@ -193,6 +198,15 @@ async function runAndReport(
     if (cost) usage.cost = cost;
   }
   return output(classification.status, usage, evidence, classification.error_code);
+}
+
+/**
+ * Generation settings the target declares beyond the scenario's own, recorded in the run
+ * manifest's `resolved_config` so the evidence shows the condition that was measured.
+ */
+function declaredGenerationSettings(target: ExperimentTarget): { reasoning_effort?: string } {
+  const effort = target.settings?.reasoning_effort;
+  return typeof effort === 'string' ? { reasoning_effort: effort } : {};
 }
 
 /**

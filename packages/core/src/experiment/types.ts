@@ -226,6 +226,10 @@ export interface ExperimentCoordinate {
   declared_exclusion?: ExperimentExclusion;
 }
 
+/**
+ * Budget an attempt may still consume. Under concurrency it is the attempt's admission grant:
+ * already net of everything consumed and of every grant held by other in-flight attempts.
+ */
 export interface ExperimentRemainingBudget {
   requests: number;
   tokens?: number;
@@ -246,10 +250,28 @@ export type ExperimentAttemptExecutor = (
   input: ExperimentAttemptInput
 ) => Promise<ExperimentAttemptOutput>;
 
+/**
+ * Replayable admission record for one attempt of a concurrent run (`concurrency` > 1).
+ *
+ * `admitted_at` and `settled_at` are positions in one run-wide event sequence: every attempt
+ * contributes exactly one admission and one settlement event, so across a result they form
+ * the permutation `0 .. 2 × attempts − 1`. Replaying the events in order re-derives the
+ * shared budget ledger and therefore every grant. Serial results omit this record because
+ * matrix order already fixes the sequence.
+ */
+export interface ExperimentAttemptAdmission {
+  admitted_at: number;
+  settled_at: number;
+  /** Exactly the `remaining_budget` handed to the executor for this attempt. */
+  granted_budget: ExperimentRemainingBudget;
+}
+
 export interface ExperimentAttemptEvidence extends ExperimentAttemptOutput {
   attempt_id: string;
   retry_chain_id: string;
   attempt_number: number;
+  /** Present on every attempt when, and only when, the manifest's concurrency exceeds 1. */
+  admission?: ExperimentAttemptAdmission;
 }
 
 export type ExperimentCompletionCode =

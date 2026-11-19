@@ -10,9 +10,15 @@ export type {
   ScenarioExperimentExecutorOptions,
 } from './executors/scenario';
 export { parseExperimentManifest } from './parser';
-export { buildExperimentMatrix, runExperiment, targetCostApplies } from './runner';
+export {
+  buildExperimentMatrix,
+  experimentUncertaintyAssumptions,
+  runExperiment,
+  targetCostApplies,
+} from './runner';
 export type {
   ExecutedExperimentAttemptStatus,
+  ExperimentAttemptAdmission,
   ExperimentAttemptEvidence,
   ExperimentAttemptExecutor,
   ExperimentAttemptInput,

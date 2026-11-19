@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 300398586f5336c79e42a6e240bdf87baebc249cb33a423e16a7910ac57b62f5
+    digest: 28a727e5de2d01719ea3174c3fb3b1fbea24750112a4da938f9d1e22f7a24634
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -555,6 +555,78 @@ tasks:
     required_capabilities: []
     language: en
     policy: aml-rulebook-v1
+  - id: aml-45-precious-metals-and-luxury-goods
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-45-precious-metals-and-luxury-goods.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bad5bf292243548dc7205e6349baca0b21da966d3fea3fa683f23f145bd48431
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-46-bulk-cash-border
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-46-bulk-cash-border.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 7080d81a016d2431785552b663d19963d683a290c041d1e75f5049253c5bbb01
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-47-prepaid-and-gift-cards
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-47-prepaid-and-gift-cards.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 3f20121a48f7b57faefdd01eb2d306fdcc9c9cdac5fe43da662bdbabe1a6c906
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-48-unlicensed-money-transmitter
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-48-unlicensed-money-transmitter.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e8b5bda63d881c9359429f9ccf4840d8ceb64db0fa2b4205029eb0e9089d55a0
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-49-investment-fraud-collection
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-49-investment-fraud-collection.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 33aa7c044f891263ed4fda77fb67db5654caa140d104f1fd992d6cacbd71afbd
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
+  - id: aml-50-injected-instructions-mixed
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/aml-50-injected-instructions-mixed.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: ea5e90a74ff2c99749c9240912a2463a0c75a01c90811021a2f750d0257f0908
+    required_capabilities: []
+    language: en
+    policy: aml-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -595,8 +667,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 156 cases x 2 targets x 3 repetitions = 936 requests; at most 1872 with one retry each.
+# 177 cases x 2 targets x 3 repetitions = 1062 requests; at most 2124 with one retry each.
 # max_tokens allows 6,000 tokens per request (prompt, reasoning and answer).
 budgets:
-  max_requests: 1872
-  max_tokens: 11232000
+  max_requests: 2124
+  max_tokens: 12744000

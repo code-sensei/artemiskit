@@ -46,7 +46,12 @@ export class CircuitBreaker {
   private halfOpenSuccesses = 0;
   private eventHandlers: CircuitBreakerEventHandler[] = [];
 
-  constructor(config: CircuitBreakerConfig) {
+  /**
+   * @param config Circuit breaker settings. Every field is optional; omitted fields default to
+   *   `enabled: true`, `threshold: 5`, `windowMs: 60000`, `cooldownMs: 300000` and
+   *   `halfOpenRequests: 3`.
+   */
+  constructor(config: Partial<CircuitBreakerConfig>) {
     this.config = {
       enabled: config.enabled ?? true,
       threshold: config.threshold ?? 5,

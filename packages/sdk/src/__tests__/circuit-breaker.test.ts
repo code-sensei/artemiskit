@@ -5,7 +5,7 @@
  * - RateLimiter token bucket
  */
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { CircuitBreaker, MetricsCollector, RateLimiter } from '../guardian/circuit-breaker';
 import type { Violation } from '../guardian/types';
 

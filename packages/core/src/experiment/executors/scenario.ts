@@ -7,8 +7,6 @@
  * discovers providers or credentials: the host supplies a `ModelClient` per target.
  */
 
-import { createHash } from 'node:crypto';
-import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { ModelClient } from '../../adapters/types';
@@ -36,13 +34,22 @@ import type {
   ExperimentAttemptExecutor,
   ExperimentAttemptInput,
   ExperimentAttemptOutput,
-  ExperimentAttemptUsage,
   ExperimentDemandRequest,
   ExperimentTarget,
   ExperimentTaskEvidence,
-  ExperimentTaskSource,
 } from '../types';
+import {
+  type ExperimentAttemptCost,
+  attemptWithoutRequests,
+  closeClient,
+  isModelClient,
+  attemptOutput as output,
+  resolveAttemptCost,
+  unavailableEvidence,
+} from './attempt';
+import { canonicalJsonIdentity } from './content-identity';
 import { type ClientMeter, meterClient } from './metered-client';
+import { decodeUtf8, loadTaskSource } from './task-source';
 
 /** Evidence handed to the host before the attempt result is returned. */
 export interface ScenarioExperimentEvidenceRecord {
@@ -53,10 +60,7 @@ export interface ScenarioExperimentEvidenceRecord {
   artifact: ContentIdentity;
 }
 
-export interface ScenarioExperimentCost {
-  amount: number;
-  currency: string;
-}
+export type ScenarioExperimentCost = ExperimentAttemptCost;
 
 export interface ScenarioExperimentExecutorOptions {
   /** Absolute directory that every `task.source.path` must resolve under. */
@@ -82,12 +86,10 @@ export interface ScenarioExperimentExecutorOptions {
   ) => ScenarioExperimentCost | undefined;
 }
 
-type SourceLoad = { ok: true; bytes: Uint8Array } | { ok: false; code: string };
 type Classification = { status: ExecutedExperimentAttemptStatus; error_code?: string };
 
 /** Tool-loop case error codes that indicate a transport or provider failure. */
 const PROVIDER_TOOL_LOOP_ERRORS = new Set(['TOOL_GENERATION_FAILED', 'TOOL_LOOP_TIMEOUT']);
-const CURRENCY = /^[A-Z]{3}$/;
 
 /**
  * Create an attempt executor that runs `scenario_evaluation` tasks with `runScenario`.
@@ -196,11 +198,7 @@ function promptBytes(scenario: Scenario, item: TestCase): number {
 
 /** SHA-256 identity of a run manifest's canonical JSON (recursively sorted object keys). */
 export function runManifestIdentity(manifest: RunManifest): ContentIdentity {
-  return {
-    schema_version: '1',
-    algorithm: 'sha256',
-    digest: createHash('sha256').update(canonicalJson(manifest)).digest('hex'),
-  };
+  return canonicalJsonIdentity(manifest);
 }
 
 async function executeAttempt(
@@ -210,23 +208,23 @@ async function executeAttempt(
 ): Promise<ExperimentAttemptOutput> {
   const { task, target, coordinate } = input;
   if (task.kind !== 'scenario_evaluation' || task.source.kind !== 'scenario_evaluation') {
-    return withoutRequests(task.kind, 'task_kind_unsupported');
+    return attemptWithoutRequests(task.kind, 'task_kind_unsupported');
   }
   if (coordinate.repetition_index > options.repetitions) {
-    return withoutRequests(task.kind, 'repetition_out_of_range');
+    return attemptWithoutRequests(task.kind, 'repetition_out_of_range');
   }
 
   const source = await loadTaskSource(root, task.source);
-  if (!source.ok) return withoutRequests(task.kind, source.code);
+  if (!source.ok) return attemptWithoutRequests(task.kind, source.code);
 
   const scenario = parseScenarioBytes(source.bytes);
-  if (!scenario) return withoutRequests(task.kind, 'scenario_invalid');
+  if (!scenario) return attemptWithoutRequests(task.kind, 'scenario_invalid');
   const conflict = scenarioConflict(scenario, target);
-  if (conflict) return withoutRequests(task.kind, conflict);
+  if (conflict) return attemptWithoutRequests(task.kind, conflict);
   const generation = targetGenerationSettings(target);
-  if (!generation.ok) return withoutRequests(task.kind, generation.code);
+  if (!generation.ok) return attemptWithoutRequests(task.kind, generation.code);
   if (scenario.cases.length > input.remaining_budget.requests) {
-    return withoutRequests(task.kind, 'request_budget_insufficient', 'incomplete');
+    return attemptWithoutRequests(task.kind, 'request_budget_insufficient', 'incomplete');
   }
 
   let client: ModelClient;
@@ -234,7 +232,7 @@ async function executeAttempt(
     client = await options.createClient(structuredClone(target));
     if (!isModelClient(client)) throw new TypeError('createClient returned no ModelClient');
   } catch {
-    return withoutRequests(task.kind, 'client_unavailable', 'infrastructure_failed');
+    return attemptWithoutRequests(task.kind, 'client_unavailable', 'infrastructure_failed');
   }
 
   const meter = meterClient(client, input.remaining_budget.requests);
@@ -269,7 +267,12 @@ async function runAndReport(
     });
     manifest = run.manifest;
   } catch {
-    return output('infrastructure_failed', meter.usage(), unavailable(), 'scenario_run_failed');
+    return output(
+      'infrastructure_failed',
+      meter.usage(),
+      unavailableEvidence('scenario_evaluation'),
+      'scenario_run_failed'
+    );
   }
 
   const classification = classifyAttempt(meter, manifest.cases);
@@ -284,7 +287,12 @@ async function runAndReport(
         artifact,
       });
     } catch {
-      return output('infrastructure_failed', meter.usage(), unavailable(), 'evidence_store_failed');
+      return output(
+        'infrastructure_failed',
+        meter.usage(),
+        unavailableEvidence('scenario_evaluation'),
+        'evidence_store_failed'
+      );
     }
   }
 
@@ -295,7 +303,8 @@ async function runAndReport(
   };
   const usage = meter.usage();
   if (targetCostApplies(target) && options.resolveCost) {
-    const cost = resolveAttemptCost(options.resolveCost, target, manifest);
+    const resolve = options.resolveCost;
+    const cost = resolveAttemptCost(() => resolve(structuredClone(target), manifest));
     if (cost === null) {
       return output('infrastructure_failed', usage, evidence, 'cost_resolution_failed');
     }
@@ -353,62 +362,14 @@ function effectiveGenerationConfig(
 }
 
 /**
- * Resolve a path under `root`, refusing absolute paths, `..` escapes and symlinks that leave
- * the root, then return the exact file bytes.
- */
-async function loadTaskSource(root: string, source: ExperimentTaskSource): Promise<SourceLoad> {
-  const relativePath = source.path;
-  if (
-    typeof relativePath !== 'string' ||
-    relativePath.length === 0 ||
-    relativePath.includes('\0') ||
-    relativePath.includes('\\') ||
-    path.isAbsolute(relativePath) ||
-    path.win32.isAbsolute(relativePath)
-  ) {
-    return { ok: false, code: 'source_path_rejected' };
-  }
-  const resolved = path.resolve(root, relativePath);
-  if (!isInside(root, resolved)) return { ok: false, code: 'source_path_rejected' };
-
-  let realFile: string;
-  try {
-    const realRoot = await realpath(root);
-    realFile = await realpath(resolved);
-    if (!isInside(realRoot, realFile)) return { ok: false, code: 'source_path_rejected' };
-    if (!(await stat(realFile)).isFile()) return { ok: false, code: 'source_unreadable' };
-    const bytes = await readFile(realFile);
-    return digestMatches(bytes, source.artifact)
-      ? { ok: true, bytes }
-      : { ok: false, code: 'source_digest_mismatch' };
-  } catch {
-    return { ok: false, code: 'source_unreadable' };
-  }
-}
-
-function isInside(parent: string, child: string): boolean {
-  const relative = path.relative(parent, child);
-  return (
-    relative !== '' &&
-    relative !== '..' &&
-    !relative.startsWith(`..${path.sep}`) &&
-    !path.isAbsolute(relative)
-  );
-}
-
-function digestMatches(bytes: Uint8Array, identity: ContentIdentity): boolean {
-  if (identity.algorithm !== 'sha256') return false;
-  return createHash('sha256').update(bytes).digest('hex') === identity.digest;
-}
-
-/**
  * Parse with the scenario schema validator but without `${VAR}` expansion: the measured
  * scenario must equal the digested bytes, and host environment values must never reach a
  * model prompt.
  */
 function parseScenarioBytes(bytes: Uint8Array): Scenario | undefined {
+  const text = decodeUtf8(bytes);
+  if (text === undefined) return undefined;
   try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     return validateScenario(parseYaml(text));
   } catch {
     return undefined;
@@ -471,86 +432,6 @@ function isProviderError(caseResult: CaseResult): boolean {
   const terminal = caseResult.attempt_evidence?.find((attempt) => attempt.included_in_outcome);
   if (!terminal || terminal.error_code !== 'tool_error') return true;
   return PROVIDER_TOOL_LOOP_ERRORS.has(caseResult.error ?? '');
-}
-
-/** Return the cost, `undefined` when unreported, or `null` when the resolver misbehaved. */
-function resolveAttemptCost(
-  resolve: NonNullable<ScenarioExperimentExecutorOptions['resolveCost']>,
-  target: ExperimentTarget,
-  manifest: RunManifest
-): ScenarioExperimentCost | undefined | null {
-  try {
-    const cost = resolve(structuredClone(target), manifest);
-    if (cost === undefined) return undefined;
-    const valid =
-      typeof cost === 'object' &&
-      cost !== null &&
-      Number.isFinite(cost.amount) &&
-      cost.amount >= 0 &&
-      typeof cost.currency === 'string' &&
-      CURRENCY.test(cost.currency);
-    return valid ? { amount: cost.amount, currency: cost.currency } : null;
-  } catch {
-    return null;
-  }
-}
-
-function withoutRequests(
-  kind: ExperimentAttemptInput['task']['kind'],
-  code: string,
-  status: ExecutedExperimentAttemptStatus = 'invalid'
-): ExperimentAttemptOutput {
-  // Zero requests means zero tokens is a reported fact, so live runs keep the real cause
-  // instead of halting with `usage_unreported`.
-  return output(status, { requests: 0, tokens: 0 }, { kind, availability: 'unavailable' }, code);
-}
-
-function output(
-  status: ExecutedExperimentAttemptStatus,
-  usage: ExperimentAttemptUsage,
-  evidence: ExperimentTaskEvidence,
-  errorCode?: string
-): ExperimentAttemptOutput {
-  return errorCode === undefined
-    ? { status, usage, evidence }
-    : { status, usage, evidence, error_code: errorCode };
-}
-
-function unavailable(): ExperimentTaskEvidence {
-  return { kind: 'scenario_evaluation', availability: 'unavailable' };
-}
-
-function isModelClient(value: unknown): value is ModelClient {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as ModelClient).generate === 'function' &&
-    typeof (value as ModelClient).capabilities === 'function'
-  );
-}
-
-async function closeClient(client: ModelClient): Promise<void> {
-  try {
-    await client.close?.();
-  } catch {
-    // The attempt result is already decided and its evidence stored; a failed close of a
-    // per-attempt client cannot change the measurement.
-  }
-}
-
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(sortKeys(value));
-}
-
-function sortKeys(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeys);
-  if (value === null || typeof value !== 'object') return value;
-  const record = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.keys(record)
-      .sort()
-      .map((key) => [key, sortKeys(record[key])])
-  );
 }
 
 function assertOptions(options: ScenarioExperimentExecutorOptions): void {

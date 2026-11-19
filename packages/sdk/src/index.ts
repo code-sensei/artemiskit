@@ -506,3 +506,43 @@ export type {
   WorkflowReportRow,
   WorkflowReportSection,
 } from '@artemiskit/reports';
+
+// Comparative experiments: one engine behind `akit experiment validate | run | report`.
+export {
+  EXPERIMENT_EXIT_CODES,
+  EXPERIMENT_REPORT_FORMATS,
+  EXPERIMENT_REPORT_VIEWS,
+  ExperimentSurfaceError,
+  LOCAL_ENDPOINT_PLACEHOLDER_API_KEY,
+  LOOPBACK_REQUIRED_MESSAGE,
+  createExperimentFixtureClient,
+  createExperimentLiveAuthorization,
+  describeTargetDeployment,
+  experimentRunStatus,
+  formatExperimentRunSummary,
+  reportExperimentResult,
+  runExperimentFile,
+  validateExperimentFile,
+} from './experiment';
+export type {
+  CreateExperimentLiveAuthorizationOptions,
+  ExperimentCheck,
+  ExperimentCheckStatus,
+  ExperimentCheckSubject,
+  ExperimentEvidenceFile,
+  ExperimentExitCode,
+  ExperimentFileRunOutcome,
+  ExperimentReportFile,
+  ExperimentRunStatus,
+  ExperimentValidation,
+  ReportExperimentResultOptions,
+  RunExperimentFileOptions,
+} from './experiment';
+export type {
+  ExperimentLiveAuthorization,
+  ExperimentManifest,
+  ExperimentRunResult,
+  ExperimentTarget,
+  ExperimentTask,
+} from '@artemiskit/core';
+export type { ExperimentReportFormat, ExperimentReportView } from '@artemiskit/reports';

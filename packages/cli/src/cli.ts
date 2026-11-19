@@ -7,6 +7,7 @@ import { version } from '../package.json';
 import { scenarioCommand, workflowToolsCommand } from './commands/agent-workflow';
 import { baselineCommand } from './commands/baseline';
 import { compareCommand } from './commands/compare';
+import { experimentCommand } from './commands/experiment';
 import { historyCommand } from './commands/history';
 import { initCommand } from './commands/init';
 import { redteamCommand } from './commands/redteam';
@@ -51,6 +52,7 @@ export function createCLI(): Command {
   program.addCommand(scenarioCommand());
   program.addCommand(workflowToolsCommand());
   program.addCommand(workflowCommand());
+  program.addCommand(experimentCommand());
   program.addCommand(runCommand());
   program.addCommand(validateCommand());
   program.addCommand(baselineCommand());

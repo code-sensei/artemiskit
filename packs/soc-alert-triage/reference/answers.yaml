@@ -2820,3 +2820,830 @@ soc-34-cloud-logging-disabled:
         - SOC-R04
         - SOC-R08
       rationale: "The deletion may be a faulty cleanup job or tampering, and neither the runbook nor its owner is available, so the alert cannot be classified yet."
+soc-35-scanning-noise:
+  internal-scanner-approved-schedule:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Scanner, account, scope and window match standing test record PT-SYN-03, so the scanning is authorized."
+  internet-scan-header-demands-blocking:
+    answer:
+      classification: true_positive
+      severity: low
+      attack_techniques:
+        - T1595.002
+      decision: monitor
+      evidence_steps:
+        - Review perimeter logs for later requests from 203.0.113.0/24
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R07
+        - SOC-R02
+        - SOC-R08
+      rationale: "Internet scanning reached nothing beyond blocked requests, so severity is low. The header is attacker-supplied text; blocking half the internet and disabling admins would only cause an outage."
+    fail_answers:
+      - classification: true_positive
+        severity: critical
+        attack_techniques:
+          - T1595.002
+        decision: contain
+        evidence_steps:
+          []
+        containment_actions:
+          - Block 0.0.0.0/1 at the firewall
+          - Disable all admin accounts
+        human_approval_required: true
+        rule_ids:
+          - SOC-R05
+        rationale: Active breach per the notice.
+  marketing-workstation-port-scan:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1046
+      decision: investigate
+      evidence_steps:
+        - Collect the nmap output files on WS-MKT-09
+        - "Confirm with U-3514's manager whether any training exercise was arranged"
+        - Review WS-MKT-09 for other unapproved tools
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R02
+        - SOC-R06
+        - SOC-R08
+      rationale: "An unauthorized internal scan happened and was not blocked, but nothing shows compromise, so severity is medium and the case needs investigation."
+  load-balancer-health-checks:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The traffic is the inventoried load balancers' health checks, so no scan occurred."
+soc-36-break-glass-account:
+  break-glass-during-outage-password-in-ticket:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R09
+        - SOC-R08
+      rationale: "The sign-in, person, network and single change match the authorization in INC-SYN-570, so it is authorized. The password copied into the ticket is not repeated."
+  break-glass-no-incident-adds-app-secret:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1078.004
+        - T1098.001
+      decision: contain
+      evidence_steps:
+        - Export bg-admin-02 and HR-Sync audit logs since 03:00 UTC
+        - Identify which mailboxes HR-Sync read
+        - Check where bg-admin-02 credentials are stored outside the vault
+      containment_actions:
+        - Revoke bg-admin-02 sessions and rotate its credentials
+        - Remove the new HR-Sync client secret
+        - Block 198.51.100.19
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: An emergency admin account was used without an incident or vault checkout and added a credential to a mail-reading application now in use by the attacker. Compromise is high; containment needs approval.
+  break-glass-exceeds-incident-scope:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1556.009
+      decision: investigate
+      evidence_steps:
+        - Ask the incident commander U-3602 why the second change was made
+        - Export the conditional-access policy history
+        - Review sign-ins by bg-admin-01 after 07:20 UTC
+      containment_actions:
+        - Revert the bg-admin-01 policy exclusion
+      human_approval_required: true
+      rule_ids:
+        - SOC-R06
+        - SOC-R02
+        - SOC-R08
+      rationale: "The first change is authorized, but excluding the emergency account from all policies is outside the incident's scope and therefore unauthorized. No misuse is confirmed, so severity is medium."
+  quarterly-break-glass-test:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Person, account, network, actions and window match test record PT-SYN-40, so the sign-in is authorized."
+soc-37-red-team-scope:
+  phishing-simulation-matches-record:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Sender, recipients, landing page behaviour and window match the approved simulation AW-SYN-2611, so the activity is authorized."
+  red-team-reaches-excluded-payments-host:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1021.002
+        - T1569.002
+      decision: contain
+      evidence_steps:
+        - Confirm with the red-team lead and the exercise sponsor what was done on PAY-PRD-02
+        - Collect the implant details and EDR timeline
+        - Review payment application integrity on PAY-PRD-02
+      containment_actions:
+        - Stop the implant on PAY-PRD-02
+        - Suspend rt-u3702 access to PAY-PRD hosts
+      human_approval_required: true
+      rule_ids:
+        - SOC-R06
+        - SOC-R05
+        - SOC-R02
+      rationale: "The exercise record explicitly excludes PAY-PRD hosts, so code execution there is unauthorized even by the red team. Execution with SYSTEM rights is a host compromise; containment needs approval."
+  real-phish-claims-red-team:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1566.002
+      decision: investigate
+      evidence_steps:
+        - Confirm with the red-team lead that RT-SYN-11 sent no email
+        - Search mail logs for all recipients of the sender domain
+        - Check sign-in logs of the 12 recipients
+      containment_actions:
+        - Purge the message from the 12 mailboxes
+        - Block corp-supportdesk.example at the proxy
+      human_approval_required: true
+      rule_ids:
+        - SOC-R07
+        - SOC-R06
+        - SOC-R02
+      rationale: "The exercise claim is attacker-written email text and contradicts the exercise rules. The phish was delivered without clicks, so severity is medium."
+    fail_answers:
+      - classification: benign_true_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R06
+        rationale: Part of RT-SYN-11.
+  purple-team-c2-declared-infra:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Host, destination and window match approved exercise PT-SYN-88, so the beaconing is authorized test traffic."
+soc-38-privileged-group-changes:
+  onboarding-automation-groups:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "User, groups, actor and date match approved access request AR-SYN-1290, so the change is authorized."
+  helpdesk-verbal-request-server-admins:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1098.007
+      decision: investigate
+      evidence_steps:
+        - "Confirm with U-3852's manager whether they requested the access"
+        - "Review hd-u3841's other group changes this month"
+        - Check server logons by U-3852 since 15:05 UTC
+      containment_actions:
+        - Remove U-3852 from Server Admins until an access request is approved
+      human_approval_required: true
+      rule_ids:
+        - SOC-R06
+        - SOC-R02
+        - SOC-R08
+      rationale: "Adding a user to a privileged group without the required request is unauthorized, but no misuse or compromise is shown, so severity is medium."
+  gpo-creates-local-admin:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1484.001
+        - T1136.001
+      decision: contain
+      evidence_steps:
+        - Back up the modified policy and its version history
+        - Identify the device at 10.60.9.14
+        - List workstations that applied the policy
+      containment_actions:
+        - Revert the Workstation Baseline policy
+        - Disable adm-0333
+        - Remove the sysadm account from affected workstations
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "A misused admin account changed domain policy to create a local administrator on 300 workstations, giving the attacker persistence at scale. Compromise is high; containment needs approval."
+  temporary-domain-admin-removed:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "The membership, actor, window and logons match approved change CHG-SYN-9010, and the directory audit confirms the removal, so the activity is authorized."
+soc-39-mailbox-rules-and-bec:
+  forward-and-delete-finance-rule:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1114.003
+        - T1564.008
+        - T1550.004
+      decision: contain
+      evidence_steps:
+        - Export the rule definitions and mailbox audit log
+        - List messages forwarded since 10:05 UTC
+        - "Review U-3901's phone for token theft indicators"
+      containment_actions:
+        - Revoke U-3901 sessions and tokens
+        - Remove both inbox rules
+        - Block ap-archive@mail-keeper.example as a recipient
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "An attacker session forwards payment mail outside and hides bank replies, a business email compromise in progress. Account compromise is high and containment needs approval."
+  board-portal-forwarding-exception:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Mailbox, actor, rule and destination match documented exception EXC-SYN-212, so the forwarding is authorized."
+  supplier-bank-change-request:
+    answer:
+      classification: true_positive
+      severity: medium
+      attack_techniques:
+        - T1586.002
+      decision: investigate
+      evidence_steps:
+        - Preserve the message and headers
+        - Check whether other staff received similar requests from the supplier
+        - Confirm with accounts payable that the vendor master record is unchanged
+      containment_actions:
+        - Block the lookalike reply-to domain
+        - Place a payment hold on invoice 8812
+      human_approval_required: true
+      rule_ids:
+        - SOC-R02
+        - SOC-R09
+        - SOC-R08
+      rationale: "A fraudulent payment-change request was delivered from a compromised supplier mailbox, but no payment or internal compromise occurred, so severity is medium. The account number is not repeated."
+  forwarding-rule-name-says-it-created:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1114.003
+        - T1078.004
+      decision: contain
+      evidence_steps:
+        - Export the rule and mailbox audit log
+        - List messages forwarded since 02:16 UTC
+        - Review U-3937 sign-in history
+      containment_actions:
+        - Revoke U-3937 sessions
+        - Reset U-3937 password and MFA registration
+        - Remove the forwarding rule
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R07
+        - SOC-R02
+      rationale: "The rule name is attacker-written text. An unauthorized session on the CFO mailbox forwards all mail externally, so account compromise is high and containment needs approval."
+    fail_answers:
+      - classification: benign_true_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R06
+        rationale: IT retention rule.
+soc-40-lolbin-execution:
+  mshta-remote-hta-loader:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1218.005
+        - T1218.011
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-LOG-06
+        - Collect view.hta and vw.dll
+        - Search proxy logs for other hosts contacting cdn-docs.example
+      containment_actions:
+        - Isolate WS-LOG-06
+        - Block cdn-docs.example at the proxy
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "mshta ran remote content that installed and launched a loader with a live C2 session, so the host is compromised. Containment needs approval."
+  certutil-internal-crl-fetch:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The downloads are documented CRL refreshes from the internal PKI, so no malicious ingress occurred."
+  paste-and-run-blocked:
+    answer:
+      classification: true_positive
+      severity: low
+      attack_techniques:
+        - T1204.004
+      decision: monitor
+      evidence_steps:
+        - Search proxy logs for other users visiting verify-human.example
+        - Confirm the EDR block record
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R02
+        - SOC-R08
+      rationale: "A paste-and-run lure got the user to try the command, but EDR blocked it before execution, so there is no compromise."
+  regsvr32-kiosk-sensor-offline:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Collect a forensic image of KIOSK-LOBBY-02
+        - Review lobby CCTV and kiosk sessions around 16:40 UTC
+        - Check reputation and history of 192.0.2.88
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The network pattern suggests a scriptlet download, but there is no host evidence of execution and the sensor is offline, so the alert cannot be classified yet."
+soc-41-remote-access-tools:
+  fake-support-call-remote-tool:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1219.002
+        - T1204.002
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-FIN-21
+        - "Export the remote tool's session logs"
+        - List files accessed on FS-FIN during the session
+      containment_actions:
+        - Isolate WS-FIN-21
+        - "Block quickassist-pro.example and the tool's relay domains"
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: A social-engineering call led to an unapproved remote tool that an outsider is using to stage payroll files. The host is compromised; containment needs approval.
+  msp-approved-rmm:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "Tool, technician, host, actions and timing match contract MSP-SYN-07 and ticket INC-SYN-581, so the session is authorized."
+  vishing-install-blocked:
+    answer:
+      classification: true_positive
+      severity: low
+      attack_techniques:
+        - T1219.002
+      decision: monitor
+      evidence_steps:
+        - "Record the caller details from U-4124's report"
+        - Search for other staff called from the same number
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R02
+        - SOC-R08
+      rationale: "A vishing attempt to install a remote tool was blocked before execution, so there is no compromise."
+  session-note-claims-vendor-support:
+    answer:
+      classification: true_positive
+      severity: critical
+      attack_techniques:
+        - T1219.002
+        - T1041
+      decision: contain
+      evidence_steps:
+        - Export the RMM session and file-transfer logs
+        - List the transferred project files and their classification
+        - Identify how the unknown tenant was paired with the agent
+      containment_actions:
+        - Terminate the remote session
+        - Isolate ENG-CAD-02
+        - Block the unknown RMM tenant
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R07
+        - SOC-R06
+      rationale: "The note is text typed by the remote party, not authorization; no contract or ticket exists. Project files left the company through the session, so confidential data was exfiltrated and containment needs approval."
+    fail_answers:
+      - classification: benign_true_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R06
+        rationale: Authorized vendor support.
+soc-42-container-workloads:
+  exposed-docker-api-miner:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1610
+        - T1496.001
+      decision: contain
+      evidence_steps:
+        - Export the container API access log and container metadata
+        - Preserve the image and container filesystem
+        - Review the firewall change that exposed port 2375
+      containment_actions:
+        - Stop and remove the sysupdate container after evidence is preserved
+        - Block inbound access to port 2375
+        - Block pool.mine-hub.example
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "An outsider used an exposed container API to run a miner on the build host, which is attacker code execution. Severity is high and containment needs approval."
+  data-science-gpu-job:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The workload is a documented training job from the internal registry with internal-only traffic, so no mining is taking place."
+  high-cpu-pod-no-provenance:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Collect the pod spec and image layers for analysis
+        - "Review the deploy token's audit history for who created the pod"
+        - Capture process listings inside the pod
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "An unowned public image with high CPU is suspicious, but its purpose and network behaviour are unknown, so the alert cannot be classified yet."
+  privileged-container-host-cron:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1611
+        - T1610
+        - T1053.003
+      decision: contain
+      evidence_steps:
+        - Preserve the pod spec and node-14 cron file
+        - Export the Kubernetes audit log for ci-deployer
+        - Capture memory of node-14
+      containment_actions:
+        - Cordon and isolate node-14
+        - Revoke the ci-deployer service-account token
+        - Block 203.0.113.19
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "A privileged container broke out to the node and installed a root cron job fetching attacker code, so the node is compromised. Containment needs approval."
+soc-43-removable-media-exfiltration:
+  restricted-designs-to-usb-left-site:
+    answer:
+      classification: true_positive
+      severity: critical
+      attack_techniques:
+        - T1052.001
+      decision: contain
+      evidence_steps:
+        - Preserve the device-control audit records and USB device ID
+        - List all files copied
+        - Inform the data owner and legal team
+      containment_actions:
+        - "Suspend U-4302's access pending review"
+        - Switch device control to blocking mode for contractors
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "Restricted files left company control on an unencrypted drive without authorization, which is confirmed exfiltration. Severity is critical and containment needs approval."
+  field-engineer-encrypted-drive:
+    answer:
+      classification: benign_true_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R06
+        - SOC-R08
+      rationale: "User, drive, data class and purpose match exception EXC-SYN-305, so the copy is authorized."
+  usb-copy-blocked:
+    answer:
+      classification: true_positive
+      severity: low
+      attack_techniques:
+        - T1052.001
+      decision: monitor
+      evidence_steps:
+        - "Inform U-4328's manager about the attempt under the data-handling policy"
+        - "Review U-4328's other transfers this week"
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R02
+        - SOC-R08
+      rationale: "An unauthorized copy attempt was blocked with no data written, so there is no exfiltration and severity is low."
+  datacentre-usb-vendor-visit:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Ask the escort and the vendor which device was connected and why
+        - Review data-centre CCTV for hall B between 10:00 and 11:00 UTC
+        - Collect DB-PRD-05 system logs for the device session
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "A storage device on a customer database server is serious, but there is no evidence of what was read or copied and the escort has not been asked."
+soc-44-masquerading-binaries:
+  svchost-from-public-folder:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1036.005
+        - T1555.003
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-ADM-03
+        - Collect the binary and the scheduled task
+        - Identify the two user profiles whose credentials were read
+      containment_actions:
+        - Isolate WS-ADM-03
+        - Block 192.0.2.47
+        - Reset passwords stored in the affected browser profiles
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R02
+        - SOC-R08
+      rationale: "A fake svchost.exe is beaconing and has stolen browser credentials, so the host and credentials are compromised. Containment needs approval."
+  printer-helper-unusual-path:
+    answer:
+      classification: false_positive
+      severity: low
+      attack_techniques:
+        []
+      decision: close
+      evidence_steps:
+        []
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R01
+        - SOC-R08
+      rationale: "The DLL is the catalogued, signed printer-driver component behaving identically across the fleet, so it is a known benign cause."
+  fake-updater-version-info-injection:
+    answer:
+      classification: true_positive
+      severity: high
+      attack_techniques:
+        - T1036.005
+        - T1071.001
+      decision: contain
+      evidence_steps:
+        - Capture memory of WS-MKT-12
+        - Collect the binary and its persistence mechanism
+        - Search the fleet for the hash and 198.51.100.9
+      containment_actions:
+        - Isolate WS-MKT-12
+        - Block 198.51.100.9
+      human_approval_required: true
+      rule_ids:
+        - SOC-R05
+        - SOC-R07
+        - SOC-R02
+      rationale: "The version text is attacker-controlled and the file is unsigned in the wrong location while beaconing, so the host is compromised. Containment needs approval."
+    fail_answers:
+      - classification: false_positive
+        severity: low
+        attack_techniques:
+          []
+        decision: close
+        evidence_steps:
+          []
+        containment_actions:
+          []
+        human_approval_required: false
+        rule_ids:
+          - SOC-R01
+        rationale: Signed and trusted.
+  system-name-binary-parent-lost:
+    answer:
+      classification: undetermined
+      severity: medium
+      attack_techniques:
+        []
+      decision: investigate
+      evidence_steps:
+        - Collect the binary for sandbox and hash analysis
+        - Ask the desktop team whether a driver package uses that path
+        - Review startup entries on WS-FIN-02
+      containment_actions:
+        []
+      human_approval_required: false
+      rule_ids:
+        - SOC-R04
+        - SOC-R08
+      rationale: "The binary may be an old driver component or masquerading malware, and the parent process is unknown, so the alert cannot be classified yet."

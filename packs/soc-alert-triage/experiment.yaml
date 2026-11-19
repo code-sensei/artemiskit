@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 026d10fb470849393fa40fd45831999196f6498b9f695679a59023b589cd655b
+    digest: 8f1163605b23655b2a727050bff1a7cd0f95a80b6de6bec9a23edcb597a58a1e
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -435,6 +435,126 @@ tasks:
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
+  - id: soc-35-scanning-noise
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-35-scanning-noise.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c58f9a3878c87e6957240a7332e9c4daabdc073ba8ad93c3863ca90136f68102
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-36-break-glass-account
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-36-break-glass-account.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 313acf5a4be2211f6d660ad0439b53b7e286ec61fd365f22a4dc84423f3a1d1e
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-37-red-team-scope
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-37-red-team-scope.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: c341b8b026e5e5e167b61c614380cae8c0484113ed4e30ced8a9d7d8e2fd4203
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-38-privileged-group-changes
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-38-privileged-group-changes.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 49cd8a6d369ced1db5ae226e71e19ab01f6290becd49828dcc97fa944b139ddb
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-39-mailbox-rules-and-bec
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-39-mailbox-rules-and-bec.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 23a0354f0acfb96ceedcdd8874fb3a0097fff34e8669a6910a070acda2081054
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-40-lolbin-execution
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-40-lolbin-execution.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: bc201cd731dc7a3670b46ff8f220b51ec520509e827d72432eda613061897bd4
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-41-remote-access-tools
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-41-remote-access-tools.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9f456d71d1583fbee2733e7b486cc14955cde9c4678b19613453472d233f3c21
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-42-container-workloads
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-42-container-workloads.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 9adc389556cb03593f5049822683e7e13c9a93f2f14beb7574a7bbd4e3602c41
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-43-removable-media-exfiltration
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-43-removable-media-exfiltration.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 8842eb3c995b3b008dc0ea220841a0274823e124bc0335710d4fa78b6034be2b
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
+  - id: soc-44-masquerading-binaries
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/soc-44-masquerading-binaries.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: eac44e97165c352c3a9bf2f917b1e44d6016e9bc12343ef9d2af5f952fbe3285
+    required_capabilities: []
+    language: en
+    policy: soc-rulebook-v1
 targets:
   - id: qwen3.5-4b-local
     provider: openai
@@ -475,8 +595,8 @@ retry_policy:
   max_attempts: 2
   retry_on:
     - infrastructure_failed
-# 135 cases x 2 targets x 3 repetitions = 810 requests; at most 1620 with one retry each.
+# 175 cases x 2 targets x 3 repetitions = 1050 requests; at most 2100 with one retry each.
 # max_tokens allows 6,000 tokens per request, including reasoning output.
 budgets:
-  max_requests: 1620
-  max_tokens: 9720000
+  max_requests: 2100
+  max_tokens: 12600000

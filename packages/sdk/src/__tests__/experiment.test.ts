@@ -265,7 +265,7 @@ describe('validateExperimentFile', () => {
   });
 
   test('distinguishes an unreadable file (1) from an invalid manifest (2)', async () => {
-    const fixture = await writeExperimentFixture({ overrides: { concurrency: 4 } });
+    const fixture = await writeExperimentFixture({ overrides: { concurrency: 9 } });
     const missing = await validateExperimentFile(path.join(fixture.directory, 'absent.yaml'));
     const invalid = await validateExperimentFile(fixture.file);
 

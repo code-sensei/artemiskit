@@ -3,8 +3,21 @@
  */
 
 import { describe, expect, it, mock } from 'bun:test';
+import type { GenerateResult } from '@artemiskit/core';
 import { DeepAgentsAdapter, createDeepAgentsAdapter } from './client';
-import type { DeepAgentsCallbacks, DeepAgentsOutput, DeepAgentsSystem } from './types';
+import type {
+  DeepAgentsCallbacks,
+  DeepAgentsExecutionMetadata,
+  DeepAgentsOutput,
+  DeepAgentsStreamEvent,
+  DeepAgentsSystem,
+} from './types';
+
+// GenerateResult.raw is untyped; this adapter records its execution metadata there.
+function executionMetadata(result: GenerateResult): DeepAgentsExecutionMetadata {
+  expect(result.raw).toHaveProperty('metadata');
+  return (result.raw as { metadata: DeepAgentsExecutionMetadata }).metadata;
+}
 
 // Mock system factory for testing
 function createMockSystem(
@@ -42,7 +55,7 @@ function createMockSystem(
   }
 
   if (options?.supportsStreaming) {
-    system.stream = mock(async function* (input) {
+    system.stream = mock(async function* (): AsyncGenerator<DeepAgentsStreamEvent> {
       yield { type: 'agent_start', agent: 'agent1', timestamp: Date.now() };
       yield { type: 'token', content: 'Hello' };
       yield { type: 'token', content: ' World' };
@@ -159,7 +172,7 @@ describe('DeepAgentsAdapter', () => {
 
       const result = await adapter.generate({ prompt: 'Research and write' });
 
-      expect(result.raw.metadata.toolsUsed).toContain('web_search');
+      expect(executionMetadata(result).toolsUsed).toContain('web_search');
     });
 
     it('should capture messages between agents', async () => {
@@ -177,9 +190,9 @@ describe('DeepAgentsAdapter', () => {
 
       const result = await adapter.generate({ prompt: 'Do research' });
 
-      expect(result.raw.metadata.totalMessages).toBe(2);
-      expect(result.raw.metadata.agentsInvolved).toContain('coordinator');
-      expect(result.raw.metadata.agentsInvolved).toContain('researcher');
+      expect(executionMetadata(result).totalMessages).toBe(2);
+      expect(executionMetadata(result).agentsInvolved).toContain('coordinator');
+      expect(executionMetadata(result).agentsInvolved).toContain('researcher');
     });
 
     it('should track latency', async () => {
@@ -267,7 +280,7 @@ describe('DeepAgentsAdapter', () => {
       const chunks: string[] = [];
       const onChunk = (chunk: string) => chunks.push(chunk);
 
-      for await (const chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
+      for await (const _chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
         // Collect
       }
 
@@ -281,7 +294,7 @@ describe('DeepAgentsAdapter', () => {
       const chunks: string[] = [];
       const onChunk = (chunk: string) => chunks.push(chunk);
 
-      for await (const chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
+      for await (const _chunk of adapter.stream({ prompt: 'Test' }, onChunk)) {
         // Collect
       }
 
@@ -337,7 +350,7 @@ describe('DeepAgentsAdapter', () => {
 
       const result = await adapter.generate({ prompt: 'Test' });
 
-      const agents = result.raw.metadata.agentsInvolved;
+      const agents = executionMetadata(result).agentsInvolved;
       expect(agents).toContain('coordinator');
       expect(agents).toContain('researcher');
       expect(agents).toContain('writer');
@@ -356,10 +369,10 @@ describe('DeepAgentsAdapter', () => {
 
       const result = await adapter.generate({ prompt: 'Test' });
 
-      expect(result.raw.metadata.totalToolCalls).toBe(3);
-      expect(result.raw.metadata.toolsUsed).toContain('search');
-      expect(result.raw.metadata.toolsUsed).toContain('fetch');
-      expect(result.raw.metadata.toolsUsed).toContain('calculate');
+      expect(executionMetadata(result).totalToolCalls).toBe(3);
+      expect(executionMetadata(result).toolsUsed).toContain('search');
+      expect(executionMetadata(result).toolsUsed).toContain('fetch');
+      expect(executionMetadata(result).toolsUsed).toContain('calculate');
     });
   });
 });

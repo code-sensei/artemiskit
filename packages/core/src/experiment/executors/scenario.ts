@@ -118,7 +118,10 @@ export function createScenarioExperimentExecutor(
  * markers, roles and special tokens. It is an estimate for admission only: a request whose
  * serving runtime adds more (for example a long default system prompt) simply draws the
  * excess from the run's uncommitted token budget, so an underestimate costs parallelism,
- * never measurements, while the run's token budget suffices.
+ * never measurements, while the run's token budget suffices. When the budget does not
+ * suffice, an underestimate can let a concurrent run overrun `max_tokens` by up to roughly one
+ * attempt's use per concurrency slot (one attempt serially) before the run halts and records
+ * `budget_exceeded`.
  */
 export const SCENARIO_PROMPT_TOKEN_ALLOWANCE = 256;
 

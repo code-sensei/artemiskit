@@ -255,6 +255,11 @@ export interface ExperimentAttemptInput {
  * use beyond a declared run budget halts the run. With nothing else in flight an attempt is
  * granted the whole remaining budget instead, as in a serial run.
  *
+ * Under-declaring has a cost: every in-flight attempt may exceed its reservation before any of
+ * them settles, so a concurrent run can overrun a declared budget by up to roughly one
+ * attempt's use per concurrency slot (one attempt serially). Every overrun halts the run and
+ * is recorded as `budget_exceeded`.
+ *
  * Concurrent runs account cost at micro-unit precision: each reserved or consumed amount is
  * rounded to the nearest micro-unit, and any positive amount is charged at least one. With an
  * exactly sufficient cost budget, that rounding can stop a concurrent run up to half a

@@ -234,6 +234,12 @@ export function experimentUncertaintyAssumptions(concurrency: number): string[] 
  * half a micro-unit, since it is charged one), recorded as a stop. With an insufficient
  * budget, which coordinates are measured may depend on timing, and the stop is recorded as a
  * stop reason with runtime exclusions.
+ *
+ * Overrun bound. A demand is an estimate, so an executor may report more use than it reserved.
+ * Serially, a budget can be overrun by at most about one attempt's use. Concurrently, every
+ * in-flight attempt may use more than its reservation before any of them settles, so an
+ * under-declared demand can let a run overrun a budget by up to roughly one attempt's use per
+ * concurrency slot. Every overrun halts the run and is recorded as `budget_exceeded`.
  */
 export async function runExperiment(
   value: ExperimentManifest,

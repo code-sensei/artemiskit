@@ -1339,4 +1339,79 @@ describe('createScenarioExperimentExecutor declared demand', () => {
     expect(result.execution?.peak_in_flight).toBe(1);
     expect(result.stop_reason).toBeUndefined();
   });
+
+  test('keeps measuring when a runtime adds more prompt tokens than the reservation allows', async () => {
+    // Verifier reproduction: 4 tasks × 2 local targets × 2 repetitions, 2 cases each,
+    // maxTokens 50, an exact request budget, an ample token budget and 600 template tokens.
+    const overhead = 600;
+    const sources = [0, 1, 2, 3].map((index) => ({
+      path: `scenarios/overhead-${index}.yaml`,
+      content: `name: overhead-${index}
+maxTokens: 50
+cases:
+  - id: capital
+    prompt: "What is the capital of Nigeria? (${index})"
+    expected:
+      type: contains
+      values: ["Abuja"]
+  - id: arithmetic
+    prompt: "What is 2 + 2? (${index})"
+    expected:
+      type: contains
+      values: ["4"]
+`,
+    }));
+    for (const source of sources) await writeFile(path.join(root, source.path), source.content);
+    const tasks = sources.map((source, index) =>
+      scenarioTask(source.path, { id: `overhead-${index}`, digest: digestOf(source.content) })
+    );
+    const createClient = (target: ExperimentTarget): ModelClient => {
+      const client = fixtureClients({}).createClient(target) as ModelClient;
+      return {
+        ...client,
+        generate: async (options) => {
+          const result = await client.generate(options);
+          const prompt = Buffer.byteLength(promptText(options)) + overhead;
+          return { ...result, tokens: { prompt, completion: 1, total: prompt + 1 } };
+        },
+      };
+    };
+    const run = (concurrency: 1 | 2 | 4 | 8) =>
+      runExperiment(
+        liveExperiment(tasks, {
+          targets: [LOCAL_TARGET, LOCAL_TARGET_9B],
+          repetitions: 2,
+          concurrency,
+          budgets: { max_requests: 32, max_tokens: 100_000 },
+          live: {
+            concurrency_ceiling: concurrency,
+            stop_conditions: [
+              'request_budget_exhausted',
+              'token_budget_exhausted',
+              'cost_budget_exhausted',
+              'usage_unreported',
+              'usage_invalid',
+              'budget_exceeded',
+            ],
+          },
+        }),
+        {
+          live_authorization: { ...AUTHORIZATION, approved_concurrency: concurrency },
+          execute_attempt: createScenarioExperimentExecutor({ root, repetitions: 2, createClient }),
+        }
+      );
+
+    for (const concurrency of [1, 2, 4, 8] as const) {
+      const result = await run(concurrency);
+      expect(result.summaries.overall.passed, `concurrency ${concurrency}`).toBe(16);
+      expect(result.stop_reason, `concurrency ${concurrency}`).toBeUndefined();
+      if (concurrency > 1) {
+        const demand = result.execution?.reservations[0]?.demand;
+        // Each attempt uses more tokens than it reserved; the pool covers the excess.
+        expect(demand?.tokens).toBeLessThan(
+          result.results[0].attempts[0].usage.tokens ?? Number.POSITIVE_INFINITY
+        );
+      }
+    }
+  });
 });

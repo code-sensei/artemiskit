@@ -115,8 +115,10 @@ export function createScenarioExperimentExecutor(
 
 /**
  * Tokens reserved per request beyond the UTF-8 bytes of its message text, for chat-template
- * markers, roles and special tokens. Byte-level tokenizers never emit more tokens than input
- * bytes, so prompt bytes plus this allowance bound a request's prompt tokens.
+ * markers, roles and special tokens. It is an estimate for admission only: a request whose
+ * serving runtime adds more (for example a long default system prompt) simply draws the
+ * excess from the run's uncommitted token budget, so an underestimate costs parallelism,
+ * never measurements, while the run's token budget suffices.
  */
 export const SCENARIO_PROMPT_TOKEN_ALLOWANCE = 256;
 
@@ -132,15 +134,17 @@ const CLIENT_FREE_EXPECTATIONS = new Set([
 ]);
 
 /**
- * Declared demand for concurrent admission (see `ExperimentAttemptExecutor.reserve`).
+ * Declared demand for concurrent admission (see `ExperimentAttemptExecutor.reserve`). It is a
+ * reservation, not a cap on use.
  *
  * Declared only when every case sends exactly one request: no tools, no case-level retries,
  * and only client-free expectations (`llm_grader`, `similarity` and `custom` may call the
  * model). Requests are then the case count, which is also this executor's own minimum.
  * Tokens are declared when the per-request output cap (`max_output_tokens`, else the
  * scenario's `maxTokens`) is known: per case, prompt UTF-8 bytes plus
- * `SCENARIO_PROMPT_TOKEN_ALLOWANCE` plus the output cap. Cost is never declared, so a metered
- * target under a cost limit runs alone. Anything this cannot bound declares no demand.
+ * `SCENARIO_PROMPT_TOKEN_ALLOWANCE` plus the output cap, an estimate rather than a bound. Cost
+ * is never declared, so a metered target under a cost limit runs alone. Anything else
+ * declares no demand and runs one attempt at a time.
  */
 async function reserveAttempt(
   root: string,

@@ -146,5 +146,8 @@ describe('CLI private workflow recovery', () => {
     } finally {
       server.stop(true);
     }
-  }, 30000);
+    // Four sequential CLI children from TypeScript source (about 1.6 s in all on a quiet machine,
+    // scaling with load), each killed after 15 s; the timeout covers all four so a slow child
+    // fails on its own exit evidence.
+  }, 60_000);
 });

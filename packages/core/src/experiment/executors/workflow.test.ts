@@ -435,8 +435,8 @@ describe('createWorkflowExperimentExecutor refusals before any model call', () =
     });
   }
 
-  test('generation settings the engine cannot send are refused', async () => {
-    const settings = { top_p: 0.8, presence_penalty: 1.5, top_k: 20, min_p: 0 };
+  test('generation settings no request transport sends are refused', async () => {
+    const settings = { top_k: 20, min_p: 0 };
     for (const [setting, value] of Object.entries(settings)) {
       const target = { ...LOCAL_TARGET, settings: { [setting]: value } };
       const { result, client } = await run([ANSWER], 'workflows/read.yaml', { target });
@@ -448,12 +448,10 @@ describe('createWorkflowExperimentExecutor refusals before any model call', () =
     }
   });
 
-  test('a coordinate seed is refused because the engine sends none', async () => {
-    const client = scriptedClient([READ_BRIEF, ANSWER]);
-    const result = await executorFor(client)(
-      attemptInput(workflowTask('workflows/read.yaml'), { seed: 7 })
-    );
-    expect(result).toMatchObject({ status: 'invalid', error_code: 'workflow_seed_unsupported' });
+  test('an unknown reasoning effort is refused as an invalid setting', async () => {
+    const target = { ...LOCAL_TARGET, settings: { reasoning_effort: 'maximum' } };
+    const { result, client } = await run([ANSWER], 'workflows/read.yaml', { target });
+    expect(result).toMatchObject({ status: 'invalid', error_code: 'generation_settings_invalid' });
     expect(client.calls).toBe(0);
   });
 });
@@ -474,6 +472,62 @@ describe('createWorkflowExperimentExecutor measured condition and evidence', () 
     expect(configuration?.model.display).toBe('qwen3.5:4b');
     expect(configuration?.provider.display).toBe('openai');
     expect(configuration?.generation).toEqual({ maxTokens: 512, temperature: 0.7 });
+  });
+
+  test('top_p, presence penalty and the coordinate seed reach every request and the record', async () => {
+    const target: ExperimentTarget = {
+      ...LOCAL_TARGET,
+      settings: {
+        temperature: 0.7,
+        top_p: 0.8,
+        presence_penalty: 1.5,
+        max_output_tokens: 512,
+        reasoning_effort: 'none',
+      },
+    };
+    const client = scriptedClient([READ_BRIEF, ANSWER]);
+    const records: WorkflowExperimentEvidenceRecord[] = [];
+    const execute = executorFor(client, { onEvidence: (record) => void records.push(record) });
+    const result = await execute(
+      attemptInput(workflowTask('workflows/read.yaml'), { target, seed: 7 })
+    );
+    expect(result.status).toBe('passed');
+    expect(client.requests).toHaveLength(2);
+    for (const request of client.requests) {
+      expect(request).toMatchObject({
+        maxTokens: 512,
+        temperature: 0.7,
+        topP: 0.8,
+        presencePenalty: 1.5,
+        seed: 7,
+      });
+      // reasoning_effort is client configuration, never a per-request option.
+      expect(request).not.toHaveProperty('reasoningEffort');
+    }
+    expect(records[0].record.configuration?.generation).toEqual({
+      maxTokens: 512,
+      temperature: 0.7,
+      topP: 0.8,
+      presencePenalty: 1.5,
+      seed: 7,
+      reasoningEffort: 'none',
+    });
+  });
+
+  test('without a seed or extra settings requests carry neither', async () => {
+    const client = scriptedClient([READ_BRIEF, ANSWER]);
+    const records: WorkflowExperimentEvidenceRecord[] = [];
+    const execute = executorFor(client, { onEvidence: (record) => void records.push(record) });
+    await execute(attemptInput(workflowTask('workflows/read.yaml')));
+    for (const request of client.requests) {
+      expect(request).not.toHaveProperty('seed');
+      expect(request).not.toHaveProperty('topP');
+      expect(request).not.toHaveProperty('presencePenalty');
+    }
+    expect(records[0].record.configuration?.generation).toEqual({
+      maxTokens: 512,
+      temperature: 0.7,
+    });
   });
 
   test("the workflow's generation applies when the target declares none", async () => {

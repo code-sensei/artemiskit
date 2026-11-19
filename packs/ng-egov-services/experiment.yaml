@@ -1,0 +1,134 @@
+# Draft, unreviewed experiment for the ng-egov-services pack. See README.md before using results.
+#
+# Targets are open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint. This is not native Ollama support. Local deployments have no metered
+# cost, so no cost is reported.
+#
+# Regenerate experiment.yaml after any change to a task file or RUBRIC.md:
+#   bun packs/_tools/generate-experiment.ts packs/ng-egov-services --language en-NG --policy ng-egov-rulebook-v1
+#
+# Task source paths are relative to this directory (packs/ng-egov-services/).
+# Identities (recomputed by pack.test.ts):
+#   task digest     = SHA-256 of the exact task file bytes
+#   workload digest = SHA-256 of JSON.stringify([[path, digest], ...]) sorted by path
+#   rubric digest   = SHA-256 of RUBRIC.md
+# Task `policy` names the synthetic rulebook the task is scored against (SYN-EGOV v1.0).
+schema_version: '1'
+id: ng-egov-services-draft
+mode: fixture
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: e8868dbcdeb093763fb42ccf2bdd7476ec2f2868fe43dfd29432a248d9cb3a3a
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: 48fe6a1fe84fe2cc19ed87f3e28089c7ecd4aca5dc2a5619956e1f0581ef29f4
+tasks:
+  - id: egov-01-eligibility
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-01-eligibility.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 2d0b301c53a403edb8fd332bc606eb4011e9ce26675a30d4b4cb0637836f0a74
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-02-identity-and-documents
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-02-identity-and-documents.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: e4486e05c2464bf7a17319238dd41d8dfe2b92b8f488880bf36ada21cefc6b52
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-03-notice-minimisation
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-03-notice-minimisation.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: dfb693f232fafb6bd05cd12d51fdafeddf43851924bba004a0c7829194242e8e
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-04-data-sharing-requests
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-04-data-sharing-requests.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 1b704cb1f9249f49f9dba94880c29f04f4b35c93e41c6b99dbfdca703a618a40
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+  - id: egov-05-appeals-and-injection
+    kind: scenario_evaluation
+    source:
+      kind: scenario_evaluation
+      path: tasks/egov-05-appeals-and-injection.yaml
+      artifact:
+        schema_version: '1'
+        algorithm: sha256
+        digest: 90e18089478d29a93e8d829fe76766417be710ec763bc6d91ac1b246be4bc380
+    required_capabilities: []
+    language: en-NG
+    policy: ng-egov-rulebook-v1
+targets:
+  - id: qwen3.5-4b-local
+    provider: openai
+    model: qwen3.5:4b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-local
+    provider: openai
+    model: qwen3.5:9b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 18 cases x 2 targets x 3 repetitions x 2 attempts = 216 requests at most;
+# max_tokens allows 6,000 tokens per request, including reasoning output.
+budgets:
+  max_requests: 216
+  max_tokens: 1296000

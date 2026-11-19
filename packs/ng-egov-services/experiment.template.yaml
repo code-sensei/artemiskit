@@ -1,0 +1,75 @@
+# Draft, unreviewed experiment for the ng-egov-services pack. See README.md before using results.
+#
+# Targets are open-weight models published by Qwen (Apache-2.0), run locally through Ollama's
+# OpenAI-compatible endpoint. This is not native Ollama support. Local deployments have no metered
+# cost, so no cost is reported.
+#
+# Regenerate experiment.yaml after any change to a task file or RUBRIC.md:
+#   bun packs/_tools/generate-experiment.ts packs/ng-egov-services --language en-NG --policy ng-egov-rulebook-v1
+#
+# Task source paths are relative to this directory (packs/ng-egov-services/).
+# Identities (recomputed by pack.test.ts):
+#   task digest     = SHA-256 of the exact task file bytes
+#   workload digest = SHA-256 of JSON.stringify([[path, digest], ...]) sorted by path
+#   rubric digest   = SHA-256 of RUBRIC.md
+# Task `policy` names the synthetic rulebook the task is scored against (SYN-EGOV v1.0).
+schema_version: '1'
+id: ng-egov-services-draft
+mode: fixture
+identities:
+  schema_version: '1'
+  workload:
+    schema_version: '1'
+    algorithm: sha256
+    digest: __WORKLOAD__
+  rubric:
+    schema_version: '1'
+    algorithm: sha256
+    digest: __RUBRIC__
+tasks:
+__TASKS__
+targets:
+  - id: qwen3.5-4b-local
+    provider: openai
+    model: qwen3.5:4b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+  - id: qwen3.5-9b-local
+    provider: openai
+    model: qwen3.5:9b
+    capabilities: []
+    settings:
+      base_url: http://127.0.0.1:11434/v1
+    deployment:
+      locality: local
+      runtime: ollama
+      cost_basis: not_applicable
+    publisher:
+      id: qwen
+      name: Qwen
+    weights:
+      availability: open
+      license: Apache-2.0
+repetitions: 3
+concurrency: 1
+exclusions: []
+retry_policy:
+  max_attempts: 2
+  retry_on:
+    - infrastructure_failed
+# 18 cases x 2 targets x 3 repetitions x 2 attempts = 216 requests at most;
+# max_tokens allows 6,000 tokens per request, including reasoning output.
+budgets:
+  max_requests: 216
+  max_tokens: 1296000

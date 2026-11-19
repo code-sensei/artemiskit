@@ -306,7 +306,10 @@ describe('SDK native workflow session', () => {
     expect(result.state?.files).toEqual({ 'result.txt': 'PRIVATE-STATE' });
     expect(JSON.stringify(result.record)).not.toContain('PRIVATE-');
     expect(events.some((event) => event.type === 'tool_completed')).toBe(true);
-  });
+    // One Bun child loading core and the OpenAI adapter from source (about 0.5 s on a quiet
+    // machine, over 5 s at load averages 30-60). Stay above its 10 s kill timer so a stuck child
+    // fails on its own exit evidence.
+  }, 30_000);
   test('file fixture roots, session events and environment overrides use the same engine without persistence', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'artemis-sdk-workflow-'));
     const scenario = workflow();

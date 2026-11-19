@@ -428,7 +428,10 @@ describe('native declared faults and bounded retries', () => {
     expect(resumed.record.recovery?.faults.injected).toBe(1);
     expect(resumed.record.recovery?.retries).toMatchObject({ attempted: 1, recovered: 1 });
     expect(readWorkflowRecord(resumed.record)).toEqual(resumed.record);
-  }, 20000);
+    // 142 actions with a durable checkpoint each take about 2 s on a quiet machine, scaling with
+    // load. Stay above the scenario's own 60 s deadline so an overrun is reported by the run
+    // record rather than a generic test timeout.
+  }, 90_000);
   test('a declared timeout consumes elapsed authority and remains pre-effect', async () => {
     const workflow = scenario([{ ...outage, kind: 'timeout', timeout_ms: 100 }], 2);
     workflow.environment.policy.budgets.timeout_ms = 20;

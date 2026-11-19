@@ -15,7 +15,7 @@ tags:
   - basis:synthetic-rulebook
   - data:synthetic
   - tactic:TA0008
-  - tactic:TA0005
+  - tactic:TA0002
 temperature: 0
 maxTokens: 4096
 setup:

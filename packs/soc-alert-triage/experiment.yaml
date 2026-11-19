@@ -21,7 +21,7 @@ identities:
   workload:
     schema_version: '1'
     algorithm: sha256
-    digest: 94f09bf1aa23f01bfd993806aa8dcebe0ac429e1f31168648e2780270fe26463
+    digest: ad651ce17f31c51d1df2d1755f71321880c433b76f30b725e1c262aa5deb2b35
   rubric:
     schema_version: '1'
     algorithm: sha256
@@ -71,7 +71,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 5af1dd168de2710ca9474b6812393352389016d6e58cda67ab0698d32d32d47e
+        digest: 586eef60930f508abcec944a222110e81b6eee405a2260512d28fc0f99fe5698
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
@@ -299,7 +299,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: a89815bcc9f51437ab9ee673c9a13137f536a3331bdf328d7953caaebf2dd07c
+        digest: 200dfd2d1645f6fe605e0f8a46ae6fad9441cae6c0ee8f4c462dd56fc67101f1
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
@@ -347,7 +347,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: c7e1560e24dad74ea832b1fe76eaff4fe5a2282d3947e7a792d53edbb5401508
+        digest: 0fd2873fa0f93c61414298742b308a668582d26237a7db268ddc8b117a27f72e
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
@@ -407,7 +407,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: f3b0f8dbeb938a937b6db07d46bf9fb8b9ba7c1533c51c47f3202f7c6bd38162
+        digest: c9a89535cb944f5661eab22f191b46e472b96be2977ed16033006ff69ba763c5
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1
@@ -647,7 +647,7 @@ tasks:
       artifact:
         schema_version: '1'
         algorithm: sha256
-        digest: 6850b959a872649d6ac46db5418db9c31fa73ceb12b7f9e9d90851d877b01035
+        digest: 3a8e0358c363419f58be4a2e8bbaab6c0c297331ee8d6fb3c8a5960566b91b65
     required_capabilities: []
     language: en
     policy: soc-rulebook-v1

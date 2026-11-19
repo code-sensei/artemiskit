@@ -73,7 +73,8 @@
   "dependencies": {
     "@artemiskit/core": "workspace:*",
     "@artemiskit/redteam": "workspace:*",
-    "@artemiskit/reports": "workspace:*"
+    "@artemiskit/reports": "workspace:*",
+    "yaml": "^2.3.0"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",

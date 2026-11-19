@@ -15,12 +15,12 @@ import {
 import { Command } from 'commander';
 
 interface ExperimentReportCommandOptions {
-  view: string[];
-  format: string[];
+  view?: string[];
+  format?: string[];
   outputDir?: string;
 }
 
-const collect = (value: string, previous: string[]) => [...previous, value];
+const collect = (value: string, previous: string[] = []) => [...previous, value];
 
 /** Default report directory: `reports/` beside the saved result. */
 export function defaultExperimentReportDir(resultFile: string): string {
@@ -36,14 +36,12 @@ export function experimentReportCommand(): Command {
     .option(
       '--view <view>',
       `Report view, repeatable: ${EXPERIMENT_REPORT_VIEWS.join(', ')} (default: all)`,
-      collect,
-      []
+      collect
     )
     .option(
       '--format <format>',
       `Report format, repeatable: ${EXPERIMENT_REPORT_FORMATS.join(', ')} (default: all)`,
-      collect,
-      []
+      collect
     )
     .option(
       '--output-dir <directory>',
@@ -53,8 +51,8 @@ export function experimentReportCommand(): Command {
       try {
         const reports = await reportExperimentResult({
           result,
-          views: options.view as ExperimentReportView[],
-          formats: options.format as ExperimentReportFormat[],
+          views: options.view as ExperimentReportView[] | undefined,
+          formats: options.format as ExperimentReportFormat[] | undefined,
           outputDir: options.outputDir ?? defaultExperimentReportDir(result),
         });
         for (const report of reports)

@@ -125,14 +125,22 @@ export class OpenAIAdapter implements ModelClient {
           response.usage.prompt_tokens + response.usage.completion_tokens,
       latencyMs,
       finishReason: this.mapFinishReason(choice.finish_reason),
-      toolCalls: choice.message.tool_calls?.map((tc) => ({
-        id: tc.id,
-        type: tc.type as 'function',
-        function: {
-          name: tc.function.name,
-          arguments: tc.function.arguments,
-        },
-      })),
+      toolCalls: choice.message.tool_calls?.map((tc) => {
+        // Not in the SDK's types: OpenAI-compatible providers (Gemini) attach per-call data here
+        // that must round-trip with the call.
+        const extra = (tc as { extra_content?: unknown }).extra_content;
+        return {
+          id: tc.id,
+          type: tc.type as 'function',
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
+          ...(extra && typeof extra === 'object'
+            ? { extra_content: extra as Record<string, unknown> }
+            : {}),
+        };
+      }),
       raw: response,
     };
   }

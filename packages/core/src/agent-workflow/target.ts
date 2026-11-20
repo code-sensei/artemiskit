@@ -12,6 +12,8 @@ const toolCallSchema = z
     id: identifier,
     type: z.literal('function'),
     function: z.object({ name: toolName, arguments: text }).strict(),
+    /** Provider round-trip data (e.g. Gemini thought signatures); see ToolCall.extra_content. */
+    extra_content: z.record(z.unknown()).optional(),
   })
   .strict();
 const messageSchema = z

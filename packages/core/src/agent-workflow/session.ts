@@ -239,6 +239,8 @@ const callSchema = z
         arguments: z.string().max(1_000_000),
       })
       .strict(),
+    /** Provider round-trip data (e.g. Gemini thought signatures); see ToolCall.extra_content. */
+    extra_content: z.record(z.unknown()).optional(),
   })
   .strict();
 const completedSchema = z

@@ -318,3 +318,60 @@ for (const provider of ['openai', 'ling'] as const)
       }
     });
   });
+
+describe('openai-compatible provider round-trip data', () => {
+  test('returns Gemini thought signatures with their tool calls on the next turn', async () => {
+    const signature = { google: { thought_signature: 'fixture-signature' } };
+    const bodies: Record<string, unknown>[] = [];
+    const host = await server((body, res) => {
+      bodies.push(body);
+      if (bodies.length > 1) return json(res, response());
+      const first = response({ name: 'read_file', args: '{"path":"allowed.txt"}' });
+      const call = (first.choices[0].message as { tool_calls: Record<string, unknown>[] })
+        .tool_calls[0];
+      call.extra_content = signature;
+      json(res, first);
+    });
+    try {
+      const adapter = new OpenAIAdapter({
+        provider: 'openai',
+        apiKey: 'fixture-only',
+        baseUrl: host.url,
+        timeout: 2000,
+      });
+      const result = await runAgentWorkflow({
+        workflow: workflow('openai'),
+        target: createModelClientTarget(adapter),
+      });
+      expect(result.record.execution).toBe('completed');
+      const assistant = (bodies[1].messages as Record<string, unknown>[]).find(
+        (message) => message.role === 'assistant'
+      ) as { tool_calls: Record<string, unknown>[] };
+      expect(assistant.tool_calls[0].extra_content).toEqual(signature);
+    } finally {
+      await host.close();
+    }
+  });
+
+  test('prompt adapter results keep extra_content on tool calls', async () => {
+    const host = await server((_, res) => {
+      const first = response({ name: 'lookup', args: '{}' });
+      (
+        first.choices[0].message as { tool_calls: Record<string, unknown>[] }
+      ).tool_calls[0].extra_content = { google: { thought_signature: 'sig' } };
+      json(res, first);
+    });
+    try {
+      const adapter = new OpenAIAdapter({
+        provider: 'openai',
+        apiKey: 'fixture-only',
+        baseUrl: host.url,
+        timeout: 2000,
+      });
+      const result = await adapter.generate({ prompt: 'x', model: 'fixture-model' });
+      expect(result.toolCalls?.[0].extra_content).toEqual({ google: { thought_signature: 'sig' } });
+    } finally {
+      await host.close();
+    }
+  });
+});

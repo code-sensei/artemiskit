@@ -25,6 +25,12 @@ export interface ToolCall {
     name: string;
     arguments: string;
   };
+  /**
+   * Provider data attached to the call that must be sent back unchanged with the call in later
+   * turns, e.g. Gemini's `{ google: { thought_signature } }` on its OpenAI-compatible endpoint.
+   * Gemini 3+ rejects a follow-up turn whose function calls lack their thought signatures.
+   */
+  extra_content?: Record<string, unknown>;
 }
 
 /**

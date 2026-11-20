@@ -42,6 +42,7 @@
       "artemis-runs",
       "artemis-output",
       "ling-evaluation",
+      "private-evaluations",
       "agent-evaluation-runs",
       "announcements",
       ".agents",

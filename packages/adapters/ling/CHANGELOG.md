@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.13
+
+### Patch Changes
+
+- e58778b: Send provider requests through the runtime's built-in `fetch`. The Node-targeted bundles previously fell back to the SDKs' bundled node-fetch, which calls the deprecated `url.parse()` and printed a `DEP0169` warning to stderr on every request under Bun 1.4+.
+- Updated dependencies [4b3a6a9]
+- Updated dependencies [515a69f]
+- Updated dependencies [ae38f94]
+  - @artemiskit/core@0.7.0
+
 ## 0.1.12
 
 ### Patch Changes

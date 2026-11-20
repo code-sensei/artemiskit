@@ -1,5 +1,4 @@
 {
-  "draft": "DRAFT: projected from pending changesets on 2026-11-19; remove this key only after `changeset version` produces exactly this package map",
   "schema_version": 1,
   "milestone": "0.7.0",
   "tag": "v0.7.0",

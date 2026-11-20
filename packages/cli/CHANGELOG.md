@@ -1,5 +1,38 @@
 # @artemiskit/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- 4882eff: Experiment reports now show a case-level summary beside the coordinate-level summary. A scenario coordinate (task × target × repetition) passes only when all of its cases pass, so coordinate counts alone understate how many individual cases passed. The case level counts planned, recorded, valid, passed, failed, invalid and unmeasured cases overall and per target, task, language and policy, read from each coordinate's terminal attempt evidence. Each saved evidence file must hash to the SHA-256 recorded in the result, parse as a run manifest and agree with the saved coordinate status; otherwise the whole case level is withheld with its reason instead of showing partial counts. Agent-workflow coordinates have no scenario cases and are counted separately. Results saved without an evidence directory still report, with case level marked unavailable.
+
+  - `@artemiskit/reports`: `createExperimentReport` and `generateExperimentReport` accept `caseEvidence` (evidence bytes keyed by recorded digest) and add `caseLevel` to the report; new `createExperimentCaseSummary` and `listExperimentCaseEvidenceDigests`. Technical, executive and comprehensive views (HTML and Markdown) label both levels and make no ranking claim; technical and comprehensive views add a per-task, language and policy table.
+  - `@artemiskit/sdk`: new `summarizeExperimentCases` and `formatExperimentCaseSummary`; `reportExperimentResult` reads `evidence/` beside a result file or an explicit `evidenceDir`; `runExperimentFile` returns `caseLevel`; `formatExperimentRunSummary` accepts `caseLevel`.
+  - `@artemiskit/cli`: `akit experiment run` and `akit experiment report` print the case level after the coordinate counts; `report` gains `--evidence-dir`.
+
+- f43d5f2: Add the experiment surfaces. The SDK exports `validateExperimentFile`, `runExperimentFile`, `reportExperimentResult`, `createExperimentLiveAuthorization` and `createExperimentFixtureClient`, with exit codes shared with the CLI. The CLI adds `akit experiment validate`, `run` and `report`. Validation checks the manifest, the SHA-256 of each task source and that every cost-not-applicable target uses a loopback endpoint. `scenario_evaluation` tasks run through the scenario runner and `agent_workflow` tasks through the native workflow engine, both bound to the same targets, with each target's generation settings and the per-repetition seed applied to both kinds; validation parses workflow sources and warns about workflows with semantic outcomes, which experiment runs can't judge. Runs use deterministic fixture clients by default with no network calls. A live run requires `--approve`, `--approved-by` and `--reason`, and `--max-concurrency` for a declared concurrency above 1, before anything executes. Loopback targets get a non-secret placeholder key instead of an ambient API key. Provider configuration is loaded only when a live non-loopback target is bound, and target config resolvers may be async. Live adapters get a timeout of at least the per-case timeout. Results and digest-named evidence are saved under `artemis-output/experiments/`, and validation and run output show the concurrency level. `report` regenerates all three views in HTML and Markdown from a saved result without provider access. The SDK now declares its `yaml` dependency, and the CLI depends on the SDK.
+
+### Patch Changes
+
+- Updated dependencies [cde9742]
+- Updated dependencies [4b3a6a9]
+- Updated dependencies [4882eff]
+- Updated dependencies [f43d5f2]
+- Updated dependencies [f20ee54]
+- Updated dependencies [36c00e6]
+- Updated dependencies [e58778b]
+- Updated dependencies [515a69f]
+- Updated dependencies [ae38f94]
+  - @artemiskit/sdk@0.7.0
+  - @artemiskit/core@0.7.0
+  - @artemiskit/reports@0.6.0
+  - @artemiskit/adapter-openai@0.2.0
+  - @artemiskit/adapter-ling@0.1.13
+  - @artemiskit/adapter-deepagents@0.2.14
+  - @artemiskit/adapter-langchain@0.2.14
+  - @artemiskit/adapter-vercel-ai@0.1.25
+  - @artemiskit/redteam@0.3.13
+
 ## 0.6.3
 
 ### Patch Changes

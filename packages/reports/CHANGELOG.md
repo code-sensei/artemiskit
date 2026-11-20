@@ -1,5 +1,24 @@
 # @artemiskit/reports
 
+## 0.6.0
+
+### Minor Changes
+
+- 4882eff: Experiment reports now show a case-level summary beside the coordinate-level summary. A scenario coordinate (task × target × repetition) passes only when all of its cases pass, so coordinate counts alone understate how many individual cases passed. The case level counts planned, recorded, valid, passed, failed, invalid and unmeasured cases overall and per target, task, language and policy, read from each coordinate's terminal attempt evidence. Each saved evidence file must hash to the SHA-256 recorded in the result, parse as a run manifest and agree with the saved coordinate status; otherwise the whole case level is withheld with its reason instead of showing partial counts. Agent-workflow coordinates have no scenario cases and are counted separately. Results saved without an evidence directory still report, with case level marked unavailable.
+
+  - `@artemiskit/reports`: `createExperimentReport` and `generateExperimentReport` accept `caseEvidence` (evidence bytes keyed by recorded digest) and add `caseLevel` to the report; new `createExperimentCaseSummary` and `listExperimentCaseEvidenceDigests`. Technical, executive and comprehensive views (HTML and Markdown) label both levels and make no ranking claim; technical and comprehensive views add a per-task, language and policy table.
+  - `@artemiskit/sdk`: new `summarizeExperimentCases` and `formatExperimentCaseSummary`; `reportExperimentResult` reads `evidence/` beside a result file or an explicit `evidenceDir`; `runExperimentFile` returns `caseLevel`; `formatExperimentRunSummary` accepts `caseLevel`.
+  - `@artemiskit/cli`: `akit experiment run` and `akit experiment report` print the case level after the coordinate counts; `report` gains `--evidence-dir`.
+
+- f20ee54: Add comparative experiment reports. `createExperimentReport` validates a saved V1 experiment result and `generateExperimentReport`, `renderExperimentReportHTML` and `renderExperimentReportMarkdown` produce technical, executive and comprehensive views offline. The validator follows core's normalization order and replays its budget ledger and concurrent admission from the recorded evidence, so forged grants, reordered events and mislabelled stops are rejected. Reports show each target's publisher, weights, deployment, generation settings and seeds; state "not applicable" for cost when every target is local and unmetered; state the concurrency level, any live approval, and the reproducibility caveat; and make no ranking or winner claim.
+
+### Patch Changes
+
+- Updated dependencies [4b3a6a9]
+- Updated dependencies [515a69f]
+- Updated dependencies [ae38f94]
+  - @artemiskit/core@0.7.0
+
 ## 0.5.0
 
 ### Minor Changes

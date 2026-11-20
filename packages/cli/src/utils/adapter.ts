@@ -187,7 +187,7 @@ function buildLingConfig(options: ProviderBuildOptions): AdapterConfigResult {
         (scenario?.baseUrl as string | undefined) ??
         (file?.baseUrl as string | undefined) ??
         'https://api.ant-ling.com/v1',
-      thinking: scenario?.thinking,
+      thinking: scenario?.thinking ?? file?.thinking,
       enableSearch: scenario?.enableSearch,
       searchOptions: scenario?.searchOptions,
     } as AdapterConfig,
@@ -252,6 +252,14 @@ function buildOpenAIConfig(options: ProviderBuildOptions): AdapterConfigResult {
     { value: fileProviderConfig?.maxRetries, source: 'config' }
   );
 
+  const resolvedReasoningEffort = resolveValueWithSource<string>(
+    { value: scenarioConfig?.reasoningEffort, source: 'scenario' },
+    {
+      value: (fileProviderConfig as { reasoningEffort?: string } | undefined)?.reasoningEffort,
+      source: 'config',
+    }
+  );
+
   // Temperature and maxTokens only come from CLI options
   const resolvedTemperature = resolveValueWithSource<number>({ value: temperature, source: 'cli' });
 
@@ -270,11 +278,13 @@ function buildOpenAIConfig(options: ProviderBuildOptions): AdapterConfigResult {
       defaultModel: resolvedModel.value,
       timeout: resolvedTimeout.value,
       maxRetries: resolvedMaxRetries.value,
-    },
+      ...(resolvedReasoningEffort.value ? { reasoningEffort: resolvedReasoningEffort.value } : {}),
+    } as AdapterConfig,
     resolvedConfig: {
       provider,
       model: resolvedModel.value,
       base_url: resolvedBaseUrl.value,
+      ...(resolvedReasoningEffort.value ? { reasoning_effort: resolvedReasoningEffort.value } : {}),
       organization: resolvedOrganization.value,
       timeout: resolvedTimeout.value,
       max_retries: resolvedMaxRetries.value,
@@ -289,6 +299,9 @@ function buildOpenAIConfig(options: ProviderBuildOptions): AdapterConfigResult {
         max_retries: resolvedMaxRetries.source,
         temperature: resolvedTemperature.source,
         max_tokens: resolvedMaxTokens.source,
+        ...(resolvedReasoningEffort.value
+          ? { reasoning_effort: resolvedReasoningEffort.source }
+          : {}),
       },
     },
   };

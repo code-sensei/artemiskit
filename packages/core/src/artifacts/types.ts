@@ -369,6 +369,7 @@ export interface ResolvedConfig {
     max_retries?: ConfigSource;
     temperature?: ConfigSource;
     max_tokens?: ConfigSource;
+    reasoning_effort?: ConfigSource;
   };
 }
 

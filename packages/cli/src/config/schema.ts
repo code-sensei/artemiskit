@@ -28,6 +28,12 @@ const ProviderConfigSchema = z.object({
   // DeepAgents specific
   captureTraces: z.boolean().optional(),
   captureMessages: z.boolean().optional(),
+  // Reasoning controls. Without these keys the loader strips them, so configured reasoning would
+  // silently never reach the provider.
+  /** OpenAI-compatible `reasoning_effort` sent with every request (openai provider). */
+  reasoningEffort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']).optional(),
+  /** Ling thinking switch (ling provider). */
+  thinking: z.object({ type: z.enum(['enabled', 'disabled']) }).optional(),
 });
 
 const StorageConfigSchema = z.object({

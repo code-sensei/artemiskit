@@ -3,7 +3,7 @@
  */
 
 /** Values accepted for `reasoning_effort`; `none` turns thinking off on servers that support it. */
-export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high';
+export type OpenAIReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
 
 export interface OpenAIAdapterConfig {
   provider: 'openai';

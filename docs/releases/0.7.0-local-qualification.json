@@ -1,0 +1,436 @@
+{
+  "schema_version": 1,
+  "milestone": "0.7.0",
+  "record": "local-qualification",
+  "status": "recorded_not_reviewed",
+  "recorded_on": "2026-11-20",
+  "run_id": "20261119-benchmark-070",
+  "phase": "thinking-off",
+  "purpose": "Release gate step 5 evidence for `akit experiment` live mode against local open-weight models: live run end to end, loopback no-cost rule, seeds, generation settings, truncation recorded as invalid, timeouts, case-level reporting and exit codes. Not a model evaluation; no ranking or winner is implied.",
+  "attribution": "Qwen3.5 4B/9B by the Qwen Team, Alibaba Cloud. Open-weight model (Apache-2.0) run locally via Ollama.",
+  "cost": {
+    "applicable": false,
+    "spend": "none",
+    "note": "Loopback targets with cost_basis not_applicable; no paid API was called."
+  },
+  "provider_path": "Ollama through its OpenAI-compatible endpoint (/v1) with the ArtemisKit openai provider; a compatibility path, not native Ollama support.",
+  "qualified_behaviors": [
+    {
+      "behavior": "live_run_end_to_end",
+      "evidence": "Three experiments ran with --approve --approved-by --reason; 924 coordinates, 3,402 requests, 6,705,364 tokens; each wrote a V1 result.json and one SHA-256-named evidence file per coordinate."
+    },
+    {
+      "behavior": "loopback_no_cost",
+      "evidence": "Targets declare cost_basis not_applicable on http://127.0.0.1:11434/v1; tokens metered, no cost assigned ('cost not applicable (local targets only)')."
+    },
+    {
+      "behavior": "seeds",
+      "evidence": "increment_by_repetition from 20261119 with require_support true; repetitions sent 20261119, 20261120, 20261121; each evidence file records its seed."
+    },
+    {
+      "behavior": "generation_settings",
+      "evidence": "reasoning_effort, temperature, top_p, presence_penalty and max_output_tokens reached each request and are recorded in run evidence (resolved_config, execution_provenance)."
+    },
+    {
+      "behavior": "truncation_invalid",
+      "evidence": "One soc-alert-triage response hit the 4,096-token cap and its coordinate is invalid / response_truncated, outside valid-outcome rates."
+    },
+    {
+      "behavior": "exit_codes",
+      "evidence": "ng-egov-services and aml-transaction-review exited 0; soc-alert-triage exited 5 (coverageIncomplete) for the one invalid coordinate; the driver continued."
+    },
+    {
+      "behavior": "timeouts",
+      "evidence": "--timeout 1800000 reached the adapter; slowest case 189.5 s; no timeout and no infrastructure_failed attempt."
+    },
+    {
+      "behavior": "case_level_reporting",
+      "evidence": "experiment report from local main regenerated technical, executive and comprehensive views in HTML and Markdown offline for all three results, with case-level summaries from SHA-256-verified evidence."
+    }
+  ],
+  "environment": {
+    "host": "Apple M5 Pro, 15 CPU cores, 24 GiB unified memory (Ollama reports 17.8 GiB VRAM); single host",
+    "os": "macOS 26.6.2 arm64",
+    "bun": "1.4.2",
+    "ollama": {
+      "version": "0.33.3",
+      "context_length": 8192,
+      "num_parallel": 1,
+      "llama_server_slots": 1,
+      "flash_attention": "auto (enabled on Metal)",
+      "kv_cache_type": "default (f16)",
+      "keep_alive": "5m"
+    },
+    "models": [
+      {
+        "tag": "qwen3.5:4b",
+        "digest": "sha256:2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+        "architecture": "qwen35",
+        "parameters": "4.7B",
+        "quantization": "Q4_K_M",
+        "publisher": "Qwen",
+        "weights": {
+          "availability": "open",
+          "license": "Apache-2.0"
+        }
+      },
+      {
+        "tag": "qwen3.5:9b",
+        "digest": "sha256:6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+        "architecture": "qwen35",
+        "parameters": "9.7B",
+        "quantization": "Q4_K_M",
+        "publisher": "Qwen",
+        "weights": {
+          "availability": "open",
+          "license": "Apache-2.0"
+        }
+      }
+    ],
+    "model_default_parameters": {
+      "temperature": 1,
+      "top_k": 20,
+      "top_p": 0.95,
+      "presence_penalty": 1.5,
+      "min_p": null
+    },
+    "run_cli_commit": "32b75321afe9aec51003b19bf4aab8434706809c",
+    "report_cli_commit": "f344b196ff10a0edfe30127a66f115e6e4ac8445"
+  },
+  "protocol": {
+    "manifest_pattern": "packs/<pack>/experiment.local-think-off.yaml",
+    "mode": "live",
+    "targets": ["qwen3.5-4b-think-off", "qwen3.5-9b-think-off"],
+    "settings": {
+      "reasoning_effort": "none",
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "presence_penalty": 1.5,
+      "max_output_tokens": 4096
+    },
+    "repetitions": 3,
+    "seed": {
+      "value": 20261119,
+      "strategy": "increment_by_repetition",
+      "require_support": true
+    },
+    "concurrency": 1,
+    "concurrency_ceiling": 1,
+    "concurrency_note": "Concurrency 2 and 4 were measured beforehand with no consistent gain: Ollama 0.33.3 serves qwen35 with one request slot and the two models do not fit in memory together.",
+    "retry_policy": {
+      "max_attempts": 2,
+      "retry_on": ["infrastructure_failed"]
+    },
+    "budgets_rule": "max_requests = cases x 2 targets x 3 repetitions x 2 attempts; max_tokens = max_requests x 8,096",
+    "stop_conditions": [
+      "request_budget_exhausted",
+      "token_budget_exhausted",
+      "cost_budget_exhausted",
+      "usage_unreported",
+      "usage_invalid",
+      "budget_exceeded"
+    ],
+    "request_timeout_ms": 1800000,
+    "run_command": "bun packages/cli/bin/artemis.ts experiment run packs/<pack>/experiment.local-think-off.yaml --output-dir artemis-output/experiments/20261119-benchmark-070/<pack>/think-off --timeout 1800000 --max-concurrency 1 --approve --approved-by project-owner --reason \"Local open-weight benchmark run; no paid APIs\"",
+    "report_command": "bun packages/cli/bin/artemis.ts experiment report artemis-output/experiments/20261119-benchmark-070/<pack>/think-off/result.json --evidence-dir artemis-output/experiments/20261119-benchmark-070/<pack>/think-off/evidence --output-dir <scratch>/reports/<pack>",
+    "report_outputs": "technical, executive and comprehensive views in HTML and Markdown (6 files per result); exit 0 for all three; not committed",
+    "raw_outputs": "gitignored artemis-output/; not committed"
+  },
+  "runs": [
+    {
+      "pack": "ng-egov-services",
+      "experiment_id": "ng-egov-services-local-think-off",
+      "started_at": "2026-11-19T16:55:20Z",
+      "finished_at": "2026-11-19T18:46:26Z",
+      "wall_time_s": 6666,
+      "exit_code": 0,
+      "completion": {
+        "matrix_complete": true,
+        "execution_complete": true,
+        "valid_measurement_coverage_complete": true
+      },
+      "stop_reason": "none",
+      "live_decision_id": "live-20261119165520-21e5c92d",
+      "identities": {
+        "workload": "d360e3688d6fb208b7612964173ad9dde17f34a218cedc3ee6226ea7d57da5f6",
+        "rubric": "48fe6a1fe84fe2cc19ed87f3e28089c7ecd4aca5dc2a5619956e1f0581ef29f4"
+      },
+      "tasks": 52,
+      "cases_per_repetition": 183,
+      "coordinates": 312,
+      "requests": 1098,
+      "max_requests": 2196,
+      "tokens": 2785352,
+      "max_tokens": 17778816,
+      "retry_attempts": 0,
+      "result_sha256": "8b52f218d87737403a485f86f1f7d8578ef545ae4364378032e34ba5576379e0",
+      "evidence_files_verified": 312,
+      "targets": [
+        {
+          "target_id": "qwen3.5-4b-think-off",
+          "model": "qwen3.5:4b",
+          "coordinates": 156,
+          "valid_coordinates": 156,
+          "tasks_fully_passed": 24,
+          "cases_passed": 293,
+          "cases_valid": 549,
+          "case_pass_rate_percent": 53.4,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 549,
+          "tokens": 1383329,
+          "prompt_tokens": 1325010,
+          "completion_tokens": 58319,
+          "summed_coordinate_duration_s": 2290.0
+        },
+        {
+          "target_id": "qwen3.5-9b-think-off",
+          "model": "qwen3.5:9b",
+          "coordinates": 156,
+          "valid_coordinates": 156,
+          "tasks_fully_passed": 28,
+          "cases_passed": 339,
+          "cases_valid": 549,
+          "case_pass_rate_percent": 61.7,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 549,
+          "tokens": 1402023,
+          "prompt_tokens": 1325010,
+          "completion_tokens": 77013,
+          "summed_coordinate_duration_s": 4318.6
+        }
+      ]
+    },
+    {
+      "pack": "aml-transaction-review",
+      "experiment_id": "aml-transaction-review-local-think-off",
+      "started_at": "2026-11-19T18:46:26Z",
+      "finished_at": "2026-11-19T20:49:33Z",
+      "wall_time_s": 7387,
+      "exit_code": 0,
+      "completion": {
+        "matrix_complete": true,
+        "execution_complete": true,
+        "valid_measurement_coverage_complete": true
+      },
+      "stop_reason": "none",
+      "live_decision_id": "live-20261119184626-43cd9dee",
+      "scoring": "as_run_with_defective_pack",
+      "identities": {
+        "workload": "28a727e5de2d01719ea3174c3fb3b1fbea24750112a4da938f9d1e22f7a24634",
+        "rubric": "22852ae2326f29b254297bfe580502d7a8bbb4172e5015e5ef8f4904429cc692",
+        "note": "Pre-fix pack identities."
+      },
+      "tasks": 50,
+      "cases_per_repetition": 177,
+      "coordinates": 300,
+      "requests": 1062,
+      "max_requests": 2124,
+      "tokens": 2111572,
+      "max_tokens": 17195904,
+      "retry_attempts": 0,
+      "result_sha256": "2d676b2f67cd05a080c7465a558fa5496cd3cddf31b995f3fc98a9f5d33c4587",
+      "evidence_files_verified": 300,
+      "targets": [
+        {
+          "target_id": "qwen3.5-4b-think-off",
+          "model": "qwen3.5:4b",
+          "coordinates": 150,
+          "valid_coordinates": 150,
+          "tasks_fully_passed": 0,
+          "cases_passed": 122,
+          "cases_valid": 531,
+          "case_pass_rate_percent": 23.0,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 531,
+          "tokens": 1041858,
+          "prompt_tokens": 982128,
+          "completion_tokens": 59730,
+          "summed_coordinate_duration_s": 2337.7
+        },
+        {
+          "target_id": "qwen3.5-9b-think-off",
+          "model": "qwen3.5:9b",
+          "coordinates": 150,
+          "valid_coordinates": 150,
+          "tasks_fully_passed": 2,
+          "cases_passed": 177,
+          "cases_valid": 531,
+          "case_pass_rate_percent": 33.3,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 531,
+          "tokens": 1069714,
+          "prompt_tokens": 982128,
+          "completion_tokens": 87586,
+          "summed_coordinate_duration_s": 4989.2
+        }
+      ],
+      "provisional_rescore": {
+        "status": "provisional",
+        "method": "Saved responses re-evaluated offline against the current packs/aml-transaction-review task expectations with the core evaluators (getEvaluator); no model calls.",
+        "identities": {
+          "workload": "40684d64ace16332741a6df83ea403f55f4baff5d283eff9f2e6e4b7a94dfa4b",
+          "rubric": "a8b0a82e42e34263317b1946c43a36176fdbd894b7327956e4234eb7bb33420a"
+        },
+        "replaced_by": "think-off-v2 run, scheduled after the thinking-on phase",
+        "targets": [
+          {
+            "target_id": "qwen3.5-4b-think-off",
+            "tasks_fully_passed": 7,
+            "coordinates": 150,
+            "cases_passed": 214,
+            "cases": 531,
+            "case_pass_rate_percent": 40.3,
+            "fail_to_pass": 92,
+            "pass_to_fail": 0,
+            "remaining_schema_failures": 30,
+            "remaining_content_only_failures": 287
+          },
+          {
+            "target_id": "qwen3.5-9b-think-off",
+            "tasks_fully_passed": 11,
+            "coordinates": 150,
+            "cases_passed": 278,
+            "cases": 531,
+            "case_pass_rate_percent": 52.4,
+            "fail_to_pass": 101,
+            "pass_to_fail": 0,
+            "remaining_schema_failures": 35,
+            "remaining_content_only_failures": 218
+          }
+        ]
+      }
+    },
+    {
+      "pack": "soc-alert-triage",
+      "experiment_id": "soc-alert-triage-local-think-off",
+      "started_at": "2026-11-19T20:49:33Z",
+      "finished_at": "2026-11-20T00:04:36Z",
+      "wall_time_s": 11703,
+      "exit_code": 5,
+      "completion": {
+        "matrix_complete": true,
+        "execution_complete": true,
+        "valid_measurement_coverage_complete": false
+      },
+      "stop_reason": "none",
+      "live_decision_id": "live-20261119204934-fea88e3c",
+      "identities": {
+        "workload": "74661dbd4489bb0b0ff524cb3ff76756f6da064e84ece5779a54c355c00780f5",
+        "rubric": "0da0361d70e52ad825c8491ddb202d56d392654850485e720a89402fa78b364d"
+      },
+      "tasks": 52,
+      "cases_per_repetition": 207,
+      "coordinates": 312,
+      "requests": 1242,
+      "max_requests": 2484,
+      "tokens": 1808440,
+      "max_tokens": 20110464,
+      "retry_attempts": 0,
+      "result_sha256": "5f58a4881e13ff9de217088a2497867da5f40c847d98075d2081e05fed26d747",
+      "evidence_files_verified": 312,
+      "targets": [
+        {
+          "target_id": "qwen3.5-4b-think-off",
+          "model": "qwen3.5:4b",
+          "coordinates": 156,
+          "valid_coordinates": 156,
+          "tasks_fully_passed": 0,
+          "cases_passed": 165,
+          "cases_valid": 621,
+          "case_pass_rate_percent": 26.6,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 621,
+          "tokens": 881378,
+          "prompt_tokens": 778299,
+          "completion_tokens": 103079,
+          "summed_coordinate_duration_s": 3504.0
+        },
+        {
+          "target_id": "qwen3.5-9b-think-off",
+          "model": "qwen3.5:9b",
+          "coordinates": 156,
+          "valid_coordinates": 155,
+          "tasks_fully_passed": 0,
+          "cases_passed": 177,
+          "cases_valid": 617,
+          "case_pass_rate_percent": 28.7,
+          "invalid_coordinates": 1,
+          "invalid_cases": 4,
+          "infrastructure_failed": 0,
+          "requests": 621,
+          "tokens": 927062,
+          "prompt_tokens": 778299,
+          "completion_tokens": 148763,
+          "summed_coordinate_duration_s": 8154.3,
+          "all_saved_cases_passed": 178,
+          "all_saved_cases": 621
+        }
+      ],
+      "invalid_coordinates": [
+        {
+          "task_id": "soc-21-smb-admin-share-lateral",
+          "target_id": "qwen3.5-9b-think-off",
+          "repetition": 2,
+          "seed": 20261120,
+          "status": "invalid",
+          "error_code": "response_truncated",
+          "case_id": "jump-host-shared-account-logs-missing",
+          "completion_tokens": 4096,
+          "latency_ms": 189475,
+          "cause": "The model began a JSON answer, emitted a stray </think> mid-object and restarted the answer 19 times until the 4,096-token cap."
+        }
+      ],
+      "failure_breakdown": {
+        "scope": "All 1,242 saved cases, including the 4 in the invalid coordinate; each sub-check re-evaluated offline.",
+        "failed_over_total": {
+          "attack_techniques": [608, 1068],
+          "classification": [392, 1242],
+          "severity": [336, 1242],
+          "decision": [302, 1242],
+          "rule_ids": [282, 1248],
+          "human_approval_required": [65, 420],
+          "json_schema": [59, 1242],
+          "not_contains": [8, 72],
+          "evidence_steps": [0, 1242],
+          "containment_actions": [0, 390]
+        },
+        "json_schema_failures": {
+          "rule_ids_over_5": 33,
+          "unparseable_json": 15,
+          "malformed_technique_id": 2,
+          "stray_think_tag": 9
+        },
+        "stray_think_tag_note": "9 qwen3.5-9b responses contain </think> with thinking off: a model output error. 8 are scored as failures; the 9th is the truncated invalid case."
+      }
+    }
+  ],
+  "findings": [
+    "The live contract ran end to end three times: 924 coordinates, 3,402 requests, 6,705,364 tokens, no budget stop, no retries, no infrastructure failures; the report verified every evidence SHA-256.",
+    "Truncation was classified as invalid / response_truncated and the CLI exited 5 (valid-measurement coverage incomplete) instead of 0.",
+    "soc-alert-triage failures are substantive (technique mapping, classification, severity, decision, rule IDs), not format errors.",
+    "The AML pack defect (optional answer keys rejected null) was caught and fixed: 259b2b3 accepts null for optional keys, 3301998 adds a shared pack check, fb762e6 documents it. All 300 AML evidence files embed the pre-fix schema.",
+    "Results saved by the CLI at 32b7532 regenerate offline with the current main reporter, including case-level summaries added after the runs.",
+    "Git provenance is captured per coordinate: the run worktree was edited during the AML and soc-alert-triage runs (later committed outside main as ac7e8e4) and evidence records dirty: true. Task sources are SHA-256-verified before parsing and the soc-alert-triage and ng-egov-services task files are unchanged from 32b7532 to f344b19."
+  ],
+  "limitations": [
+    "Draft, unreviewed packs; results are not claims about the workflow, compliance or advice quality.",
+    "Synthetic data only.",
+    "Two models from one family (qwen3.5:4b and qwen3.5:9b, Q4_K_M), thinking off.",
+    "Single host at concurrency 1 with other work running; times are contended and not a performance benchmark.",
+    "No ranking or winner implied; uncertainty.method is none.",
+    "Seeds do not give bitwise reproducibility: a pre-run CLI re-run differed in 1 of 22 responses.",
+    "AML numbers are provisional; think-off-v2 replaces them.",
+    "Runs used pre-release build 32b7532; later main commits refactored the scenario executor and added the agent-workflow executor and case-level summaries. agent_workflow tasks are not exercised.",
+    "Thinking-on runs are in progress and not covered."
+  ]
+}

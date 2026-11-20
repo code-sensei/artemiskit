@@ -4,6 +4,14 @@
   "record": "local-qualification",
   "status": "recorded_not_reviewed",
   "recorded_on": "2026-11-20",
+  "addenda": [
+    {
+      "date": "2026-11-20",
+      "title": "Clean AML thinking-off re-run",
+      "summary": "aml-transaction-review think-off-v2 ran live with the corrected pack (fb762e6: optional answer keys accept null) and is the AML thinking-off result. The first AML run stays as history (scoring as_run_with_defective_pack).",
+      "run": "aml-transaction-review think-off-v2"
+    }
+  ],
   "run_id": "20261119-benchmark-070",
   "phase": "thinking-off",
   "purpose": "Release gate step 5 evidence for `akit experiment` live mode against local open-weight models: live run end to end, loopback no-cost rule, seeds, generation settings, truncation recorded as invalid, timeouts, case-level reporting and exit codes. Not a model evaluation; no ranking or winner is implied.",
@@ -95,6 +103,7 @@
       "min_p": null
     },
     "run_cli_commit": "32b75321afe9aec51003b19bf4aab8434706809c",
+    "run_cli_commit_aml_think_off_v2": "ac7e8e4081d92db9cbe82da1995598c974ada85d",
     "report_cli_commit": "f344b196ff10a0edfe30127a66f115e6e4ac8445"
   },
   "protocol": {
@@ -219,6 +228,7 @@
       "stop_reason": "none",
       "live_decision_id": "live-20261119184626-43cd9dee",
       "scoring": "as_run_with_defective_pack",
+      "superseded_by": "aml-transaction-review think-off-v2 (2026-11-20)",
       "identities": {
         "workload": "28a727e5de2d01719ea3174c3fb3b1fbea24750112a4da938f9d1e22f7a24634",
         "rubric": "22852ae2326f29b254297bfe580502d7a8bbb4172e5015e5ef8f4904429cc692",
@@ -273,13 +283,13 @@
         }
       ],
       "provisional_rescore": {
-        "status": "provisional",
+        "status": "superseded",
         "method": "Saved responses re-evaluated offline against the current packs/aml-transaction-review task expectations with the core evaluators (getEvaluator); no model calls.",
         "identities": {
           "workload": "40684d64ace16332741a6df83ea403f55f4baff5d283eff9f2e6e4b7a94dfa4b",
           "rubric": "a8b0a82e42e34263317b1946c43a36176fdbd894b7327956e4234eb7bb33420a"
         },
-        "replaced_by": "think-off-v2 run, scheduled after the thinking-on phase",
+        "replaced_by": "think-off-v2 run (2026-11-20T02:15:22Z to 04:08:58Z), which reproduced these counts and every case outcome (1,062 of 1,062)",
         "targets": [
           {
             "target_id": "qwen3.5-4b-think-off",
@@ -306,6 +316,121 @@
             "remaining_content_only_failures": 218
           }
         ]
+      }
+    },
+    {
+      "pack": "aml-transaction-review",
+      "label": "think-off-v2",
+      "experiment_id": "aml-transaction-review-local-think-off",
+      "recorded_in_addendum": "2026-11-20",
+      "started_at": "2026-11-20T02:15:22Z",
+      "finished_at": "2026-11-20T04:08:58Z",
+      "wall_time_s": 6816,
+      "exit_code": 0,
+      "completion": {
+        "matrix_complete": true,
+        "execution_complete": true,
+        "valid_measurement_coverage_complete": true
+      },
+      "stop_reason": "none",
+      "live_decision_id": "live-20261120021522-67e002cc",
+      "scoring": "corrected_pack",
+      "supersedes": "aml-transaction-review as-run think-off (2026-11-19)",
+      "build": {
+        "run_cli_commit": "ac7e8e4081d92db9cbe82da1995598c974ada85d",
+        "on_main": false,
+        "note": "One commit over 32b7532. git diff fb762e6 ac7e8e4 -- packs/aml-transaction-review packs/_tools and git diff 32b7532 ac7e8e4 -- packages are both empty: corrected AML pack and pack tools, same CLI code as the first run. The driver checked before starting that the worktree's AML pack and packs/_tools had no changes against fb762e6; evidence records dirty: true and commit ac7e8e4 for all 300 coordinates."
+      },
+      "driver": {
+        "kind": "replacement driver",
+        "ollama_server": "Restarted with the first run's settings (context 8192, one slot, flash attention auto, keep-alive 5m) plus OLLAMA_LOAD_TIMEOUT=60m.",
+        "ollama_load_timeout": "60m",
+        "ollama_load_timeout_note": "Matters only for thinking-on."
+      },
+      "ollama_version": "0.33.3",
+      "model_digests_unchanged": true,
+      "identities": {
+        "workload": "40684d64ace16332741a6df83ea403f55f4baff5d283eff9f2e6e4b7a94dfa4b",
+        "rubric": "a8b0a82e42e34263317b1946c43a36176fdbd894b7327956e4234eb7bb33420a",
+        "note": "Corrected pack identities."
+      },
+      "tasks": 50,
+      "cases_per_repetition": 177,
+      "coordinates": 300,
+      "requests": 1062,
+      "max_requests": 2124,
+      "tokens": 2112068,
+      "max_tokens": 17195904,
+      "retry_attempts": 0,
+      "result_sha256": "60c3e81b53d94b215b463082eceb99255ad503b5ce200bd683d48dd2aa6a7acf",
+      "evidence_files_verified": 300,
+      "report_cli_commit": "5cc8625d1221fcd259d3ed252cc97d232f3a14c1",
+      "targets": [
+        {
+          "target_id": "qwen3.5-4b-think-off",
+          "model": "qwen3.5:4b",
+          "coordinates": 150,
+          "valid_coordinates": 150,
+          "tasks_fully_passed": 7,
+          "cases_passed": 214,
+          "cases_valid": 531,
+          "case_pass_rate_percent": 40.3,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 531,
+          "tokens": 1041822,
+          "prompt_tokens": 982128,
+          "completion_tokens": 59694,
+          "summed_coordinate_duration_s": 2029.4,
+          "remaining_schema_failures": 30,
+          "remaining_content_only_failures": 287
+        },
+        {
+          "target_id": "qwen3.5-9b-think-off",
+          "model": "qwen3.5:9b",
+          "coordinates": 150,
+          "valid_coordinates": 150,
+          "tasks_fully_passed": 11,
+          "cases_passed": 278,
+          "cases_valid": 531,
+          "case_pass_rate_percent": 52.4,
+          "invalid_coordinates": 0,
+          "invalid_cases": 0,
+          "infrastructure_failed": 0,
+          "requests": 531,
+          "tokens": 1070246,
+          "prompt_tokens": 982128,
+          "completion_tokens": 88118,
+          "summed_coordinate_duration_s": 4732.2,
+          "remaining_schema_failures": 35,
+          "remaining_content_only_failures": 218
+        }
+      ],
+      "matches_offline_rescore": {
+        "aggregate_counts": true,
+        "case_outcomes_identical": 1062,
+        "cases": 1062
+      },
+      "repeatability_vs_first_run": {
+        "match_key": "task, target, repetition, case",
+        "conditions": "Same seeds (20261119-20261121), temperature 0.7, top_p 0.8, concurrency 1, Ollama 0.33.3, model digests and host.",
+        "responses_byte_identical": 1050,
+        "responses": 1062,
+        "identical_percent": 98.9,
+        "coordinates_all_identical": 289,
+        "coordinates": 300,
+        "differing_responses": {
+          "qwen3.5-4b-think-off": { "responses": 3, "coordinates": 2 },
+          "qwen3.5-9b-think-off": { "responses": 9, "coordinates": 9 }
+        },
+        "differing_outcome_changes": 0,
+        "prompt_tokens_identical": true,
+        "completion_tokens_first_run_to_v2": {
+          "qwen3.5-4b-think-off": [59730, 59694],
+          "qwen3.5-9b-think-off": [87586, 88118]
+        },
+        "note": "Each differing response shares a prefix with the first run's and diverges mid-answer; none changed its case outcome under the corrected scoring. Evidence of close seeded repeatability on this setup, not a bitwise reproducibility guarantee."
       }
     },
     {
@@ -420,6 +545,7 @@
     "soc-alert-triage failures are substantive (technique mapping, classification, severity, decision, rule IDs), not format errors.",
     "The AML pack defect (optional answer keys rejected null) was caught and fixed: 259b2b3 accepts null for optional keys, 3301998 adds a shared pack check, fb762e6 documents it. All 300 AML evidence files embed the pre-fix schema.",
     "Results saved by the CLI at 32b7532 regenerate offline with the current main reporter, including case-level summaries added after the runs.",
+    "Addendum 2026-11-20: the clean AML think-off-v2 re-run with the corrected pack exited 0 with 300/300 valid coordinates, 1,062 requests and 2,112,068 tokens; 4b 7/150 tasks fully passed, 214/531 cases (40.3%); 9b 11/150, 278/531 (52.4%). It reproduced the offline re-score case by case and repeated 1,050 of 1,062 responses (98.9%) byte for byte.",
     "Git provenance is captured per coordinate: the run worktree was edited during the AML and soc-alert-triage runs (later committed outside main as ac7e8e4) and evidence records dirty: true. Task sources are SHA-256-verified before parsing and the soc-alert-triage and ng-egov-services task files are unchanged from 32b7532 to f344b19."
   ],
   "limitations": [
@@ -428,9 +554,9 @@
     "Two models from one family (qwen3.5:4b and qwen3.5:9b, Q4_K_M), thinking off.",
     "Single host at concurrency 1 with other work running; times are contended and not a performance benchmark.",
     "No ranking or winner implied; uncertainty.method is none.",
-    "Seeds do not give bitwise reproducibility: a pre-run CLI re-run differed in 1 of 22 responses.",
-    "AML numbers are provisional; think-off-v2 replaces them.",
+    "Seeds do not give bitwise reproducibility: a pre-run CLI re-run differed in 1 of 22 responses, and the AML think-off-v2 re-run differed in 12 of 1,062.",
+    "The first AML run measured a defective rubric and stays only as history; think-off-v2 is the AML thinking-off result.",
     "Runs used pre-release build 32b7532; later main commits refactored the scenario executor and added the agent-workflow executor and case-level summaries. agent_workflow tasks are not exercised.",
-    "Thinking-on runs are in progress and not covered."
+    "Thinking-on runs are in progress and not covered. The first attempt was halted when Ollama 0.33.3 cancelled a non-streaming thinking request at 5m5s (default 5-minute load timeout; HTTP 500); ng-egov-services thinking-on stopped with usage_unreported (exit 4) and the AML thinking-on run that followed was stopped by hand. A replacement driver re-runs thinking-on for all three packs with OLLAMA_LOAD_TIMEOUT=60m; results to follow."
   ]
 }

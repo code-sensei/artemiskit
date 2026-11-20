@@ -1,5 +1,22 @@
 # @artemiskit/adapter-openai
 
+## 0.2.1
+
+### Patch Changes
+
+- e56e01c: Stop Bun's fetch timeout from cutting long requests. Under Bun, fetch applies its own 5-minute
+  idle timeout, so a non-streaming request that waited longer for a response (for example, a local
+  thinking model) failed with "Connection error" after about 5–6 minutes, even when the adapter
+  `timeout` was much longer. The OpenAI, Anthropic and Ling adapters now turn Bun's timer off, so the
+  configured adapter `timeout` governs. Node is unchanged.
+- 56e134e: Pass configured reasoning settings through `akit run`. The config loader previously stripped
+  `providers.openai.reasoningEffort` and `providers.ling.thinking`, so configured reasoning never
+  reached the provider. Both are now accepted in the config file and scenario `providerConfig`, sent
+  with every request, and recorded with their source in the run manifest. `reasoningEffort` also
+  accepts `xhigh`.
+- Updated dependencies [56e134e]
+  - @artemiskit/core@0.7.1
+
 ## 0.2.0
 
 ### Minor Changes

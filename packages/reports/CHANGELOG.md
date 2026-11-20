@@ -1,5 +1,12 @@
 # @artemiskit/reports
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [56e134e]
+  - @artemiskit/core@0.7.1
+
 ## 0.6.0
 
 ### Minor Changes

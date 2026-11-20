@@ -67,7 +67,7 @@ or mark a release complete before npm installation and remote tag verification p
 [0.6.x release and acceptance plan](docs/releases/0.6.x-release-plan.md).
 The [0.6.0 release record](docs/releases/0.6.0.md) records the published package versions,
 local and npm-installed validation, and matching remote tags.
-0.7.x follows the same rule in order, **0.7.0 → 0.7.1 → 0.7.2 → 0.7.3**; see the
+0.7.x follows the same rule in order, **0.7.0 → 0.7.1 → 0.7.2 → 0.7.3 → 0.7.4**; see the
 [0.7.x release plan](docs/releases/0.7.x-release-plan.md).
 
 | Target release | Theme | Primary outcome | Depends on |
@@ -98,9 +98,10 @@ increments can be re-ordered when evidence from real assessment work identifies 
 | 0.6.3 | Fault and recovery evidence | Controlled faults, bounded retries, and sanitized policy/state/recovery evidence. |
 | 0.6.4 | Professional assessment reports | Deterministic, decision-grade reports from sanitized saved evidence. |
 | 0.7.0 | Comparative experiment contract | Provider-neutral workload/model/repetition orchestration for scenario and agent runs. |
-| 0.7.1 | Comparison eligibility | Explicit unsupported/incomplete work and compatibility qualification before any comparison. |
-| 0.7.2 | Scenario-specific aggregates | Per-model, task, policy, language, and operational summaries with documented uncertainty assumptions. |
-| 0.7.3 | Live-run controls | Explicit approval, concurrency, and paid-provider cost budgets for comparative execution. |
+| 0.7.1 | Long-request and reasoning-config fixes | Patch: Bun's fetch idle timeout no longer cuts long requests; `akit run` passes configured reasoning settings through. |
+| 0.7.2 | Comparison eligibility | Explicit unsupported/incomplete work and compatibility qualification before any comparison. |
+| 0.7.3 | Scenario-specific aggregates | Per-model, task, policy, language, and operational summaries with documented uncertainty assumptions. |
+| 0.7.4 | Live-run controls | Explicit approval, concurrency, and paid-provider cost budgets for comparative execution. |
 | 0.8.0 | Assessment profile contract | Executable requirements, thresholds, critical failures, and human-review requirements. |
 | 0.8.1 | Reviewed workflow packs | Versioned customer-service, logistics, and other regulated-sector scenario packs with ownership and coverage metadata. |
 | 0.8.2 | Organizational policy controls | Approved-source, data-handling, escalation, approval, tool-authority, and recovery controls. |
@@ -327,14 +328,22 @@ targets and report the saved result offline. See the [release record](docs/relea
   applicable, execution budget, and exclusions before a run begins.
 - Exit only when the same declared experiment can execute against at least two configured targets.
 
-#### 0.7.1 — Eligibility and completeness controls
+#### 0.7.1 — Long-request and reasoning-config fixes (patch)
+
+Versioned on 20 November 2026; final local gate and publication pending. Ships two fixes
+found during the 0.7.0 local benchmark runs and adds no capability. See the
+[release record](docs/releases/0.7.1.md). The milestones previously planned as 0.7.1–0.7.3 are
+now 0.7.2–0.7.4 with unchanged scope, because core's version names the milestone and these
+fixes change core.
+
+#### 0.7.2 — Eligibility and completeness controls
 
 - Mark unsupported capabilities and deliberately unavailable measurements explicitly rather than skipping them.
 - Preserve incomplete experiments, cancelled coordinates, target errors, and invalid evaluations in aggregates.
 - Apply 0.5.3 compatibility decisions before computing comparisons or baselines.
 - Exit only when a comparison cannot become more favorable by omitting hard, failed, or unavailable work.
 
-#### 0.7.2 — Scenario-specific aggregation
+#### 0.7.3 — Scenario-specific aggregation
 
 - Produce summaries by model/configuration, workflow, task, language/region, policy/control,
   capability, latency, and cost dimension where evidence exists.
@@ -343,7 +352,7 @@ targets and report the saved result offline. See the [release record](docs/relea
   and explicit non-applicability rules.
 - Exit only when no default aggregate presents a universal, context-free model rank.
 
-#### 0.7.3 — Live comparative-run controls
+#### 0.7.4 — Live comparative-run controls
 
 - Require explicit operator approval, target list, concurrency ceiling, maximum attempts, and spend budget for paid-provider runs.
 - Record approval identity/reason, budget consumption, stop conditions, and run-time exclusions.
@@ -554,7 +563,7 @@ or a certification.
 
 ## 0.7 — Comparative benchmark execution
 
-**Status:** 0.7.0 published and verified on npm; 0.7.1–0.7.3 planned
+**Status:** 0.7.0 published and verified on npm; 0.7.1 patch versioned, publication pending; 0.7.2–0.7.4 planned
 **Goal:** run compatible workloads across models and providers with transparent repetition and
 meaningful comparisons.
 
@@ -569,13 +578,13 @@ experiment identities and comparison rules.
 | Work item | Status |
 | --- | --- |
 | Same declared workload can run against at least two configured adapters | ✅ 0.7.0 published and verified |
-| Unsupported capabilities are explicit rather than silently skipped | `capability_unsupported` shipped in 0.7.0; operator cancellation closes it in 0.7.1 |
+| Unsupported capabilities are explicit rather than silently skipped | `capability_unsupported` shipped in 0.7.0; operator cancellation closes it in 0.7.2 |
 | Retries never masquerade as independent repetitions | ✅ 0.7.0 published and verified |
-| Incomplete experiments remain visible in aggregates | Explicit denominators shipped in 0.7.0; cancelled coordinates in 0.7.1 |
-| Compatibility checks cover workloads, rubrics, policies, and profiles | `assessExperimentCompatibility()` exported in 0.7.0; comparison gating in 0.7.1 |
-| Per-model, task, policy, language, and operational summaries | Target, task, language and policy summaries shipped in 0.7.0; remaining dimensions in 0.7.2 |
-| Any uncertainty method documents sample size and assumptions | 0.7.0 records `uncertainty.method: none`; methods in 0.7.2 |
-| Live paid-provider evaluation has an explicit run budget and approval gate | Live authorization and budgets shipped in 0.7.0; full envelope and paid-provider qualification in 0.7.3 |
+| Incomplete experiments remain visible in aggregates | Explicit denominators shipped in 0.7.0; cancelled coordinates in 0.7.2 |
+| Compatibility checks cover workloads, rubrics, policies, and profiles | `assessExperimentCompatibility()` exported in 0.7.0; comparison gating in 0.7.2 |
+| Per-model, task, policy, language, and operational summaries | Target, task, language and policy summaries shipped in 0.7.0; remaining dimensions in 0.7.3 |
+| Any uncertainty method documents sample size and assumptions | 0.7.0 records `uncertainty.method: none`; methods in 0.7.3 |
+| Live paid-provider evaluation has an explicit run budget and approval gate | Live authorization and budgets shipped in 0.7.0; full envelope and paid-provider qualification in 0.7.4 |
 
 ## 0.8 — Assessment profiles, policy controls, and reviewed packs
 

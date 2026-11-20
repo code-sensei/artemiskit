@@ -1,6 +1,6 @@
 {
   "name": "@artemiskit/adapter-openai",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "OpenAI and Azure OpenAI adapter for ArtemisKit LLM evaluation toolkit",
   "type": "module",
   "license": "Apache-2.0",

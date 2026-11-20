@@ -1,5 +1,12 @@
 # @artemiskit/adapter-vercel-ai
 
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies [56e134e]
+  - @artemiskit/core@0.7.1
+
 ## 0.1.25
 
 ### Patch Changes

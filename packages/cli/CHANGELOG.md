@@ -1,5 +1,26 @@
 # @artemiskit/cli
 
+## 0.7.1
+
+### Patch Changes
+
+- 56e134e: Pass configured reasoning settings through `akit run`. The config loader previously stripped
+  `providers.openai.reasoningEffort` and `providers.ling.thinking`, so configured reasoning never
+  reached the provider. Both are now accepted in the config file and scenario `providerConfig`, sent
+  with every request, and recorded with their source in the run manifest. `reasoningEffort` also
+  accepts `xhigh`.
+- Updated dependencies [e56e01c]
+- Updated dependencies [56e134e]
+  - @artemiskit/adapter-openai@0.2.1
+  - @artemiskit/adapter-ling@0.1.14
+  - @artemiskit/core@0.7.1
+  - @artemiskit/adapter-deepagents@0.2.15
+  - @artemiskit/adapter-langchain@0.2.15
+  - @artemiskit/adapter-vercel-ai@0.1.26
+  - @artemiskit/redteam@0.3.14
+  - @artemiskit/reports@0.6.1
+  - @artemiskit/sdk@0.7.1
+
 ## 0.7.0
 
 ### Minor Changes

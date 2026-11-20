@@ -1,5 +1,14 @@
 # @artemiskit/sdk
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [56e134e]
+  - @artemiskit/core@0.7.1
+  - @artemiskit/redteam@0.3.14
+  - @artemiskit/reports@0.6.1
+
 ## 0.7.0
 
 ### Minor Changes

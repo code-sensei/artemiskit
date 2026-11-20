@@ -1,5 +1,12 @@
 # @artemiskit/adapter-langchain
 
+## 0.2.15
+
+### Patch Changes
+
+- Updated dependencies [56e134e]
+  - @artemiskit/core@0.7.1
+
 ## 0.2.14
 
 ### Patch Changes

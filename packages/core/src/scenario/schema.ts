@@ -262,7 +262,9 @@ export const ScenarioSchema = z.object({
         .object({
           enabled: z.boolean().default(false),
           maxSteps: z.number().int().min(1).max(10).default(5),
-          timeoutMs: z.number().int().min(1).max(300_000).default(60_000),
+          // Whole-loop budget. Reasoning models can take minutes per call, so a multi-step loop
+          // may legitimately need up to an hour; the default stays 60 s.
+          timeoutMs: z.number().int().min(1).max(3_600_000).default(60_000),
           maxToolResultBytes: z.number().int().min(1).max(1_048_576).default(32_768),
           rejectDuplicateCalls: z.boolean().default(true),
         })

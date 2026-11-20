@@ -97,3 +97,26 @@ describe('validateScenario', () => {
     expect(() => validateScenario(scenario)).toThrow();
   });
 });
+
+describe('tool loop budget', () => {
+  const scenario = (timeoutMs: number) => `
+name: loop-budget
+setup:
+  toolLoop:
+    enabled: true
+    timeoutMs: ${timeoutMs}
+cases:
+  - id: c1
+    prompt: hi
+    expected:
+      type: contains
+      values: ["hi"]
+`;
+  test('accepts a loop budget of up to one hour for slow reasoning models', () => {
+    const parsed = parseScenarioString(scenario(1_800_000));
+    expect(parsed.setup?.toolLoop?.timeoutMs).toBe(1_800_000);
+  });
+  test('rejects a loop budget above one hour', () => {
+    expect(() => parseScenarioString(scenario(3_600_001))).toThrow();
+  });
+});

@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "milestone": "0.7.0",
+  "recordedAt": "2026-11-20T01:50:03Z",
+  "candidate": "8c811f3b97b712a610a2f7fd60051d1b2df7e07d",
+  "npm": "published-and-verified",
+  "publisher": {
+    "command": "./scripts/publish.sh --publish-only",
+    "source": "local environment, from the candidate commit",
+    "window": {
+      "first": "2026-11-20T01:07:19.510Z",
+      "last": "2026-11-20T01:41:28.378Z"
+    },
+    "order": "dependency order: core, adapters, redteam, reports, sdk, cli",
+    "receipts": "one per package under the git common directory (npm-publication/); each receipt names the candidate, the version and state published, and its integrity matches the registry"
+  },
+  "registryGate": "bun scripts/verify-release.mjs registry docs/releases/0.7.0.json: passed",
+  "installedArchiveIntegrity": "all-12-match-registry-integrities",
+  "archiveParity": "the registry integrity of all 12 packages equals the sha512 of the archive recorded by the final local release gate in 0.7.0-validation.json",
+  "distTagLatest": "all 12 packages: latest is the published version",
+  "packages": [
+    {
+      "name": "@artemiskit/adapter-anthropic",
+      "version": "0.1.25",
+      "integrity": "sha512-1tJyBalSdHsQFFiLToarm9HO7oi6vGrWW0VC61TUYhY3eypXDlqteMDit1FfMqiUBrhMkGsm4p645JdGlqxYcw==",
+      "shasum": "63841984259e31aec0fe798ac1555ed9dc6746cb",
+      "publishedAt": "2026-11-20T01:09:21.313Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-anthropic@0.1.25"
+    },
+    {
+      "name": "@artemiskit/adapter-deepagents",
+      "version": "0.2.14",
+      "integrity": "sha512-M8JU2qiMyl3kx3dIWSlA29vKXmSrgnmd15jNHD/Fl1o85d/poEj9mNCY73cv2D+q8VSaG4RWMQKM+3VIBERjeg==",
+      "shasum": "aed9db70ce0277300f18fc010ac67a4b48e4397a",
+      "publishedAt": "2026-11-20T01:10:55.020Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-deepagents@0.2.14"
+    },
+    {
+      "name": "@artemiskit/adapter-langchain",
+      "version": "0.2.14",
+      "integrity": "sha512-aTrRuLob2IZ7ZbvTNy0SVhOi1695kNOgCHTCk/yIGKOZQOfZZzd1xo4xWZpLqRWxFKjr54QL7lwQogRilkMVfA==",
+      "shasum": "7ce473cc7a22b2b382547365d8a45439e414b4fc",
+      "publishedAt": "2026-11-20T01:13:56.626Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-langchain@0.2.14"
+    },
+    {
+      "name": "@artemiskit/adapter-ling",
+      "version": "0.1.13",
+      "integrity": "sha512-EdfP3F+LAA3qc8dWmvMEbszX7WPdMLMtY1EOzXVAzru0qQuUeDncAcirMi0S7U7ep06Jy93MxVuCcFkZUEpJVw==",
+      "shasum": "3163e7b90fc02464a40fc674635530dfe35a9336",
+      "publishedAt": "2026-11-20T01:15:54.304Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-ling@0.1.13"
+    },
+    {
+      "name": "@artemiskit/adapter-openai",
+      "version": "0.2.0",
+      "integrity": "sha512-y3gQhptv6UoGQq32S9k3yKWdLQAjwZzpG4X40d97FMyzBX4shis3ZxkncxXdA8O0N5H1xFewttuK09t7fhunnw==",
+      "shasum": "d90fbfe09a5957e203170482867b9d7608d151eb",
+      "publishedAt": "2026-11-20T01:20:21.913Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-openai@0.2.0"
+    },
+    {
+      "name": "@artemiskit/adapter-trueforge",
+      "version": "0.1.13",
+      "integrity": "sha512-/Vl9mHskKUrGu5M0aED4DMhRTRdqgJ03vA2B1NWGHJ/ZU4uiOsqXDMjfm2iSlM1owkkT8HXIUmdlNIJrNYrh+A==",
+      "shasum": "470c20214875b5e1aa114c27f2d902dfacfcbc1c",
+      "publishedAt": "2026-11-20T01:22:53.800Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-trueforge@0.1.13"
+    },
+    {
+      "name": "@artemiskit/adapter-vercel-ai",
+      "version": "0.1.25",
+      "integrity": "sha512-MQpkIRJOigdMioJjBCIAjNXEuzWR4NIeRZfx5V7li53Hj86ilzKZYyZchby7DfL3sM6BlLlbFOjJ6ayilTdDEQ==",
+      "shasum": "65ee9ad415df26c1f0e825ab83ddd4eda6637d54",
+      "publishedAt": "2026-11-20T01:25:52.188Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/adapter-vercel-ai@0.1.25"
+    },
+    {
+      "name": "@artemiskit/cli",
+      "version": "0.7.0",
+      "integrity": "sha512-ShPxEVEXoyL1L/4ZoOSCxWRPZrDBIUZU+JrDDdj7regi+RuGc4oHbjvljrB5xse9XKdqB0+6vNtliXlnlyDJ4Q==",
+      "shasum": "748449e2c39e8e7d3719dfaa68feed5a1846f361",
+      "publishedAt": "2026-11-20T01:41:28.378Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/cli@0.7.0"
+    },
+    {
+      "name": "@artemiskit/core",
+      "version": "0.7.0",
+      "integrity": "sha512-gpK0KUaLIDsepoZAiPrcvnBAu6Uw9PwxPdDlrMZUzDuFc3XChilDJQSnyu2EOjMrPpJHd3TeRZ66ZQwaNVBG6Q==",
+      "shasum": "bf944459e9743399880d1a321b7f8faab9a55f2d",
+      "publishedAt": "2026-11-20T01:07:19.510Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/core@0.7.0"
+    },
+    {
+      "name": "@artemiskit/redteam",
+      "version": "0.3.13",
+      "integrity": "sha512-s13vNT2Qn36EF3vbICLmeZoK3v9a0gPDwvrnlFbGi9pk66pBDVP8bALR/R5CozWgKfxUfQeHY2I4FtR+WPx3UQ==",
+      "shasum": "c5f891d537ac2b3287b6e1b856c401f400afc91d",
+      "publishedAt": "2026-11-20T01:28:26.385Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/redteam@0.3.13"
+    },
+    {
+      "name": "@artemiskit/reports",
+      "version": "0.6.0",
+      "integrity": "sha512-o6xz0c2zX9lsGGOKamvqCWDHzvkB43WxqBH/SLg+H8gj+D3+EVZ8FmhXdoKjMHmzPz4TxDa4rl5AOP8PbXrVZQ==",
+      "shasum": "b8e4efe7542a72a609622435453b0d4f02157c34",
+      "publishedAt": "2026-11-20T01:30:53.010Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/reports@0.6.0"
+    },
+    {
+      "name": "@artemiskit/sdk",
+      "version": "0.7.0",
+      "integrity": "sha512-byWjGmvoEtH5Rw84s4zq1HYz5LS2+HhQUo8kwsr1YcUeKuZ7gjPq3mubNc6F5Jd9e3kFHAX9haHJKxOaPniOKw==",
+      "shasum": "37b0ea46c420a7e699cf83255f197499e7df2044",
+      "publishedAt": "2026-11-20T01:33:54.360Z",
+      "state": "published",
+      "annotatedTag": "@artemiskit/sdk@0.7.0"
+    }
+  ],
+  "remote": {
+    "status": "tags-pushed-and-verified",
+    "milestoneTag": "v0.7.0",
+    "candidate": "8c811f3b97b712a610a2f7fd60051d1b2df7e07d",
+    "remoteTagsVerified": 13,
+    "tagsGate": "bun scripts/verify-release.mjs tags docs/releases/0.7.0.json (run from the v0.7.0 revision): passed",
+    "completedGate": "bun scripts/verify-release.mjs completed docs/releases/0.7.0.json: passed",
+    "main": {
+      "commit": "06dfae2c8c4937f3af3dc2bd88c89ca097752040",
+      "note": "Merge of three remote-only docs commits (a64ca0a, f2827a0, 4e6b5ce) onto the candidate; no package payload changes. The release tags stay on the candidate."
+    },
+    "githubRelease": "not yet created"
+  },
+  "registryConsumer": {
+    "command": "node scripts/verify-package-consumers.mjs --registry --docker",
+    "source": "npm-registry",
+    "runtimes": {
+      "node": "v26.8.1",
+      "bun": "1.4.2"
+    },
+    "checks": [
+      "Node and Bun SDK experiment validate, run and report",
+      "live run refused without authorization",
+      "installed CLI parity with the SDK",
+      "TypeScript NodeNext and bundler consumers"
+    ],
+    "status": "passed"
+  },
+  "ci": {
+    "workflow": "Release",
+    "run": "https://github.com/code-sensei/artemiskit/actions/runs/44656017069",
+    "trigger": "push of main at 06dfae2",
+    "conclusion": "failure",
+    "detail": "The job was not started because the account is locked over billing. It ran for 3 seconds, published nothing and opened no pull request. The local publisher was the only publisher for this revision."
+  }
+}

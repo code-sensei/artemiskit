@@ -15,6 +15,8 @@ Welcome to the ArtemisKit documentation. This guide covers configuration, storag
 | [Workflow outcomes](./workflow-outcomes.md) | Independent assertions, bounded judging, task validity and saved records |
 | [Controlled execution](./workflow-execution.md) | 0.6.1 sessions, environments, budgets, preflight and evidence retention |
 | [0.6.x release plan](./releases/0.6.x-release-plan.md) | Complete milestone acceptance, independent package versions and sequential npm/tag publication |
+| [0.7.x release plan](./releases/0.7.x-release-plan.md) | Comparative experiment milestones, acceptance and sequential publication |
+| [0.7.0 release](./releases/0.7.0.md) | Published comparative experiment contract, verification and package map |
 | [Harness experiment](./agent-harness-experiment.md) | Reproducible native/AI SDK/Pi/fx findings and approved integration priorities |
 
 ## Getting Started
@@ -65,7 +67,9 @@ docs/
 ├── workflow-execution.md  # Controlled native session execution
 ├── agent-harness-experiment.md # Evidence behind optional harness decisions
 ├── releases/
-│   └── 0.6.x-release-plan.md # Sequential milestone acceptance and publication
+│   ├── 0.6.x-release-plan.md # Sequential milestone acceptance and publication
+│   ├── 0.7.x-release-plan.md # 0.7.x milestone acceptance and publication
+│   └── 0.7.0.md           # 0.7.0 release record (publication in 0.7.0-publication.json)
 ├── v0.4-assurance-improvements.md # Post-v0.4 assurance implementation plan
 ├── providers/
 │   ├── README.md          # Provider overview and comparison
@@ -148,6 +152,7 @@ Built-in evaluators for assessing LLM outputs:
 - [Agent-workflow design](./agent-workflow.md) - Workflow contract and milestone boundaries
 - [Controlled execution](./workflow-execution.md) - Native sessions, budgets and disposable environments
 - [0.6.x release plan](./releases/0.6.x-release-plan.md) - Milestone scope, acceptance and publishing gates
+- [0.7.x release plan](./releases/0.7.x-release-plan.md) - Comparative experiment milestones and publishing gates
 - [Harness experiment](./agent-harness-experiment.md) - Results and optional integration decisions
 - [Examples](../examples/README.md) - Sample scenarios
 

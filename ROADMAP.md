@@ -1,6 +1,6 @@
 # ArtemisKit public roadmap
 
-**Last updated:** 26 September 2026
+**Last updated:** 20 November 2026
 **Status:** Active development
 **License:** Apache-2.0
 
@@ -67,13 +67,15 @@ or mark a release complete before npm installation and remote tag verification p
 [0.6.x release and acceptance plan](docs/releases/0.6.x-release-plan.md).
 The [0.6.0 release record](docs/releases/0.6.0.md) records the published package versions,
 local and npm-installed validation, and matching remote tags.
+0.7.x follows the same rule in order, **0.7.0 → 0.7.1 → 0.7.2 → 0.7.3**; see the
+[0.7.x release plan](docs/releases/0.7.x-release-plan.md).
 
 | Target release | Theme | Primary outcome | Depends on |
 | --- | --- | --- | --- |
 | 0.4 | Evaluation integrity | Every case distinguishes a valid outcome from an invalid or unavailable measurement. | Released. |
 | 0.5.x | Reproducible evidence | A reviewer can identify what was tested, how, and with which configuration. | 0.4; 0.5.0–0.5.3 released. |
 | 0.6.x | Native harness and assessment-report foundation | Real tool-using agents run in declared environments; evidence becomes a professional assessment report. | 0.4, 0.5 |
-| 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6 |
+| 0.7.x | Comparative execution | Compatible scenario and agent workloads can run across providers/models with transparent repetition. | 0.4–0.6; 0.7.0 released. |
 | 0.8.x | Assessment profiles and control packs | Customer workflows, organizational rules, and reviewed scenario/control packs become first-class. | 0.5–0.7 |
 | 0.9.x | Continuous gates and leaderboard | Profile-aware release decisions and scenario-specific public results use the same evidence contract. | 0.4–0.8 |
 | 1.0.x | Stable assurance contracts | Public stability commitment for the core evidence, profile, and execution contracts. | 0.4–0.9 |
@@ -314,6 +316,11 @@ or existing provider adapter is not a production harness integration.
 
 #### 0.7.0 — Comparative experiment contract
 
+**Published and verified on npm (20 November 2026).** `akit experiment validate | run | report` and
+the matching SDK functions run scenario and agent-workflow tasks against two or more configured
+targets and report the saved result offline. See the [release record](docs/releases/0.7.0.md) and
+[publication record](docs/releases/0.7.0-publication.json).
+
 - Generalize task/model/repetition orchestration into a provider-neutral experiment definition.
 - Support compatible one-shot scenario workloads and multi-turn agent workloads without conflating them.
 - Declare targets, workload identities, repetition count, retry policy, concurrency, seed where
@@ -547,7 +554,7 @@ or a certification.
 
 ## 0.7 — Comparative benchmark execution
 
-**Status:** Planned
+**Status:** 0.7.0 published and verified on npm; 0.7.1–0.7.3 planned
 **Goal:** run compatible workloads across models and providers with transparent repetition and
 meaningful comparisons.
 
@@ -561,14 +568,14 @@ experiment identities and comparison rules.
 
 | Work item | Status |
 | --- | --- |
-| Same declared workload can run against at least two configured adapters | 📋 |
-| Unsupported capabilities are explicit rather than silently skipped | 📋 |
-| Retries never masquerade as independent repetitions | 📋 |
-| Incomplete experiments remain visible in aggregates | 📋 |
-| Compatibility checks cover workloads, rubrics, policies, and profiles | 📋 |
-| Per-model, task, policy, language, and operational summaries | 📋 |
-| Any uncertainty method documents sample size and assumptions | 📋 |
-| Live paid-provider evaluation has an explicit run budget and approval gate | 📋 |
+| Same declared workload can run against at least two configured adapters | ✅ 0.7.0 published and verified |
+| Unsupported capabilities are explicit rather than silently skipped | `capability_unsupported` shipped in 0.7.0; operator cancellation closes it in 0.7.1 |
+| Retries never masquerade as independent repetitions | ✅ 0.7.0 published and verified |
+| Incomplete experiments remain visible in aggregates | Explicit denominators shipped in 0.7.0; cancelled coordinates in 0.7.1 |
+| Compatibility checks cover workloads, rubrics, policies, and profiles | `assessExperimentCompatibility()` exported in 0.7.0; comparison gating in 0.7.1 |
+| Per-model, task, policy, language, and operational summaries | Target, task, language and policy summaries shipped in 0.7.0; remaining dimensions in 0.7.2 |
+| Any uncertainty method documents sample size and assumptions | 0.7.0 records `uncertainty.method: none`; methods in 0.7.2 |
+| Live paid-provider evaluation has an explicit run budget and approval gate | Live authorization and budgets shipped in 0.7.0; full envelope and paid-provider qualification in 0.7.3 |
 
 ## 0.8 — Assessment profiles, policy controls, and reviewed packs
 

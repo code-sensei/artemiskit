@@ -377,6 +377,17 @@
       "reason": "Needs 0.7.0 on npm."
     }
   ],
+  "publication": {
+    "status": "published-and-verified",
+    "note": "The not_run entries above describe the gate window. All three ran after approval; see the publication record.",
+    "record": "docs/releases/0.7.0-publication.json",
+    "candidate": "8c811f3b97b712a610a2f7fd60051d1b2df7e07d",
+    "publisher": "./scripts/publish.sh --publish-only: 12 packages published",
+    "registryGate": "bun scripts/verify-release.mjs registry docs/releases/0.7.0.json: passed",
+    "registryConsumers": "node scripts/verify-package-consumers.mjs --registry --docker: passed",
+    "remoteTags": "all 12 package tags plus v0.7.0 resolve to 8c811f3b97b712a610a2f7fd60051d1b2df7e07d",
+    "completedGate": "bun scripts/verify-release.mjs completed docs/releases/0.7.0.json: passed"
+  },
   "local_qualification": "docs/releases/0.7.0-local-qualification.json (recorded, not reviewed)",
   "limitations": [
     "macOS arm64 only; GitHub Actions is not running, so local gates are authoritative.",

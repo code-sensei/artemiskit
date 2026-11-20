@@ -14,14 +14,8 @@ import { isLoopbackEndpoint } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
 import type { ReasoningEffort } from 'openai/resources/shared';
+import { runtimeFetch } from './runtime-fetch';
 import type { AzureOpenAIAdapterConfig, OpenAIAdapterConfig } from './types';
-
-/**
- * Send requests through the runtime's WHATWG fetch. Without this, the Node-targeted bundle uses the
- * SDK's node-fetch fallback, which calls the deprecated url.parse() and prints a DEP0169 warning.
- * Resolved per call so test doubles installed on globalThis.fetch still apply.
- */
-const runtimeFetch = (...args: Parameters<typeof fetch>) => globalThis.fetch(...args);
 
 export class OpenAIAdapter implements ModelClient {
   private client: OpenAI;

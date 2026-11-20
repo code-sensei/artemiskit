@@ -8,13 +8,7 @@ import type {
 } from '@artemiskit/core';
 import { nanoid } from 'nanoid';
 import OpenAI from 'openai';
-
-/**
- * Send requests through the runtime's WHATWG fetch. Without this, the Node-targeted bundle uses the
- * SDK's node-fetch fallback, which calls the deprecated url.parse() and prints a DEP0169 warning.
- * Resolved per call so test doubles installed on globalThis.fetch still apply.
- */
-const runtimeFetch = (...args: Parameters<typeof fetch>) => globalThis.fetch(...args);
+import { runtimeFetch } from './runtime-fetch';
 
 export class LingAdapter implements ModelClient {
   readonly provider = 'ling';

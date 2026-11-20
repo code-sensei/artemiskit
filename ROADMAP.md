@@ -330,7 +330,7 @@ targets and report the saved result offline. See the [release record](docs/relea
 
 #### 0.7.1 — Long-request and reasoning-config fixes (patch)
 
-Versioned on 20 November 2026; final local gate and publication pending. Ships two fixes
+Versioned and gated locally on 20 November 2026; publication pending approval. Ships two fixes
 found during the 0.7.0 local benchmark runs and adds no capability. See the
 [release record](docs/releases/0.7.1.md). The milestones previously planned as 0.7.1–0.7.3 are
 now 0.7.2–0.7.4 with unchanged scope, because core's version names the milestone and these
@@ -563,7 +563,7 @@ or a certification.
 
 ## 0.7 — Comparative benchmark execution
 
-**Status:** 0.7.0 published and verified on npm; 0.7.1 patch versioned, publication pending; 0.7.2–0.7.4 planned
+**Status:** 0.7.0 published and verified on npm; 0.7.1 patch gated, publication pending; 0.7.2–0.7.4 planned
 **Goal:** run compatible workloads across models and providers with transparent repetition and
 meaningful comparisons.
 

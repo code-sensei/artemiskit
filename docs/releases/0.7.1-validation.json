@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "milestone": "0.7.1",
+  "record": "final-local-release-gate",
+  "status": "passed",
+  "candidate": {
+    "commit": "b1c4ff8bcbfabca713a7c25a7c58385dd043a0df",
+    "subject": "chore(lint): ignore the local private-evaluations folder in Biome",
+    "branch": "main",
+    "note": "Every gate ran on this commit with a clean tracked tree. It follows the version commit e24e6625b472a61e32644015972f26502218628b and changes only biome.json. The commit that adds this record changes only release documentation, not package payloads."
+  },
+  "date": "2026-11-20",
+  "window_utc": {
+    "start": "2026-11-20T15:57:21Z",
+    "end": "2026-11-20T16:11:15Z"
+  },
+  "environment": {
+    "bun": "1.4.2",
+    "node": "v26.8.1",
+    "npm": "12.2.0",
+    "os": "macOS 26.6.2 (25G83) arm64",
+    "host": "Apple M5 Pro",
+    "docker_server": "29.9.2",
+    "machine_load": "Load average 8-17 during the gate; a local benchmark run (Ollama) was in progress on the same host and was not interrupted."
+  },
+  "version_commit": {
+    "commit": "e24e6625b472a61e32644015972f26502218628b",
+    "command": "bun run version",
+    "changesets_consumed": 2,
+    "changesets": [
+      ".changeset/bun-fetch-timeout.md",
+      ".changeset/cli-reasoning-config-passthrough.md"
+    ],
+    "lockfile": "scripts/sync-workspace-versions.mjs synchronized 13 workspace versions in bun.lock (version fields only)",
+    "formatting": "changeset version expanded single-line arrays in package.json files; they were restored so each package.json diff is the version line only, as in the 0.7.0 version commit",
+    "changeset_status_after": "bunx changeset status: no packages to be bumped (patch, minor or major)",
+    "manifest": "docs/releases/0.7.1.json matches the produced versions exactly",
+    "unchanged": ["@artemiskit/mcp-docker-sandbox@0.1.0"]
+  },
+  "packages": {
+    "@artemiskit/adapter-anthropic": "0.1.26",
+    "@artemiskit/adapter-deepagents": "0.2.15",
+    "@artemiskit/adapter-langchain": "0.2.15",
+    "@artemiskit/adapter-ling": "0.1.14",
+    "@artemiskit/adapter-openai": "0.2.1",
+    "@artemiskit/adapter-trueforge": "0.1.14",
+    "@artemiskit/adapter-vercel-ai": "0.1.26",
+    "@artemiskit/cli": "0.7.1",
+    "@artemiskit/core": "0.7.1",
+    "@artemiskit/mcp-docker-sandbox": "0.1.0",
+    "@artemiskit/redteam": "0.3.14",
+    "@artemiskit/reports": "0.6.1",
+    "@artemiskit/sdk": "0.7.1"
+  },
+  "gates": [
+    {
+      "name": "install",
+      "command": "bun install --frozen-lockfile",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "detail": "383 packages checked, no changes; lockfile unchanged"
+    },
+    {
+      "name": "build",
+      "command": "bun run build",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "detail": "all workspace packages built; 15 s wall"
+    },
+    {
+      "name": "typecheck",
+      "command": "bun run typecheck",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "detail": "13/13 packages plus typecheck:scripts (tsc -p tsconfig.scripts.json)"
+    },
+    {
+      "name": "lint",
+      "command": "bun run lint",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "errors": 0,
+      "warnings": 29,
+      "baseline_warnings": 29,
+      "detail": "All 29 warnings are the established noExplicitAny warnings in packages/sdk.",
+      "fixed_failure": {
+        "first_run": "On the version commit, bun run lint exited 1 with 13 errors and 41 warnings. All 13 errors and 12 warnings were in private-evaluations/, a local folder excluded from git through .git/info/exclude but not ignored by Biome; tracked code had 0 errors and the 29 baseline warnings.",
+        "fix": "b1c4ff8 adds private-evaluations to biome.json files.ignore, alongside the other local evaluation folders. No tracked source changed."
+      }
+    },
+    {
+      "name": "tests",
+      "command": "bun test",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "passed": 2968,
+      "failed": 0,
+      "assertions": 31885,
+      "files": 136,
+      "seconds": 183.72,
+      "tracked": {
+        "passed": 2956,
+        "assertions": 31833,
+        "files": 134
+      },
+      "detail": "bun test also discovers 2 test files (12 tests, 52 assertions, all passing) in the git-excluded private-evaluations/ folder; the tracked figures exclude them. The 4 test files added since 0.7.0 are the three adapter runtime-fetch tests and packages/cli/src/utils/adapter.test.ts."
+    },
+    {
+      "name": "script-tests",
+      "command": "bun test scripts",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "passed": 56,
+      "failed": 0,
+      "assertions": 243,
+      "files": 5,
+      "seconds": 3.67
+    },
+    {
+      "name": "pack-tests",
+      "command": "bun test packs",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "passed": 814,
+      "failed": 0,
+      "assertions": 10136,
+      "files": 3,
+      "seconds": 40.62
+    },
+    {
+      "name": "migration-integrity",
+      "command": "bun run test:migration:integrity",
+      "result": "not-run",
+      "reason": "No migration changed since 0.7.0: git diff 8c811f3 HEAD -- supabase is empty. The 0.7.0 gate passed it on the same migrations."
+    },
+    {
+      "name": "packed-fresh-consumers",
+      "command": "node scripts/verify-package-consumers.mjs --docker",
+      "runtime": {
+        "bun": "1.4.2",
+        "node": "v26.8.1"
+      },
+      "result": "passed",
+      "attempts": 1,
+      "seconds": 105,
+      "detail": "Packed all 13 public packages with bun pm pack and installed the exact tarballs together into a fresh consumer outside the workspace. Passed on the first attempt; the load-sensitive 5,000 ms Docker read timeout did not occur, so no rerun was needed.",
+      "completed_at": "2026-11-20T16:04:51.609Z",
+      "repository_revision": "b1c4ff8bcbfabca713a7c25a7c58385dd043a0df",
+      "source": "local-tarballs",
+      "sandbox_image": "oven/bun:1.3.10-alpine",
+      "sandbox_image_digest": "sha256:32f1fcccb1523960b254c4f80973bee1a910d60be000a45c20c9129a1efcffee",
+      "experiment_results": {
+        "packs_validated": 9,
+        "sdk_node": {
+          "planned": 4,
+          "valid": 4,
+          "passed": 4,
+          "report_files": 6
+        },
+        "sdk_bun": {
+          "planned": 4,
+          "valid": 4,
+          "passed": 4,
+          "report_files": 6
+        },
+        "cli": "run and report agree with the Node and Bun SDK; unapproved live run refused offline"
+      },
+      "checks": [
+        "node-imports",
+        "bun-imports",
+        "workflow-schema",
+        "approval-permissions",
+        "openai-tool-continuation",
+        "ling-tool-continuation",
+        "native-workflow-sessions",
+        "deterministic-outcomes-and-json-schema",
+        "explicit-semantic-judge-and-separate-usage",
+        "saved-v1-v2-v3-compatibility",
+        "offline-workflow-reports-three-views-html-markdown-cli-sdk",
+        "report-resume-denominators-evidence-links-redaction-no-clobber",
+        "separate-process-sdk-checkpoint-resume-node-bun",
+        "checkpoint-identity-budgets-cursor-terminal-refusal-privacy",
+        "task-outcome-cli-exits-and-judge-cancellation",
+        "experiment-pack-validation-cli-sdk-node-bun",
+        "experiment-fixture-run-report-two-kinds-cli-sdk-parity",
+        "experiment-live-refused-without-approval",
+        "bun-cli",
+        "workflow-cli-execution-preflight-interruption",
+        "real-docker-node-bun-sdk-and-cli",
+        "typescript-nodenext",
+        "typescript-bundler",
+        "declaration-finalizer"
+      ],
+      "limitations": [
+        "No external model calls; other providers import-only.",
+        "CLI/MCP retain Bun runtime.",
+        "Docker requires the fixed local image and a trusted local daemon.",
+        "TypeScript uses skipLibCheck for third-party declarations."
+      ]
+    },
+    {
+      "name": "release-verifier-local",
+      "command": "bun scripts/verify-release.mjs local docs/releases/0.7.1.json",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "output": {
+        "milestone": "0.7.1",
+        "mode": "local",
+        "packages": 12,
+        "status": "passed"
+      }
+    },
+    {
+      "name": "release-verifier-prepublish",
+      "command": "bun scripts/verify-release.mjs prepublish docs/releases/0.7.1.json",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "output": {
+        "milestone": "0.7.1",
+        "mode": "prepublish",
+        "packages": 12,
+        "status": "passed"
+      },
+      "detail": "Read-only npm registry and git ls-remote. 0.7.0 is complete, no 0.7.1 tag identifies another revision, and every workspace version outside the map (mcp-docker-sandbox 0.1.0) is already on npm."
+    },
+    {
+      "name": "previous-milestone",
+      "command": "bun scripts/verify-release.mjs completed docs/releases/0.7.0.json",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "output": {
+        "milestone": "0.7.0",
+        "mode": "completed",
+        "packages": 12,
+        "status": "passed"
+      }
+    },
+    {
+      "name": "publication-plan",
+      "command": "env -u NPM_TOKEN -u NPM_API_KEY -u NODE_AUTH_TOKEN bun scripts/npm-publication.mjs --dry-run",
+      "runtime": {
+        "bun": "1.4.2"
+      },
+      "result": "passed",
+      "credential": "none in environment",
+      "output": {
+        "status": "dry-run",
+        "packages": [
+          "@artemiskit/core@0.7.1",
+          "@artemiskit/adapter-anthropic@0.1.26",
+          "@artemiskit/adapter-deepagents@0.2.15",
+          "@artemiskit/adapter-langchain@0.2.15",
+          "@artemiskit/adapter-ling@0.1.14",
+          "@artemiskit/adapter-openai@0.2.1",
+          "@artemiskit/adapter-trueforge@0.1.14",
+          "@artemiskit/adapter-vercel-ai@0.1.26",
+          "@artemiskit/redteam@0.3.14",
+          "@artemiskit/reports@0.6.1",
+          "@artemiskit/sdk@0.7.1",
+          "@artemiskit/cli@0.7.1"
+        ]
+      },
+      "detail": "Dependency-ordered plan of the 12 manifest packages; mcp-docker-sandbox excluded. No receipts were written."
+    }
+  ],
+  "archives": {
+    "note": "Local bun pm pack archives from the consumer gate (sha512 of the exact tarball bytes). The publisher repacks at publication and records registry integrities in 0.7.1-publication.json. The mcp-docker-sandbox 0.1.0 archive is byte-identical to the one recorded for 0.7.0.",
+    "items": [
+      {
+        "archive": "artemiskit-adapter-anthropic-0.1.26.tgz",
+        "bytes": 135985,
+        "integrity": "sha512-xwL0GTwDsA/hIuUazM0nbTQPwRsuBAqrJds4x1igoe1HRPuq9EG5mV33ziFoDBX3/1n4/AHDJwnF1VhXMvwBXw=="
+      },
+      {
+        "archive": "artemiskit-adapter-deepagents-0.2.15.tgz",
+        "bytes": 16685,
+        "integrity": "sha512-4cHSPMuE7ZQT8b3NrgQh24/XMeWD8XtcGiEDCuOZkES/aUyMs3RKUToveC8ig+/W74neNk9wqACIHKIa4K+YHA=="
+      },
+      {
+        "archive": "artemiskit-adapter-langchain-0.2.15.tgz",
+        "bytes": 11738,
+        "integrity": "sha512-lMLRLu+Q11ByTYyUQVXIE+/sC6Le0j948U8aHhfPcHTWuQiqyb+YdDsD89Km8fDY0vudQaJoAbecqoaclbMxQA=="
+      },
+      {
+        "archive": "artemiskit-adapter-ling-0.1.14.tgz",
+        "bytes": 153533,
+        "integrity": "sha512-KZDPTJazAJlO5dzpmo5Nix0Kl3ZNLhNzuoO+4k3uYiN0Qo/Yr6+/iBEcqGfH/KtZcK5hBn3WszRlo+ybrp2nRA=="
+      },
+      {
+        "archive": "artemiskit-adapter-openai-0.2.1.tgz",
+        "bytes": 164945,
+        "integrity": "sha512-FxB1V36LWHDIjnRnrjp8LSs5wxdHwwq2206Oea4GOadcEdA/HAnkbysjPi8622WCpflJ/6M3htX13MpeQY3UqQ=="
+      },
+      {
+        "archive": "artemiskit-adapter-trueforge-0.1.14.tgz",
+        "bytes": 51082,
+        "integrity": "sha512-0BmUOKVcR27mH47B98XaGgB0ZyushCrr60c3aW3nal2+dN5sQA7GYGWlEV2mOT9/PWMkMhkky2Oo6/EqGvI2Vw=="
+      },
+      {
+        "archive": "artemiskit-adapter-vercel-ai-0.1.26.tgz",
+        "bytes": 175221,
+        "integrity": "sha512-jOMDbW8Il6DDfM/ux3VbO1XLRPbnPsStUKFVNuKib33cWaAYY/2du1rh+Mg8hfNRRizw5+mmwcPGc5NmoW4wAA=="
+      },
+      {
+        "archive": "artemiskit-cli-0.7.1.tgz",
+        "bytes": 1124168,
+        "integrity": "sha512-5d+CW+kPqRhqfwGEAnixXk/xlE+vX6p+hQWzBZ9O3QP2U0Bh1efjftd0aXjRQxho5C53ljdvwof4RR3W4JnlkA=="
+      },
+      {
+        "archive": "artemiskit-core-0.7.1.tgz",
+        "bytes": 678335,
+        "integrity": "sha512-SpAtWEbW9tUrL2oQVvCtxth5b4ww6tFuliVcFGkHvUPsm02CXgbXUzW+e5vqw9MjvkvpLuKiNRu7aiFQE51rIQ=="
+      },
+      {
+        "archive": "artemiskit-mcp-docker-sandbox-0.1.0.tgz",
+        "bytes": 212396,
+        "integrity": "sha512-VJAhV4sv4jV2L8wGW+SPoVi7Oychc/QTAUnWCFak0E3AHsm6I0S9GydI29aIuFipjjp8PNig9i7s9wzP4RTEow=="
+      },
+      {
+        "archive": "artemiskit-redteam-0.3.14.tgz",
+        "bytes": 200518,
+        "integrity": "sha512-9RxhYNRnBGGZa3n3FxfkNQw9qkaMCQGqWNCOfIIopj2asH4Qk/i2oe2Ekc4F7UQdTJ99N3a4ma+C6yr+zpXl8Q=="
+      },
+      {
+        "archive": "artemiskit-reports-0.6.1.tgz",
+        "bytes": 205761,
+        "integrity": "sha512-5U7J68M4qQrxTDxIoFekYYqMGCsNAEKQns4t/+7nhiwtCgo06A/PgMT+Co2/P8GVoX5qIfWlhXMyUm3UVvJLaQ=="
+      },
+      {
+        "archive": "artemiskit-sdk-0.7.1.tgz",
+        "bytes": 284470,
+        "integrity": "sha512-LAHBSy7Wbr5SEBFrILEH/BEqkZLpmR1/85Ffx2izL1FGYQ9tD9O12IiQIsZ+4QcBdVrhn7Mhdwysy5I5DjW63g=="
+      }
+    ]
+  },
+  "not_run": [
+    {
+      "command": "./scripts/publish.sh --preflight | --publish-only | --dry-run",
+      "reason": "Authenticates to npm; requires owner approval."
+    },
+    {
+      "command": "bun scripts/verify-release.mjs registry|tags docs/releases/0.7.1.json",
+      "reason": "Post-publication checks; nothing is published or tagged yet."
+    },
+    {
+      "command": "node scripts/verify-package-consumers.mjs --registry --docker",
+      "reason": "Needs 0.7.1 on npm."
+    },
+    {
+      "command": "bun run test:migration:integrity",
+      "reason": "No migration changed since 0.7.0."
+    }
+  ],
+  "limitations": [
+    "macOS arm64 only; GitHub Actions is not running, so local gates are authoritative.",
+    "Gates ran on a loaded host (benchmark in progress); timings are contended.",
+    "No external model calls; the consumer and fixture gates run offline. The Bun fetch fix is covered by unit tests with a fetch double, not by a live long-running request."
+  ]
+}

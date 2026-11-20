@@ -139,7 +139,15 @@
       "commit": "06dfae2c8c4937f3af3dc2bd88c89ca097752040",
       "note": "Merge of three remote-only docs commits (a64ca0a, f2827a0, 4e6b5ce) onto the candidate; no package payload changes. The release tags stay on the candidate."
     },
-    "githubRelease": "not yet created"
+    "githubRelease": {
+      "url": "https://github.com/code-sensei/artemiskit/releases/tag/v0.7.0",
+      "publishedAt": "2026-11-20T01:53:36Z"
+    },
+    "docs": {
+      "repository": "https://github.com/code-sensei/artemiskit-docs",
+      "commit": "830523e8623262c176ff039934bf903daa089f2b",
+      "submodulePointerCommit": "28bacac"
+    }
   },
   "registryConsumer": {
     "command": "node scripts/verify-package-consumers.mjs --registry --docker",
